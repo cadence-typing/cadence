@@ -1,0 +1,57 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/trainer",
+    "crates/engine",
+    "crates/data",
+    "crates/tui",
+    "crates/runtime",
+    "crates/driver",
+    "crates/app",
+    "xtask",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/tknawara/cadence"
+publish = false
+
+[workspace.lints.rust]
+warnings = "deny"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+undocumented_unsafe_blocks = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+integer_division = "warn"
+cast_possible_truncation = "warn"
+cast_possible_wrap = "warn"
+
+[workspace.dependencies]
+cadence-core = { path = "crates/core" }
+cadence-trainer = { path = "crates/trainer" }
+cadence-engine = { path = "crates/engine" }
+cadence-data = { path = "crates/data" }
+cadence-tui = { path = "crates/tui" }
+cadence-runtime = { path = "crates/runtime" }
+cadence-driver = { path = "crates/driver" }
+
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+toml = "0.9.8"
+ratatui = "0.29.0"
+crossterm = "0.29.0"
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+proptest = "1.8.0"
+sha2 = "0.10.9"
+rand = "0.9.2"
+rand_chacha = "0.9.0"

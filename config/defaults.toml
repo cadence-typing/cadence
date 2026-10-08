@@ -1,0 +1,38 @@
+schema_version = 1
+
+[practice]
+duration_seconds = 900
+tracks = ["words", "number_row", "numpad", "prose"]
+accuracy_target_basis_points = 9800
+correction_mode = "required"
+live_pace = false
+word_breadth = "balanced"
+punctuation = "everyday"
+capitalization = true
+developer_pack = false
+
+[keyboard]
+layout = "unconfigured"
+numpad = true
+decimal_separator = "."
+guide = "auto"
+
+[display]
+theme = "cadence-dark"
+animation = false
+high_contrast = false
+
+[privacy]
+telemetry = false
+content_trace = false
+
+[storage]
+checkpoint_interval_milliseconds = 2000
+operational_log_limit_bytes = 10485760
+# Durable progress never belongs in this disposable-cache budget.
+cache_limit_bytes = 268435456
+
+[imports]
+maximum_bytes = 10485760
+prose_typography_normalization = "preview_then_accept"
+code_normalization = "exact"

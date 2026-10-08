@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "scope": "hand-calculated positional scoring examples; no application executed",
+  "cases": [
+    {
+      "id": "corrected-error",
+      "target": "cat",
+      "events": [
+        "c",
+        "x",
+        "Backspace",
+        "a",
+        "t"
+      ],
+      "active_microseconds": 3000000,
+      "interrupted": false,
+      "expected": {
+        "first_correct": 2,
+        "first_attempted": 3,
+        "correct_attempts": 3,
+        "content_attempts": 4,
+        "deletions": 1,
+        "overflow_attempts": 0,
+        "correct_visible_units": 3,
+        "clean_completion": false,
+        "correct_wpm_fraction": [
+          180000000,
+          15000000
+        ],
+        "measurement_uninterrupted": true
+      }
+    },
+    {
+      "id": "clean",
+      "target": "cat",
+      "events": [
+        "c",
+        "a",
+        "t"
+      ],
+      "active_microseconds": 3000000,
+      "interrupted": false,
+      "expected": {
+        "first_correct": 3,
+        "first_attempted": 3,
+        "correct_attempts": 3,
+        "content_attempts": 3,
+        "deletions": 0,
+        "overflow_attempts": 0,
+        "correct_visible_units": 3,
+        "clean_completion": true,
+        "correct_wpm_fraction": [
+          180000000,
+          15000000
+        ],
+        "measurement_uninterrupted": true
+      }
+    },
+    {
+      "id": "first-correct-later-edited",
+      "target": "cat",
+      "events": [
+        "c",
+        "a",
+        "Backspace",
+        "x",
+        "Backspace",
+        "a",
+        "t"
+      ],
+      "active_microseconds": 6000000,
+      "interrupted": false,
+      "expected": {
+        "first_correct": 3,
+        "first_attempted": 3,
+        "correct_attempts": 4,
+        "content_attempts": 5,
+        "deletions": 2,
+        "overflow_attempts": 0,
+        "correct_visible_units": 3,
+        "clean_completion": false,
+        "correct_wpm_fraction": [
+          180000000,
+          30000000
+        ],
+        "measurement_uninterrupted": true
+      }
+    },
+    {
+      "id": "overflow-then-correction",
+      "target": "cat",
+      "events": [
+        "c",
+        "a",
+        "x",
+        "z",
+        "Backspace",
+        "Backspace",
+        "t"
+      ],
+      "active_microseconds": 6000000,
+      "interrupted": false,
+      "expected": {
+        "first_correct": 2,
+        "first_attempted": 3,
+        "correct_attempts": 3,
+        "content_attempts": 5,
+        "deletions": 2,
+        "overflow_attempts": 1,
+        "correct_visible_units": 3,
+        "clean_completion": false,
+        "correct_wpm_fraction": [
+          180000000,
+          30000000
+        ],
+        "measurement_uninterrupted": true
+      }
+    },
+    {
+      "id": "incomplete",
+      "target": "cat",
+      "events": [
+        "c",
+        "x"
+      ],
+      "active_microseconds": 3000000,
+      "interrupted": false,
+      "expected": {
+        "first_correct": 1,
+        "first_attempted": 2,
+        "correct_attempts": 1,
+        "content_attempts": 2,
+        "deletions": 0,
+        "overflow_attempts": 0,
+        "correct_visible_units": 1,
+        "clean_completion": false,
+        "correct_wpm_fraction": [
+          60000000,
+          15000000
+        ],
+        "measurement_uninterrupted": true
+      }
+    },
+    {
+      "id": "empty",
+      "target": "cat",
+      "events": [],
+      "active_microseconds": 0,
+      "interrupted": false,
+      "expected": {
+        "first_correct": 0,
+        "first_attempted": 0,
+        "correct_attempts": 0,
+        "content_attempts": 0,
+        "deletions": 0,
+        "overflow_attempts": 0,
+        "correct_visible_units": 0,
+        "clean_completion": false,
+        "correct_wpm_fraction": null,
+        "measurement_uninterrupted": true
+      }
+    },
+    {
+      "id": "interrupted-clean",
+      "target": "cat",
+      "events": [
+        "c",
+        "a",
+        "t"
+      ],
+      "active_microseconds": 3000000,
+      "interrupted": true,
+      "expected": {
+        "first_correct": 3,
+        "first_attempted": 3,
+        "correct_attempts": 3,
+        "content_attempts": 3,
+        "deletions": 0,
+        "overflow_attempts": 0,
+        "correct_visible_units": 3,
+        "clean_completion": false,
+        "correct_wpm_fraction": [
+          180000000,
+          15000000
+        ],
+        "measurement_uninterrupted": false
+      }
+    },
+    {
+      "id": "numeric-exact-string",
+      "target": "005.20",
+      "events": [
+        "0",
+        "0",
+        "5",
+        ".",
+        "2",
+        "0"
+      ],
+      "active_microseconds": 60000000,
+      "interrupted": false,
+      "expected": {
+        "first_correct": 6,
+        "first_attempted": 6,
+        "correct_attempts": 6,
+        "content_attempts": 6,
+        "deletions": 0,
+        "overflow_attempts": 0,
+        "correct_visible_units": 6,
+        "clean_completion": true,
+        "correct_wpm_fraction": [
+          360000000,
+          300000000
+        ],
+        "measurement_uninterrupted": true
+      },
+      "numeric_expected": {
+        "correct_digits": 5,
+        "digits_per_minute_fraction": [
+          300000000,
+          60000000
+        ],
+        "submitted_exact": true,
+        "clean_entry": true,
+        "submit_enter_is_content": false
+      }
+    }
+  ],
+  "timing_case": {
+    "elapsed_microseconds": 13000000,
+    "pauses": [
+      [
+        500000,
+        10500000
+      ]
+    ],
+    "expected_active_microseconds": 3000000,
+    "benchmark_eligible": false
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "id": "scoring-cat",
+      "description": "Synthetic isolated corpus and explicit words drill whose immutable target is cat",
+      "target": "cat",
+      "rng_seed": "1",
+      "clock": "virtual",
+      "profile_kind": "synthetic",
+      "auto_deliver_services": true
+    },
+    {
+      "id": "daily-small",
+      "description": "Synthetic tiny corpus for headless plan control paths; not a release content pack",
+      "rng_seed": "42",
+      "clock": "virtual",
+      "profile_kind": "synthetic",
+      "auto_deliver_services": true,
+      "words": [
+        "street",
+        "strong",
+        "almost",
+        "string",
+        "first",
+        "stream",
+        "understand",
+        "structure",
+        "clear",
+        "purpose",
+        "system",
+        "simple",
+        "practice",
+        "result",
+        "number",
+        "precision",
+        "daily",
+        "pattern",
+        "steady",
+        "thought"
+      ]
+    }
+  ]
+}

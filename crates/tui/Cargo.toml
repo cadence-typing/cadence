@@ -1,0 +1,20 @@
+[package]
+name = "cadence-tui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Pure layout/paint from prepared view models; shared Ratatui draw and cell capture for live and headless."
+
+[lints]
+workspace = true
+
+[dependencies]
+cadence-core.workspace = true
+cadence-engine.workspace = true
+ratatui.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cadence:frame:1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "columns": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 240
+    },
+    "rows": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 80
+    },
+    "prepared_view_revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$",
+      "maxLength": 20
+    },
+    "cells": {
+      "type": "array",
+      "maxItems": 19200,
+      "items": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "continuation": {
+            "type": "boolean"
+          },
+          "foreground": {
+            "type": "string"
+          },
+          "background": {
+            "type": "string"
+          },
+          "modifiers": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "bold",
+                "dim",
+                "italic",
+                "underline",
+                "reverse",
+                "hidden",
+                "crossed_out"
+              ]
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "symbol",
+          "width",
+          "continuation",
+          "foreground",
+          "background",
+          "modifiers"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cursor": {
+      "type": "object",
+      "properties": {
+        "visible": {
+          "type": "boolean"
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 239
+        },
+        "row": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 79
+        }
+      },
+      "required": [
+        "visible",
+        "column",
+        "row"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "columns",
+    "rows",
+    "prepared_view_revision",
+    "cells",
+    "cursor"
+  ],
+  "additionalProperties": false
+}

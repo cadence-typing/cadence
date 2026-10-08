@@ -1,0 +1,16 @@
+[package]
+name = "cadence-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Pure domain foundations: typed identities, checked time/units, error taxonomy. No terminal, SQL, OS time or runtime."
+
+[lints]
+workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+proptest.workspace = true

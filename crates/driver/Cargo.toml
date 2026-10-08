@@ -1,0 +1,23 @@
+[package]
+name = "cadence-driver"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Versioned NDJSON commands, deterministic fixtures/clock, trace/replay, headless harness sharing the live engine and renderer."
+
+[lints]
+workspace = true
+
+[dependencies]
+cadence-core.workspace = true
+cadence-engine.workspace = true
+cadence-runtime.workspace = true
+cadence-tui.workspace = true
+ratatui.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

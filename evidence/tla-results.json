@@ -1,0 +1,104 @@
+{
+  "scope": "bounded abstract design checks only",
+  "tool": "TLC 1.7.4",
+  "tool_sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+  "all_passed": true,
+  "cases": [
+    {
+      "module": "AsyncAdmission",
+      "config": "AsyncAdmission.cfg",
+      "expected_fault": null,
+      "passed": true,
+      "return_code": 0,
+      "model_sha256": "2de241519a89346308275d1361b8c99cb585ce2cdeba8ebba24fa7409ca4dc64",
+      "config_sha256": "4314e17d936432b26421c76808f29b0912db3d297a0f8bab70ca588899174b01",
+      "log_sha256": "22ef065cb0f6ea736b4f9ba115132049404e26181215359cb5bfcfc60d5ba6fa",
+      "states_generated": 831,
+      "distinct_states": 255
+    },
+    {
+      "module": "DurableCheckpoint",
+      "config": "DurableCheckpoint.cfg",
+      "expected_fault": null,
+      "passed": true,
+      "return_code": 0,
+      "model_sha256": "3bc858e533a0a8c7f49f041d54fb0342dbb988109a0ff2502be1e8b531546973",
+      "config_sha256": "a98bad523fa578650f466c46a6771564f08940d0e84a0aaaffb10c6cb8ff1a89",
+      "log_sha256": "c5185dccf2a5c884ba2a87b0467f23e7fd293db72b8c32d27992b89f6434059c",
+      "states_generated": 412,
+      "distinct_states": 72
+    },
+    {
+      "module": "CausalBarrier",
+      "config": "CausalBarrier.cfg",
+      "expected_fault": null,
+      "passed": true,
+      "return_code": 0,
+      "model_sha256": "55c83a20a9d00a7eebb5b53b6d612e5686941206c7c1cb4deb77c1f0a61b866f",
+      "config_sha256": "1dca3accfee8eec25775b527846f8a5e80a2c51e8cb787a5514c9d3359c1b142",
+      "log_sha256": "0a4aa42b92315c4205d33707cd445d334211866e550555420ee614153702a809",
+      "states_generated": 9,
+      "distinct_states": 9
+    },
+    {
+      "module": "AsyncAdmission",
+      "config": "AsyncAdmission-no-epoch.cfg",
+      "expected_fault": "AcceptedFresh",
+      "passed": true,
+      "return_code": 12,
+      "model_sha256": "2de241519a89346308275d1361b8c99cb585ce2cdeba8ebba24fa7409ca4dc64",
+      "config_sha256": "3920e2d3704712fb7bc0044281e5ef41729c91c530d9f49ee9b400fd98cb0c9c",
+      "log_sha256": "18600057de547c03ff437dffa5ef1c971293f9c020dd2a6d84fa9c565dde0090",
+      "states_generated": 17,
+      "distinct_states": 15
+    },
+    {
+      "module": "AsyncAdmission",
+      "config": "AsyncAdmission-no-pending.cfg",
+      "expected_fault": "AtMostOnce",
+      "passed": true,
+      "return_code": 12,
+      "model_sha256": "2de241519a89346308275d1361b8c99cb585ce2cdeba8ebba24fa7409ca4dc64",
+      "config_sha256": "3a652371c5b3ec470d5a4a54949fd8c1219470094c4fe2e1d1b7c74c55a6efa8",
+      "log_sha256": "439566df4a305d93a00354a13f2bd818a8089afe83fb6b19ec40ebd410183957",
+      "states_generated": 20,
+      "distinct_states": 18
+    },
+    {
+      "module": "DurableCheckpoint",
+      "config": "DurableCheckpoint-early-ack.cfg",
+      "expected_fault": "AckIsDurable",
+      "passed": true,
+      "return_code": 12,
+      "model_sha256": "3bc858e533a0a8c7f49f041d54fb0342dbb988109a0ff2502be1e8b531546973",
+      "config_sha256": "d2380f3fbb7797491ded65089bb2b651d427beaf2132665597c4c41023d90adb",
+      "log_sha256": "be70fc40d89a3b7a3c1d87a8159b07c244ca4748576e080df6ab851882d540b7",
+      "states_generated": 6,
+      "distinct_states": 5
+    },
+    {
+      "module": "DurableCheckpoint",
+      "config": "DurableCheckpoint-double-credit.cfg",
+      "expected_fault": "NoDoubleCredit",
+      "passed": true,
+      "return_code": 12,
+      "model_sha256": "3bc858e533a0a8c7f49f041d54fb0342dbb988109a0ff2502be1e8b531546973",
+      "config_sha256": "c160013a64e63f61baae27216f3147914e728b8654a0e3d58a2eb17e654e18ed",
+      "log_sha256": "80deee7e9b243a9fc4a2b1021fcc70adbc9c02dea520e1a8159ea23392857247",
+      "states_generated": 12,
+      "distinct_states": 8
+    },
+    {
+      "module": "CausalBarrier",
+      "config": "CausalBarrier-early-return.cfg",
+      "expected_fault": "NoEarlyReturn",
+      "passed": true,
+      "return_code": 12,
+      "model_sha256": "55c83a20a9d00a7eebb5b53b6d612e5686941206c7c1cb4deb77c1f0a61b866f",
+      "config_sha256": "0ce715be5101a7a4adbdd555d11b7545e72a3ce9f3977e639870d89d23995412",
+      "log_sha256": "a98a84e371278ee9c228dc78fbf872e5df9899a7da2d87dfd8882335508e9acb",
+      "states_generated": 4,
+      "distinct_states": 4
+    }
+  ]
+}

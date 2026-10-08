@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "scope": "handover consistency and bounded design models",
+  "passed": true,
+  "checks": [
+    "TOML parsing, phase allocation, quotas, weights and benchmark replacement",
+    "Authored Markdown local links resolve",
+    "JSON syntax, protocol operation coverage and transcript envelope checks",
+    "8 independent scoring examples and pause arithmetic",
+    "3 positive TLC runs, 5 named counterexamples, source/config/log digests"
+  ],
+  "not_claimed": [
+    "Cadence implementation",
+    "Rust compilation/runtime tests",
+    "Verus production proofs",
+    "TLAPS general proofs",
+    "human efficacy",
+    "Buildbot deployment",
+    "signed release"
+  ],
+  "model_report": "tla-results.json"
+}

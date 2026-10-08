@@ -1,0 +1,18 @@
+[package]
+name = "cadence-engine"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Sole application-state reducer, UI navigation state, effect requests, prepared immutable view models."
+
+[lints]
+workspace = true
+
+[dependencies]
+cadence-core.workspace = true
+cadence-trainer.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

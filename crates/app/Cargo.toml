@@ -1,0 +1,23 @@
+[package]
+name = "cadence"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Cadence — offline Linux-native personal typing trainer (CLI composition root)."
+
+[[bin]]
+name = "cadence"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+cadence-core.workspace = true
+cadence-runtime.workspace = true
+cadence-driver.workspace = true
+cadence-tui.workspace = true
+cadence-data.workspace = true
+serde_json.workspace = true

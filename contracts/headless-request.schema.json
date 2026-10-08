@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cadence:headless-request:1",
+  "title": "Cadence headless request v1",
+  "type": "object",
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$",
+      "maxLength": 20
+    },
+    "op": {
+      "enum": [
+        "hello",
+        "key",
+        "text",
+        "advance",
+        "resize",
+        "action",
+        "barrier",
+        "snapshot",
+        "capture",
+        "deliver",
+        "quit"
+      ]
+    },
+    "args": {
+      "type": "object"
+    },
+    "expected_state_revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$",
+      "maxLength": 20
+    }
+  },
+  "required": [
+    "v",
+    "id",
+    "op",
+    "args"
+  ],
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "properties": {
+        "op": {
+          "const": "hello"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "scenario": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "fixture_delivery": {
+              "enum": [
+                "manual",
+                "auto"
+              ]
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "key"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32
+            },
+            "modifiers": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "shift",
+                  "control",
+                  "alt",
+                  "super"
+                ]
+              },
+              "uniqueItems": true,
+              "maxItems": 4
+            },
+            "kind": {
+              "enum": [
+                "press",
+                "repeat",
+                "release"
+              ]
+            },
+            "source": {
+              "enum": [
+                "unverified",
+                "numpad",
+                "main"
+              ]
+            }
+          },
+          "required": [
+            "key",
+            "modifiers",
+            "kind",
+            "source"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "text"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "maxLength": 8192
+            },
+            "inter_key_microseconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60000000
+            }
+          },
+          "required": [
+            "text",
+            "inter_key_microseconds"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "advance"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "microseconds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1800000000
+            }
+          },
+          "required": [
+            "microseconds"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "resize"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "columns": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 240
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 80
+            }
+          },
+          "required": [
+            "columns",
+            "rows"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "action"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "enum": [
+                "StartDailyPlan",
+                "StartDrill",
+                "Pause",
+                "Resume",
+                "NextPhase",
+                "SetTheme",
+                "ReloadSettings",
+                "OpenSettings",
+                "CloseOverlay"
+              ]
+            },
+            "track": {
+              "enum": [
+                "words",
+                "prose",
+                "number_row",
+                "numpad",
+                "developer"
+              ]
+            },
+            "theme": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "barrier"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "enum": [
+                "causal",
+                "durable"
+              ]
+            },
+            "through_event_seq": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$",
+              "maxLength": 20
+            },
+            "watchdog_milliseconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 120000
+            }
+          },
+          "required": [
+            "scope",
+            "through_event_seq",
+            "watchdog_milliseconds"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "snapshot"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "include_target_text": {
+              "type": "boolean"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "capture"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "enum": [
+                "cells",
+                "text",
+                "both"
+              ]
+            }
+          },
+          "required": [
+            "format"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "deliver"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "job_id": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,19}$",
+              "maxLength": 20
+            },
+            "variant": {
+              "enum": [
+                "success",
+                "failure",
+                "stale_success",
+                "stale_failure",
+                "duplicate"
+              ]
+            }
+          },
+          "required": [
+            "job_id",
+            "variant"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "quit"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "flush": {
+              "const": true
+            }
+          },
+          "required": [
+            "flush"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

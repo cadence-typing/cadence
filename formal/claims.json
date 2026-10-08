@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "status": "implementation-obligations-pending",
+  "claims": [
+    {
+      "id": "VP-01",
+      "claim": "async admission",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VP-02",
+      "claim": "bounded completion retention",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VP-03",
+      "claim": "durable checkpoint",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VP-04",
+      "claim": "causal and durable barriers",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VP-05",
+      "claim": "headless request admission",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VK-01",
+      "claim": "immutable first outcomes",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VK-02",
+      "claim": "checked metric arithmetic",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VK-03",
+      "claim": "exact budget allocation",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VK-04",
+      "claim": "bounded eligible candidate selection",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VK-05",
+      "claim": "quota and repetition caps",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VK-06",
+      "claim": "review queue integrity",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VL-01",
+      "claim": "conditional review fairness",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    },
+    {
+      "id": "VR-01",
+      "claim": "shared execution and replay",
+      "production_symbols": [],
+      "status": "pending",
+      "required_evidence_document": "docs/07-assurance.md"
+    }
+  ]
+}
