@@ -51,15 +51,21 @@ pub fn paint(buffer: &mut Buffer, area: Rect, view: &PreparedView, palette: Pale
     // Every screen clears its area first so no stale cells leak.
     clear(buffer, area, palette);
     match &view.screen {
-        ScreenView::Today { plan_hint } => paint_today(buffer, area, plan_hint, palette),
+        ScreenView::Today {
+            plan_hint,
+            total_seconds,
+        } => paint_today(buffer, area, plan_hint, *total_seconds, palette),
         ScreenView::Practice {
             spans,
             status,
             paused,
         } => paint_practice(buffer, area, spans, status, *paused, palette),
-        ScreenView::Result { lines, completed } => {
-            paint_result(buffer, area, lines, *completed, palette);
-        }
+        ScreenView::PhaseComplete {
+            label,
+            partial,
+            next,
+        } => paint_phase_complete(buffer, area, label, *partial, next.as_deref(), palette),
+        ScreenView::Summary { lines } => paint_summary(buffer, area, lines, palette),
     }
 }
 
@@ -76,7 +82,13 @@ fn clear(buffer: &mut Buffer, area: Rect, palette: Palette) {
     }
 }
 
-fn paint_today(buffer: &mut Buffer, area: Rect, plan_hint: &str, palette: Palette) {
+fn paint_today(
+    buffer: &mut Buffer,
+    area: Rect,
+    plan_hint: &str,
+    total_seconds: u64,
+    palette: Palette,
+) {
     put_line(
         buffer,
         area,
@@ -85,12 +97,16 @@ fn paint_today(buffer: &mut Buffer, area: Rect, plan_hint: &str, palette: Palett
         "cadence — today",
         StyleSpec::new(palette, Role::Text, Role::Background, true),
     );
+    let headline = format!(
+        "guided session · {} minutes",
+        total_seconds.checked_div(60).unwrap_or(0)
+    );
     put_line(
         buffer,
         area,
         0,
         3,
-        "enter  start drill",
+        &headline,
         StyleSpec::new(palette, Role::Text, Role::Background, false),
     );
     put_line(
@@ -98,7 +114,7 @@ fn paint_today(buffer: &mut Buffer, area: Rect, plan_hint: &str, palette: Palett
         area,
         0,
         4,
-        "q      quit",
+        "enter  begin   esc pauses   ctrl-c quits",
         StyleSpec::new(palette, Role::Muted, Role::Background, false),
     );
     put_line(
@@ -107,6 +123,77 @@ fn paint_today(buffer: &mut Buffer, area: Rect, plan_hint: &str, palette: Palett
         0,
         6,
         plan_hint,
+        StyleSpec::new(palette, Role::Muted, Role::Background, false),
+    );
+}
+
+fn paint_phase_complete(
+    buffer: &mut Buffer,
+    area: Rect,
+    label: &str,
+    partial: bool,
+    next: Option<&str>,
+    palette: Palette,
+) {
+    let headline = format!("{label} complete");
+    put_line(
+        buffer,
+        area,
+        0,
+        1,
+        &headline,
+        StyleSpec::new(palette, Role::Correct, Role::Background, true),
+    );
+    if partial {
+        put_line(
+            buffer,
+            area,
+            0,
+            3,
+            "the phase ended at its boundary — the partial exercise was kept, no overtime",
+            StyleSpec::new(palette, Role::Muted, Role::Background, false),
+        );
+    }
+    let action = match next {
+        Some(next) => format!("enter  continue with {next}"),
+        None => "enter  see the session summary".to_string(),
+    };
+    put_line(
+        buffer,
+        area,
+        0,
+        5,
+        &action,
+        StyleSpec::new(palette, Role::Text, Role::Background, false),
+    );
+}
+
+fn paint_summary(buffer: &mut Buffer, area: Rect, lines: &[String], palette: Palette) {
+    put_line(
+        buffer,
+        area,
+        0,
+        1,
+        "session summary",
+        StyleSpec::new(palette, Role::Text, Role::Background, true),
+    );
+    for (index, line) in lines.iter().enumerate() {
+        let row = u16::try_from(index).unwrap_or(u16::MAX).saturating_add(3);
+        put_line(
+            buffer,
+            area,
+            0,
+            row,
+            line,
+            StyleSpec::new(palette, Role::Text, Role::Background, false),
+        );
+    }
+    put_line(
+        buffer,
+        area,
+        0,
+        area.height.saturating_sub(1),
+        "esc/enter back   ctrl-c quit",
         StyleSpec::new(palette, Role::Muted, Role::Background, false),
     );
 }
@@ -147,6 +234,29 @@ fn paint_practice(
             row = row.saturating_add(1);
         }
     }
+    // Phase context: what am I practising and what remains (U-01).
+    if !paused {
+        let context = format!(
+            "{} · exercise {}/{} · {}s left{}",
+            status.phase_label,
+            status.exercise_index,
+            status.exercise_total,
+            status.phase_seconds_remaining,
+            if status.enter_submits {
+                " · enter submits"
+            } else {
+                ""
+            }
+        );
+        put_line(
+            buffer,
+            area,
+            0,
+            0,
+            &context,
+            StyleSpec::new(palette, Role::Border, Role::Background, false),
+        );
+    }
 
     // Status line: figures that answer a user question (U-01), quiet.
     let mut status_line = String::from("wpm ");
@@ -179,47 +289,6 @@ fn paint_practice(
             StyleSpec::new(palette, Role::Warning, Role::Background, true),
         );
     }
-}
-
-fn paint_result(
-    buffer: &mut Buffer,
-    area: Rect,
-    lines: &[String],
-    completed: bool,
-    palette: Palette,
-) {
-    let (title, role) = if completed {
-        ("result", Role::Correct)
-    } else {
-        ("result (partial)", Role::Warning)
-    };
-    put_line(
-        buffer,
-        area,
-        0,
-        1,
-        title,
-        StyleSpec::new(palette, role, Role::Background, true),
-    );
-    for (index, line) in lines.iter().enumerate() {
-        let row = u16::try_from(index).unwrap_or(u16::MAX).saturating_add(3);
-        put_line(
-            buffer,
-            area,
-            0,
-            row,
-            line,
-            StyleSpec::new(palette, Role::Text, Role::Background, false),
-        );
-    }
-    put_line(
-        buffer,
-        area,
-        0,
-        area.height.saturating_sub(1),
-        "esc/enter back   ctrl-c quit",
-        StyleSpec::new(palette, Role::Muted, Role::Background, false),
-    );
 }
 
 fn put_line(buffer: &mut Buffer, area: Rect, column: u16, row: u16, text: &str, spec: StyleSpec) {

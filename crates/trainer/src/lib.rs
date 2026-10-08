@@ -12,17 +12,26 @@ pub mod allocation;
 pub mod candidate;
 pub mod corpus;
 pub mod lanes;
+pub mod numeric;
 pub mod pace;
+pub mod plan;
 pub mod policy;
+pub mod prose;
 pub mod review;
 
 pub use allocation::allocate;
 pub use candidate::{Candidate, CandidateError, UtilityInputs, scan_select};
 pub use corpus::{CorpusError, WordBand, WordPack};
 pub use lanes::{BlockPlan, LaneSlot, QuotaTracker};
+pub use numeric::{DigitSource, NumericError, number_row_exercise, numpad_exercise};
 pub use pace::{PaceDecision, pace_decision};
+pub use plan::{
+    ExerciseKind, PlanError, PlanRng, PlannedExercise, PlannedPhase, SessionPlan,
+    build_session_plan,
+};
 pub use policy::{
     Lane, PacePolicy, Phase, PolicyError, ReviewPolicy, SelectionPolicy, SessionPolicy,
     StatisticsPolicy, TrainerPolicy, UtilityWeights, parse_policy,
 };
+pub use prose::prose_exercises;
 pub use review::{DueQueue, QueueEntry, ReviewOutcome};

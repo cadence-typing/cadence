@@ -10,6 +10,7 @@ use std::process::ExitCode;
 mod boundary;
 mod contracts;
 mod corpus;
+mod dist;
 mod gates;
 
 fn main() -> ExitCode {
@@ -24,6 +25,7 @@ fn main() -> ExitCode {
         "quality" => run_quality(),
         "gates" => gates::list(),
         "corpus-gate" => corpus::check(),
+        "dist" => dist::build_dist(),
         "gate" => gates::run(args.get(1).map(String::as_str)),
         other => {
             eprintln!("unknown command {other:?}\n{usage}");

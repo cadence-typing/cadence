@@ -49,13 +49,11 @@ name = "cadence"
 version = "0.1.0"
 dependencies = [
  "cadence-core",
- "cadence-data",
- "cadence-driver",
  "cadence-engine",
  "cadence-runtime",
+ "cadence-trainer",
  "cadence-tui",
  "ratatui",
- "serde_json",
 ]
 
 [[package]]
@@ -108,7 +106,6 @@ name = "cadence-runtime"
 version = "0.1.0"
 dependencies = [
  "cadence-core",
- "cadence-data",
  "cadence-engine",
  "cadence-trainer",
  "crossterm 0.29.0",
@@ -125,7 +122,8 @@ name = "cadence-trainer"
 version = "0.1.0"
 dependencies = [
  "cadence-core",
- "proptest",
+ "rand",
+ "rand_chacha",
  "serde",
  "sha2",
  "toml",

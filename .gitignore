@@ -6,3 +6,4 @@
 # Local evidence outputs are regenerated per candidate; never commit them.
 /evidence-out
 /captures
+/dist

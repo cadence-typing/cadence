@@ -8,9 +8,7 @@
 
 use cadence_core::{FrameRevision, Micros};
 
-/// One visible training unit with its presentation meaning (U-01):
-/// correct typed, wrong typed (with the expected target available),
-/// cursor position, or upcoming text.
+/// One visible training unit with its presentation meaning (U-01).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnitSpan {
     /// Correctly typed unit at this position.
@@ -54,23 +52,35 @@ impl UnitSpan {
 /// at this edge (L-02).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct StatusFigures {
-    /// Live correct WPM, formatted once; absent until measurable.
+    /// Live correct WPM; absent until measurable.
     pub wpm: Option<String>,
     /// First-pass accuracy percentage, truncated for display only.
     pub first_pass_percent: Option<u16>,
-    /// Active seconds so far.
+    /// Active seconds so far in the whole session.
     pub active_seconds: u64,
     /// Whether the current measurement is paused.
     pub paused: bool,
+    /// The current phase label (U-01: answer what am I practising).
+    pub phase_label: String,
+    /// Exercise index within the phase (one-based).
+    pub exercise_index: u32,
+    /// Exercises planned in this phase.
+    pub exercise_total: u32,
+    /// Seconds remaining in the phase (active-time basis).
+    pub phase_seconds_remaining: u64,
+    /// Whether Enter submits (numpad phase).
+    pub enter_submits: bool,
 }
 
 /// Which screen is prepared.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScreenView {
-    /// Today/start destination (P1 slice: one drill offer).
+    /// Today/start destination: the planned session summary.
     Today {
-        /// The short reason shown for today's work.
+        /// Short reasons for today's work (phase seconds + purpose).
         plan_hint: String,
+        /// Total planned active seconds.
+        total_seconds: u64,
     },
     /// The quiet practice screen.
     Practice {
@@ -81,11 +91,19 @@ pub enum ScreenView {
         /// Whether practice is paused (overlay).
         paused: bool,
     },
-    /// Result of the last exercise.
-    Result {
-        /// Completed or partial.
-        completed: bool,
-        /// Human summary lines (one observation, numbers).
+    /// A phase reached its deadline (or exhausted its exercises): offer
+    /// the next phase; never force overtime (P-02).
+    PhaseComplete {
+        /// The label of the finished phase.
+        label: String,
+        /// Whether the last exercise was left partial at the boundary.
+        partial: bool,
+        /// The label of the next phase, when one remains.
+        next: Option<String>,
+    },
+    /// End-of-session summary: honest aggregate figures per track.
+    Summary {
+        /// Human summary lines.
         lines: Vec<String>,
     },
 }
@@ -98,7 +116,6 @@ pub struct PreparedView {
     pub revision: FrameRevision,
     /// The screen content.
     pub screen: ScreenView,
-    /// Active-time figure included in this preparation (for honest
-    /// elapsed/active labelling, P-02).
+    /// Session active-time figure included in this preparation.
     pub active: Micros,
 }

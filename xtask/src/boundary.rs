@@ -46,6 +46,7 @@ const ALLOWED_EDGES: &[(&str, &[&str])] = &[
         &[
             "cadence-core",
             "cadence-engine",
+            "cadence-trainer",
             "cadence-runtime",
             "cadence-driver",
             "cadence-tui",

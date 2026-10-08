@@ -71,14 +71,7 @@ fn slice_journey_through_shared_reducer_and_paint() {
 
     let transition = send(&mut engine, EventKind::Key(Key::Enter), &mut seq, &mut tick);
     assert!(transition.dirty);
-    assert!(matches!(
-        transition.outcome,
-        DomainOutcome::DrillStarted { .. }
-    ));
-
-    // Input owner switched to practice (U-03).
-    assert_eq!(engine.input_owner(), InputOwner::Practice);
-
+    assert!(matches!(transition.outcome, DomainOutcome::SessionStarted));
     send(&mut engine, content('c'), &mut seq, &mut tick);
     send(&mut engine, content('x'), &mut seq, &mut tick);
     send(
@@ -96,15 +89,22 @@ fn slice_journey_through_shared_reducer_and_paint() {
             ..
         }
     ));
-    // Result screen renders through the same paint path.
-    let view = engine.prepare(MonoTick::from_us(tick));
+    // The phase-complete offer renders first; Enter opens the summary.
+    let mut view = engine.prepare(MonoTick::from_us(tick));
     let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
-    let area = buffer.area;
+    let mut area = buffer.area;
+    paint(&mut buffer, area, &view, palette);
+    assert!(buffer_text(&buffer).contains("complete"));
+
+    send(&mut engine, EventKind::Key(Key::Enter), &mut seq, &mut tick);
+    view = engine.prepare(MonoTick::from_us(tick));
+    let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
+    area = buffer.area;
     paint(&mut buffer, area, &view, palette);
     let text = buffer_text(&buffer);
     assert!(
         text.contains("first-pass 2/3"),
-        "result shows honest first-pass: {text}"
+        "summary shows honest first-pass: {text}"
     );
 
     // Esc returns to Today; q quits (navigation owns input again).
