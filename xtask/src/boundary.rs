@@ -52,8 +52,10 @@ const ALLOWED_EDGES: &[(&str, &[&str])] = &[
             "cadence-data",
         ],
     ),
-    // xtask owns no runtime application dependency.
-    ("xtask", &[]),
+    // xtask owns gate/receipt tooling; it may read core/trainer types
+    // to run the corpus/verify gates. It is never a runtime dependency
+    // of the application (A-01 "must not own" column).
+    ("xtask", &["cadence-core", "cadence-trainer"]),
 ];
 
 /// Parses workspace member manifests and asserts every internal edge is
