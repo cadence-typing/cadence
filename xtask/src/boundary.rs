@@ -39,15 +39,17 @@ const ALLOWED_EDGES: &[(&str, &[&str])] = &[
             "cadence-core",
         ],
     ),
-    // binary: runtime/driver/tui/data (+ core transitively).
+    // Composition root may depend on every library crate (decision
+    // 0004); ownership prohibitions from A-01 still apply.
     (
         "cadence",
         &[
+            "cadence-core",
+            "cadence-engine",
             "cadence-runtime",
             "cadence-driver",
             "cadence-tui",
             "cadence-data",
-            "cadence-core",
         ],
     ),
     // xtask owns no runtime application dependency.
