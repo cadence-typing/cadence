@@ -6,8 +6,8 @@ tests, proof claims and receipts. "Implemented" is not "verified".
 Gate-level truth lives in `cargo xtask gates` (B-05 inventory); this
 ledger maps work packets to that inventory.
 
-Last updated: 2026-10-08 (P0 verified; P1 core + slice implemented and
-smoke-verified; Verus kernel proofs not yet wired).
+Last updated: 2026-10-08 (P0, P1 verified; P2 in progress: trainer
+algorithm core + corpus gate done; plan builder/engine wiring pending).
 
 ## Work packets
 
@@ -15,11 +15,9 @@ smoke-verified; Verus kernel proofs not yet wired).
 |---|---|---|
 | P0 baseline | verified | Workspace, typed core, boundary+manifest checks, Docker composition, decisions 0001–0004. Evidence: host `cargo xtask quality` green; offline Docker `quality` green; pending gates fail honestly. |
 | P1 core + minimal UI | implemented | `cadence-core` ledger/metrics/session, engine reducer, shared paint, live slice. All fixture/property/render tests green; real-PTY journey smoke-verified (drill → type → pause/resume → ctrl-c restore). Verus kernel wiring pending → P7. |
-| P2 corpus + planner | pending | Sources/licences decided (0002); acquisition recipe reproducible. |
+| P2 corpus + planner | in_progress | Policy parsing, exact allocation, lanes/caps, bounded scan, review queue, pace hysteresis all tested (32 trainer tests). Licensed 25k-word pack + corpus gate green. Pending: deterministic 900s plan builder, numeric generators, engine/Today wiring. |
 | P3 async + durable progress | pending | |
 | P4 headless + replay | pending | |
-| P5 full surface + config | pending | |
-| P6 e2e/PTY/perf | pending | PTY journey smoke exists ad hoc; the bounded PTY suite is P6. |
 | P7 assurance inventory | pending | |
 | P8 Buildbot + install | partially blocked | Local gates runnable; `buildbot-recovery` blocked on shared controller (decision 0003). |
 
