@@ -7,13 +7,11 @@ license.workspace = true
 repository.workspace = true
 description = "Learner summaries, quota planner, candidate ranking, review/pacing policy. No terminal, persistence implementation or file reads."
 
-[lints]
-workspace = true
-
 [dependencies]
 cadence-core.workspace = true
 serde.workspace = true
 toml.workspace = true
+sha2.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

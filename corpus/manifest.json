@@ -1,0 +1,37 @@
+{
+  "pack_id": "words-en-v1",
+  "schema_version": 1,
+  "language": "en",
+  "source": {
+    "name": "wordfreq",
+    "release": "3.1.1",
+    "url": "https://github.com/rspeer/wordfreq",
+    "acquired": "2026-10-08",
+    "recipe": "tools/corpus/dump_words.py",
+    "environment": "python:3.12-slim (Docker), pip 25.2.1"
+  },
+  "licence": {
+    "code": "Apache-2.0",
+    "data": "CC-BY-SA-4.0",
+    "notice": "corpus/NOTICE"
+  },
+  "normalization": {
+    "alphabet": "a-z and apostrophe (lowercase V1 training alphabet)",
+    "case": "wordfreq ranking folds case variants; one surface form per rank",
+    "deduplication": "none beyond wordfreq ranking"
+  },
+  "counts": {
+    "words": 25000,
+    "core": 2000,
+    "common": 8000,
+    "tail": 15000
+  },
+  "bands": {
+    "core": "ranks 1-2000",
+    "common": "ranks 2001-10000",
+    "tail": "ranks 10001+"
+  },
+  "digests": {
+    "words-en-v1.tsv": "df140cbe95a394ee407bc5b90656326a5b5842afa82a390ad44eb04a20d2e360"
+  }
+}

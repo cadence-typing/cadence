@@ -77,11 +77,6 @@ pub const GATES: &[Gate] = &[
         state: GateState::Pending("P7"),
     },
     Gate {
-        id: "corpus",
-        description: "licensed pack manifests, count/quality/capacity, unseen benchmark inventory",
-        state: GateState::Pending("P2"),
-    },
-    Gate {
         id: "performance",
         description: "bounded resources, latency distribution and recorded environment",
         state: GateState::Pending("P6"),
@@ -102,6 +97,11 @@ pub const GATES: &[Gate] = &[
         state: GateState::Blocked(
             "shared Buildbot controller not yet provisioned (P8; see docs/decisions/0003-ci-integration.md)",
         ),
+    },
+    Gate {
+        id: "corpus",
+        description: "licensed pack manifests, count/quality/capacity, unseen benchmark inventory",
+        state: GateState::Implemented,
     },
 ];
 
@@ -145,6 +145,7 @@ pub fn run(id: Option<&str>) -> Result<(), String> {
 fn dispatch_implemented(id: &str) -> Result<(), String> {
     match id {
         "quality" => crate::run_quality(),
+        "corpus" => crate::corpus::check(),
         other => Err(format!("gate {other} has no runner wired yet")),
     }
 }

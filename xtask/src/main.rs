@@ -9,6 +9,7 @@ use std::process::ExitCode;
 
 mod boundary;
 mod contracts;
+mod corpus;
 mod gates;
 
 fn main() -> ExitCode {
@@ -21,9 +22,8 @@ fn main() -> ExitCode {
     let outcome = match command.as_str() {
         "feedback" => run_feedback(),
         "quality" => run_quality(),
-        "boundary" => boundary::check(),
-        "verify-contracts" => contracts::verify_manifest(),
         "gates" => gates::list(),
+        "corpus-gate" => corpus::check(),
         "gate" => gates::run(args.get(1).map(String::as_str)),
         other => {
             eprintln!("unknown command {other:?}\n{usage}");

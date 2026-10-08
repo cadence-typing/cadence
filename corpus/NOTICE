@@ -1,0 +1,28 @@
+Cadence English word pack (words-en-v1)
+========================================
+
+Contents: `words-en-v1.tsv` — 25,000 vetted English surface forms with
+rank-based frequency bands, extracted on 2026-10-08 with the recipe in
+`tools/corpus/dump_words.py` (decision 0002).
+
+Source and licence
+------------------
+Extracted from `wordfreq` release 3.1.1 (https://github.com/rspeer/wordfreq).
+
+- wordfreq code: Apache License 2.0.
+- wordfreq bundled frequency data: Creative Commons Attribution-ShareAlike
+  4.0 (https://creativecommons.org/licenses/by-sa/4.0/), compiled from
+  openly licensed and public corpora by the wordfreq authors.
+
+This derived word list is distributed under CC-BY-SA 4.0 with attribution
+to wordfreq and its sources. The application code of Cadence is
+Apache-2.0 OR MIT; this data file carries the share-alike term of its
+source.
+
+Integrity
+---------
+SHA-256 of words-en-v1.tsv at acquisition:
+df140cbe95a394ee407bc5b90656326a5b5842afa82a390ad44eb04a20d2e360
+
+Acquisition environment: python:3.12-slim Docker image, pip 25.2.1,
+wordfreq 3.1.1 (wheels cached by pip for the run).
