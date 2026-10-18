@@ -81,13 +81,16 @@ pub fn run(mut engine: Engine, profile: Option<PathBuf>, day: i64) -> Result<(),
     };
     // A successful quit is emitted by the reducer only after the final receipt.
     terminal.restore()?;
-    worker.finish()?;
     if outcome {
+        // Explicitly retire unacknowledged work without waiting forever on
+        // a blocked filesystem syscall. Process exit terminates the worker.
+        drop(worker);
         return Err(
             "quit without saving the unacknowledged tail; prior committed history remains safe"
                 .into(),
         );
     }
+    worker.finish()?;
     Ok(())
 }
 

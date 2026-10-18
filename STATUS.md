@@ -28,7 +28,9 @@ cadence export --output /absolute/new-progress.json
 Enter starts/continues and submits numpad entries. Esc pauses/resumes;
 Ctrl-C saves and quits. Summary Enter/Esc finishes the process after the final
 save acknowledgement. A save failure pauses practice: `r` retries; an explicit
-unsuccessful exit retains only acknowledged progress. The normal profile is
+unsuccessful exit retains only acknowledged progress. Final flush has a
+10-second watchdog and returns non-success rather than hanging or claiming a
+save without an acknowledgement. The normal profile is
 `$XDG_DATA_HOME/cadence`, falling back to `~/.local/share/cadence`; relative XDG
 values are ignored. Backup/export refuse to overwrite an existing destination.
 
@@ -72,7 +74,9 @@ for feedback if such a draft database exists.
 - Native PTY smoke exercised numpad `9 x Backspace 4 9 4 Enter`: committed
   first-pass **3/4**, attempt **4/5**, one deletion. Quit/reopen, acknowledgement
   followed by SIGKILL/reopen, concurrent-writer rejection, actual SQLite backup,
-  portable export and SIGINT terminal restoration were observed.
+  portable export and SIGINT terminal restoration were observed. A real SQLite
+  rejection produced a visible save error, unsuccessful explicit exit, terminal
+  restoration, and preservation of the prior acknowledged checkpoint.
 - Release packaging inspects ELF64/x86_64 headers and requires **no PT_INTERP
   and no DT_NEEDED entries**. Bundles retain exact lock/policy/corpus hashes,
   source commit/clean flag, compiler identity and binary SHA-256. Packaging is

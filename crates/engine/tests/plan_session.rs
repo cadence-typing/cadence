@@ -492,3 +492,21 @@ fn live_numeric_rate_excludes_decimal_units() -> TestResult {
     assert_eq!(status.rate.as_deref(), Some("60.0"));
     Ok(())
 }
+
+#[test]
+fn final_flush_timeout_exits_unsuccessfully_without_fabricating_ack() -> TestResult {
+    let mut e = words()?;
+    ready(&mut e)?;
+    let initial = checkpoint(key(&mut e, 0, Key::Enter)?)?;
+    ack(&mut e, 0, &initial)?;
+    content(&mut e, 100_000, 'c')?;
+    let final_save = checkpoint(key(&mut e, 200_000, Key::Interrupt)?)?;
+    let waiting = send(&mut e, 10_199_999, EventKind::Tick)?;
+    assert!(!waiting.quit);
+    let timed_out = send(&mut e, 10_200_000, EventKind::Tick)?;
+    assert!(timed_out.quit && timed_out.exit_failed);
+    assert!(e.prepare(MonoTick::from_us(10_200_000)).saving);
+    assert!(timed_out.checkpoint.is_none());
+    assert!(final_save.key.sequence > initial.key.sequence);
+    Ok(())
+}

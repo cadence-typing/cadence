@@ -9,6 +9,8 @@ use cadence_core::{CommitSeq, CoreError, MonoTick, SessionId};
 
 /// Maximum running checkpoint interval and acknowledgement watchdog.
 const CHECKPOINT_CADENCE_US: u64 = 2_000_000;
+/// A final flush gets a separate wall-clock bound; practice is already stopped.
+const FINAL_FLUSH_WATCHDOG_US: u64 = 10_000_000;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Storage {
     session: SessionId,
@@ -78,6 +80,7 @@ impl Engine {
                 {
                     self.session_state = SessionState::Saved;
                     t.quit = true;
+                    t.exit_failed = false;
                 }
             }
             Err(message) => {
@@ -150,10 +153,20 @@ impl Engine {
         }
         Ok(())
     }
-    pub(super) fn watchdog(&mut self, at: MonoTick) -> Result<(), CoreError> {
+    pub(super) fn watchdog(&mut self, at: MonoTick, t: &mut Transition) -> Result<(), CoreError> {
         let Some(storage) = self.storage.as_ref() else {
             return Ok(());
         };
+        if self.finishing
+            && let Some(sent) = storage.sent_at
+            && at.elapsed_since(sent)?.as_us() >= FINAL_FLUSH_WATCHDOG_US
+        {
+            self.notice =
+                Some("Final save timed out; only acknowledged progress is durable.".to_string());
+            t.quit = true;
+            t.exit_failed = true;
+            return Ok(());
+        }
         if self.session_state == SessionState::Running {
             if let Some(sent) = storage.sent_at
                 && at.elapsed_since(sent)?.as_us() > CHECKPOINT_CADENCE_US

@@ -215,7 +215,7 @@ impl Engine {
         let mut t = Transition::changed(DomainOutcome::None);
         // Invalidate before scoring a delayed event, but still consume a
         // terminal storage reply so the single-flight slot cannot get stuck.
-        if let Err(error) = self.watchdog(at) {
+        if let Err(error) = self.watchdog(at, &mut t) {
             t = self.invalidate(error);
         }
         // Control and storage responses are never swallowed by a deadline.
@@ -251,7 +251,7 @@ impl Engine {
             }
             _ => {}
         }
-        self.watchdog(at)?;
+        self.watchdog(at, &mut t)?;
         self.dispatch_checkpoint(at, &mut t)?;
         Ok(t)
     }
