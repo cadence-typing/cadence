@@ -1,77 +1,100 @@
-# Cadence — implementation status ledger
+# Cadence implementation and feedback-build status
 
-Per docs/09-execution.md: each row carries status (`pending`,
-`in_progress`, `implemented`, `verified`, `blocked`), source symbols,
-tests, proof claims and receipts. "Implemented" is not "verified".
-Gate-level truth lives in `cargo xtask gates` (B-05 inventory); this
-ledger maps work packets to that inventory.
+`0.1.0-alpha.1` is an **unsigned development preview**, not a P8-qualified
+release. Earlier commit messages overstated P0–P2 completion: passing tests,
+ASCII filtering, and documentation of intended proofs did not discharge the
+handover's proof, vocabulary-vetting, adaptation, or qualification obligations.
+This ledger supersedes those completion claims; the original handover stays
+unchanged in `docs/01-*` through `docs/10-*` and `MANIFEST.sha256`.
 
-Last updated: 2026-10-08 (P0, P1 verified; P2 in progress: trainer
-algorithm core + corpus gate done; plan builder/engine wiring pending).
+## Try the feedback binary
 
-## Work packets
+Linux x86_64, including WSL2; ordinary terminal font, at least 60×18 cells.
+Download the versioned tarball and `SHA256SUMS` from the matching GitHub
+prerelease. Check `sha256sum --check SHA256SUMS` for the files downloaded,
+extract the archive, then run `./cadence` inside it. The archive contains the
+same executable as the standalone `cadence-linux-x86_64` asset, plus notices.
+Checksums detect byte changes; they are **not signatures**.
 
-| Packet | Status | Notes |
+```sh
+cadence
+cadence --minutes 5 --track numpad
+cadence --minutes 5 --track words --seed 42
+cadence --profile-dir /absolute/private/profile
+cadence backup --output /absolute/new-backup.sqlite3
+cadence export --output /absolute/new-progress.json
+```
+
+Enter starts/continues and submits numpad entries. Esc pauses/resumes;
+Ctrl-C saves and quits. Summary Enter/Esc finishes the process after the final
+save acknowledgement. A save failure pauses practice: `r` retries; an explicit
+unsuccessful exit retains only acknowledged progress. The normal profile is
+`$XDG_DATA_HOME/cadence`, falling back to `~/.local/share/cadence`; relative XDG
+values are ignored. Backup/export refuse to overwrite an existing destination.
+
+The default plan allocates 900 seconds (840 typing + 60 dismissible review).
+The phase clock starts on its first content key. Ordinary hesitation remains
+in active time; explicit pauses and inter-phase screens do not. Prepared
+exercise lists cycle until the deadline, visibly labelled as repeat practice.
+The planner is currently **cold-start mixed practice, not learned adaptation**.
+Numpad strings preserve leading zeros and require Enter; physical-keypad origin
+is unverified. This preview supports ASCII-first practice, not full first-run
+layout configuration, imports, benchmark qualification, or the full settings UI.
+
+Progress is cumulative local SQLite data: correction history, separate track
+counts, exact durations, and last acknowledged checkpoint survive reopening.
+After a kill, reopening reports interrupted/partial history. It does **not**
+resume a mid-word exercise or claim an uninterrupted timing trial. Store schema
+2 safely refuses a populated historical draft schema 1 rather than inventing
+measurements or resetting it. Keep that file and use a new explicit profile
+for feedback if such a draft database exists.
+
+## Requirement ledger
+
+| Packet / claims | Status | Production mapping, evidence, remaining obligation |
 |---|---|---|
-| P0 baseline | verified | Workspace, typed core, boundary+manifest checks, Docker composition, decisions 0001–0004. Evidence: host `cargo xtask quality` green; offline Docker `quality` green; pending gates fail honestly. |
-| P1 core + minimal UI | implemented | `cadence-core` ledger/metrics/session, engine reducer, shared paint, live slice. All fixture/property/render tests green; real-PTY journey smoke-verified (drill → type → pause/resume → ctrl-c restore). Verus kernel wiring pending → P7. |
-| P2 corpus + planner | in_progress | Policy parsing, exact allocation, lanes/caps, bounded scan, review queue, pace hysteresis all tested (32 trainer tests). Licensed 25k-word pack + corpus gate green. Pending: deterministic 900s plan builder, numeric generators, engine/Today wiring. |
-| P3 async + durable progress | pending | |
-| P4 headless + replay | pending | |
-| P7 assurance inventory | pending | |
-| P8 Buildbot + install | partially blocked | Local gates runnable; `buildbot-recovery` blocked on shared controller (decision 0003). |
+| P0 / A-01, B-02 | in_progress | Pinned Rust image/toolchain, Cargo lock, musl C compiler, architecture feedback check. Proof-tool compatibility, full dependency/security audit and shared CI admission remain unqualified. |
+| P1 / L-02–03, VK-01–02 | implemented, behavior checked | `core/{ledger,metrics,session}`, `engine/{practice,presentation}`; scoring fixtures/properties and live corrected-entry smoke. These are not same-source Verus proofs. |
+| P2 / P-02–04, VK-03–06 | in_progress | `trainer/{allocation,plan,plan_content,policy,review,pace}`; deterministic seed/budget/track tests and bounded eligible scans. Cold-start selection only; learner adaptation, retention/benchmark comparisons and 20k vetted vocabulary acceptance remain unfinished. |
+| P3 / D-01–02, VP-01–03 | in_progress | `core/progress`, `data/{store,schema,records,files,transfer}`, `engine/storage`, `runtime/writer`. One retained writer/result slot, full-key admission, checkpoints, retry, lock, reopen, backup/export implemented. General job-registry/async planner, immutable observation chunks, full crash/storage campaigns and formal correspondence remain unfinished. |
+| P4 / H-01–04, VP-04–05 | pending | No shipped NDJSON driver, causal/durable barriers or replay. TestBackend is shared rendering evidence, not a completed headless protocol. |
+| P5 / U-01–05 | in_progress | Today/practice/boundary/summary and save errors render through one painter; minimum-size pause and CLI duration/track selection work. Full destinations/settings/layout setup, imports and editable themes remain unfinished. |
+| P6 / H-05–06 | in_progress | Hermetic Rust regressions and actual PTY/SQLite smoke; no broad terminal qualification or measured p99/memory admission claim. |
+| P7 / VP, VK, VL, VR inventory | pending | Packet models remain design probes. No TLAPS/Verus production proof inventory has passed. |
+| P8 / B-03–06 | blocked for qualification | Static feedback-bundle producer and owner trial installation exist. Buildbot recovery, authorized signing, complete inventory admission and owner terminal/keypad qualification are not completed. |
 
-## P0 acceptance detail
+## Evidence and limits
 
-| Requirement | Status | Evidence |
-|---|---|---|
-| No duplicate checkout | verified | Only `~/cadence/cadence-handover` (packet) existed; implementation at `~/workspace/cadence` |
-| Name provisional + support profile | implemented | Binary `cadence`; profile `linux-x86_64-v1` (decisions 0001/0003) |
-| Dependency compatibility actually checked | verified | Full workspace build + tests + clippy with pinned versions (decision 0001) |
-| Corpus decision reproducible | implemented | Decision 0002; acquisition tooling lands with P2 |
-| Workspace + types + ports | implemented | `crates/core`: ids, tick, units, ports, error taxonomy |
-| Architecture dependency checks | verified | `cargo xtask boundary` (A-01 edges + decision 0004), part of `quality` |
-| Handover contracts pinned | verified | `cargo xtask verify-contracts` recomputes `MANIFEST.sha256` (48 files) |
-| Clean Docker build of composition | verified | `docker compose build prepare`; `quality` service passes with `network_mode: none` |
-| CI capacity/permissions | inspected | Decision 0003; no shared infrastructure touched |
-| `quality` works; others visibly pending | verified | `cargo xtask gates`; `./ci gate headless` exits nonzero naming P4 |
+- Workspace behavioral tests cover exact timing boundaries, corrections,
+  numeric submission, bounded selection, malformed policy/identity rejection,
+  checkpoint freshness, SQL rollback/idempotency, lock/schema/data validation,
+  backup/export and private file permissions. Tests use temporary profiles.
+- Native PTY smoke exercised numpad `9 x Backspace 4 9 4 Enter`: committed
+  first-pass **3/4**, attempt **4/5**, one deletion. Quit/reopen, acknowledgement
+  followed by SIGKILL/reopen, concurrent-writer rejection, actual SQLite backup,
+  portable export and SIGINT terminal restoration were observed.
+- Release packaging inspects ELF64/x86_64 headers and requires **no PT_INTERP
+  and no DT_NEEDED entries**. Bundles retain exact lock/policy/corpus hashes,
+  source commit/clean flag, compiler identity and binary SHA-256. Packaging is
+  not a substitute for release qualification.
+- The word pack contains 25,000 alphabet-filtered wordfreq tokens, not a
+  professionally vetted dictionary. It may include names, abbreviations,
+  offensive words or nonwords. Full upstream notices and CC-BY-SA terms ship
+  in `corpus/`; practice prose is explicitly original AI-assisted material,
+  not verified literary excerpts or unseen benchmark content.
 
-## P1 acceptance detail
+## Reproduce
 
-| Requirement (P1 exit) | Status | Evidence |
-|---|---|---|
-| `cat` correction fixture exact ratios | verified | `crates/core/tests/scoring_fixtures.rs`: all 8 hand-calculated cases + numpad + timing case pass against the real ledger/metrics |
-| Partial exercise, overflow, pause cases | verified | Same suite (`incomplete`, `overflow-then-correction`, timing pauses) |
-| Corrections cannot change history | verified | `crates/core/tests/ledger_properties.rs` proptest: write-once, monotone counters, buffer bound, no-erase |
-| Rendering cannot mutate the session | verified | `cadence-tui` paint takes `&PreparedView` (pure); engine owns all state |
-| No key lost on ordinary input | verified | Engine ordered admission (sequence check refuses gaps without mutation) |
-| Pure headless and live share one handler | verified | `crates/tui/tests/render_path.rs` drives the same `Engine::reduce` + `paint` through `TestBackend`; live loop (`crates/app`) uses the same pair |
-| First working UI journey | verified | PTY smoke 2026-10-08: Today → Enter drill → type → Esc pause (visible) → resume → Backspace → Ctrl-C; alternate screen/raw mode restored; exit 0 |
-| VK-01/VK-02 proofs begun in production source | partial | Kernels exist with documented contracts + property tests; the Verus toolchain lane is not yet invoked — tracked as P7 obligation, honestly not claimed |
-| Viewport totality | verified | `paint_is_total_for_every_nonzero_viewport` at 1×1 … 240×80 incl. one-below-minimum |
+```sh
+./ci prepare                 # networked image/dependency preparation only
+./ci quality                 # offline fmt, strict Clippy, Rust tests, boundaries
+./ci dist                    # offline musl build, ELF inspection, notices, tarball
+cargo xtask gates            # qualification obligations, not green-by-omission
+```
 
-## Gate inventory state
-
-Authoritative list: `cargo xtask gates` (also `./ci gates`). As of this
-update: `quality` implemented; all other gates pending their packets;
-`buildbot-recovery` blocked (shared controller absent).
-
-## Verification receipts
-
-- P0: host `cargo run -p xtask -- quality` → 0; Docker `prepare` → 0;
-  Docker `quality` (network disabled) → 0; honest-failure probe of
-  `./ci gate headless` → exit 1 naming P4.
-- P1: `cargo test --workspace` green (43 tests across core/tui incl.
-  fixtures + proptests); clippy `-D warnings` clean; PTY journey logs
-  (exit 0, screen text present, alt-screen enter/leave bytes verified).
-
-## Known gaps carried forward
-
-- cargo-deny licence/dependency audit not yet wired (`quality`
-  extension, next packet).
-- Verus lane not invoked; VK-01/VK-02 kernels await same-source proof
-  wiring (P1 began, P7 completes).
-- TLAPS not installed; TLC needs the pinned Docker image (no host Java)
-  — `model`/`prove` images pinned at P7.
-- Engine `MeasurementInvalid` outcomes pause scoring but have no visible
-  diagnostic surface yet (P3).
+`quality` is a feedback command; `gate quality` and `gate corpus` explicitly
+refuse full qualification because their audits/inventories are incomplete.
+Build outputs/caches live only in `dist/` and `.cadence-build/`, owned by the
+caller UID/GID. No unrelated Docker resources, CI service, or owner history is
+modified by these commands. Qualification and software proofs do not establish
+human learning effectiveness or promise a WPM gain.

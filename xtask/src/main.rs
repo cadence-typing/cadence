@@ -12,10 +12,11 @@ mod contracts;
 mod corpus;
 mod dist;
 mod gates;
+mod notices;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let usage = "usage: cargo xtask <feedback|quality|boundary|verify-contracts|gate <id>|gates>";
+    let usage = "usage: cargo xtask <feedback|quality|boundary|verify-contracts|corpus-gate|dist|gate ID|gates>";
     let Some(command) = args.first() else {
         eprintln!("{usage}");
         return ExitCode::FAILURE;
@@ -23,6 +24,8 @@ fn main() -> ExitCode {
     let outcome = match command.as_str() {
         "feedback" => run_feedback(),
         "quality" => run_quality(),
+        "boundary" => boundary::check(),
+        "verify-contracts" => contracts::verify_manifest(),
         "gates" => gates::list(),
         "corpus-gate" => corpus::check(),
         "dist" => dist::build_dist(),

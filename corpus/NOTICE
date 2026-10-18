@@ -1,9 +1,13 @@
 Cadence English word pack (words-en-v1)
 ========================================
 
-Contents: `words-en-v1.tsv` — 25,000 vetted English surface forms with
-rank-based frequency bands, extracted on 2026-10-08 with the recipe in
-`tools/corpus/dump_words.py` (decision 0002).
+Contents: `words-en-v1.tsv` contains 25,000 alphabet-filtered frequency
+tokens, with rank-based bands, recorded as extracted on 2026-10-08 by
+`tools/corpus/dump_words.py`. This is not a vetted English dictionary.
+It may contain names, abbreviations, offensive terms, and nonwords.
+No comprehensive linguistic, safety, or source-by-source licence audit
+is claimed. The loader validates syntax, alphabet, and distinct IDs/forms;
+those checks do not establish suitability or lexicographic quality.
 
 Source and licence
 ------------------
@@ -19,6 +23,12 @@ to wordfreq and its sources. The application code of Cadence is
 Apache-2.0 OR MIT; this data file carries the share-alike term of its
 source.
 
+The archived upstream licence/citation notice is in
+`corpus/wordfreq-UPSTREAM-NOTICE.txt`; the share-alike licence text is in
+`corpus/CC-BY-SA-4.0.txt`. Consult upstream for source-specific details.
+This notice reports the recorded acquisition provenance, not an
+independent reconstruction or a completed legal audit.
+
 Integrity
 ---------
 SHA-256 of words-en-v1.tsv at acquisition:
@@ -26,3 +36,16 @@ df140cbe95a394ee407bc5b90656326a5b5842afa82a390ad44eb04a20d2e360
 
 Acquisition environment: python:3.12-slim Docker image, pip 25.2.1,
 wordfreq 3.1.1 (wheels cached by pip for the run).
+
+Original practice prose
+-----------------------
+`prose-en-v1.txt` contains original practice passages generated for
+Cadence with AI assistance. They replace previously unverified,
+edited literary excerpts. No passage is attributed to Austen, Project
+Gutenberg, or another external author, or represented as a verbatim quote.
+Cadence distributes its rights, if any, in these original passages under
+Apache-2.0 OR MIT, the application licence. No warranty of exclusive
+authorship or copyrightability is made for AI-generated material.
+These passages are practice content, not validated benchmark material.
+The prepared bank is finite; runtime cycling must be disclosed as repeat
+practice rather than unseen transfer or retention evidence.

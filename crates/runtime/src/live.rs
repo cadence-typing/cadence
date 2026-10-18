@@ -1,197 +1,209 @@
-//! Live terminal lifecycle and ingress (A-01, A-02, L-03).
-//!
-//! The runtime owns terminal setup/teardown and crossterm ingress with
-//! ingress-time stamping; the composition root (the `cadence` binary)
-//! owns the owner loop that feeds the engine reducer and the shared
-//! paint path. This keeps `cadence-runtime` free of any UI dependency:
-//! key-ownership decisions (U-03) belong to the engine, not here.
+//! Terminal ownership and normalized ingress. No scoring or UI policy here.
 
-use std::io::Stdout;
+use std::io::{self, Stdout};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use std::time::{Duration, Instant};
 
-use crossterm::event::{self, Event as CrosstermEvent, KeyEvent, KeyEventKind, KeyModifiers};
+use cadence_core::{LayoutSupportsPound, MonoTick, TrainingChar};
+use cadence_engine::{EventKind, Key};
+use crossterm::cursor::Show;
+use crossterm::event::{
+    self, DisableBracketedPaste, DisableFocusChange, EnableBracketedPaste, EnableFocusChange,
+    Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers,
+};
 use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
+use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
+use signal_hook::{
+    SigId,
+    consts::{SIGINT, SIGTERM},
+    low_level::unregister,
+};
 
-use cadence_core::{LayoutSupportsPound, MonoTick, TrainingChar};
-use cadence_engine::{EventKind, Key};
+/// Poll at most this long so save results and phase deadlines are serviced.
+const POLL_TIMEOUT: Duration = Duration::from_millis(20);
 
-/// Ingress poll cadence (A-04: coalescible timer hint; explicit elapsed
-/// time is sampled at reduction, so a dropped tick cannot change a
-/// budget). A named policy constant, not a naked literal.
-const POLL_TIMEOUT: Duration = Duration::from_millis(100);
-
-/// Failures of terminal handling.
+/// Terminal/clock adapter failures, never substituted with a valid timestamp.
 #[derive(Debug)]
 pub enum TerminalError {
-    /// Setup, teardown, polling or drawing failed.
-    Io(String),
+    /// A terminal operation failed.
+    Io(io::Error),
+    /// The run outlived the representable microsecond clock.
+    ClockExhausted,
 }
 
 impl std::fmt::Display for TerminalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Io(message) => write!(f, "terminal error: {message}"),
+            Self::Io(error) => write!(f, "terminal error: {error}"),
+            Self::ClockExhausted => f.write_str("run clock exhausted; measurement stopped"),
         }
     }
 }
-
 impl std::error::Error for TerminalError {}
 
-/// Owns the live terminal session: raw mode + alternate screen entered
-/// on construction, restored on explicit [`TerminalGuard::restore`] with
-/// a best-effort drop fallback (every exit path restores the user's
-/// terminal, including errors).
+#[derive(PartialEq, Eq)]
+enum Lifecycle {
+    Active,
+    Restored,
+}
+
+/// Owns raw mode, alternate screen, paste/focus reporting and the renderer.
 pub struct TerminalGuard {
-    terminal: Option<ratatui::Terminal<CrosstermBackend<Stdout>>>,
+    interrupted: Arc<AtomicBool>,
+    signal_ids: Vec<SigId>,
+    terminal: Terminal<CrosstermBackend<Stdout>>,
+    lifecycle: Lifecycle,
 }
 
 impl TerminalGuard {
-    /// Enters raw mode and the alternate screen.
-    ///
-    /// # Errors
-    /// Returns [`TerminalError`] when setup fails; anything already
-    /// entered is restored before the error is returned.
+    /// Enters a terminal session. Any partial setup is restored on failure.
     pub fn enter() -> Result<Self, TerminalError> {
-        enable_raw_mode().map_err(io_error)?;
-        let mut stdout = std::io::stdout();
-        if let Err(error) = execute!(stdout, EnterAlternateScreen) {
-            let _ = disable_raw_mode();
-            return Err(io_error(error));
+        enable_raw_mode().map_err(TerminalError::Io)?;
+        let mut stdout = io::stdout();
+        execute!(
+            stdout,
+            EnterAlternateScreen,
+            EnableBracketedPaste,
+            EnableFocusChange
+        )
+        .map_err(setup_error)?;
+        let terminal = Terminal::new(CrosstermBackend::new(stdout)).map_err(setup_error)?;
+        let mut guard = Self {
+            terminal,
+            lifecycle: Lifecycle::Active,
+            interrupted: Arc::new(AtomicBool::new(false)),
+            signal_ids: Vec::new(),
+        };
+        for signal in [SIGINT, SIGTERM] {
+            let id = signal_hook::flag::register(signal, Arc::clone(&guard.interrupted))
+                .map_err(TerminalError::Io)?;
+            guard.signal_ids.push(id);
         }
-        let backend = CrosstermBackend::new(stdout);
-        match ratatui::Terminal::new(backend) {
-            Ok(terminal) => Ok(Self {
-                terminal: Some(terminal),
-            }),
-            Err(error) => {
-                let _ = execute!(std::io::stdout(), LeaveAlternateScreen);
-                let _ = disable_raw_mode();
-                Err(io_error(error))
-            }
-        }
+        Ok(guard)
     }
 
-    /// Draws one frame through the caller's painter closure (the shared
-    /// paint path; the runtime owns lifecycle, not layout).
-    ///
-    /// # Errors
-    /// Returns [`TerminalError`] on draw failure.
+    /// Draws through the caller's shared painter without mutating product state.
     pub fn draw<P>(&mut self, painter: P) -> Result<(), TerminalError>
     where
         P: FnOnce(&mut ratatui::Frame<'_>),
     {
-        let Some(terminal) = self.terminal.as_mut() else {
-            return Err(TerminalError::Io("terminal already restored".to_string()));
-        };
-        terminal
-            .draw(|frame| painter(frame))
+        self.terminal
+            .draw(painter)
             .map(|_| ())
-            .map_err(io_error)
+            .map_err(TerminalError::Io)
     }
 
-    /// Restores the terminal explicitly (cursor, alternate screen, raw
-    /// mode). Prefer this over relying on drop so failures surface.
-    ///
-    /// # Errors
-    /// Returns [`TerminalError`] when restoration fails.
+    /// Actual terminal geometry for reducer-owned minimum-size handling.
+    pub fn viewport(&self) -> Result<(u16, u16), TerminalError> {
+        let size = self.terminal.size().map_err(TerminalError::Io)?;
+        Ok((size.width, size.height))
+    }
+
+    /// Explicit teardown surfaces errors; Drop remains the fallback.
     pub fn restore(mut self) -> Result<(), TerminalError> {
-        let result = self.restore_inner();
-        self.terminal = None;
-        result
+        restore_terminal().map_err(TerminalError::Io)?;
+        self.lifecycle = Lifecycle::Restored;
+        Ok(())
     }
 
-    fn restore_inner(&mut self) -> Result<(), TerminalError> {
-        if let Some(terminal) = self.terminal.as_mut() {
-            let _ = terminal.show_cursor();
-        }
-        execute!(std::io::stdout(), LeaveAlternateScreen).map_err(io_error)?;
-        disable_raw_mode().map_err(io_error)
-    }
-
-    /// Waits one poll window and reads at most one event, translated to
-    /// the engine's normalized kind. `None` means the poll timed out
-    /// (a coalescible timer hint, A-04).
-    ///
-    /// # Errors
-    /// Returns [`TerminalError`] on poll/read failure.
+    /// Reads at most one semantic event. A timeout is a replaceable clock hint.
     pub fn next_event(&mut self) -> Result<Option<EventKind>, TerminalError> {
-        if !event::poll(POLL_TIMEOUT).map_err(io_error)? {
+        if self.interrupted.swap(false, Ordering::Relaxed) {
+            return Ok(Some(EventKind::Key(Key::Interrupt)));
+        }
+        if !event::poll(POLL_TIMEOUT).map_err(TerminalError::Io)? {
             return Ok(None);
         }
-        let event = event::read().map_err(io_error)?;
+        let event = event::read().map_err(TerminalError::Io)?;
         Ok(Some(translate(event)))
     }
 }
 
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
-        // Best-effort fallback; errors are silent because Drop cannot
-        // propagate them, and the explicit path reports first.
-        if self.terminal.is_some() {
-            let _ = self.restore_inner();
+        if self.lifecycle == Lifecycle::Active
+            && let Err(error) = restore_terminal()
+        {
+            eprintln!("cadence: terminal restoration failed: {error}");
+        }
+        for id in self.signal_ids.drain(..) {
+            if !unregister(id) {
+                eprintln!("cadence: terminal signal handler was already removed");
+            }
         }
     }
 }
 
-/// Microseconds since the loop origin (checked conversion).
-#[must_use]
-pub fn elapsed_since(origin: Instant) -> MonoTick {
-    let micros = origin.elapsed().as_micros();
-    MonoTick::from_us(u64::try_from(micros).unwrap_or(u64::MAX))
+fn setup_error(error: io::Error) -> TerminalError {
+    if let Err(restore) = restore_terminal() {
+        eprintln!("cadence: terminal setup cleanup failed: {restore}");
+    }
+    TerminalError::Io(error)
 }
 
-fn io_error(error: std::io::Error) -> TerminalError {
-    TerminalError::Io(error.to_string())
+fn restore_terminal() -> io::Result<()> {
+    // Always attempt raw-mode cleanup even if the output stream failed.
+    let display = execute!(
+        io::stdout(),
+        Show,
+        DisableBracketedPaste,
+        DisableFocusChange,
+        LeaveAlternateScreen
+    );
+    let raw = disable_raw_mode();
+    display.and(raw)
 }
 
-/// Translates a crossterm event into the engine's normalized kinds
-/// (L-02 alphabet enforcement at admission; key ownership is the
-/// engine's decision, not the translator's).
-fn translate(event: CrosstermEvent) -> EventKind {
+/// Checked monotonic microseconds since the process timing origin.
+pub fn elapsed_since(origin: Instant) -> Result<MonoTick, TerminalError> {
+    u64::try_from(origin.elapsed().as_micros())
+        .map(MonoTick::from_us)
+        .map_err(|_| TerminalError::ClockExhausted)
+}
+
+fn translate(event: Event) -> EventKind {
     match event {
-        CrosstermEvent::Key(key) => EventKind::Key(translate_key(key)),
-        CrosstermEvent::Resize(columns, rows) => EventKind::Resized { columns, rows },
-        CrosstermEvent::Paste(_) => {
-            // Bracketed paste is rejected as training evidence (L-03);
-            // P3 raises the classified paste event. Until then it is not
-            // keystroke input.
-            EventKind::Key(Key::Other)
-        }
+        Event::Key(key) => EventKind::Key(translate_key(key)),
+        Event::Resize(columns, rows) => EventKind::Resized { columns, rows },
+        Event::Paste(_) => EventKind::PasteRejected,
+        Event::FocusLost => EventKind::FocusLost,
         _ => EventKind::Key(Key::Other),
     }
 }
 
 fn translate_key(key: KeyEvent) -> Key {
-    // Release events carry no input; held-key auto-repeat is ignored
-    // where the terminal reports the kind (L-03).
-    if key.kind == KeyEventKind::Release {
+    if key.kind != KeyEventKind::Press {
         return Key::Other;
     }
     match key.code {
-        crossterm::event::KeyCode::Char(character) => {
-            if key.modifiers.contains(KeyModifiers::CONTROL) {
-                // Ctrl-C follows the documented quit path; other control
-                // combinations are not training characters (U-03).
-                if character == 'c' {
-                    Key::Interrupt
-                } else {
-                    Key::Other
-                }
-            } else if let Ok(training) = TrainingChar::new(character, LayoutSupportsPound::US) {
-                Key::Content(training)
+        KeyCode::Char(character) if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            if character == 'c' {
+                Key::Interrupt
             } else {
                 Key::Other
             }
         }
-        // The physical Q6 top-numpad key mapped to Backspace is simply
-        // another Backspace event (U-03).
-        crossterm::event::KeyCode::Backspace | crossterm::event::KeyCode::Delete => Key::Backspace,
-        crossterm::event::KeyCode::Enter => Key::Enter,
-        crossterm::event::KeyCode::Esc => Key::Escape,
+        KeyCode::Char(_)
+            if key
+                .modifiers
+                .intersects(KeyModifiers::ALT | KeyModifiers::SUPER) =>
+        {
+            Key::Other
+        }
+        KeyCode::Char(character) => match TrainingChar::new(character, LayoutSupportsPound::UK) {
+            Ok(training) => Key::Content(training),
+            Err(_) => Key::Other,
+        },
+        KeyCode::Backspace => Key::Backspace,
+        KeyCode::Enter => Key::Enter,
+        KeyCode::Esc => Key::Escape,
         _ => Key::Other,
     }
 }

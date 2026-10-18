@@ -273,9 +273,9 @@ mod tests {
         let mut next_word = 1u64;
         for lane in block_skeleton(&selection()) {
             let word = word(next_word);
-            next_word += 1;
+            next_word = next_word.checked_add(1).unwrap();
             let focus = if lane == Lane::Target {
-                Some(next_word % 10)
+                Some(next_word.checked_rem(10).unwrap())
             } else {
                 None
             };

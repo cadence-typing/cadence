@@ -106,6 +106,15 @@ typed_name!(
     /// One guided daily session (or single-track practice session).
     SessionId
 );
+
+impl SessionId {
+    /// The first legal session identity (compile-time checked nonzero).
+    pub const FIRST: Self = match core::num::NonZeroU64::new(1) {
+        Some(value) => Self(value),
+        // Unreachable: 1 is nonzero; the arm exists for exhaustiveness.
+        None => unreachable!(),
+    };
+}
 typed_name!(
     /// One immutable target presentation within a session.
     ExerciseId

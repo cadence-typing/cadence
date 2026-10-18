@@ -25,6 +25,24 @@ use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
+fn planned_engine(text: &str) -> Result<Engine, Box<dyn std::error::Error>> {
+    let units = cadence_core::validate_target(text, LayoutSupportsPound::US)?;
+    Ok(Engine::new_plan(cadence_trainer::SessionPlan {
+        budget_seconds: 60,
+        policy_digest: cadence_core::ContentDigest::from_bytes([1; 32]),
+        corpus_digest: cadence_core::ContentDigest::from_bytes([2; 32]),
+        seed: 0,
+        phases: vec![cadence_trainer::PlannedPhase {
+            phase: cadence_trainer::Phase::AdaptiveWords,
+            seconds: 60,
+            exercises: vec![cadence_trainer::PlannedExercise {
+                units,
+                kind: cadence_trainer::ExerciseKind::Words,
+            }],
+        }],
+    })?)
+}
+
 fn envelope(seq: u64, at_us: u64, kind: EventKind) -> EventEnvelope {
     EventEnvelope {
         seq: EventSeq::from_raw(seq),
@@ -49,8 +67,8 @@ fn buffer_text(buffer: &Buffer) -> String {
 }
 
 #[test]
-fn slice_journey_through_shared_reducer_and_paint() {
-    let mut engine = Engine::new_slice(vec!["cat".to_string()]).expect("valid target");
+fn plan_journey_through_shared_reducer_and_paint() -> Result<(), Box<dyn std::error::Error>> {
+    let mut engine = planned_engine("cat")?;
     let palette = Palette::cadence_dark();
 
     // Today screen renders at the reference viewport.
@@ -89,6 +107,14 @@ fn slice_journey_through_shared_reducer_and_paint() {
             ..
         }
     ));
+    // Prepared-list exhaustion cycles; only the exact deadline ends practice.
+    assert!(matches!(
+        engine.prepare(MonoTick::from_us(tick)).screen,
+        ScreenView::Practice { .. }
+    ));
+    tick = 62_000_000;
+    seq += 1;
+    engine.reduce(envelope(seq, tick, EventKind::Tick));
     // The phase-complete offer renders first; Enter opens the summary.
     let mut view = engine.prepare(MonoTick::from_us(tick));
     let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
@@ -107,21 +133,21 @@ fn slice_journey_through_shared_reducer_and_paint() {
         "summary shows honest first-pass: {text}"
     );
 
-    // Esc returns to Today; q quits (navigation owns input again).
-    send(
+    // Summary owns navigation; Ctrl-C follows the explicit finish path.
+    assert_eq!(engine.input_owner(), InputOwner::Navigation);
+    let quit = send(
         &mut engine,
-        EventKind::Key(Key::Escape),
+        EventKind::Key(Key::Interrupt),
         &mut seq,
         &mut tick,
     );
-    assert_eq!(engine.input_owner(), InputOwner::Navigation);
-    let quit = send(&mut engine, content('q'), &mut seq, &mut tick);
     assert!(quit.quit);
+    Ok(())
 }
 
 #[test]
-fn pause_resume_boundaries_visible_in_view() {
-    let mut engine = Engine::new_slice(vec!["cat".to_string()]).unwrap();
+fn pause_resume_boundaries_visible_in_view() -> Result<(), Box<dyn std::error::Error>> {
+    let mut engine = planned_engine("cat")?;
     engine.reduce(envelope(1, 1_000_000, EventKind::Key(Key::Enter)));
     engine.reduce(envelope(2, 2_000_000, content('c')));
 
@@ -147,11 +173,12 @@ fn pause_resume_boundaries_visible_in_view() {
         }
         other => panic!("expected practice screen, got {other:?}"),
     }
+    Ok(())
 }
 
 #[test]
-fn paint_is_total_for_every_nonzero_viewport() {
-    let mut engine = Engine::new_slice(vec!["the quick brown fox".to_string()]).unwrap();
+fn paint_is_total_for_every_nonzero_viewport() -> Result<(), Box<dyn std::error::Error>> {
+    let mut engine = planned_engine("the quick brown fox")?;
     engine.reduce(envelope(1, 1_000_000, EventKind::Key(Key::Enter)));
     engine.reduce(envelope(2, 1_500_000, content('t')));
     engine.reduce(envelope(3, 2_000_000, content('x')));
@@ -177,11 +204,12 @@ fn paint_is_total_for_every_nonzero_viewport() {
             })
             .expect("draw");
     }
+    Ok(())
 }
 
 #[test]
-fn mistyped_units_show_typed_with_expected_available() {
-    let mut engine = Engine::new_slice(vec!["cat".to_string()]).unwrap();
+fn mistyped_units_show_typed_with_expected_available() -> Result<(), Box<dyn std::error::Error>> {
+    let mut engine = planned_engine("cat")?;
     engine.reduce(envelope(1, 1_000_000, EventKind::Key(Key::Enter)));
     engine.reduce(envelope(2, 1_500_000, content('x')));
     let view = engine.prepare(MonoTick::from_us(2_000_000));
@@ -199,15 +227,19 @@ fn mistyped_units_show_typed_with_expected_available() {
         }
         other => panic!("expected practice screen, got {other:?}"),
     }
+    Ok(())
 }
 
 #[test]
-fn sequence_gaps_are_refused_without_mutation() {
-    let mut engine = Engine::new_slice(vec!["cat".to_string()]).unwrap();
+fn sequence_gaps_invalidate_without_scoring_input() -> Result<(), Box<dyn std::error::Error>> {
+    let mut engine = planned_engine("cat")?;
     engine.reduce(envelope(1, 1_000_000, EventKind::Key(Key::Enter)));
     // Gap: skip sequence 2, send 3.
     let refused = engine.reduce(envelope(3, 2_000_000, content('c')));
-    assert!(!refused.dirty);
+    assert!(matches!(
+        refused.outcome,
+        DomainOutcome::MeasurementInvalid { .. }
+    ));
     assert_eq!(engine.consumed_events(), EventSeq::from_raw(1));
     // The drill did not record the ghost input.
     let view = engine.prepare(MonoTick::from_us(2_000_000));
@@ -217,4 +249,5 @@ fn sequence_gaps_are_refused_without_mutation() {
         }
         other => panic!("expected practice screen, got {other:?}"),
     }
+    Ok(())
 }

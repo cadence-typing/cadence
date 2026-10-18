@@ -1,10 +1,7 @@
 //! Semantic theme roles (U-02).
 //!
-//! Colours live in the theme adapter, not scattered widget literals. The
-//! three shipped palettes are `cadence-dark`, `cadence-light` and
-//! `terminal`. A validated custom palette maps each named role to a
-//! colour; an invalid theme retains the previous palette and reports one
-//! actionable diagnostic.
+//! Colours remain in this adapter; error meaning also has underline/inversion.
+//! Palette data is built in. Custom palette editing is not yet exposed.
 
 use ratatui::style::Color;
 
@@ -41,26 +38,7 @@ pub enum SemanticRole {
 /// fallback usable with colours disabled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Palette {
-    dark: bool,
     colors: [Color; 11],
-}
-
-/// Failures while adopting a user palette (U-02: invalid theme retains the
-/// previous palette with one actionable diagnostic).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ThemeError {
-    /// A named role was missing from the theme file.
-    MissingRole {
-        /// The absent role name.
-        role: String,
-    },
-    /// A colour value could not be parsed.
-    InvalidColor {
-        /// The offending value.
-        value: String,
-        /// Expected colour syntax.
-        expected: &'static str,
-    },
 }
 
 impl Palette {
@@ -127,13 +105,7 @@ impl Palette {
     /// Internal; public construction goes through named builders or the
     /// validated config path.
     const fn from_ordered(colors: [Color; 11]) -> Self {
-        Self { dark: true, colors }
-    }
-
-    /// Whether this palette prefers light-on-dark rendering.
-    #[must_use]
-    pub const fn is_dark(self) -> bool {
-        self.dark
+        Self { colors }
     }
 
     /// The colour bound to a role.
@@ -169,32 +141,6 @@ impl Palette {
             SemanticRole::ErrorBackground => "error-background",
             SemanticRole::Warning => "warning",
             SemanticRole::SelectedBackground => "selected-background",
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn every_role_has_a_colour_and_a_name() {
-        for role in Palette::ROLE_ORDER {
-            let color = Palette::cadence_dark().color(role);
-            assert_ne!(
-                Palette::cadence_light().color(role),
-                color,
-                "dark and light must differ for {}",
-                Palette::role_name(role)
-            );
-            assert!(!Palette::role_name(role).is_empty());
-        }
-    }
-
-    #[test]
-    fn terminal_palette_defers_to_defaults() {
-        for role in Palette::ROLE_ORDER {
-            assert_eq!(Palette::terminal().color(role), Color::Reset);
         }
     }
 }

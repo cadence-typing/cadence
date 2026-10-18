@@ -1,77 +1,37 @@
-//! `cadence` — CLI composition root (A-01, H-01, B-02).
-//!
-//! Composes the runtime (terminal lifecycle/ingress), the engine
-//! (reducer) and the shared paint path (TUI) into the user-facing
-//! binary. The base word corpus and prose bank are embedded so the
-//! statically linked bundle works fully offline. P3 adds XDG-backed
-//! persistence; today every run builds a fresh deterministic session
-//! (seeded from the calendar day, so a day's plan is stable across
-//! restarts) and progress does not yet survive exit — stated honestly
-//! on the Today screen.
+//! CLI composition: offline content, reducer, retained writer and shared paint.
 
+mod cli;
+mod practice;
+
+use std::error::Error;
 use std::process::ExitCode;
-use std::time::Instant;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use cadence_core::{EventSeq, WordId};
-use cadence_engine::{Engine, EventEnvelope, EventKind};
-use cadence_runtime::{TerminalGuard, elapsed_since};
-use cadence_trainer::{WordBand, WordPack, build_session_plan, parse_policy};
-use cadence_tui::paint::paint;
-use cadence_tui::theme::Palette;
+use cadence_core::LayoutSupportsPound;
+use cadence_data::ProgressStore;
+use cadence_engine::Engine;
+use cadence_trainer::{Phase, WordPack, build_session_plan, parse_policy};
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-/// The embedded base corpus (decision 0002; CC-BY-SA 4.0 notice in
-/// corpus/NOTICE, digest recorded in corpus/manifest.json).
-const WORDS_TSV: &str = include_str!("../../../corpus/words-en-v1.tsv");
-
-/// The embedded prose bank (Project Gutenberg #1342, public domain).
-const PROSE_BANK: &str = include_str!("../../../corpus/prose-en-v1.txt");
-
-/// The pinned trainer policy.
-const POLICY_TOML: &str = include_str!("../../../policies/trainer-v1.toml");
-
-/// Daily-plan seed basis: the calendar day keeps one day's plan stable
-/// across restarts (P2 determinism; a real profile RNG stream arrives
-/// with P3 persistence).
-fn daily_seed() -> u64 {
-    let seconds = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|elapsed| elapsed.as_secs())
-        .unwrap_or(0);
-    // Days since epoch, folded into a u64 seed.
-    seconds / 86_400
-}
-
-/// Exit code for argument errors (1 is reserved for runtime failures).
-const USAGE_ERROR: u8 = 2;
+/// The complete distributed word data, not a demo-only practice path.
+const WORDS: &str = include_str!("../../../corpus/words-en-v1.tsv");
+const PROSE: &str = include_str!("../../../corpus/prose-en-v1.txt");
+const POLICY: &str = include_str!("../../../policies/trainer-v1.toml");
+/// UTC day partition; not used to measure intra-run cadence.
+const SECONDS_PER_DAY: u64 = 86_400;
+/// Minutes accepted at the CLI convert exactly into policy seconds.
+const SECONDS_PER_MINUTE: u64 = 60;
+/// Shipped vocabulary count lower bound from P-04, checked on normal startup.
+const MINIMUM_WORDS: usize = 20_000;
 
 fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    match args.first().map(String::as_str) {
-        None => interactive(),
-        Some("--version") | Some("-V") => {
-            println!("cadence {VERSION}");
-            ExitCode::SUCCESS
+    let options = match cli::parse() {
+        Ok(options) => options,
+        Err(error) => {
+            eprintln!("cadence: {error}");
+            return ExitCode::from(2);
         }
-        Some(other) => {
-            eprintln!("cadence: unknown argument {other:?}");
-            eprintln!(
-                "usage: cadence [--version]   (settings/headless subcommands arrive with P3/P4)"
-            );
-            ExitCode::from(USAGE_ERROR)
-        }
-    }
-}
-
-/// The guided daily session (P2 scope): a deterministic 15-minute plan
-/// from the embedded corpus, run through the shared engine and paint
-/// path.
-fn interactive() -> ExitCode {
-    let Some(engine) = build_engine() else {
-        return ExitCode::FAILURE;
     };
-    match owner_loop(engine) {
+    match run(options) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("cadence: {error}");
@@ -80,112 +40,65 @@ fn interactive() -> ExitCode {
     }
 }
 
-/// Loads the embedded corpus through the production pack type and
-/// builds the deterministic session plan.
-fn build_engine() -> Option<Engine> {
-    let policy = match parse_policy(POLICY_TOML.as_bytes()) {
-        Ok(policy) => policy,
-        Err(error) => {
-            eprintln!("cadence: embedded policy invalid: {error}");
-            return None;
+fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
+    match &options.command {
+        cli::Command::Version => {
+            println!(
+                "cadence {} ({}, development preview)",
+                env!("CARGO_PKG_VERSION"),
+                std::env::consts::ARCH
+            );
+            Ok(())
         }
-    };
-    let pack = match load_embedded_words() {
-        Ok(pack) => pack,
-        Err(error) => {
-            eprintln!("cadence: embedded corpus invalid: {error}");
-            return None;
+        cli::Command::Help => {
+            cli::help();
+            Ok(())
         }
-    };
-    let seed = daily_seed();
-    let plan = match build_session_plan(&policy, &pack, PROSE_BANK, seed, &[], 900) {
-        Ok(plan) => plan,
-        Err(error) => {
-            eprintln!("cadence: could not plan the session: {error}");
-            return None;
+        cli::Command::Backup(destination) => {
+            let mut store = ProgressStore::open(options.profile.as_deref())?;
+            store.backup_to(destination)?;
+            println!("Backup created: {}", destination.display());
+            Ok(())
         }
-    };
-    match Engine::new_plan(plan) {
-        Ok(engine) => Some(engine),
-        Err(error) => {
-            eprintln!("cadence: {error}");
-            None
+        cli::Command::Export(destination) => {
+            let store = ProgressStore::open(options.profile.as_deref())?;
+            store.export_to(destination)?;
+            println!("Progress exported: {}", destination.display());
+            Ok(())
         }
-    }
-}
-
-/// Parses the embedded TSV into the production `WordPack` (the same
-/// loader the corpus gate exercises).
-fn load_embedded_words() -> Result<WordPack, String> {
-    let mut entries = Vec::new();
-    for (index, line) in WORDS_TSV.lines().enumerate() {
-        let line_number = index.saturating_add(1);
-        let fields: Vec<&str> = line.split('\t').collect();
-        let (Some(rank_text), Some(word), Some(band_text)) = (
-            fields.first().copied(),
-            fields.get(1).copied(),
-            fields.get(2).copied(),
-        ) else {
-            return Err(format!("line {line_number}: expected rank\\tword\\tband"));
-        };
-        let rank: u64 = rank_text
-            .parse()
-            .map_err(|_| format!("line {line_number}: bad rank"))?;
-        let band =
-            WordBand::parse(band_text).map_err(|error| format!("line {line_number}: {error}"))?;
-        let _ = WordId::new(rank).map_err(|_| "zero rank")?;
-        entries.push((rank, word.to_string(), band));
-    }
-    let digest = cadence_trainer::corpus::digest_of(WORDS_TSV.as_bytes());
-    WordPack::new(
-        entries,
-        digest,
-        // The embedded base pack is a curated subset for bundle size;
-        // the release corpus gate still verifies the full pack on disk.
-        1_000,
-        cadence_core::LayoutSupportsPound::US,
-    )
-    .map_err(|error| error.to_string())
-}
-
-/// The single owner loop (A-02): ingress → admission → reduce → prepare
-/// → paint, synchronous and bounded per iteration.
-fn owner_loop(mut engine: Engine) -> Result<(), Box<dyn std::error::Error>> {
-    let mut session = TerminalGuard::enter()?;
-    let palette = Palette::cadence_dark();
-    let origin = Instant::now();
-    let mut seq: u64 = 0;
-
-    draw(&engine, &mut session, palette, origin)?;
-
-    loop {
-        let kind = session.next_event()?.unwrap_or(EventKind::Tick);
-        seq = seq.saturating_add(1);
-        let transition = engine.reduce(EventEnvelope {
-            seq: EventSeq::from_raw(seq),
-            at: elapsed_since(origin),
-            kind,
-        });
-        if transition.quit {
-            session.restore()?;
-            return Ok(());
-        }
-        if transition.dirty {
-            draw(&engine, &mut session, palette, origin)?;
+        cli::Command::Practice => {
+            let day = SystemTime::now()
+                .duration_since(UNIX_EPOCH)?
+                .as_secs()
+                .checked_div(SECONDS_PER_DAY)
+                .ok_or("invalid day conversion")?;
+            let engine = build_engine(&options, day)?;
+            practice::run(engine, options.profile, i64::try_from(day)?)
         }
     }
 }
 
-fn draw(
-    engine: &Engine,
-    session: &mut TerminalGuard,
-    palette: Palette,
-    origin: Instant,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let view = engine.prepare(elapsed_since(origin));
-    session.draw(|frame| {
-        let area = frame.area();
-        paint(frame.buffer_mut(), area, &view, palette);
-    })?;
-    Ok(())
+fn build_engine(options: &cli::Options, day: u64) -> Result<Engine, Box<dyn Error>> {
+    // Content work finishes before entering the hot input/reducer/render path.
+    let policy = parse_policy(POLICY.as_bytes())?;
+    let pack = WordPack::from_tsv(WORDS, MINIMUM_WORDS, LayoutSupportsPound::US)?;
+    let budget = match options.minutes {
+        Some(minutes) => minutes
+            .checked_mul(SECONDS_PER_MINUTE)
+            .ok_or("duration overflow")?,
+        None => policy.session.default_budget_seconds,
+    };
+    let disabled: Vec<Phase> = match options.track {
+        Some(selected) => policy
+            .session
+            .phase_order
+            .iter()
+            .copied()
+            .filter(|phase| *phase != selected && *phase != Phase::Review)
+            .collect(),
+        None => Vec::new(),
+    };
+    let seed = options.seed.unwrap_or(day);
+    let plan = build_session_plan(&policy, &pack, PROSE, seed, &disabled, budget)?;
+    Ok(Engine::new_plan(plan)?)
 }

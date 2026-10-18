@@ -15,8 +15,8 @@ use cadence_core::CoreError;
 
 /// Allocates `budget` seconds across phases.
 ///
-/// `minimums[i]` is each phase's validated minimum; `weights[i]` the
-/// proportional weight (the default phase seconds serve as weights).
+/// `minimums[i]` is each phase's validated minimum; `weights[i]` is its
+/// proportional weight (session policies use default minus minimum).
 ///
 /// # Errors
 /// - [`CoreError::InvalidDenominator`] when there are no phases.
@@ -25,71 +25,62 @@ use cadence_core::CoreError;
 ///   of quietly dropping a track, P-02).
 /// - [`CoreError::ArithmeticOverflow`] on intermediate overflow.
 pub fn allocate(budget: u64, minimums: &[u64], weights: &[u64]) -> Result<Vec<u64>, CoreError> {
-    if minimums.is_empty() || weights.is_empty() || minimums.len() != weights.len() {
+    let overflow = || CoreError::ArithmeticOverflow {
+        operation: "phase allocation",
+    };
+    if minimums.is_empty() || minimums.len() != weights.len() {
         return Err(CoreError::InvalidDenominator);
     }
-    let phases = minimums.len();
-    let mut minimum_total: u128 = 0;
-    for minimum in minimums {
-        if *minimum == 0 {
-            return Err(CoreError::InvalidIdentity {
-                kind: "PhaseAllocation",
-                reason: "every enabled phase needs a positive minimum",
-            });
-        }
-        minimum_total += u128::from(*minimum);
-    }
-    if minimum_total > u128::from(budget) {
-        return Err(CoreError::CapacityExhausted {
-            limit: "phase minimums exceed the session budget",
+    if minimums.contains(&0) {
+        return Err(CoreError::InvalidIdentity {
+            kind: "PhaseAllocation",
+            reason: "every enabled phase needs a positive minimum",
         });
     }
-    let weight_total: u128 = weights.iter().map(|weight| u128::from(*weight)).sum();
+    let minimum_total = minimums.iter().try_fold(0u64, |sum, value| {
+        sum.checked_add(*value).ok_or_else(overflow)
+    })?;
+    let remaining = budget
+        .checked_sub(minimum_total)
+        .ok_or(CoreError::CapacityExhausted {
+            limit: "phase minimums exceed the session budget",
+        })?;
+    if remaining == 0 {
+        return Ok(minimums.to_vec());
+    }
+    let weight_total = weights.iter().try_fold(0u128, |sum, value| {
+        sum.checked_add(u128::from(*value)).ok_or_else(overflow)
+    })?;
     if weight_total == 0 {
         return Err(CoreError::InvalidDenominator);
     }
-    let remaining = u128::from(budget) - minimum_total;
-
-    // Largest-remainder apportionment over the remaining budget with the
-    // weights; scale in u128 so products cannot overflow.
-    let mut floors = vec![0u128; phases];
-    let mut remainders = vec![0u128; phases];
-    let mut allocated: u128 = 0;
-    for index in 0..phases {
-        let scaled = remaining * u128::from(weights[index]);
-        let floor = scaled / weight_total;
-        floors[index] = floor;
-        remainders[index] = scaled % weight_total;
-        allocated += floor;
+    let mut result = Vec::with_capacity(minimums.len());
+    let mut remainders = Vec::with_capacity(minimums.len());
+    let mut allocated = 0u64;
+    for (index, (minimum, weight)) in minimums.iter().zip(weights).enumerate() {
+        let scaled = u128::from(remaining)
+            .checked_mul(u128::from(*weight))
+            .ok_or_else(overflow)?;
+        let floor = u64::try_from(scaled.checked_div(weight_total).ok_or_else(overflow)?)
+            .map_err(|_| overflow())?;
+        result.push(minimum.checked_add(floor).ok_or_else(overflow)?);
+        remainders.push((
+            scaled.checked_rem(weight_total).ok_or_else(overflow)?,
+            index,
+        ));
+        allocated = allocated.checked_add(floor).ok_or_else(overflow)?;
     }
-    let leftover = remaining - allocated;
-    // leftover < phases (standard largest-remainder property); enforce
-    // the bound defensively anyway.
-    let increments = leftover.min(u128::try_from(phases).unwrap_or(u128::MAX));
-
-    // Descending fractional remainder, stable index order on ties.
-    let mut order: Vec<usize> = (0..phases).collect();
-    order.sort_by(|left, right| {
-        remainders[*right]
-            .cmp(&remainders[*left])
-            .then(left.cmp(right))
+    let leftover = usize::try_from(remaining.checked_sub(allocated).ok_or_else(overflow)?)
+        .map_err(|_| overflow())?;
+    if leftover > result.len() {
+        return Err(overflow());
+    }
+    remainders.sort_by(|(left, left_index), (right, right_index)| {
+        right.cmp(left).then(left_index.cmp(right_index))
     });
-    let mut extras = vec![0u128; phases];
-    for index in order
-        .iter()
-        .take(usize::try_from(increments).unwrap_or(usize::MAX))
-    {
-        extras[*index] = 1;
-    }
-
-    let mut result = Vec::with_capacity(phases);
-    for index in 0..phases {
-        let total = u128::from(minimums[index]) + floors[index] + extras[index];
-        result.push(
-            u64::try_from(total).map_err(|_| CoreError::ArithmeticOverflow {
-                operation: "PhaseAllocation::allocate",
-            })?,
-        );
+    for (_, index) in remainders.into_iter().take(leftover) {
+        let value = result.get_mut(index).ok_or_else(overflow)?;
+        *value = value.checked_add(1).ok_or_else(overflow)?;
     }
     Ok(result)
 }
@@ -102,9 +93,7 @@ mod tests {
 
     use super::*;
 
-    /// The documented default plan for the default budget is the pinned
-    /// `phase_seconds` table itself (exact for 900s); custom budgets
-    /// apportion with minimums + largest remainder (P-02).
+    /// Default and custom budgets share minimum-plus-residual apportionment.
     #[test]
     fn default_policy_allocates_documented_split() {
         let policy = crate::policy::parse_policy(
@@ -116,6 +105,10 @@ mod tests {
             .as_slice(),
         )
         .unwrap();
+        assert_eq!(
+            policy.session.default_allocation().unwrap(),
+            policy.session.phase_seconds
+        );
         // The pinned default table is exact for the default budget.
         assert_eq!(
             policy.session.phase_seconds,
@@ -125,18 +118,20 @@ mod tests {
             policy.session.phase_seconds.iter().copied().sum::<u64>(),
             policy.session.default_budget_seconds
         );
-        for (index, seconds) in policy.session.phase_seconds.iter().enumerate() {
-            assert!(
-                *seconds >= policy.session.phase_minimum_seconds[index],
-                "default table respects phase minimum {index}"
-            );
+        for (seconds, minimum) in policy
+            .session
+            .phase_seconds
+            .iter()
+            .zip(&policy.session.phase_minimum_seconds)
+        {
+            assert!(seconds >= minimum);
         }
         // Custom budgets apportion exactly (P-02 presets 5..30 minutes).
         for budget in (300..1800).step_by(11) {
             let allocation = allocate(
                 budget,
                 &policy.session.phase_minimum_seconds,
-                &policy.session.phase_seconds,
+                &policy.session.allocation_weights().unwrap(),
             )
             .unwrap();
             assert_eq!(allocation.iter().copied().sum::<u64>(), budget);

@@ -69,14 +69,14 @@ impl std::error::Error for CandidateError {}
 pub fn utility(candidate: &Candidate, weights: &crate::policy::UtilityWeights) -> u64 {
     let denominator = weights.total().max(1);
     let term = |weight: BasisPoints, value: BasisPoints| -> u64 {
-        u64::from(weight.get()) * u64::from(value.get())
+        u64::from(weight.get()).saturating_mul(u64::from(value.get()))
     };
     let numerator = term(weights.error, candidate.inputs.error)
         .saturating_add(term(weights.hesitation, candidate.inputs.hesitation))
         .saturating_add(term(weights.relevance, candidate.inputs.relevance))
         .saturating_add(term(weights.uncertainty, candidate.inputs.uncertainty));
     // denominator ≤ 40_000 and numerator ≤ 40_000 × 10_000 fits u64.
-    numerator / denominator
+    numerator.checked_div(denominator).unwrap_or_default()
 }
 
 /// Selects the best eligible candidate from the bounded vector, or
@@ -189,7 +189,7 @@ mod tests {
         b.tie_break = 99;
         let selected = scan_select(&[a, b], &weights(), 256).unwrap().unwrap();
         assert_eq!(selected.get(), 9, "higher tie_break wins on equal utility");
-        // Equal tie_break: smaller stable id wins (max by tuple).
+        // Equal tie_break: larger stable id wins (max by tuple).
         b.tie_break = 10;
         let selected = scan_select(&[a, b], &weights(), 256).unwrap().unwrap();
         assert_eq!(selected.get(), 9);

@@ -1,158 +1,56 @@
-//! Numeric track generators (P-04): number-row and numpad content.
-//!
-//! Fresh amounts/sequences from the same generator class, never the
-//! identical list every day (L-03 numeric transfer). String identity is
-//! preserved (`005.20` stays exactly that string). Number-row exercises
-//! embed digits in text-like contexts; numpad exercises are pure entry
-//! drills (digits, decimals, zero, repetition, alternation) where Enter
-//! submits.
-
+//! Seeded numeric practice. Numpad targets are single Enter-submitted entries;
+//! decimals and leading zeros remain strings, never parsed numeric values.
 use cadence_core::alphabet::{LayoutSupportsPound, TrainingChar};
+use std::collections::HashSet;
 
-/// Generator failure (malformed template — an authoring bug).
+/// Numeric preparation failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NumericError {
-    /// A produced exercise contained a character outside the training
-    /// alphabet (should be impossible: templates are ASCII).
+    /// A template or entropy source produced an invalid value.
     InvalidCharacter,
+    /// No new entry was found within the bounded preparation scan.
+    Exhausted,
 }
-
 impl std::fmt::Display for NumericError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "numeric generator produced an invalid character")
+        match self {
+            Self::InvalidCharacter => write!(f, "invalid numeric template or entropy value"),
+            Self::Exhausted => write!(
+                f,
+                "numeric preparation exhausted its bounded distinct-entry scan"
+            ),
+        }
     }
 }
-
 impl std::error::Error for NumericError {}
 
-/// Deterministic entropy source abstraction over the seeded PRNG: the
-/// plan builder owns the RNG instance and hands out bounded integers.
+/// Seeded entropy source owned by the plan builder.
 pub trait DigitSource {
-    /// A uniformly random value in `0..bound` (bound must be positive).
+    /// Uniform value in `0..bound`; callers pass a positive bound.
     fn below(&mut self, bound: u64) -> u64;
 }
-
-/// Builds one number-row exercise: digit groups embedded in short
-/// neutral identifier contexts (route/room/model numbers).
-///
-/// # Errors
-/// Returns [`NumericError`] only on an internal authoring bug.
-pub fn number_row_exercise(
-    rng: &mut dyn DigitSource,
-    used: &mut std::collections::HashSet<String>,
-) -> Result<Vec<TrainingChar>, NumericError> {
-    const CONTEXTS: [&str; 8] = [
-        "route", "room", "model", "gate", "box", "unit", "line", "case",
-    ];
-    let mut parts: Vec<String> = Vec::new();
-    for _ in 0..4 {
-        let context = CONTEXTS[usize::try_from(rng.below(CONTEXTS.len() as u64)).unwrap_or(0)];
-        let digit_count = 2 + rng.below(3);
-        let digits = fresh_digits(rng, digit_count, used);
-        parts.push(format!("{context} {digits}"));
-    }
-    let text = parts.join("  ");
-    to_units(&text)
+fn digits(rng: &mut dyn DigitSource, length: usize) -> Result<String, NumericError> {
+    (0..length)
+        .map(|_| {
+            let value = u8::try_from(rng.below(10)).map_err(|_| NumericError::InvalidCharacter)?;
+            if value > 9 {
+                return Err(NumericError::InvalidCharacter);
+            }
+            b'0'.checked_add(value)
+                .map(char::from)
+                .ok_or(NumericError::InvalidCharacter)
+        })
+        .collect()
 }
-
-/// Builds one numpad entry exercise: amounts, decimals, leading zeros,
-/// repetition and alternation, joined by single spaces. Enter submits
-/// the whole entry sequence in the engine.
-///
-/// # Errors
-/// Returns [`NumericError`] only on an internal authoring bug.
-pub fn numpad_exercise(
-    rng: &mut dyn DigitSource,
-    used: &mut std::collections::HashSet<String>,
-) -> Result<Vec<TrainingChar>, NumericError> {
-    let mut entries: Vec<String> = Vec::new();
-    for _ in 0..5 {
-        let entry = match rng.below(5) {
-            0 => {
-                // Integer amount.
-                let digit_count = 2 + rng.below(4);
-                fresh_digits(rng, digit_count, used)
-            }
-            1 => {
-                // Decimal amount; leading zeros are significant
-                // (string identity preserved).
-                let leading = rng.below(3);
-                let mut text = String::new();
-                for _ in 0..leading {
-                    text.push('0');
-                }
-                if text.is_empty() {
-                    text.push('0');
-                }
-                let fraction_digits = 1 + rng.below(2);
-                text.push_str(&fresh_digits(rng, fraction_digits, used));
-                text.push('.');
-                text.push_str(&fresh_digits(rng, 2, used));
-                register(used, &text)
-            }
-            2 => {
-                // Repetition drill.
-                let digit = char::from(b'0' + u8::try_from(rng.below(10)).unwrap_or(0));
-                let repeat = 3 + rng.below(3);
-                let text: String =
-                    std::iter::repeat_n(digit, usize::try_from(repeat).unwrap_or(3)).collect();
-                register(used, &text)
-            }
-            3 => {
-                // Alternation drill.
-                let left = char::from(b'0' + u8::try_from(rng.below(10)).unwrap_or(0));
-                let right = char::from(b'0' + u8::try_from(rng.below(10)).unwrap_or(1));
-                let mut text = String::new();
-                for pair in 0..4 {
-                    text.push(if pair % 2 == 0 { left } else { right });
-                }
-                register(used, &text)
-            }
-            _ => {
-                // Zero-leading entry.
-                let mut text = String::from("00");
-                text.push_str(&fresh_digits(rng, 2, used));
-                text
-            }
-        };
-        entries.push(entry);
+fn count(rng: &mut dyn DigitSource, base: usize, bound: u64) -> Result<usize, NumericError> {
+    let value = rng.below(bound);
+    if value >= bound {
+        return Err(NumericError::InvalidCharacter);
     }
-    let text = entries.join(" ");
-    to_units(&text)
+    base.checked_add(usize::try_from(value).map_err(|_| NumericError::InvalidCharacter)?)
+        .ok_or(NumericError::InvalidCharacter)
 }
-
-/// Fresh digit string not reused within the session (`used` guards).
-fn fresh_digits(
-    rng: &mut dyn DigitSource,
-    length: u64,
-    used: &mut std::collections::HashSet<String>,
-) -> String {
-    for _ in 0..64 {
-        let mut candidate = String::new();
-        for _ in 0..length {
-            let digit = char::from(b'0' + u8::try_from(rng.below(10)).unwrap_or(0));
-            candidate.push(digit);
-        }
-        if used.insert(candidate.clone()) {
-            return candidate;
-        }
-    }
-    // Collision after 64 attempts (tiny spaces like length-1): accept a
-    // repeat rather than looping; freshness is best-effort for drills.
-    let mut fallback = String::new();
-    for _ in 0..length {
-        let digit = char::from(b'0' + u8::try_from(rng.below(10)).unwrap_or(0));
-        fallback.push(digit);
-    }
-    fallback
-}
-
-fn register(used: &mut std::collections::HashSet<String>, text: &str) -> String {
-    used.insert(text.to_string());
-    text.to_string()
-}
-
-fn to_units(text: &str) -> Result<Vec<TrainingChar>, NumericError> {
+fn units(text: &str) -> Result<Vec<TrainingChar>, NumericError> {
     text.chars()
         .map(|character| {
             TrainingChar::new(character, LayoutSupportsPound::US)
@@ -161,50 +59,102 @@ fn to_units(text: &str) -> Result<Vec<TrainingChar>, NumericError> {
         .collect()
 }
 
-#[cfg(test)]
-mod tests {
-    // Test assertions may use expect/unwrap/panic to fail loudly; the
-    // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
-
-    use super::*;
-
-    /// Fixed-seed digit source for deterministic tests.
-    struct Fixed(u64);
-
-    impl DigitSource for Fixed {
-        fn below(&mut self, bound: u64) -> u64 {
-            // xorshift-style deterministic walk.
-            self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-            (self.0 >> 33) % bound.max(1)
+/// One number-row target with neutral identifier context.
+///
+/// # Errors
+/// Rejects invalid entropy or bounded distinct-content exhaustion.
+pub fn number_row_exercise(
+    rng: &mut dyn DigitSource,
+    used: &mut HashSet<String>,
+) -> Result<Vec<TrainingChar>, NumericError> {
+    const CONTEXTS: [&str; 8] = [
+        "route", "room", "model", "gate", "box", "unit", "line", "case",
+    ];
+    for _ in 0..64 {
+        let index = usize::try_from(rng.below(8)).map_err(|_| NumericError::InvalidCharacter)?;
+        let context = CONTEXTS.get(index).ok_or(NumericError::InvalidCharacter)?;
+        let length = count(rng, 3, 4)?;
+        let text = format!("{context} {}", digits(rng, length)?);
+        if !used.contains(&text) {
+            let target = units(&text)?;
+            used.insert(text);
+            return Ok(target);
         }
     }
+    Err(NumericError::Exhausted)
+}
 
-    #[test]
-    fn generators_stay_in_alphabet_and_shape() {
-        let mut rng = Fixed(42);
-        let mut used = std::collections::HashSet::new();
-        let row = number_row_exercise(&mut rng, &mut used).unwrap();
-        let text: String = row.iter().map(|unit| unit.get()).collect();
-        assert!(text.contains("route") || text.contains("room") || text.contains("gate"));
-        assert!(text.chars().any(|c| c.is_ascii_digit()));
-
-        let pad = numpad_exercise(&mut rng, &mut used).unwrap();
-        let pad_text: String = pad.iter().map(|unit| unit.get()).collect();
-        assert!(
-            pad_text
-                .chars()
-                .all(|c| c.is_ascii_digit() || c == '.' || c == ' '),
-            "numpad stays pure entry content: {pad_text}"
-        );
+/// One numpad target containing only digits and optionally one decimal point.
+/// Leading zeros and fractional trailing zeros are significant target units.
+///
+/// # Errors
+/// Rejects invalid entropy or bounded distinct-content exhaustion, never silently
+/// substituting a repeat for fresh content.
+pub fn numpad_exercise(
+    rng: &mut dyn DigitSource,
+    used: &mut HashSet<String>,
+) -> Result<Vec<TrainingChar>, NumericError> {
+    for _ in 0..64 {
+        let text = match rng.below(5) {
+            0 => {
+                let length = count(rng, 2, 5)?;
+                digits(rng, length)?
+            }
+            1 => {
+                let length = count(rng, 1, 4)?;
+                format!("{}.{}", digits(rng, length)?, digits(rng, 2)?)
+            }
+            2 => {
+                let digit = digits(rng, 1)?;
+                let length = count(rng, 3, 4)?;
+                digit.repeat(length)
+            }
+            3 => {
+                let pair = digits(rng, 2)?;
+                pair.repeat(2)
+            }
+            4 => format!("00{}.{}", digits(rng, 3)?, digits(rng, 2)?),
+            _ => return Err(NumericError::InvalidCharacter),
+        };
+        if !used.contains(&text) {
+            let target = units(&text)?;
+            used.insert(text);
+            return Ok(target);
+        }
     }
+    Err(NumericError::Exhausted)
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    use crate::plan::PlanRng;
+    use rand::SeedableRng;
 
     #[test]
-    fn different_seeds_produce_different_content() {
-        let mut used_a = std::collections::HashSet::new();
-        let mut used_b = std::collections::HashSet::new();
-        let a = numpad_exercise(&mut Fixed(1), &mut used_a).unwrap();
-        let b = numpad_exercise(&mut Fixed(2), &mut used_b).unwrap();
-        assert_ne!(a, b);
+    fn single_enter_entries_preserve_zeros_and_decimals() {
+        let mut rng = PlanRng::seed_from_u64(42);
+        let mut used = HashSet::new();
+        let mut saw_leading = false;
+        let mut saw_decimal = false;
+        for _ in 0..1800 {
+            let target = numpad_exercise(&mut rng, &mut used).unwrap();
+            let text: String = target.iter().map(|unit| unit.get()).collect();
+            assert!(text.chars().all(|c| c.is_ascii_digit() || c == '.'));
+            assert!(text.matches('.').count() <= 1);
+            saw_leading |= text.starts_with("00");
+            saw_decimal |= text.contains('.');
+        }
+        assert!(saw_leading && saw_decimal);
+        assert_eq!(used.len(), 1800);
+    }
+    #[test]
+    fn seeds_replay_and_change_content() {
+        let make = |seed| {
+            number_row_exercise(&mut PlanRng::seed_from_u64(seed), &mut HashSet::new()).unwrap()
+        };
+        assert_eq!(make(1), make(1));
+        assert_ne!(make(1), make(2));
     }
 }

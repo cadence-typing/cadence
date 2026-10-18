@@ -1,11 +1,9 @@
 //! Corpus pack view for the planner (D-03).
 //!
-//! A loaded pack exposes immutable words with frequency bands and a
-//! band/length index. Packs are content-addressed
-//! ([`cadence_core::CorpusVersion`]); loading validates the manifest,
-//! deduplication and the training alphabet before anything reaches the
-//! planner. The P2 acquisition recipe (decision 0002) produces the
-//! on-disk format this loader reads.
+//! A loaded pack exposes alphabet-validated tokens and band indexes.
+//! Frequency-derived tokens are not a vetted dictionary: source quality,
+//! attribution and licensing limits are recorded in `corpus/NOTICE`.
+//! Identity and surface-form uniqueness are checked independently.
 
 use std::collections::HashMap;
 
@@ -41,7 +39,7 @@ impl WordBand {
     }
 }
 
-/// One vetted word form.
+/// One alphabet-validated token (not a lexicographic quality assertion).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WordEntry {
     /// Stable content-addressed identity.
@@ -61,6 +59,13 @@ pub enum CorpusError {
         /// The duplicated numeric identity.
         id: u64,
     },
+    /// Distinct IDs cannot disguise repeated content.
+    DuplicateForm {
+        /// The repeated surface form.
+        word: String,
+    },
+    /// Invalid capacity-check inputs.
+    InvalidCapacity,
     /// A word is outside the training alphabet.
     InvalidWord {
         /// The offending word.
@@ -86,6 +91,10 @@ impl std::fmt::Display for CorpusError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::DuplicateIdentity { id } => write!(f, "duplicate word identity {id}"),
+            Self::DuplicateForm { word } => write!(f, "duplicate word form {word:?}"),
+            Self::InvalidCapacity => {
+                write!(f, "capacity slots and occurrence cap must be positive")
+            }
             Self::InvalidWord { word, reason } => {
                 write!(f, "word {word:?} outside the training alphabet: {reason}")
             }
@@ -109,6 +118,42 @@ pub struct WordPack {
 }
 
 impl WordPack {
+    /// Loads the canonical rank, token, band TSV and hashes the original bytes.
+    ///
+    /// # Errors
+    /// Rejects malformed rows, nonpositive or repeated IDs, duplicate forms,
+    /// unsupported text and insufficient content.
+    pub fn from_tsv(
+        text: &str,
+        minimum_words: usize,
+        pound: LayoutSupportsPound,
+    ) -> Result<Self, CorpusError> {
+        let mut entries = Vec::new();
+        for line in text.lines() {
+            let mut fields = line.split('\t');
+            let malformed = || CorpusError::InvalidWord {
+                word: line.into(),
+                reason: "expected exactly rank, token, band fields with a positive integer rank"
+                    .into(),
+            };
+            let rank = fields
+                .next()
+                .ok_or_else(malformed)?
+                .parse::<u64>()
+                .map_err(|_| malformed())?;
+            if rank == 0 {
+                return Err(malformed());
+            }
+            let word = fields.next().ok_or_else(malformed)?;
+            let band = WordBand::parse(fields.next().ok_or_else(malformed)?)?;
+            if fields.next().is_some() {
+                return Err(malformed());
+            }
+            entries.push((rank, word.to_string(), band));
+        }
+        Self::new(entries, digest_of(text.as_bytes()), minimum_words, pound)
+    }
+
     /// Validates and indexes raw entries; identities must be unique and
     /// every word inside the V1 training alphabet.
     ///
@@ -129,7 +174,17 @@ impl WordPack {
         let mut words = Vec::with_capacity(entries.len());
         let mut by_id = HashMap::with_capacity(entries.len());
         let mut by_band: HashMap<WordBand, Vec<usize>> = HashMap::new();
+        let mut forms = std::collections::HashSet::with_capacity(entries.len());
         for (index, (raw_id, text, band)) in entries.into_iter().enumerate() {
+            if text.is_empty() || text.chars().any(char::is_whitespace) {
+                return Err(CorpusError::InvalidWord {
+                    word: text,
+                    reason: "tokens must be nonempty and contain no whitespace".into(),
+                });
+            }
+            if !forms.insert(text.clone()) {
+                return Err(CorpusError::DuplicateForm { word: text });
+            }
             let id = WordId::new(raw_id).map_err(|_| CorpusError::InvalidWord {
                 word: text.clone(),
                 reason: "identity must be nonzero".to_string(),
@@ -174,7 +229,9 @@ impl WordPack {
     /// Lookup by identity.
     #[must_use]
     pub fn word(&self, id: WordId) -> Option<&WordEntry> {
-        self.by_id.get(&id.get()).map(|index| &self.words[*index])
+        self.by_id
+            .get(&id.get())
+            .and_then(|index| self.words.get(*index))
     }
 
     /// Indices of words in a band.
@@ -192,55 +249,38 @@ impl WordPack {
         self.digest
     }
 
-    /// The offline capacity check (L-05): every default lane
-    /// configuration must find a legal candidate. With the caps from
-    /// policy, a pack needs at least `distinct words ≥ block_slots ×
-    /// occurrence cap` distinct candidates overall, and each lane's
-    /// band must be nonempty.
+    /// Necessary distinct-content capacity check, not a proof of every lane,
+    /// focus or consecutive-cap combination. The minimum is the ceiling of
+    /// block slots divided by the per-word occurrence cap. Actual planning
+    /// applies all caps before ranking.
     ///
     /// # Errors
-    /// Returns [`CorpusError::TooSmall`] when a default lane would
-    /// starve.
+    /// Rejects zero parameters or insufficient distinct surface forms.
     pub fn capacity_check(
         &self,
         block_slots: usize,
         occurrence_cap: u32,
     ) -> Result<(), CorpusError> {
+        let cap = usize::try_from(occurrence_cap).map_err(|_| CorpusError::InvalidCapacity)?;
+        if block_slots == 0 || cap == 0 {
+            return Err(CorpusError::InvalidCapacity);
+        }
+        let required = block_slots.div_ceil(cap);
         let distinct = self.words.len();
-        let required = block_slots.saturating_mul(occurrence_cap as usize).max(1);
         if distinct < required {
             return Err(CorpusError::TooSmall {
                 present: distinct,
                 required,
             });
         }
-        // Everyday prominence requires a nonempty core band; other
-        // band starvation surfaces through the planner's explicit
-        // NoEligibleCandidate fallback rather than here.
-        if self.band(WordBand::Core).is_empty() {
-            return Err(CorpusError::TooSmall {
-                present: 0,
-                required: 1,
-            });
-        }
         Ok(())
     }
 }
 
-/// SHA-256 digest of canonical pack bytes (the acquisition recipe's
-/// output file).
-///
-/// # Errors
-/// Never fails for the SHA-256 primitive; returns [`CoreError`] on
-/// none for future-proofing.
+/// SHA-256 digest of the original canonical pack bytes.
 pub fn digest_of(bytes: &[u8]) -> ContentDigest {
     use sha2::{Digest, Sha256};
-    let digest = Sha256::digest(bytes);
-    let mut raw = [u8::MAX; 32];
-    for (index, byte) in digest.iter().take(32).enumerate() {
-        raw[index] = *byte;
-    }
-    ContentDigest::from_bytes(raw)
+    ContentDigest::from_bytes(Sha256::digest(bytes).into())
 }
 
 #[cfg(test)]
@@ -257,7 +297,7 @@ mod tests {
             .enumerate()
             .map(|(index, (word, band))| {
                 (
-                    (index as u64) + 1,
+                    u64::try_from(index).unwrap().checked_add(1).unwrap(),
                     word.clone(),
                     WordBand::parse(band).unwrap(),
                 )
@@ -307,10 +347,9 @@ mod tests {
 
     #[test]
     fn capacity_check_enforces_lane_food() {
-        // 10 slots × cap 2 needs ≥ 20 distinct words.
-        let small = band_entries(19, "core");
+        let small = band_entries(4, "core");
         assert!(pack(&small, 1).unwrap().capacity_check(10, 2).is_err());
-        let enough = band_entries(20, "core");
+        let enough = band_entries(5, "tail");
         assert!(pack(&enough, 1).unwrap().capacity_check(10, 2).is_ok());
     }
 

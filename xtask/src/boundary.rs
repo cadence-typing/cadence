@@ -143,7 +143,9 @@ fn member_manifests(root: &Path) -> Result<BTreeMap<String, Vec<String>>, String
                 .ok_or_else(|| format!("package name missing in {}", path.display()))?
                 .to_string();
             let mut deps: Vec<String> = Vec::new();
-            for section in ["dependencies", "dev-dependencies"] {
+            // Test fixtures may assemble several layers; only shipping
+            // dependencies are constrained by the runtime graph.
+            for section in ["dependencies", "build-dependencies"] {
                 if let Some(map) = value.get(section).and_then(|d| d.as_table()) {
                     for key in map.keys() {
                         if key.starts_with("cadence") {

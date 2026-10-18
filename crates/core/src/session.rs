@@ -111,10 +111,12 @@ pub struct TimingSegments {
     /// Tick of the first valid content input in the current segment;
     /// `None` before the first input.
     segment_start: Option<MonoTick>,
-    /// Completed segment durations, in order.
-    completed: Vec<Micros>,
-    /// Total paused time, accumulated at each pause boundary.
-    paused_total: Micros,
+    /// Constant-space accumulated active duration.
+    completed: Micros,
+    /// Most recently observed timing boundary.
+    last: Option<MonoTick>,
+    /// Whether any content has started this phase.
+    started: bool,
 }
 
 impl Default for TimingSegments {
@@ -129,8 +131,9 @@ impl TimingSegments {
     pub const fn new() -> Self {
         Self {
             segment_start: None,
-            completed: Vec::new(),
-            paused_total: Micros::ZERO,
+            completed: Micros::ZERO,
+            last: None,
+            started: false,
         }
     }
 
@@ -140,26 +143,23 @@ impl TimingSegments {
     /// Returns [`CoreError::BackwardTime`] when `at` precedes the
     /// previously recorded boundary.
     pub fn first_content(&mut self, at: MonoTick) -> Result<(), CoreError> {
+        self.observe(at)?;
         if self.segment_start.is_none() {
             self.segment_start = Some(at);
         }
+        self.started = true;
         Ok(())
     }
 
-    /// Pause records a clock boundary before the state change (A-05).
+    /// Pausing before the first content input is valid and accumulates no time.
     ///
     /// # Errors
-    /// Returns [`CoreError::InvalidIdentity`] when no segment is active,
-    /// or [`CoreError::BackwardTime`] for backward clocks.
+    /// Returns [`CoreError::BackwardTime`] for backward clocks.
     pub fn pause(&mut self, at: MonoTick) -> Result<(), CoreError> {
-        let start = self.segment_start.ok_or(CoreError::InvalidIdentity {
-            kind: "TimingSegments",
-            reason: "pause without an active segment",
-        })?;
-        let elapsed = at.elapsed_since(start)?;
-        self.completed.push(elapsed);
+        self.observe(at)?;
+        let total = self.active_through(at)?;
+        self.completed = total;
         self.segment_start = None;
-        self.paused_total = self.paused_total.checked_add(elapsed)?;
         Ok(())
     }
 
@@ -168,24 +168,41 @@ impl TimingSegments {
     /// # Errors
     /// Returns [`CoreError::BackwardTime`] for backward clocks.
     pub fn resume(&mut self, at: MonoTick) -> Result<(), CoreError> {
-        debug_assert!(
-            self.segment_start.is_none(),
-            "resume while a segment is open is an engine bug"
-        );
+        self.observe(at)?;
         if self.segment_start.is_some() {
             return Err(CoreError::InvalidIdentity {
                 kind: "TimingSegments",
                 reason: "resume while a segment is open",
             });
         }
-        self.segment_start = Some(at);
+        if self.started {
+            self.segment_start = Some(at);
+        }
         Ok(())
     }
 
-    /// Total paused time so far.
+    /// Closes a phase; the next phase waits for its first content input.
+    ///
+    /// # Errors
+    /// Refuses backward time.
+    pub fn end_phase(&mut self, at: MonoTick) -> Result<(), CoreError> {
+        self.pause(at)?;
+        self.started = false;
+        Ok(())
+    }
+
+    fn observe(&mut self, at: MonoTick) -> Result<(), CoreError> {
+        if let Some(last) = self.last {
+            at.elapsed_since(last)?;
+        }
+        self.last = Some(at);
+        Ok(())
+    }
+
+    /// Accumulated active duration of closed segments.
     #[must_use]
-    pub const fn paused_total(&self) -> Micros {
-        self.paused_total
+    pub const fn accumulated_active(&self) -> Micros {
+        self.completed
     }
 
     /// Active time through `now`: completed segments plus the open
@@ -195,10 +212,10 @@ impl TimingSegments {
     /// Returns [`CoreError::BackwardTime`] when `now` precedes the open
     /// segment's start.
     pub fn active_through(&self, now: MonoTick) -> Result<Micros, CoreError> {
-        let mut total = Micros::ZERO;
-        for segment in &self.completed {
-            total = total.checked_add(*segment)?;
+        if let Some(last) = self.last {
+            now.elapsed_since(last)?;
         }
+        let mut total = self.completed;
         if let Some(start) = self.segment_start {
             total = total.checked_add(now.elapsed_since(start)?)?;
         }
@@ -269,7 +286,7 @@ mod tests {
                 .as_us(),
             6_000_000
         );
-        assert_eq!(timing.paused_total().as_us(), 3_000_000);
+        assert_eq!(timing.accumulated_active().as_us(), 3_000_000);
     }
 
     #[test]
@@ -278,5 +295,28 @@ mod tests {
         timing.first_content(MonoTick::from_us(5_000_000)).unwrap();
         assert!(timing.pause(MonoTick::from_us(4_000_000)).is_err());
         assert!(timing.active_through(MonoTick::from_us(1_000_000)).is_err());
+    }
+
+    #[test]
+    fn pause_before_input_preserves_first_key_start() -> Result<(), CoreError> {
+        let mut timing = TimingSegments::new();
+        timing.pause(MonoTick::from_us(10))?;
+        timing.resume(MonoTick::from_us(100))?;
+        assert_eq!(timing.active_through(MonoTick::from_us(200))?, Micros::ZERO);
+        timing.first_content(MonoTick::from_us(300))?;
+        assert_eq!(timing.active_through(MonoTick::from_us(400))?.as_us(), 100);
+        Ok(())
+    }
+
+    #[test]
+    fn closed_phase_excludes_transition_and_waits_for_content() -> Result<(), CoreError> {
+        let mut timing = TimingSegments::new();
+        timing.first_content(MonoTick::from_us(10))?;
+        timing.end_phase(MonoTick::from_us(20))?;
+        assert_eq!(timing.active_through(MonoTick::from_us(1000))?.as_us(), 10);
+        assert!(timing.first_content(MonoTick::from_us(19)).is_err());
+        timing.first_content(MonoTick::from_us(2000))?;
+        assert_eq!(timing.active_through(MonoTick::from_us(2010))?.as_us(), 20);
+        Ok(())
     }
 }

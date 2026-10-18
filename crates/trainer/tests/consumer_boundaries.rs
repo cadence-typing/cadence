@@ -1,0 +1,242 @@
+//! Consumer-boundary coverage for the distributed policy and corpus.
+use cadence_core::{ContentDigest, LayoutSupportsPound};
+use cadence_trainer::{
+    ExerciseKind, Phase, TrainerPolicy, WordBand, WordPack, build_session_plan, parse_policy,
+};
+
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+const POLICY: &str = include_str!("../../../policies/trainer-v1.toml");
+const WORDS: &str = include_str!("../../../corpus/words-en-v1.tsv");
+const PROSE: &str = include_str!("../../../corpus/prose-en-v1.txt");
+fn policy() -> Result<TrainerPolicy, cadence_trainer::PolicyError> {
+    parse_policy(POLICY.as_bytes())
+}
+
+#[test]
+fn shipped_startup_replays_many_seeds_and_obeys_caps() -> TestResult {
+    let policy = policy()?;
+    let pack = WordPack::from_tsv(WORDS, 25_000, LayoutSupportsPound::US)?;
+    for seed in 0..32 {
+        let plan = build_session_plan(&policy, &pack, PROSE, seed, &[], 900)?;
+        assert_eq!(
+            plan,
+            build_session_plan(&policy, &pack, PROSE, seed, &[], 900)?
+        );
+        assert_eq!(
+            plan.phases
+                .iter()
+                .map(|phase| phase.seconds)
+                .collect::<Vec<_>>(),
+            policy.session.default_allocation()?
+        );
+        for phase in &plan.phases {
+            for exercise in &phase.exercises {
+                assert!(!exercise.units.is_empty());
+                let text: String = exercise.units.iter().map(|unit| unit.get()).collect();
+                if matches!(exercise.kind, ExerciseKind::Words | ExerciseKind::WarmUp) {
+                    let mut occurrences = std::collections::HashMap::new();
+                    let mut previous = None;
+                    let mut run = 0u32;
+                    for word in text.split(' ') {
+                        let count = occurrences.entry(word).or_insert(0u32);
+                        *count = count.checked_add(1).ok_or("count overflow")?;
+                        assert!(*count <= policy.selection.maximum_word_occurrences_per_block);
+                        run = if previous == Some(word) {
+                            run.checked_add(1).ok_or("run overflow")?
+                        } else {
+                            1
+                        };
+                        assert!(run <= policy.selection.maximum_consecutive_word_occurrences);
+                        previous = Some(word);
+                    }
+                }
+                if exercise.kind == ExerciseKind::Numpad {
+                    assert!(text.chars().all(|c| c.is_ascii_digit() || c == '.'));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn caps_are_filtered_before_ranking_with_smallest_legal_scan() -> TestResult {
+    let mut policy = policy()?;
+    policy.selection.maximum_word_occurrences_per_block = 1;
+    policy.selection.maximum_consecutive_word_occurrences = 1;
+    policy.selection.maximum_candidates_per_slot = policy.selection.block_slots;
+    let entries = (1..=300)
+        .map(|id| {
+            (
+                id,
+                format!("token{id}"),
+                match id {
+                    1..=100 => WordBand::Core,
+                    101..=200 => WordBand::Common,
+                    _ => WordBand::Tail,
+                },
+            )
+        })
+        .collect();
+    let pack = WordPack::new(
+        entries,
+        ContentDigest::from_bytes([1; 32]),
+        1,
+        LayoutSupportsPound::US,
+    )?;
+    for seed in 0..32 {
+        let plan = build_session_plan(
+            &policy,
+            &pack,
+            PROSE,
+            seed,
+            &[Phase::Numpad, Phase::NumberRow, Phase::Prose],
+            300,
+        )?;
+        assert_eq!(
+            plan.phases.iter().map(|phase| phase.seconds).sum::<u64>(),
+            300
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn all_cli_track_presets_keep_exact_budget() -> TestResult {
+    let policy = policy()?;
+    let pack = WordPack::from_tsv(WORDS, 1, LayoutSupportsPound::US)?;
+    for selected in [
+        Phase::AdaptiveWords,
+        Phase::NumberRow,
+        Phase::Numpad,
+        Phase::Prose,
+    ] {
+        let disabled: Vec<_> = policy
+            .session
+            .phase_order
+            .iter()
+            .copied()
+            .filter(|phase| *phase != selected && *phase != Phase::Review)
+            .collect();
+        for budget in [300, 600, 900, 1200, 1800] {
+            let plan = build_session_plan(&policy, &pack, PROSE, 7, &disabled, budget)?;
+            assert_eq!(
+                plan.phases.iter().map(|phase| phase.seconds).sum::<u64>(),
+                budget
+            );
+            assert!(
+                plan.phases
+                    .iter()
+                    .any(|phase| phase.phase == selected && !phase.exercises.is_empty())
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn malformed_policy_is_rejected_not_clamped() {
+    for (from, to) in [
+        ("block_slots = 10", "block_slots = 4294967296"),
+        ("target_slots = 6", "target_slots = 5"),
+        (
+            "maximum_candidates_per_slot = 256",
+            "maximum_candidates_per_slot = 0",
+        ),
+        (
+            "maximum_word_occurrences_per_block = 2",
+            "maximum_word_occurrences_per_block = 0",
+        ),
+        (
+            "phase_seconds = [60, 300, 120, 180, 180, 60]",
+            "phase_seconds = [60, 300]",
+        ),
+        (
+            "phase_minimum_seconds = [20, 60, 30, 45, 60, 15]",
+            "phase_minimum_seconds = [0, 60, 30, 45, 60, 15]",
+        ),
+        (
+            "default_budget_seconds = 900",
+            "default_budget_seconds = 901",
+        ),
+        (
+            "maximum_budget_seconds = 1800",
+            "maximum_budget_seconds = 299",
+        ),
+        (
+            "recent_occurrence_window = 128",
+            "recent_occurrence_window = 4294967296",
+        ),
+        (
+            "interval_days = [1, 3, 7, 14, 30]",
+            "interval_days = [1, 7, 3]",
+        ),
+        (
+            "qualifying_blocks_to_raise = 3",
+            "qualifying_blocks_to_raise = 0",
+        ),
+        ("error_prior_beta = 19", "error_prior_beta = 0"),
+        ("error = 5000", "error = 10001"),
+    ] {
+        assert!(POLICY.contains(from));
+        assert!(
+            parse_policy(POLICY.replace(from, to).as_bytes()).is_err(),
+            "accepted {to}"
+        );
+    }
+}
+
+#[test]
+fn tsv_boundary_rejects_identity_content_and_shape_errors() -> TestResult {
+    for text in [
+        "0\tword\tcore",
+        "-1\tword\tcore",
+        "1\tword\tcore\textra",
+        "1\tword",
+        "1\t\tcore",
+        "1\ttwo words\tcore",
+        "1\tword\tcore\n1\tother\tcore",
+        "1\tword\tcore\n2\tword\ttail",
+    ] {
+        assert!(WordPack::from_tsv(text, 1, LayoutSupportsPound::US).is_err());
+    }
+    let text = "1\tword\tcore\n2\tother\ttail\n";
+    let pack = WordPack::from_tsv(text, 2, LayoutSupportsPound::US)?;
+    assert_eq!(
+        pack.digest(),
+        cadence_trainer::corpus::digest_of(text.as_bytes())
+    );
+    assert_eq!(pack.len(), 2);
+    Ok(())
+}
+
+#[test]
+fn pace_rejects_invented_counts_and_handles_full_width_evidence() -> TestResult {
+    use cadence_core::BasisPoints;
+    use cadence_trainer::pace::{BlockEvidence, PaceDecision, pace_decision};
+    let policy = policy()?;
+    let invalid = BlockEvidence {
+        first_attempt_positions: 1,
+        first_correct: 2,
+        content_attempts: 1,
+        correct_attempts: 1,
+        session_ordinal: 1,
+    };
+    assert!(pace_decision(&policy.pace, Some(BasisPoints::MAX), &[invalid]).is_err());
+    assert_eq!(
+        pace_decision(&policy.pace, None, &[])?,
+        PaceDecision::NoBaseline
+    );
+    let valid = BlockEvidence {
+        first_attempt_positions: u64::MAX,
+        first_correct: u64::MAX,
+        content_attempts: u64::MAX,
+        correct_attempts: u64::MAX,
+        session_ordinal: 1,
+    };
+    assert_eq!(
+        pace_decision(&policy.pace, Some(BasisPoints::MAX), &[valid, valid])?,
+        PaceDecision::Steady
+    );
+    Ok(())
+}

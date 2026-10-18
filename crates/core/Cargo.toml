@@ -11,6 +11,8 @@ description = "Pure domain foundations: typed identities, checked time/units, er
 workspace = true
 
 [dependencies]
+serde = { workspace = true, features = ["derive"] }
+sha2.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

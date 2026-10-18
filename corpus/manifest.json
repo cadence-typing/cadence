@@ -18,7 +18,8 @@
   "normalization": {
     "alphabet": "a-z and apostrophe (lowercase V1 training alphabet)",
     "case": "wordfreq ranking folds case variants; one surface form per rank",
-    "deduplication": "none beyond wordfreq ranking"
+    "deduplication": "loader rejects duplicate identities and exact surface forms",
+    "quality": "alphabet-filtered frequency tokens; not a vetted lexicon or safety-reviewed list"
   },
   "counts": {
     "words": 25000,

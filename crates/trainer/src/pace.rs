@@ -58,6 +58,18 @@ pub fn pace_decision(
     current_target: Option<BasisPoints>,
     recent_blocks: &[BlockEvidence],
 ) -> Result<PaceDecision, CoreError> {
+    for block in recent_blocks {
+        if block.first_correct > block.first_attempt_positions
+            || block.first_attempt_positions > block.content_attempts
+            || block.correct_attempts > block.content_attempts
+            || block.first_correct > block.correct_attempts
+        {
+            return Err(CoreError::InvalidIdentity {
+                kind: "BlockEvidence",
+                reason: "inconsistent observation counts",
+            });
+        }
+    }
     let Some(target) = current_target else {
         return Ok(PaceDecision::NoBaseline);
     };
@@ -91,7 +103,17 @@ pub fn pace_decision(
             {
                 // Degradation: correct-ratio strictly worse by more than
                 // a hair (exact integer cross-multiplication).
-                block.correct_attempts * previous_total < previous_correct * block.content_attempts
+                let left = u128::from(block.correct_attempts)
+                    .checked_mul(u128::from(previous_total))
+                    .ok_or(CoreError::ArithmeticOverflow {
+                        operation: "attempt accuracy comparison",
+                    })?;
+                let right = u128::from(previous_correct)
+                    .checked_mul(u128::from(block.content_attempts))
+                    .ok_or(CoreError::ArithmeticOverflow {
+                        operation: "attempt accuracy comparison",
+                    })?;
+                left < right
             }
             _ => false,
         };
@@ -112,10 +134,17 @@ pub fn pace_decision(
         .map(|block| block.session_ordinal)
         .collect::<std::collections::BTreeSet<_>>()
         .len();
-    let distinct_sessions = u32::try_from(distinct_sessions).unwrap_or(u32::MAX);
+    let qualifying_count =
+        u64::try_from(qualifying.len()).map_err(|_| CoreError::ArithmeticOverflow {
+            operation: "qualifying block count",
+        })?;
+    let distinct_sessions =
+        u64::try_from(distinct_sessions).map_err(|_| CoreError::ArithmeticOverflow {
+            operation: "distinct session count",
+        })?;
     if !degraded
-        && qualifying.len() >= policy.qualifying_blocks_to_raise as usize
-        && distinct_sessions >= policy.minimum_sessions_to_raise
+        && qualifying_count >= u64::from(policy.qualifying_blocks_to_raise)
+        && distinct_sessions >= u64::from(policy.minimum_sessions_to_raise)
     {
         let raised = target
             .checked_add(policy.maximum_raise)
@@ -131,14 +160,13 @@ fn below_band(block: &BlockEvidence, band: BasisPoints) -> Result<bool, CoreErro
         return Ok(false);
     }
     // first_correct / first_attempted < band / 10_000
-    let scaled = block
-        .first_correct
-        .checked_mul(10_000)
-        .ok_or(CoreError::ArithmeticOverflow {
+    let scaled = u128::from(block.first_correct).checked_mul(10_000).ok_or(
+        CoreError::ArithmeticOverflow {
             operation: "pace comparison",
-        })?;
-    let threshold = u64::from(band.get())
-        .checked_mul(block.first_attempt_positions)
+        },
+    )?;
+    let threshold = u128::from(band.get())
+        .checked_mul(u128::from(block.first_attempt_positions))
         .ok_or(CoreError::ArithmeticOverflow {
             operation: "pace comparison",
         })?;
@@ -245,7 +273,7 @@ mod tests {
         let target = BasisPoints::new(9_000).unwrap();
         let good = block(1, 120, 120);
         let mut degrading = block(2, 110, 110);
-        degrading.correct_attempts = 60; // attempt accuracy collapses
+        degrading.content_attempts = 220; // attempt accuracy collapses
         let blocks = vec![good, degrading];
         assert_eq!(
             pace_decision(&policy, Some(target), &blocks).unwrap(),

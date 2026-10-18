@@ -30,8 +30,23 @@ pub enum Key {
 }
 
 /// External events admitted to the reducer, in arrival order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EventKind {
+    /// Initializes durable identity once, before practice begins.
+    StorageReady {
+        /// Next unused session identity.
+        next_session: cadence_core::SessionId,
+        /// Local calendar day.
+        day: i64,
+        /// Previously durable history.
+        history: cadence_core::progress::HistorySummary,
+    },
+    /// Terminal acknowledgement, matched against the entire pending key.
+    SaveResult(cadence_core::progress::SaveResult),
+    /// Paste is rejected and measurement is interrupted.
+    PasteRejected,
+    /// Focus loss interrupts measurement.
+    FocusLost,
     /// A normalized key event.
     Key(Key),
     /// Viewport geometry changed; layout-dependent state changes are
@@ -49,7 +64,7 @@ pub enum EventKind {
 
 /// The sequenced admission envelope: one ordered external event with its
 /// ingress timestamp.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventEnvelope {
     /// Arrival sequence within this stream.
     pub seq: EventSeq,

@@ -1,91 +1,61 @@
-# Cadence service composition (B-02).
-#
-# One pinned base image; every logical gate service runs the repository's
-# own command contract (`cargo xtask`). Dependency fetch happens only in
-# the `prepare` step; gate services run with the network disabled using
-# committed locks. Services for gates that are not implemented yet fail
-# with their honest GateNotImplemented error.
+name: cadence-feedback
 
 x-gate: &gate
-  image: cadence-gate:0.1.0
+  image: cadence-gate:0.1.0-alpha.1
+  working_dir: /src
+  user: "${CADENCE_UID:-1000}:${CADENCE_GID:-1000}"
   environment:
-    CARGO_TARGET_DIR: /src-target
+    CARGO_NET_OFFLINE: "true"
+    CADENCE_DIST_DIR: /dist
   volumes:
     - ..:/src:ro
-    - cargo-home:/usr/local/cargo
-    - target-cache:/src-target
+    - ../.cadence-build:/cache
+    - ../dist:/dist
   network_mode: none
 
 services:
   prepare:
-    environment:
-      CARGO_TARGET_DIR: /src-target
+    <<: *gate
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: cadence-gate:0.1.0
-    working_dir: /src
-    volumes:
-      - ..:/src:ro
-      - cargo-home:/usr/local/cargo
-      - target-cache:/src-target
-    command: >
-      cargo fetch --locked &&
-      cargo build --workspace --locked --target-dir /src-target
-    # Preparation is the only networked step.
+    network_mode: bridge
+    environment:
+      CARGO_NET_OFFLINE: "false"
+    command: [cargo, fetch, --locked]
 
   quality:
     <<: *gate
-    command: cargo run -p xtask --locked --target-dir /src-target -- quality
-
+    command: [cargo, run, --locked, -p, xtask, --, quality]
   test:
     <<: *gate
-    command: cargo test --workspace --locked --target-dir /src-target
-
+    command: [cargo, test, --locked, --workspace]
   headless:
     <<: *gate
-    command: cargo run -p xtask --locked --target-dir /src-target -- gate headless
-
+    command: [cargo, run, --locked, -p, xtask, --, gate, headless]
   pty:
     <<: *gate
-    command: cargo run -p xtask --locked --target-dir /src-target -- gate pty-linux
-
+    command: [cargo, run, --locked, -p, xtask, --, gate, pty-linux]
   persistence:
     <<: *gate
-    command: cargo run -p xtask --locked --target-dir /src-target -- gate persistence-linux
-
+    command: [cargo, run, --locked, -p, xtask, --, gate, persistence-linux]
   model:
     <<: *gate
-    command: cargo run -p xtask --locked --target-dir /src-target -- gate model
-
+    command: [cargo, run, --locked, -p, xtask, --, gate, model]
   prove:
     <<: *gate
-    command: cargo run -p xtask --locked --target-dir /src-target -- gate prove
-
+    command: [cargo, run, --locked, -p, xtask, --, gate, prove]
   verify:
     <<: *gate
-    command: cargo run -p xtask --locked --target-dir /src-target -- gate verify
-
-  correspondence:
-    <<: *gate
-    command: cargo run -p xtask --locked --target-dir /src-target -- gate correspondence
-
+    command: [cargo, run, --locked, -p, xtask, --, gate, verify]
   corpus:
     <<: *gate
-    command: cargo run -p xtask --locked --target-dir /src-target -- gate corpus
-
-  performance:
-    <<: *gate
-    command: cargo run -p xtask --locked --target-dir /src-target -- gate performance
-
+    command: [cargo, run, --locked, -p, xtask, --, gate, corpus]
   package:
     <<: *gate
-    command: cargo run -p xtask --locked --target-dir /src-target -- gate package-install
-
+    command: [cargo, run, --locked, -p, xtask, --, dist]
   app:
     <<: *gate
-    command: cargo run -p cadence --locked --target-dir /src-target --bin cadence
-
-volumes:
-  cargo-home:
-  target-cache:
+    stdin_open: true
+    tty: true
+    command: [cargo, run, --locked, -p, cadence, --, --profile-dir, /cache/preview-profile]

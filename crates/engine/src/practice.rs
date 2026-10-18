@@ -1,0 +1,254 @@
+//! Practice timing, bounded ledger updates and fixed-track accumulation.
+use super::{DomainOutcome, Engine, Key, Screen, invalid};
+use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent};
+use cadence_core::metrics::{correct_digits, first_pass_accuracy};
+use cadence_core::progress::{ProgressStatus, Track, TrackProgress};
+use cadence_core::session::SessionState;
+use cadence_core::{CoreError, ExerciseId, Micros, MonoTick};
+use cadence_trainer::{ExerciseKind, Phase};
+
+impl Engine {
+    pub(super) fn advance_clock(
+        &mut self,
+        at: MonoTick,
+    ) -> Result<Option<DomainOutcome>, CoreError> {
+        if self.session_state != SessionState::Running || self.screen != Screen::Practice {
+            return Ok(None);
+        }
+        let active = self.timing.active_through(at)?;
+        let phase = self
+            .plan
+            .phases
+            .get(self.phase_index)
+            .ok_or_else(|| invalid("missing phase"))?;
+        let deadline = self
+            .phase_start
+            .checked_add(Micros::from_seconds(phase.seconds)?)?;
+        if active.as_us() >= deadline.as_us() {
+            let overshoot = active.checked_sub(deadline)?;
+            let boundary = MonoTick::from_us(
+                at.as_us()
+                    .checked_sub(overshoot.as_us())
+                    .ok_or_else(|| invalid("invalid phase boundary"))?,
+            );
+            let phase = phase.phase;
+            let partial = self
+                .ledger
+                .as_ref()
+                .is_some_and(|l| !l.buffer().is_empty() && !l.is_complete());
+            self.timing.end_phase(boundary)?;
+            self.active = deadline;
+            self.record_exercise()?;
+            self.screen = Screen::PhaseComplete { partial };
+            self.session_state = SessionState::PhaseComplete;
+            let next = self
+                .phase_index
+                .checked_add(1)
+                .ok_or_else(|| invalid("phase index exhausted"))?;
+            if self
+                .plan
+                .phases
+                .get(next..)
+                .is_some_and(|remaining| remaining.iter().all(|p| p.phase == Phase::Review))
+            {
+                self.status = ProgressStatus::Completed;
+            }
+            self.checkpoint_due = true;
+            return Ok(Some(DomainOutcome::PhaseDeadline { phase, partial }));
+        }
+        self.active = active;
+        Ok(None)
+    }
+    pub(super) fn open_exercise(&mut self) -> Result<(), CoreError> {
+        let phase = self
+            .plan
+            .phases
+            .get(self.phase_index)
+            .ok_or_else(|| invalid("missing phase"))?;
+        if phase.phase == Phase::Review {
+            self.screen = Screen::Summary;
+            self.session_state = SessionState::Review;
+            self.status = ProgressStatus::Completed;
+            self.checkpoint_due = true;
+            return Ok(());
+        }
+        let exercise = phase
+            .exercises
+            .get(self.exercise_index)
+            .ok_or_else(|| invalid("missing exercise"))?;
+        self.ledger = Some(AttemptLedger::new(
+            exercise.units.clone(),
+            ExtraInputAllowance::new(128)?,
+        )?);
+        self.exercise_start = self.active;
+        Ok(())
+    }
+    pub(super) fn current_track(&self) -> Result<Track, CoreError> {
+        let phase = self
+            .plan
+            .phases
+            .get(self.phase_index)
+            .ok_or_else(|| invalid("missing phase"))?;
+        track_phase(phase.phase)
+    }
+    pub(super) fn current_progress(&self) -> Result<Option<TrackProgress>, CoreError> {
+        let Some(ledger) = self.ledger.as_ref() else {
+            return Ok(None);
+        };
+        let c = ledger.counters();
+        Ok(Some(TrackProgress {
+            track: self.current_track()?,
+            first_correct: ledger.first_correct().get(),
+            first_attempted: ledger.first_attempted().get(),
+            correct_attempts: c.correct_attempts(),
+            content_attempts: c.content_attempts(),
+            deletions: c.deletions(),
+            overflow_attempts: c.overflow_attempts(),
+            correct_units: ledger.correct_visible_units().get(),
+            correct_digits: correct_digits(ledger).get(),
+            active_micros: self.active.checked_sub(self.exercise_start)?.as_us(),
+        }))
+    }
+    pub(super) fn record_exercise(&mut self) -> Result<(), CoreError> {
+        if let Some(progress) = self.current_progress()? {
+            merge_track(&mut self.tracks, progress)?;
+        }
+        self.ledger = None;
+        Ok(())
+    }
+    pub(super) fn advance_phase(&mut self) -> Result<DomainOutcome, CoreError> {
+        self.phase_index = self
+            .phase_index
+            .checked_add(1)
+            .ok_or_else(|| invalid("phase index exhausted"))?;
+        self.exercise_index = 0;
+        self.phase_start = self.active;
+        let Some(phase) = self.plan.phases.get(self.phase_index) else {
+            self.screen = Screen::Summary;
+            self.session_state = SessionState::Review;
+            self.status = ProgressStatus::Completed;
+            self.checkpoint_due = true;
+            return Ok(DomainOutcome::SessionSummary);
+        };
+        let phase = phase.phase;
+        self.screen = Screen::Practice;
+        self.session_state = SessionState::Running;
+        self.open_exercise()?;
+        if self.screen == Screen::Summary {
+            Ok(DomainOutcome::SessionSummary)
+        } else {
+            Ok(DomainOutcome::PhaseStarted { phase })
+        }
+    }
+    pub(super) fn practice_key(
+        &mut self,
+        at: MonoTick,
+        key: Key,
+    ) -> Result<DomainOutcome, CoreError> {
+        if self.session_state == SessionState::Paused {
+            if matches!(key, Key::Escape | Key::Enter)
+                && !self.invalid
+                && !self.storage.as_ref().is_some_and(|s| s.failed.is_some())
+            {
+                self.timing.resume(at)?;
+                self.session_state = SessionState::Running;
+            }
+            return Ok(DomainOutcome::None);
+        }
+        if self.invalid {
+            return Ok(DomainOutcome::None);
+        }
+        if key == Key::Escape {
+            self.timing.pause(at)?;
+            self.session_state = SessionState::Paused;
+            self.checkpoint_due = true;
+            return Ok(DomainOutcome::None);
+        }
+        let numpad = self.current_track()? == Track::Numpad;
+        let Some(ledger) = self.ledger.as_mut() else {
+            return Err(invalid("missing practice ledger"));
+        };
+        match key {
+            Key::Content(c) => {
+                self.timing.first_content(at)?;
+                if ledger.apply(LedgerEvent::Content(c))? == Applied::RejectedOverBound {
+                    return Err(invalid("typed input exceeded the bounded buffer"));
+                }
+                if ledger.is_complete() && !numpad {
+                    return self.finish_exercise();
+                }
+            }
+            Key::Backspace => {
+                ledger.apply(LedgerEvent::Backspace)?;
+            }
+            Key::Enter if numpad && ledger.is_complete() => return self.finish_exercise(),
+            _ => {}
+        }
+        Ok(DomainOutcome::None)
+    }
+    fn finish_exercise(&mut self) -> Result<DomainOutcome, CoreError> {
+        let exercise = ExerciseId::new(self.next_exercise)?;
+        let next = self
+            .next_exercise
+            .checked_add(1)
+            .ok_or_else(|| invalid("exercise identity exhausted"))?;
+        let first_pass = self
+            .ledger
+            .as_ref()
+            .and_then(first_pass_accuracy)
+            .map(|r| (r.numerator(), r.denominator()));
+        self.record_exercise()?;
+        self.next_exercise = next;
+        let count = self
+            .plan
+            .phases
+            .get(self.phase_index)
+            .ok_or_else(|| invalid("missing phase"))?
+            .exercises
+            .len();
+        let next_index = self
+            .exercise_index
+            .checked_add(1)
+            .ok_or_else(|| invalid("exercise index exhausted"))?;
+        self.exercise_index = if next_index == count { 0 } else { next_index };
+        self.open_exercise()?;
+        self.checkpoint_due = true;
+        Ok(DomainOutcome::ExerciseCompleted {
+            exercise,
+            first_pass,
+        })
+    }
+}
+pub(super) fn merge_track(
+    tracks: &mut Vec<TrackProgress>,
+    progress: TrackProgress,
+) -> Result<(), CoreError> {
+    if let Some(existing) = tracks.iter_mut().find(|t| t.track == progress.track) {
+        existing.add(&progress)?;
+    } else {
+        if tracks.len() >= 5 {
+            return Err(invalid("track capacity exhausted"));
+        }
+        tracks.push(progress);
+    }
+    Ok(())
+}
+pub(super) const fn track_kind(kind: ExerciseKind) -> Track {
+    match kind {
+        ExerciseKind::WarmUp => Track::WarmUp,
+        ExerciseKind::Words => Track::Words,
+        ExerciseKind::NumberRow => Track::NumberRow,
+        ExerciseKind::Numpad => Track::Numpad,
+        ExerciseKind::Prose => Track::Prose,
+    }
+}
+pub(super) fn track_phase(phase: Phase) -> Result<Track, CoreError> {
+    match phase {
+        Phase::WarmUp => Ok(Track::WarmUp),
+        Phase::AdaptiveWords => Ok(Track::Words),
+        Phase::NumberRow => Ok(Track::NumberRow),
+        Phase::Numpad => Ok(Track::Numpad),
+        Phase::Prose => Ok(Track::Prose),
+        Phase::Review => Err(invalid("review is not a typing track")),
+    }
+}

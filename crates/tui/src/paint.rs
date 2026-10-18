@@ -1,204 +1,151 @@
-//! Pure paint from prepared view models (U-01, U-02).
-//!
-//! One shared path serves the live terminal and the headless
-//! `TestBackend` (VR-01): both hand the same [`paint`] function a
-//! `ratatui` buffer. Paint is a total function of the view, palette and
-//! geometry — no I/O, no state mutation, no time. It is total for every
-//! nonzero bounded viewport including 1×1 (U-02): all writes are
-//! bounds-checked and clipped, never panicking.
-
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
-use ratatui::text::Span;
+//! One pure Ratatui painter for live output and TestBackend captures.
 
 use cadence_engine::{PreparedView, ScreenView, StatusFigures, UnitSpan};
+use ratatui::buffer::Buffer;
+use ratatui::layout::{Constraint, Layout, Margin, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap};
 
 use crate::theme::{Palette, SemanticRole as Role};
 
-/// Bundled presentation parameters for one cell write.
-#[derive(Clone, Copy)]
-struct StyleSpec {
-    palette: Palette,
-    foreground: Role,
-    background: Role,
-    bold: bool,
-}
+/// Minimum full-practice geometry from U-02; the reducer pauses below it.
+const MIN_COLUMNS: u16 = 60;
+const MIN_ROWS: u16 = 18;
+/// Conventional seconds per displayed minute; exact truncation is intentional.
+const SECONDS_PER_MINUTE: u64 = 60;
 
-impl StyleSpec {
-    fn new(palette: Palette, foreground: Role, background: Role, bold: bool) -> Self {
-        Self {
-            palette,
-            foreground,
-            background,
-            bold,
-        }
-    }
-
-    fn style(self) -> Style {
-        let mut style = Style::new()
-            .fg(self.palette.color(self.foreground))
-            .bg(self.palette.color(self.background));
-        if self.bold {
-            style = style.add_modifier(Modifier::BOLD);
-        }
-        style
-    }
-}
-
-/// Paints the prepared view into `buffer` for the given area.
+/// Paints only the immutable prepared view. No clock, I/O or state mutation.
 pub fn paint(buffer: &mut Buffer, area: Rect, view: &PreparedView, palette: Palette) {
-    // Every screen clears its area first so no stale cells leak.
-    clear(buffer, area, palette);
+    Clear.render(area, buffer);
+    buffer.set_style(area, style(palette, Role::Text));
+    if area.width < MIN_COLUMNS || area.height < MIN_ROWS {
+        Paragraph::new("Terminal too small — practice paused. Resize to at least 60 x 18.")
+            .style(style(palette, Role::Warning))
+            .wrap(Wrap { trim: false })
+            .render(area, buffer);
+        return;
+    }
+    let [header, body, notice, footer] = Layout::vertical([
+        Constraint::Length(3),
+        Constraint::Min(1),
+        Constraint::Length(3),
+        Constraint::Length(1),
+    ])
+    .areas(area);
+    Paragraph::new(Line::from(vec![
+        Span::styled(
+            " cadence ",
+            style(palette, Role::Focus).add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" / offline typing practice", style(palette, Role::Muted)),
+    ]))
+    .block(
+        Block::default()
+            .borders(Borders::BOTTOM)
+            .border_style(style(palette, Role::Border)),
+    )
+    .render(header, buffer);
+    let body = body.inner(Margin {
+        horizontal: 2,
+        vertical: 1,
+    });
     match &view.screen {
         ScreenView::Today {
             plan_hint,
             total_seconds,
-        } => paint_today(buffer, area, plan_hint, *total_seconds, palette),
+        } => {
+            let minutes = total_seconds.checked_div(SECONDS_PER_MINUTE).unwrap_or(0);
+            let lines = vec![
+                Line::styled("today", style(palette, Role::Focus)),
+                Line::raw(""),
+                Line::raw(format!("Guided session · {minutes} minutes allocated")),
+                Line::raw(""),
+                Line::raw(plan_hint.as_str()),
+                Line::raw(""),
+                Line::raw("Enter to begin. Accuracy comes before speed."),
+                Line::raw(""),
+                Line::styled(
+                    "Building a baseline; no learned adaptation claimed yet.",
+                    style(palette, Role::Muted),
+                ),
+                Line::raw(format!(
+                    "Local history: {} completed · {} interrupted/partial",
+                    view.history.completed_sessions, view.history.interrupted_sessions
+                )),
+            ];
+            Paragraph::new(lines)
+                .wrap(Wrap { trim: false })
+                .render(body, buffer);
+        }
         ScreenView::Practice {
             spans,
             status,
             paused,
-        } => paint_practice(buffer, area, spans, status, *paused, palette),
+        } => practice(buffer, body, spans, status, *paused, palette),
         ScreenView::PhaseComplete {
             label,
             partial,
             next,
-        } => paint_phase_complete(buffer, area, label, *partial, next.as_deref(), palette),
-        ScreenView::Summary { lines } => paint_summary(buffer, area, lines, palette),
-    }
-}
-
-fn clear(buffer: &mut Buffer, area: Rect, palette: Palette) {
-    let background = palette.color(Role::Background);
-    for y in area.top()..area.bottom() {
-        for x in area.left()..area.right() {
-            if let Some(cell) = buffer.cell_mut((x, y)) {
-                cell.reset();
-                cell.set_char(' ');
-                cell.set_style(Style::new().bg(background));
-            }
+        } => {
+            let title = format!("{label} complete");
+            let description = if *partial {
+                "The deadline ended the scored slice; partial evidence is retained."
+            } else {
+                "Your observations are retained without averaging percentages."
+            };
+            let action = next.as_ref().map_or_else(
+                || "Enter for the session summary".to_string(),
+                |label| format!("Enter to continue with {label}"),
+            );
+            Paragraph::new(vec![
+                Line::styled(title, style(palette, Role::Correct)),
+                Line::raw(""),
+                Line::raw(description),
+                Line::raw(""),
+                Line::raw(action),
+            ])
+            .wrap(Wrap { trim: false })
+            .render(body, buffer);
+        }
+        ScreenView::Summary { lines } => {
+            let mut text = vec![
+                Line::styled("session summary", style(palette, Role::Focus)),
+                Line::raw(""),
+            ];
+            text.extend(lines.iter().map(|line| Line::raw(line.as_str())));
+            Paragraph::new(text)
+                .wrap(Wrap { trim: false })
+                .render(body, buffer);
         }
     }
-}
-
-fn paint_today(
-    buffer: &mut Buffer,
-    area: Rect,
-    plan_hint: &str,
-    total_seconds: u64,
-    palette: Palette,
-) {
-    put_line(
-        buffer,
-        area,
-        0,
-        1,
-        "cadence — today",
-        StyleSpec::new(palette, Role::Text, Role::Background, true),
-    );
-    let headline = format!(
-        "guided session · {} minutes",
-        total_seconds.checked_div(60).unwrap_or(0)
-    );
-    put_line(
-        buffer,
-        area,
-        0,
-        3,
-        &headline,
-        StyleSpec::new(palette, Role::Text, Role::Background, false),
-    );
-    put_line(
-        buffer,
-        area,
-        0,
-        4,
-        "enter  begin   esc pauses   ctrl-c quits",
-        StyleSpec::new(palette, Role::Muted, Role::Background, false),
-    );
-    put_line(
-        buffer,
-        area,
-        0,
-        6,
-        plan_hint,
-        StyleSpec::new(palette, Role::Muted, Role::Background, false),
-    );
-}
-
-fn paint_phase_complete(
-    buffer: &mut Buffer,
-    area: Rect,
-    label: &str,
-    partial: bool,
-    next: Option<&str>,
-    palette: Palette,
-) {
-    let headline = format!("{label} complete");
-    put_line(
-        buffer,
-        area,
-        0,
-        1,
-        &headline,
-        StyleSpec::new(palette, Role::Correct, Role::Background, true),
-    );
-    if partial {
-        put_line(
-            buffer,
-            area,
-            0,
-            3,
-            "the phase ended at its boundary — the partial exercise was kept, no overtime",
-            StyleSpec::new(palette, Role::Muted, Role::Background, false),
-        );
-    }
-    let action = match next {
-        Some(next) => format!("enter  continue with {next}"),
-        None => "enter  see the session summary".to_string(),
+    let message = view.notice.as_deref().unwrap_or(if view.saving {
+        "Saving local progress…"
+    } else {
+        ""
+    });
+    let role = if view.save_failed {
+        Role::Error
+    } else if view.saving {
+        Role::Warning
+    } else {
+        Role::Muted
     };
-    put_line(
-        buffer,
-        area,
-        0,
-        5,
-        &action,
-        StyleSpec::new(palette, Role::Text, Role::Background, false),
-    );
+    Paragraph::new(message)
+        .style(style(palette, role))
+        .wrap(Wrap { trim: false })
+        .render(notice, buffer);
+    let hints = if view.save_failed {
+        " r retry save   Ctrl-C leave with last acknowledged progress "
+    } else {
+        " Enter continue/submit   Esc pause/resume   Ctrl-C save & quit "
+    };
+    Paragraph::new(hints)
+        .style(style(palette, Role::Muted))
+        .render(footer, buffer);
 }
 
-fn paint_summary(buffer: &mut Buffer, area: Rect, lines: &[String], palette: Palette) {
-    put_line(
-        buffer,
-        area,
-        0,
-        1,
-        "session summary",
-        StyleSpec::new(palette, Role::Text, Role::Background, true),
-    );
-    for (index, line) in lines.iter().enumerate() {
-        let row = u16::try_from(index).unwrap_or(u16::MAX).saturating_add(3);
-        put_line(
-            buffer,
-            area,
-            0,
-            row,
-            line,
-            StyleSpec::new(palette, Role::Text, Role::Background, false),
-        );
-    }
-    put_line(
-        buffer,
-        area,
-        0,
-        area.height.saturating_sub(1),
-        "esc/enter back   ctrl-c quit",
-        StyleSpec::new(palette, Role::Muted, Role::Background, false),
-    );
-}
-
-fn paint_practice(
+fn practice(
     buffer: &mut Buffer,
     area: Rect,
     spans: &[UnitSpan],
@@ -206,139 +153,108 @@ fn paint_practice(
     paused: bool,
     palette: Palette,
 ) {
-    // Inline target region: correct units, wrong units (typed shown,
-    // expected available), cursor at the next position, upcoming text.
-    let mut column = 2u16;
-    let mut row = area.height.div_ceil(2).saturating_sub(1);
-    for span in spans {
-        let (character, role, underline) = match *span {
-            UnitSpan::Correct { unit } => (unit, Role::Correct, false),
-            UnitSpan::Wrong { typed, .. } => (typed, Role::Error, false),
-            UnitSpan::Cursor { expected } => (expected, Role::Focus, true),
-            UnitSpan::Upcoming { expected } => (expected, Role::Muted, false),
+    let [heading, target, feedback, metrics] = Layout::vertical([
+        Constraint::Length(3),
+        Constraint::Min(2),
+        Constraint::Length(2),
+        Constraint::Length(2),
+    ])
+    .areas(area);
+    let label = if paused {
+        "paused — Esc resumes".to_string()
+    } else {
+        format!(
+            "{} · exercise {} · {}s left",
+            status.phase_label, status.exercise_index, status.phase_seconds_remaining
+        )
+    };
+    let subline = if status.enter_submits {
+        "Keypad origin unverified · Enter submits an exact entry"
+    } else {
+        "Backspace corrects the buffer, never first-attempt history"
+    };
+    Paragraph::new(vec![
+        Line::styled(label, style(palette, Role::Focus)),
+        Line::styled(subline, style(palette, Role::Muted)),
+    ])
+    .render(heading, buffer);
+    inline_target(buffer, target, spans, palette);
+    let expected = spans.iter().find_map(|span| match span {
+        UnitSpan::Wrong { expected, .. } => Some(*expected),
+        _ => None,
+    });
+    if let Some(expected) = expected {
+        Paragraph::new(format!(
+            "Correction needed — expected {} at the first highlighted error.",
+            expected.escape_default()
+        ))
+        .style(style(palette, Role::Error))
+        .wrap(Wrap { trim: false })
+        .render(feedback, buffer);
+    }
+    let accuracy = status
+        .first_pass_percent
+        .map_or_else(|| "—".to_string(), |value| format!("{value}%"));
+    let pace = status.rate.as_deref().unwrap_or("—");
+    Paragraph::new(format!(
+        "First-pass {accuracy}   {} {pace}   Active {}s",
+        status.rate_unit.label(),
+        status.active_seconds
+    ))
+    .style(style(palette, Role::Muted))
+    .wrap(Wrap { trim: false })
+    .render(metrics, buffer);
+}
+
+fn inline_target(buffer: &mut Buffer, area: Rect, spans: &[UnitSpan], palette: Palette) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let width = usize::from(area.width);
+    let caret = spans
+        .iter()
+        .position(|span| matches!(span, UnitSpan::Cursor { .. }))
+        .unwrap_or(spans.len());
+    let caret_row = caret.checked_div(width).unwrap_or(0);
+    let top_row = caret_row.saturating_sub(usize::from(area.height).saturating_sub(1));
+    // One training unit is one cell in the supported alphabet. Explicit
+    // newlines have a visible return marker; renderer wraps aren't input.
+    let start = top_row.saturating_mul(width);
+    let visible = usize::from(area.height).saturating_mul(width);
+    for (offset, span) in spans.iter().skip(start).take(visible).enumerate() {
+        let Some(x) = offset
+            .checked_rem(width)
+            .and_then(|x| u16::try_from(x).ok())
+        else {
+            continue;
         };
-        put_unit(
-            buffer,
-            area,
-            column,
-            row,
-            character,
-            StyleSpec::new(palette, role, Role::Background, false),
-            underline,
-        );
-        column = column.saturating_add(1);
-        if column >= area.width.saturating_sub(2) {
-            // Soft wrap at the region edge; renderer-introduced wraps are
-            // never expected input (L-02).
-            column = 2;
-            row = row.saturating_add(1);
+        let Some(y) = offset
+            .checked_div(width)
+            .and_then(|y| u16::try_from(y).ok())
+        else {
+            continue;
+        };
+        let (unit, text_style) = match *span {
+            UnitSpan::Correct { unit } => (unit, style(palette, Role::Correct)),
+            UnitSpan::Wrong { typed, .. } => (
+                typed,
+                style(palette, Role::Error).add_modifier(Modifier::UNDERLINED | Modifier::REVERSED),
+            ),
+            UnitSpan::Cursor { expected } => (
+                expected,
+                style(palette, Role::Focus).add_modifier(Modifier::REVERSED),
+            ),
+            UnitSpan::Upcoming { expected } => (expected, style(palette, Role::Muted)),
+        };
+        if let Some(cell) = buffer.cell_mut((area.x.saturating_add(x), area.y.saturating_add(y))) {
+            cell.set_char(if unit == '\n' { '↵' } else { unit });
+            cell.set_style(text_style);
         }
-    }
-    // Phase context: what am I practising and what remains (U-01).
-    if !paused {
-        let context = format!(
-            "{} · exercise {}/{} · {}s left{}",
-            status.phase_label,
-            status.exercise_index,
-            status.exercise_total,
-            status.phase_seconds_remaining,
-            if status.enter_submits {
-                " · enter submits"
-            } else {
-                ""
-            }
-        );
-        put_line(
-            buffer,
-            area,
-            0,
-            0,
-            &context,
-            StyleSpec::new(palette, Role::Border, Role::Background, false),
-        );
-    }
-
-    // Status line: figures that answer a user question (U-01), quiet.
-    let mut status_line = String::from("wpm ");
-    match &status.wpm {
-        Some(wpm) => status_line.push_str(wpm),
-        None => status_line.push_str("--"),
-    }
-    if let Some(percent) = status.first_pass_percent {
-        status_line.push_str(&format!("   first-pass {percent}%"));
-    }
-    status_line.push_str(&format!("   active {}s", status.active_seconds));
-    if status.paused {
-        status_line.push_str("   [paused]");
-    }
-    put_line(
-        buffer,
-        area,
-        0,
-        area.height.saturating_sub(1),
-        &status_line,
-        StyleSpec::new(palette, Role::Muted, Role::Background, false),
-    );
-    if paused {
-        put_line(
-            buffer,
-            area,
-            0,
-            0,
-            "paused — esc resumes",
-            StyleSpec::new(palette, Role::Warning, Role::Background, true),
-        );
     }
 }
 
-fn put_line(buffer: &mut Buffer, area: Rect, column: u16, row: u16, text: &str, spec: StyleSpec) {
-    let y = area.y.saturating_add(row);
-    if y >= area.bottom() {
-        return;
-    }
-    let mut x = area.x.saturating_add(column);
-    for character in text.chars() {
-        if x >= area.right() {
-            break;
-        }
-        if let Some(cell) = buffer.cell_mut((x, y)) {
-            cell.set_char(character);
-            cell.set_style(spec.style());
-        }
-        x = x.saturating_add(1);
-    }
-}
-
-fn put_unit(
-    buffer: &mut Buffer,
-    area: Rect,
-    column: u16,
-    row: u16,
-    character: char,
-    spec: StyleSpec,
-    underline: bool,
-) {
-    let y = area.y.saturating_add(row);
-    let x = area.x.saturating_add(column);
-    if y >= area.bottom() || x >= area.right() {
-        return;
-    }
-    let display = if character == '\n' { ' ' } else { character };
-    if let Some(cell) = buffer.cell_mut((x, y)) {
-        cell.set_char(display);
-        let mut style = spec.style();
-        if underline {
-            style = style.add_modifier(Modifier::UNDERLINED);
-        }
-        cell.set_style(style);
-    }
-}
-
-/// Convenience for golden-text assertions: one line as styled spans.
-#[must_use]
-pub fn line_spans(text: &str, palette: Palette, role: Role) -> Vec<Span<'static>> {
-    vec![Span::styled(
-        text.to_string(),
-        StyleSpec::new(palette, role, Role::Background, false).style(),
-    )]
+fn style(palette: Palette, role: Role) -> Style {
+    Style::default()
+        .fg(palette.color(role))
+        .bg(palette.color(Role::Background))
 }

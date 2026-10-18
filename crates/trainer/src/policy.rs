@@ -5,7 +5,10 @@
 //! numbers at call sites. Validation happens once at load; all later
 //! arithmetic works with in-range values.
 
-use std::collections::BTreeMap;
+use crate::policy_parse::{
+    parse_benchmark, parse_pace, parse_review, parse_selection, parse_session, parse_statistics,
+    parse_weights,
+};
 
 use cadence_core::{BasisPoints, CoreError};
 
@@ -65,10 +68,16 @@ impl SessionPolicy {
     /// Returns [`CoreError::CapacityExhausted`] if the pinned defaults
     /// are internally inconsistent (a policy-authoring bug).
     pub fn default_allocation(&self) -> Result<Vec<u64>, CoreError> {
+        let weights = self
+            .allocation_weights()
+            .map_err(|_| CoreError::InvalidIdentity {
+                kind: "SessionPolicy",
+                reason: "invalid allocation policy",
+            })?;
         crate::allocation::allocate(
             self.default_budget_seconds,
             &self.phase_minimum_seconds,
-            &self.phase_seconds,
+            &weights,
         )
     }
 }
@@ -270,11 +279,21 @@ impl std::error::Error for PolicyError {}
 /// Returns [`PolicyError`] for any missing, mistyped or out-of-range
 /// value; no defaults are silently substituted for supplied values.
 pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
-    let digest = digest_of(bytes);
+    let digest = crate::corpus::digest_of(bytes);
     let document: toml::Table = toml::from_str(
         std::str::from_utf8(bytes).map_err(|_| PolicyError::WrongType("document".to_string()))?,
     )
     .map_err(|_| PolicyError::WrongType("document".to_string()))?;
+    if document.get("policy_id").and_then(toml::Value::as_str) != Some("trainer-v1")
+        || document
+            .get("scoring_version")
+            .and_then(toml::Value::as_integer)
+            != Some(1)
+    {
+        return Err(PolicyError::Inconsistent {
+            what: "unsupported trainer policy or scoring version",
+        });
+    }
 
     let session = parse_session(&document)?;
     let selection = parse_selection(&document)?;
@@ -284,7 +303,7 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
     let pace = parse_pace(&document)?;
     let benchmark = parse_benchmark(&document)?;
 
-    Ok(TrainerPolicy {
+    let policy = TrainerPolicy {
         session,
         selection,
         statistics,
@@ -293,331 +312,7 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
         pace,
         benchmark,
         source_digest: digest,
-    })
-}
-
-fn digest_of(bytes: &[u8]) -> cadence_core::ContentDigest {
-    use sha2::{Digest, Sha256};
-    let digest = Sha256::digest(bytes);
-    let mut raw = [u8::MAX; 32];
-    for (index, byte) in digest.iter().take(32).enumerate() {
-        raw[index] = *byte;
-    }
-    let _ = raw;
-    cadence_core::ContentDigest::from_bytes(raw)
-}
-
-fn table<'a>(
-    document: &'a toml::Table,
-    name: &'static str,
-) -> Result<&'a toml::Table, PolicyError> {
-    document
-        .get(name)
-        .and_then(toml::Value::as_table)
-        .ok_or(PolicyError::MissingTable(name))
-}
-
-fn integer(table: &toml::Table, key: &str) -> Result<i64, PolicyError> {
-    table
-        .get(key)
-        .and_then(toml::Value::as_integer)
-        .ok_or_else(|| PolicyError::MissingKey(key.to_string()))
-}
-
-fn boolean(table: &toml::Table, key: &str) -> Result<bool, PolicyError> {
-    table
-        .get(key)
-        .and_then(toml::Value::as_bool)
-        .ok_or_else(|| PolicyError::MissingKey(key.to_string()))
-}
-
-fn basis_points(table: &toml::Table, key: &str) -> Result<BasisPoints, PolicyError> {
-    let value = integer(table, key)?;
-    let unsigned = u16::try_from(value).map_err(|_| PolicyError::OutOfRange {
-        key: key.to_string(),
-        reason: "basis points must fit 0..=10000",
-    })?;
-    BasisPoints::new(unsigned).map_err(|_| PolicyError::OutOfRange {
-        key: key.to_string(),
-        reason: "basis points must be 0..=10000",
-    })
-}
-
-fn positive(key: &str, value: i64) -> Result<u64, PolicyError> {
-    u64::try_from(value).map_err(|_| PolicyError::OutOfRange {
-        key: key.to_string(),
-        reason: "must be a non-negative integer",
-    })
-}
-
-fn parse_session(document: &toml::Table) -> Result<SessionPolicy, PolicyError> {
-    let table = table(document, "session")?;
-    let order_raw = table
-        .get("phase_order")
-        .and_then(toml::Value::as_array)
-        .ok_or(PolicyError::MissingKey("session.phase_order".into()))?;
-    let mut phase_order = Vec::with_capacity(order_raw.len());
-    for entry in order_raw {
-        let key = entry
-            .as_str()
-            .ok_or(PolicyError::WrongType("session.phase_order".into()))?;
-        let phase =
-            phase_from_key(key).ok_or(PolicyError::WrongType("session.phase_order".into()))?;
-        phase_order.push(phase);
-    }
-    let seconds_raw = table
-        .get("phase_seconds")
-        .and_then(toml::Value::as_array)
-        .ok_or(PolicyError::MissingKey("session.phase_seconds".into()))?;
-    let mut phase_seconds = Vec::with_capacity(seconds_raw.len());
-    for entry in seconds_raw {
-        let value = entry
-            .as_integer()
-            .ok_or(PolicyError::WrongType("session.phase_seconds".into()))?;
-        phase_seconds.push(positive("session.phase_seconds", value)?);
-    }
-    let minimums_raw = table
-        .get("phase_minimum_seconds")
-        .and_then(toml::Value::as_array)
-        .ok_or(PolicyError::MissingKey(
-            "session.phase_minimum_seconds".into(),
-        ))?;
-    let mut phase_minimum_seconds = Vec::with_capacity(minimums_raw.len());
-    for entry in minimums_raw {
-        let value = entry.as_integer().ok_or(PolicyError::WrongType(
-            "session.phase_minimum_seconds".into(),
-        ))?;
-        phase_minimum_seconds.push(positive("session.phase_minimum_seconds", value)?);
-    }
-    if phase_order.len() != phase_seconds.len() || phase_order.len() != phase_minimum_seconds.len()
-    {
-        return Err(PolicyError::Inconsistent {
-            what: "session phase arrays must have equal lengths",
-        });
-    }
-    if phase_order.is_empty() {
-        return Err(PolicyError::Inconsistent {
-            what: "session needs at least one phase",
-        });
-    }
-    Ok(SessionPolicy {
-        default_budget_seconds: positive(
-            "session.default_budget_seconds",
-            integer(table, "default_budget_seconds")?,
-        )?,
-        phase_order,
-        phase_seconds,
-        minimum_budget_seconds: positive(
-            "session.minimum_budget_seconds",
-            integer(table, "minimum_budget_seconds")?,
-        )?,
-        maximum_budget_seconds: positive(
-            "session.maximum_budget_seconds",
-            integer(table, "maximum_budget_seconds")?,
-        )?,
-        phase_minimum_seconds,
-    })
-}
-
-fn phase_from_key(key: &str) -> Option<Phase> {
-    match key {
-        "warmup" => Some(Phase::WarmUp),
-        "adaptive_words" => Some(Phase::AdaptiveWords),
-        "number_row" => Some(Phase::NumberRow),
-        "numpad" => Some(Phase::Numpad),
-        "prose" => Some(Phase::Prose),
-        "review" => Some(Phase::Review),
-        _ => None,
-    }
-}
-
-fn lane_from_key(key: &str) -> Option<Lane> {
-    match key {
-        "target" => Some(Lane::Target),
-        "broad" => Some(Lane::Broad),
-        "review" => Some(Lane::Review),
-        _ => None,
-    }
-}
-
-fn parse_selection(document: &toml::Table) -> Result<SelectionPolicy, PolicyError> {
-    let table = table(document, "selection")?;
-    let order_raw = table
-        .get("lane_order")
-        .and_then(toml::Value::as_array)
-        .ok_or(PolicyError::MissingKey("selection.lane_order".into()))?;
-    let mut lane_order = Vec::with_capacity(order_raw.len());
-    for entry in order_raw {
-        let key = entry
-            .as_str()
-            .ok_or(PolicyError::WrongType("selection.lane_order".into()))?;
-        let lane =
-            lane_from_key(key).ok_or(PolicyError::WrongType("selection.lane_order".into()))?;
-        lane_order.push(lane);
-    }
-    let block_slots = positive("selection.block_slots", integer(table, "block_slots")?)?
-        .min(usize::MAX as u64) as usize;
-    if block_slots == 0 {
-        return Err(PolicyError::OutOfRange {
-            key: "selection.block_slots".into(),
-            reason: "must be positive",
-        });
-    }
-    if lane_order.len() != block_slots {
-        return Err(PolicyError::Inconsistent {
-            what: "lane_order length must equal block_slots",
-        });
-    }
-    Ok(SelectionPolicy {
-        block_slots,
-        lane_order,
-        target_slots: positive("selection.target_slots", integer(table, "target_slots")?)?
-            .min(u32::MAX as u64) as u32,
-        review_slots: positive("selection.review_slots", integer(table, "review_slots")?)?
-            .min(u32::MAX as u64) as u32,
-        broad_slots: positive("selection.broad_slots", integer(table, "broad_slots")?)?
-            .min(u32::MAX as u64) as u32,
-        maximum_word_occurrences_per_block: positive(
-            "selection.maximum_word_occurrences_per_block",
-            integer(table, "maximum_word_occurrences_per_block")?,
-        )? as u32,
-        maximum_consecutive_word_occurrences: positive(
-            "selection.maximum_consecutive_word_occurrences",
-            integer(table, "maximum_consecutive_word_occurrences")?,
-        )? as u32,
-        maximum_focus_owned_target_slots: positive(
-            "selection.maximum_focus_owned_target_slots",
-            integer(table, "maximum_focus_owned_target_slots")?,
-        )? as u32,
-        maximum_candidates_per_slot: positive(
-            "selection.maximum_candidates_per_slot",
-            integer(table, "maximum_candidates_per_slot")?,
-        )? as usize,
-    })
-}
-
-fn parse_statistics(document: &toml::Table) -> Result<StatisticsPolicy, PolicyError> {
-    let table = table(document, "statistics")?;
-    Ok(StatisticsPolicy {
-        recent_occurrence_window: positive(
-            "statistics.recent_occurrence_window",
-            integer(table, "recent_occurrence_window")?,
-        )? as u32,
-        minimum_observations_for_confident_label: positive(
-            "statistics.minimum_observations_for_confident_label",
-            integer(table, "minimum_observations_for_confident_label")?,
-        )? as u32,
-        minimum_sessions_for_confident_label: positive(
-            "statistics.minimum_sessions_for_confident_label",
-            integer(table, "minimum_sessions_for_confident_label")?,
-        )? as u32,
-        error_prior_alpha: positive(
-            "statistics.error_prior_alpha",
-            integer(table, "error_prior_alpha")?,
-        )?,
-        error_prior_beta: positive(
-            "statistics.error_prior_beta",
-            integer(table, "error_prior_beta")?,
-        )?,
-    })
-}
-
-fn parse_weights(document: &toml::Table) -> Result<UtilityWeights, PolicyError> {
-    let table = table(document, "utility_weights_basis_points")?;
-    Ok(UtilityWeights {
-        error: basis_points(table, "error")?,
-        hesitation: basis_points(table, "hesitation")?,
-        relevance: basis_points(table, "relevance")?,
-        uncertainty: basis_points(table, "uncertainty")?,
-    })
-}
-
-fn parse_review(document: &toml::Table) -> Result<ReviewPolicy, PolicyError> {
-    let table = table(document, "review")?;
-    let intervals_raw = table
-        .get("interval_days")
-        .and_then(toml::Value::as_array)
-        .ok_or(PolicyError::MissingKey("review.interval_days".into()))?;
-    let mut interval_days = Vec::with_capacity(intervals_raw.len());
-    for entry in intervals_raw {
-        let value = entry
-            .as_integer()
-            .ok_or(PolicyError::WrongType("review.interval_days".into()))?;
-        if value <= 0 {
-            return Err(PolicyError::OutOfRange {
-                key: "review.interval_days".into(),
-                reason: "intervals must be positive",
-            });
-        }
-        interval_days.push(value);
-    }
-    if interval_days.is_empty() {
-        return Err(PolicyError::OutOfRange {
-            key: "review.interval_days".into(),
-            reason: "needs at least the 1-day level",
-        });
-    }
-    Ok(ReviewPolicy {
-        interval_days,
-        independent_clean_sessions_to_promote: positive(
-            "review.independent_clean_sessions_to_promote",
-            integer(table, "independent_clean_sessions_to_promote")?,
-        )? as u32,
-        maximum_same_session_reinforcements: positive(
-            "review.maximum_same_session_reinforcements",
-            integer(table, "maximum_same_session_reinforcements")?,
-        )? as u32,
-    })
-}
-
-fn parse_pace(document: &toml::Table) -> Result<PacePolicy, PolicyError> {
-    let table = table(document, "pace")?;
-    Ok(PacePolicy {
-        desired_first_pass: basis_points(table, "desired_first_pass_basis_points")?,
-        slow_down_below: basis_points(table, "slow_down_below_basis_points")?,
-        qualifying_blocks_to_raise: positive(
-            "pace.qualifying_blocks_to_raise",
-            integer(table, "qualifying_blocks_to_raise")?,
-        )? as u32,
-        minimum_sessions_to_raise: positive(
-            "pace.minimum_sessions_to_raise",
-            integer(table, "minimum_sessions_to_raise")?,
-        )? as u32,
-        minimum_first_attempt_positions_per_block: positive(
-            "pace.minimum_first_attempt_positions_per_block",
-            integer(table, "minimum_first_attempt_positions_per_block")?,
-        )?,
-        maximum_raise: basis_points(table, "maximum_raise_basis_points")?,
-        maximum_lower: basis_points(table, "maximum_lower_basis_points")?,
-    })
-}
-
-fn parse_benchmark(document: &toml::Table) -> Result<BenchmarkPolicy, PolicyError> {
-    let table = table(document, "benchmark")?;
-    Ok(BenchmarkPolicy {
-        every_completed_sessions: positive(
-            "benchmark.every_completed_sessions",
-            integer(table, "every_completed_sessions")?,
-        )? as u32,
-        probe_seconds: positive("benchmark.probe_seconds", integer(table, "probe_seconds")?)?,
-        remaining_prose_seconds: positive(
-            "benchmark.remaining_prose_seconds",
-            integer(table, "remaining_prose_seconds")?,
-        )?,
-        require_unseen_text: boolean(table, "require_unseen_text")?,
-        exclude_interrupted: boolean(table, "exclude_interrupted")?,
-        exclude_synthetic: boolean(table, "exclude_synthetic")?,
-    })
-}
-
-/// Convenient lookup for per-phase weights (unused keys are ignored).
-#[allow(dead_code)]
-fn map_of(table: &toml::Table) -> BTreeMap<String, i64> {
-    let mut map = BTreeMap::new();
-    for (key, value) in table {
-        if let Some(integer) = value.as_integer() {
-            map.insert(key.clone(), integer);
-        }
-    }
-    map
+    };
+    policy.validate()?;
+    Ok(policy)
 }

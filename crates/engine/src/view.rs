@@ -48,12 +48,34 @@ impl UnitSpan {
     }
 }
 
+/// Conventional word throughput and numeric digit throughput are not comparable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RateUnit {
+    /// Correct visible units divided by five, per minute.
+    #[default]
+    WordsPerMinute,
+    /// Correct matching digits per minute; punctuation is excluded.
+    DigitsPerMinute,
+}
+
+impl RateUnit {
+    /// Honest display label for the current track.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::WordsPerMinute => "Correct WPM",
+            Self::DigitsPerMinute => "Correct digits/min",
+        }
+    }
+}
+
 /// Status figures shown during practice; exact ratios are formatted only
 /// at this edge (L-02).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct StatusFigures {
-    /// Live correct WPM; absent until measurable.
-    pub wpm: Option<String>,
+    /// Live correct throughput; absent until measurable.
+    pub rate: Option<String>,
+    /// Units for the throughput figure.
+    pub rate_unit: RateUnit,
     /// First-pass accuracy percentage, truncated for display only.
     pub first_pass_percent: Option<u16>,
     /// Active seconds so far in the whole session.
@@ -91,8 +113,7 @@ pub enum ScreenView {
         /// Whether practice is paused (overlay).
         paused: bool,
     },
-    /// A phase reached its deadline (or exhausted its exercises): offer
-    /// the next phase; never force overtime (P-02).
+    /// A phase reached its exact active deadline; offer the next phase.
     PhaseComplete {
         /// The label of the finished phase.
         label: String,
@@ -118,4 +139,12 @@ pub struct PreparedView {
     pub screen: ScreenView,
     /// Session active-time figure included in this preparation.
     pub active: Micros,
+    /// Visible timing, durability or interruption notice.
+    pub notice: Option<String>,
+    /// Previously durable history (no mid-word restore implication).
+    pub history: cadence_core::progress::HistorySummary,
+    /// An exact checkpoint is awaiting acknowledgement.
+    pub saving: bool,
+    /// Saving failed and paused retry controls are available.
+    pub save_failed: bool,
 }

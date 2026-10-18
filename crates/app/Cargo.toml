@@ -11,10 +11,13 @@ description = "Cadence — offline Linux-native personal typing trainer (CLI com
 name = "cadence"
 path = "src/main.rs"
 
+[lints]
+workspace = true
+
 [dependencies]
 cadence-core.workspace = true
 cadence-engine.workspace = true
 cadence-trainer.workspace = true
 cadence-runtime.workspace = true
 cadence-tui.workspace = true
-ratatui.workspace = true
+cadence-data.workspace = true

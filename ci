@@ -1,49 +1,36 @@
 #!/bin/sh
-# Cadence operator entrypoint (B-03).
-#
-# Wrappers invoke the pinned Compose service; gate logic lives in xtask.
-# The wrapper avoids depending on a host Rust install for gate execution.
-# `local` runs xtask directly on the host for iteration only — local runs
-# are feedback, never qualification evidence.
+# Compose is the canonical gate route; no host Rust is needed.
 set -eu
-
-COMPOSE_FILE="$(dirname "$0")/docker/docker-compose.yml"
-
-usage() {
-    cat <<'EOF'
-usage: ./ci <command>
-  feedback                 fast local feedback via compose (clippy + unit tests)
-  quality                  run the quality gate via compose
-  gate <id>                run one required gate by ID
-  gates                    list required gates and their honest states
-  local <xtask-args...>    run cargo xtask on the host (feedback only)
-EOF
-}
-
-command="${1:-}"
-[ -n "$command" ] || { usage >&2; exit 1; }
-shift
-
-case "$command" in
-    feedback)
-        exec docker compose -f "$COMPOSE_FILE" run --rm quality
-        ;;
-    quality)
-        exec docker compose -f "$COMPOSE_FILE" run --rm quality
-        ;;
-    gate)
-        [ $# -ge 1 ] || { echo "usage: ./ci gate <gate-id>" >&2; exit 1; }
-        exec docker compose -f "$COMPOSE_FILE" run --rm "$1"
-        ;;
-    gates)
-        exec docker compose -f "$COMPOSE_FILE" run --rm quality cargo run -p xtask -- gates
-        ;;
-    local)
-        exec cargo run -q -p xtask -- "$@"
-        ;;
-    *)
-        echo "unknown command: $command" >&2
-        usage >&2
-        exit 1
-        ;;
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+export CADENCE_UID=$(id -u)
+export CADENCE_GID=$(id -g)
+mkdir -p "$ROOT/.cadence-build/cargo" "$ROOT/.cadence-build/target" "$ROOT/.cadence-build/home" "$ROOT/dist"
+compose() { docker compose -f "$ROOT/docker/docker-compose.yml" "$@"; }
+case "${1:-}" in
+  prepare)
+    compose build prepare
+    exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm prepare
+    ;;
+  feedback|quality)
+    exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm quality
+    ;;
+  dist)
+    exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm package
+    ;;
+  gate)
+    shift
+    [ "$#" -eq 1 ] || { echo 'usage: ./ci gate GATE-ID' >&2; exit 2; }
+    exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm quality cargo run --locked -p xtask -- gate "$1"
+    ;;
+  gates)
+    exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm quality cargo run --locked -p xtask -- gates
+    ;;
+  local)
+    shift
+    exec cargo run --manifest-path "$ROOT/Cargo.toml" --locked -p xtask -- "$@"
+    ;;
+  *)
+    echo 'usage: ./ci prepare|quality|dist|gates|gate GATE-ID|local XTASK-ARGS' >&2
+    exit 2
+    ;;
 esac

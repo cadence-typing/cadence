@@ -155,9 +155,29 @@ impl DueQueue {
         intervals: &[i64],
         today: UtcDay,
     ) -> Result<ReviewState, CoreError> {
-        if intervals.is_empty() {
-            return Err(CoreError::CapacityExhausted {
-                limit: "review interval ladder",
+        if intervals.first() != Some(&1)
+            || intervals.iter().any(|day| *day <= 0)
+            || intervals
+                .windows(2)
+                .any(|pair| matches!(pair, [left, right] if left >= right))
+            || current.interval_index >= intervals.len()
+        {
+            return Err(CoreError::InvalidIdentity {
+                kind: "ReviewState",
+                reason: "invalid review ladder or current interval",
+            });
+        }
+        let on = match outcome {
+            ReviewOutcome::Clean { on }
+            | ReviewOutcome::SameDayClean { on }
+            | ReviewOutcome::Error { on } => on,
+        };
+        if let Some((_, previous)) = current.clean_streak
+            && on < previous
+        {
+            return Err(CoreError::InvalidIdentity {
+                kind: "ReviewState",
+                reason: "completion predates recorded evidence",
             });
         }
         match outcome {
@@ -174,7 +194,13 @@ impl DueQueue {
                 })
             }
             ReviewOutcome::Error { .. } => {
-                let due = today.checked_add_days(intervals[0])?;
+                let interval = intervals
+                    .first()
+                    .copied()
+                    .ok_or(CoreError::CapacityExhausted {
+                        limit: "review interval ladder",
+                    })?;
+                let due = today.checked_add_days(interval)?;
                 Ok(ReviewState {
                     interval_index: 0,
                     clean_streak: None,
@@ -260,7 +286,7 @@ mod tests {
     }
 
     fn day(offset: i64) -> UtcDay {
-        UtcDay::from_days_since_epoch(20_000 + offset).unwrap()
+        UtcDay::from_days_since_epoch(20_000i64.checked_add(offset).unwrap()).unwrap()
     }
 
     #[test]

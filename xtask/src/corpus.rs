@@ -1,15 +1,10 @@
-//! Corpus gate: licensed pack manifests, count/quality/capacity
-//! (B-05 `corpus` gate, P-02).
-//!
-//! Loads `corpus/words-en-v1.tsv` into the production
-//! [`WordPack`](cadence_trainer::WordPack) type, verifies the manifest
-//! digests, the promised count (≥ 20,000 vetted forms), the band
-//! distribution and the offline lane capacity check. The gate reads
-//! only committed files; it is deterministic and offline.
+//! Offline corpus structure checks, not linguistic or licence qualification.
+//! Loads the same production TSV parser as the application and verifies
+//! recorded digests/counts/bands. Vetting and benchmark inventory remain pending.
 
 use std::path::PathBuf;
 
-use cadence_core::{ContentDigest, LayoutSupportsPound};
+use cadence_core::LayoutSupportsPound;
 use cadence_trainer::{WordBand, WordPack};
 
 /// Minimum distinct vetted forms promised for the first release (P-04).
@@ -32,40 +27,11 @@ pub fn load_words_pack() -> Result<WordPack, String> {
         .map_err(|error| format!("cannot read {}: {error}", tsv_path.display()))?;
     let text = std::str::from_utf8(&bytes).map_err(|_| "pack is not UTF-8".to_string())?;
 
-    let mut entries = Vec::new();
-    for (index, line) in text.lines().enumerate() {
-        let line_number = index.saturating_add(1);
-        let fields: Vec<&str> = line.split('\t').collect();
-        let (Some(rank_text), Some(word), Some(band_text)) = (
-            fields.first().copied(),
-            fields.get(1).copied(),
-            fields.get(2).copied(),
-        ) else {
-            return Err(format!("line {line_number}: expected rank\\tword\\tband"));
-        };
-        let rank: u64 = rank_text
-            .parse()
-            .map_err(|_| format!("line {line_number}: bad rank"))?;
-        let band =
-            WordBand::parse(band_text).map_err(|error| format!("line {line_number}: {error}"))?;
-        entries.push((rank, word.to_string(), band));
-    }
-    let digest = digest_hex(&bytes)?;
-    WordPack::new(
-        entries,
-        digest,
-        MINIMUM_RELEASE_WORDS,
-        LayoutSupportsPound::US,
-    )
-    .map_err(|error| error.to_string())
+    WordPack::from_tsv(text, MINIMUM_RELEASE_WORDS, LayoutSupportsPound::US)
+        .map_err(|error| error.to_string())
 }
 
-fn digest_hex(bytes: &[u8]) -> Result<ContentDigest, String> {
-    let digest = cadence_trainer::corpus::digest_of(bytes);
-    Ok(digest)
-}
-
-/// Runs the full corpus gate.
+/// Runs the implemented corpus structure checks only.
 pub fn check() -> Result<(), String> {
     let root = repo_root()?;
     let pack = load_words_pack()?;

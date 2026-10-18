@@ -7,16 +7,16 @@
 //! correct character and retyping incorrectly leaves the first outcome
 //! correct but marks the word non-clean.
 //!
-//! Verus target (VK-01): `apply` assigns only previously empty
-//! first-outcome slots; deletion changes the visible buffer and
-//! correction counts but leaves the first-outcome vector unchanged. The
-//! same source functions serve ordinary builds after ghost erasure
-//! (V-05); until the Verus lane is wired, this contract is enforced by
-//! the property tests in this module.
+//! Ordinary Rust implementation with property tests. No formal-proof
+//! qualification is claimed for this production path.
 
 use crate::CoreError;
 use crate::alphabet::TrainingChar;
 use crate::units::{TextUnitIndex, UnitCount};
+
+#[cfg(test)]
+#[path = "ledger_atomic_tests.rs"]
+mod atomic_tests;
 
 /// First content insertion outcome at an expected position, assigned
 /// exactly once and never replaced.
@@ -216,7 +216,11 @@ impl AttemptLedger {
             word_of_position,
             target,
             counters: LedgerCounters::default(),
-            buffer: Vec::new(),
+            buffer: Vec::with_capacity(len.checked_add(allowance.get() as usize).ok_or(
+                CoreError::CapacityExhausted {
+                    limit: "typed buffer capacity",
+                },
+            )?),
             word_flags,
             allowance,
             measurement_interrupted: false,
@@ -276,7 +280,10 @@ impl AttemptLedger {
                 let bound = self
                     .target
                     .len()
-                    .saturating_add(self.allowance.get() as usize);
+                    .checked_add(self.allowance.get() as usize)
+                    .ok_or(CoreError::CapacityExhausted {
+                        limit: "typed buffer capacity",
+                    })?;
                 if self.buffer.len() >= bound {
                     self.measurement_interrupted = true;
                     if let Some(flags) = self.tail_word_flags_mut() {
@@ -284,24 +291,34 @@ impl AttemptLedger {
                     }
                     return Ok(Applied::RejectedOverBound);
                 }
-                self.counters.content_attempts =
-                    self.counters.content_attempts.checked_add(1).ok_or(
-                        CoreError::IdExhaustion {
-                            kind: "content_attempts",
-                            reason: "event counter exhausted; refuse instead of wrapping",
-                        },
-                    )?;
                 let position = self.buffer.len();
+                let expected = self.target.get(position).copied();
+                let matched = expected == Some(character);
+                let index = if expected.is_some() {
+                    Some(
+                        TextUnitIndex::new(u32::try_from(position).map_err(|_| {
+                            CoreError::CapacityExhausted {
+                                limit: "maximum target units",
+                            }
+                        })?)
+                        .map_err(|_| CoreError::CapacityExhausted {
+                            limit: "maximum target units",
+                        })?,
+                    )
+                } else {
+                    None
+                };
+                let mut counters = self.counters;
+                counters.content_attempts = increment(counters.content_attempts)?;
+                if matched {
+                    counters.correct_attempts = increment(counters.correct_attempts)?;
+                }
+                if expected.is_none() {
+                    counters.overflow_attempts = increment(counters.overflow_attempts)?;
+                }
+                self.counters = counters;
                 self.buffer.push(character);
-                let Some(expected) = self.target.get(position) else {
-                    // Beyond the target: overflow attempt, incorrect.
-                    self.counters.overflow_attempts =
-                        self.counters.overflow_attempts.checked_add(1).ok_or(
-                            CoreError::IdExhaustion {
-                                kind: "overflow_attempts",
-                                reason: "event counter exhausted; refuse instead of wrapping",
-                            },
-                        )?;
+                if expected.is_none() {
                     if let Some(flags) = self.tail_word_flags_mut() {
                         flags.any_error = true;
                     }
@@ -309,8 +326,7 @@ impl AttemptLedger {
                         position: None,
                         matched: false,
                     });
-                };
-                let matched = *expected == character;
+                }
                 // Write-once: assign first outcome only if the slot is empty.
                 if let Some(outcome) = self.first_outcome.get_mut(position)
                     && outcome.is_none()
@@ -321,29 +337,15 @@ impl AttemptLedger {
                         Outcome::Incorrect
                     });
                 }
-                if matched {
-                    self.counters.correct_attempts =
-                        self.counters.correct_attempts.checked_add(1).ok_or(
-                            CoreError::IdExhaustion {
-                                kind: "correct_attempts",
-                                reason: "event counter exhausted; refuse instead of wrapping",
-                            },
-                        )?;
-                } else if let Some(index) = self.word_index_at(position)
+                if !matched
+                    && let Some(index) = self.word_index_at(position)
                     && let Some(flags) = self.word_flags.get_mut(index)
                 {
                     flags.any_error = true;
                 }
-                let index = TextUnitIndex::new(u32::try_from(position).map_err(|_| {
-                    CoreError::CapacityExhausted {
-                        limit: "maximum target units",
-                    }
-                })?)
-                .map_err(|_| CoreError::CapacityExhausted {
-                    limit: "maximum target units",
-                })?;
+                // All fallible arithmetic precedes mutation.
                 Ok(Applied::Content {
-                    position: Some(index),
+                    position: index,
                     matched,
                 })
             }
@@ -373,16 +375,18 @@ impl AttemptLedger {
                 let removed = usize::try_from(units)
                     .unwrap_or(self.buffer.len())
                     .min(self.buffer.len());
-                for _ in 0..removed {
-                    self.counters.deletions =
-                        self.counters
-                            .deletions
-                            .checked_add(1)
-                            .ok_or(CoreError::IdExhaustion {
-                                kind: "deletions",
-                                reason: "event counter exhausted; refuse instead of wrapping",
-                            })?;
-                }
+                self.counters.deletions = self
+                    .counters
+                    .deletions
+                    .checked_add(u64::try_from(removed).map_err(|_| {
+                        CoreError::CapacityExhausted {
+                            limit: "deletion count",
+                        }
+                    })?)
+                    .ok_or(CoreError::IdExhaustion {
+                        kind: "deletions",
+                        reason: "counter exhausted",
+                    })?;
                 if let Some(flags) = self.tail_word_flags_mut() {
                     flags.any_deletion = true;
                 }
@@ -490,6 +494,12 @@ pub enum LedgerEvent {
     DeleteWord(u64),
 }
 
+fn increment(value: u64) -> Result<u64, CoreError> {
+    value.checked_add(1).ok_or(CoreError::IdExhaustion {
+        kind: "ledger counter",
+        reason: "counter exhausted",
+    })
+}
 #[cfg(test)]
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the

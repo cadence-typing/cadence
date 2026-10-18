@@ -8,8 +8,8 @@
 /// Implementation state of one required gate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GateState {
-    /// Gate command exists and runs end to end.
-    Implemented,
+    /// Feedback checks exist, but do not cover the full qualification row.
+    Feedback(&'static str),
     /// Gate has no implementation yet; the field names the packet.
     Pending(&'static str),
     /// A required environment/authority is absent (for example shared
@@ -34,7 +34,9 @@ pub const GATES: &[Gate] = &[
     Gate {
         id: "quality",
         description: "fmt, Clippy warnings denied, dependency/license audit, boundary/no-placeholder checks",
-        state: GateState::Implemented,
+        state: GateState::Feedback(
+            "dependency/security audit and complete product assurance remain pending",
+        ),
     },
     Gate {
         id: "unit-property",
@@ -95,13 +97,15 @@ pub const GATES: &[Gate] = &[
         id: "buildbot-recovery",
         description: "duplicate nomination, detach/reconnect, restart, no missing-gate admission",
         state: GateState::Blocked(
-            "shared Buildbot controller not yet provisioned (P8; see docs/decisions/0003-ci-integration.md)",
+            "Buildbot recovery and authorized signing are not integrated or qualified for this bundle",
         ),
     },
     Gate {
         id: "corpus",
         description: "licensed pack manifests, count/quality/capacity, unseen benchmark inventory",
-        state: GateState::Implemented,
+        state: GateState::Feedback(
+            "alphabet/count checks are not vocabulary vetting or benchmark qualification",
+        ),
     },
 ];
 
@@ -109,7 +113,7 @@ pub const GATES: &[Gate] = &[
 pub fn list() -> Result<(), String> {
     for gate in GATES {
         let state = match gate.state {
-            GateState::Implemented => "implemented".to_string(),
+            GateState::Feedback(reason) => format!("feedback only ({reason})"),
             GateState::Pending(packet) => format!("pending ({packet})"),
             GateState::Blocked(reason) => format!("BLOCKED ({reason})"),
         };
@@ -129,7 +133,13 @@ pub fn run(id: Option<&str>) -> Result<(), String> {
         ));
     };
     match gate.state {
-        GateState::Implemented => dispatch_implemented(gate.id),
+        GateState::Feedback(reason) => {
+            dispatch_implemented(gate.id)?;
+            Err(format!(
+                "feedback checks passed; qualification for {} remains incomplete: {reason}",
+                gate.id
+            ))
+        }
         GateState::Pending(packet) => Err(format!(
             "gate {} is not implemented yet (work packet {packet}); refusing to fake success",
             gate.id

@@ -1,54 +1,32 @@
 //! Deterministic session plan builder (P-02, L-05).
 //!
-//! `build_session_plan` composes the validated policy, the loaded word
-//! pack, the embedded prose bank, the numeric generators and a seeded
-//! PRNG into a fixed, replayable exercise schedule: exact phase
-//! allocation, warm-up/adaptive word blocks through the bounded scan,
-//! fresh numeric content, prose passages. The same
-//! `(policy, corpus, prose, seed, budget, disabled)` inputs always
-//! produce the same plan on supported builds (deterministic RNG:
-//! ChaCha8; recorded in the plan for traces).
-//!
-//! Planning heuristics here are scheduling granularity only: exercises
-//! end at the phase deadline regardless, and phase seconds are the
-//! contract (P-02).
+//! Builds a replayable cold-start schedule from validated policy, corpus,
+//! original prose and pinned ChaCha8 randomness. No learner observations
+//! are supplied here: word slots are practice samples, not due reviews,
+//! weakness adaptation, baseline measurements or benchmark results.
+//! Phase deadlines, not target counts, determine elapsed practice time.
+//! Prepared content is finite; the engine records repeated-target cycling.
 
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 
 use crate::allocation::allocate;
-use crate::candidate::{Candidate, UtilityInputs, scan_select};
-use crate::corpus::{WordBand, WordPack};
-use crate::lanes::{QuotaTracker, fallback_order};
-use crate::numeric::{DigitSource, number_row_exercise, numpad_exercise};
+use crate::corpus::WordPack;
+use crate::numeric::DigitSource;
 use crate::policy::{Lane, Phase, TrainerPolicy};
 use cadence_core::alphabet::TrainingChar;
-use cadence_core::{BasisPoints, ContentDigest, CoreError, WordId};
-
-/// Planning heuristic: nominal seconds per exercise (scheduling
-/// granularity only; the phase deadline is the contract).
-const NOMINAL_EXERCISE_SECONDS: u64 = 20;
-
-/// Words per warm-up/adaptive exercise (one selection block = 10 slots
-/// by policy; exercises bundle one block each).
-const WORDS_PER_EXERCISE: usize = 10;
-
-/// Rough prose exercise length in units.
-const PROSE_EXERCISE_UNITS: usize = 120;
+use cadence_core::{ContentDigest, CoreError};
 
 /// The seeded PRNG used for planning (L-05: established, pinned,
 /// deterministic; algorithm recorded here for trace headers).
 pub type PlanRng = ChaCha8Rng;
 
-/// Numeric exercise generator signature.
-type NumericGenerator = fn(
-    &mut dyn DigitSource,
-    &mut std::collections::HashSet<String>,
-) -> Result<Vec<TrainingChar>, crate::numeric::NumericError>;
-
 impl DigitSource for PlanRng {
     fn below(&mut self, bound: u64) -> u64 {
-        rand::Rng::random_range(self, 0..bound.max(1))
+        if bound == 0 {
+            return 0;
+        }
+        rand::Rng::random_range(self, 0..bound)
     }
 }
 
@@ -56,9 +34,9 @@ impl DigitSource for PlanRng {
 /// L-01: numpad `12` and number-row `12` are different skills).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExerciseKind {
-    /// Warm-up familiar words.
+    /// Cold-start word practice.
     WarmUp,
-    /// Adaptive word practice (targeted/review/breadth lanes).
+    /// Seeded word practice; no learner observations are assumed.
     Words,
     /// Number-row digits in text contexts.
     NumberRow,
@@ -74,7 +52,7 @@ impl ExerciseKind {
     pub const fn label(self) -> &'static str {
         match self {
             Self::WarmUp => "warm-up",
-            Self::Words => "adaptive words",
+            Self::Words => "words",
             Self::NumberRow => "number row",
             Self::Numpad => "numpad",
             Self::Prose => "prose",
@@ -167,58 +145,40 @@ pub fn build_session_plan(
     disabled: &[Phase],
     budget_seconds: u64,
 ) -> Result<SessionPlan, PlanError> {
-    // Exact allocation over enabled phases only.
-    let enabled: Vec<Phase> = policy
+    policy
+        .validate()
+        .map_err(|error| PlanError::Content(error.to_string()))?;
+    if !(policy.session.minimum_budget_seconds..=policy.session.maximum_budget_seconds)
+        .contains(&budget_seconds)
+    {
+        return Err(PlanError::Infeasible {
+            reason: CoreError::CapacityExhausted {
+                limit: "session budget outside policy bounds",
+            },
+        });
+    }
+    let weights = policy
+        .session
+        .allocation_weights()
+        .map_err(|error| PlanError::Content(error.to_string()))?;
+    let enabled: Vec<_> = policy
         .session
         .phase_order
         .iter()
         .copied()
-        .filter(|phase| !disabled.contains(phase))
+        .zip(policy.session.phase_minimum_seconds.iter().copied())
+        .zip(weights)
+        .filter(|((phase, _), _)| !disabled.contains(phase))
         .collect();
-    let minimums: Vec<u64> = enabled
-        .iter()
-        .map(|phase| phase_minimum(policy, *phase))
-        .collect();
-    let weights: Vec<u64> = enabled
-        .iter()
-        .map(|phase| phase_weight(policy, *phase))
-        .collect();
-    let allocation =
-        if disabled.is_empty() && budget_seconds == policy.session.default_budget_seconds {
-            // The pinned default table is exact for the default budget
-            // (validated against minimums by the policy parser).
-            policy.session.phase_seconds.clone()
-        } else {
-            allocate(budget_seconds, &minimums, &weights)
-                .map_err(|reason| PlanError::Infeasible { reason })?
-        };
-
+    let minimums: Vec<_> = enabled.iter().map(|((_, minimum), _)| *minimum).collect();
+    let weights: Vec<_> = enabled.iter().map(|(_, weight)| *weight).collect();
+    let allocation = allocate(budget_seconds, &minimums, &weights)
+        .map_err(|reason| PlanError::Infeasible { reason })?;
     let mut rng = PlanRng::seed_from_u64(seed);
-    let mut used_digits = std::collections::HashSet::new();
     let mut phases = Vec::with_capacity(enabled.len());
-
-    for (index, phase) in enabled.iter().copied().enumerate() {
-        let seconds = allocation[index];
-        let exercises = match phase {
-            Phase::Review => Vec::new(),
-            Phase::WarmUp => warmup_exercises(policy, pack, &mut rng, seconds)?,
-            Phase::AdaptiveWords => adaptive_exercises(policy, pack, &mut rng, seconds)?,
-            Phase::NumberRow => numeric_exercises(
-                seconds,
-                &mut rng,
-                &mut used_digits,
-                number_row_exercise,
-                ExerciseKind::NumberRow,
-            )?,
-            Phase::Numpad => numeric_exercises(
-                seconds,
-                &mut rng,
-                &mut used_digits,
-                numpad_exercise,
-                ExerciseKind::Numpad,
-            )?,
-            Phase::Prose => prose_exercises_for(seconds, prose_bank)?,
-        };
+    for (((phase, _), _), seconds) in enabled.into_iter().zip(allocation) {
+        let exercises =
+            crate::plan_content::exercises(policy, pack, prose_bank, &mut rng, phase, seconds)?;
         phases.push(PlannedPhase {
             phase,
             seconds,
@@ -235,260 +195,6 @@ pub fn build_session_plan(
     })
 }
 
-fn phase_minimum(policy: &TrainerPolicy, phase: Phase) -> u64 {
-    policy
-        .session
-        .phase_order
-        .iter()
-        .position(|candidate| *candidate == phase)
-        .and_then(|index| policy.session.phase_minimum_seconds.get(index).copied())
-        .unwrap_or(1)
-}
-
-fn phase_weight(policy: &TrainerPolicy, phase: Phase) -> u64 {
-    policy
-        .session
-        .phase_order
-        .iter()
-        .position(|candidate| *candidate == phase)
-        .and_then(|index| policy.session.phase_seconds.get(index).copied())
-        .unwrap_or(1)
-}
-
-fn exercise_count(seconds: u64) -> usize {
-    usize::try_from(seconds / NOMINAL_EXERCISE_SECONDS)
-        .unwrap_or(1)
-        .max(1)
-}
-
-fn warmup_exercises(
-    policy: &TrainerPolicy,
-    pack: &WordPack,
-    rng: &mut PlanRng,
-    seconds: u64,
-) -> Result<Vec<PlannedExercise>, PlanError> {
-    // Familiar words at an easy pace: core band, occurrence-capped.
-    let count = exercise_count(seconds);
-    let indices = pack.band(WordBand::Core).to_vec();
-    let mut exercises = Vec::with_capacity(count);
-    let mut used_words: std::collections::HashSet<u64> = std::collections::HashSet::new();
-    for _ in 0..count {
-        let mut words = Vec::with_capacity(WORDS_PER_EXERCISE);
-        for _ in 0..WORDS_PER_EXERCISE {
-            let Some(word) = pick_core_word(pack, &indices, rng, &mut used_words) else {
-                return Err(PlanError::NoEligibleCandidate { lane: Lane::Broad });
-            };
-            words.push(word);
-        }
-        exercises.push(PlannedExercise {
-            units: join_words(&words),
-            kind: ExerciseKind::WarmUp,
-        });
-    }
-    let _ = policy;
-    Ok(exercises)
-}
-
-fn pick_core_word(
-    pack: &WordPack,
-    indices: &[usize],
-    rng: &mut PlanRng,
-    used: &mut std::collections::HashSet<u64>,
-) -> Option<Vec<TrainingChar>> {
-    if indices.is_empty() {
-        return None;
-    }
-    for _ in 0..indices.len() {
-        let pick = usize::try_from(rng.below(indices.len() as u64)).unwrap_or(0);
-        let entry_index = indices[pick];
-        let entry = pack.words().get(entry_index)?;
-        if used.insert(entry.id.get()) {
-            return Some(entry.units.clone());
-        }
-    }
-    // All used (tiny core band): allow reuse.
-    let pick = usize::try_from(rng.below(indices.len() as u64)).unwrap_or(0);
-    pack.words()
-        .get(indices[pick])
-        .map(|entry| entry.units.clone())
-}
-
-fn adaptive_exercises(
-    policy: &TrainerPolicy,
-    pack: &WordPack,
-    rng: &mut PlanRng,
-    seconds: u64,
-) -> Result<Vec<PlannedExercise>, PlanError> {
-    // One exercise per selection block: fixed interleaved lane order,
-    // quota caps, bounded candidate scan with utility ranking and
-    // seeded tie-breaks (L-05). Without a learner model yet, all
-    // candidates are eligible and utility favours breadth mixing:
-    // target lane samples the long tail (uncertainty), broad lane the
-    // core (relevance).
-    let count = exercise_count(seconds);
-    let mut exercises = Vec::with_capacity(count);
-    let mut pool: Vec<u64> = pack.words().iter().map(|entry| entry.id.get()).collect();
-    // Deterministic pre-shuffle so scan tie-breaks vary by seed.
-    shuffle(&mut pool, rng);
-
-    for _ in 0..count {
-        let mut tracker = QuotaTracker::new(policy.selection.clone());
-        let mut words: Vec<Vec<TrainingChar>> = Vec::with_capacity(policy.selection.block_slots);
-        for lane in policy.selection.lane_order.clone() {
-            let served = serve_lane(policy, pack, &pool, rng, &mut tracker, lane)?;
-            words.push(served);
-        }
-        exercises.push(PlannedExercise {
-            units: join_words(&words),
-            kind: ExerciseKind::Words,
-        });
-    }
-    Ok(exercises)
-}
-
-fn serve_lane(
-    policy: &TrainerPolicy,
-    pack: &WordPack,
-    pool: &[u64],
-    rng: &mut PlanRng,
-    tracker: &mut QuotaTracker,
-    lane: Lane,
-) -> Result<Vec<TrainingChar>, PlanError> {
-    // Documented fallback order with caps preserved (L-05).
-    for candidate_lane in fallback_order(lane) {
-        if !tracker.lane_open(*candidate_lane) {
-            continue;
-        }
-        let materialized = materialize(pack, pool, *candidate_lane, policy, rng);
-        let Some(selected) = scan_select(
-            &materialized,
-            &policy.weights,
-            policy.selection.maximum_candidates_per_slot,
-        )
-        .map_err(|error| PlanError::Content(error.to_string()))?
-        else {
-            continue;
-        };
-        if !tracker.word_admissible(selected, *candidate_lane, None) {
-            continue;
-        }
-        let units = pack
-            .word(selected)
-            .map(|entry| entry.units.clone())
-            .ok_or(PlanError::NoEligibleCandidate { lane })?;
-        tracker
-            .record(*candidate_lane, selected, None)
-            .map_err(|error| PlanError::Content(error.to_string()))?;
-        return Ok(units);
-    }
-    Err(PlanError::NoEligibleCandidate { lane })
-}
-
-fn materialize(
-    pack: &WordPack,
-    pool: &[u64],
-    lane: Lane,
-    policy: &TrainerPolicy,
-    rng: &mut PlanRng,
-) -> Vec<Candidate> {
-    let bound = policy.selection.maximum_candidates_per_slot;
-    let mut candidates = Vec::with_capacity(bound);
-    for id in pool {
-        if candidates.len() >= bound {
-            break;
-        }
-        let Ok(owned) = WordId::new(*id) else {
-            continue;
-        };
-        let Some(entry) = pack.word(owned) else {
-            continue;
-        };
-        let pair = |value: u16| BasisPoints::new(value).unwrap_or(BasisPoints::ZERO);
-        let (relevance, uncertainty) = match (lane, entry.band) {
-            (Lane::Broad, WordBand::Core) => (pair(9_000), pair(500)),
-            (Lane::Broad, _) => (pair(4_000), pair(1_000)),
-            (Lane::Target, WordBand::Tail) => (pair(5_000), pair(9_000)),
-            (Lane::Target, WordBand::Common) => (pair(6_000), pair(6_000)),
-            (Lane::Target, WordBand::Core) => (pair(7_000), pair(2_000)),
-            (Lane::Review, _) => (pair(6_000), pair(4_000)),
-        };
-        candidates.push(Candidate {
-            id: entry.id,
-            eligible: true,
-            inputs: UtilityInputs {
-                error: BasisPoints::ZERO,
-                hesitation: BasisPoints::ZERO,
-                relevance,
-                uncertainty,
-            },
-            tie_break: rng.below(u64::MAX / 2),
-        });
-    }
-    candidates
-}
-
-fn numeric_exercises(
-    seconds: u64,
-    rng: &mut PlanRng,
-    used: &mut std::collections::HashSet<String>,
-    generator: NumericGenerator,
-    kind: ExerciseKind,
-) -> Result<Vec<PlannedExercise>, PlanError> {
-    let count = exercise_count(seconds);
-    let mut exercises = Vec::with_capacity(count);
-    for _ in 0..count {
-        let units = generator(rng, used).map_err(|error| PlanError::Content(error.to_string()))?;
-        exercises.push(PlannedExercise { units, kind });
-    }
-    Ok(exercises)
-}
-
-fn prose_exercises_for(seconds: u64, bank: &str) -> Result<Vec<PlannedExercise>, PlanError> {
-    let count = exercise_count(seconds);
-    let all = crate::prose::prose_exercises(bank, PROSE_EXERCISE_UNITS)
-        .map_err(|error| PlanError::Content(error.to_string()))?;
-    if all.is_empty() {
-        return Err(PlanError::Content("prose bank empty".to_string()));
-    }
-    // Cycle deterministically when the bank is smaller than the plan.
-    Ok((0..count)
-        .map(|index| {
-            let units = all[index % all.len()].clone();
-            PlannedExercise {
-                units,
-                kind: ExerciseKind::Prose,
-            }
-        })
-        .collect())
-}
-
-fn join_words(words: &[Vec<TrainingChar>]) -> Vec<TrainingChar> {
-    let mut units = Vec::new();
-    for (index, word) in words.iter().enumerate() {
-        if index > 0 {
-            units.push(
-                TrainingChar::new(' ', cadence_core::LayoutSupportsPound::US).unwrap_or(
-                    TrainingChar::new('~', cadence_core::LayoutSupportsPound::US)
-                        .expect("tilde is in the alphabet"),
-                ),
-            );
-        }
-        units.extend(word.iter().copied());
-    }
-    units
-}
-
-/// Fisher–Yates shuffle driven by the seeded RNG.
-fn shuffle(items: &mut [u64], rng: &mut PlanRng) {
-    if items.len() < 2 {
-        return;
-    }
-    for index in (1..items.len()).rev() {
-        let pick = usize::try_from(rng.below((index as u64) + 1)).unwrap_or(0);
-        items.swap(index, pick);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the
@@ -502,6 +208,7 @@ mod tests {
     )]
 
     use super::*;
+    use crate::corpus::WordBand;
 
     fn policy() -> TrainerPolicy {
         crate::policy::parse_policy(

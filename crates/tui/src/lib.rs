@@ -13,4 +13,4 @@ pub mod paint;
 pub mod theme;
 
 pub use paint::paint;
-pub use theme::{Palette, SemanticRole, ThemeError};
+pub use theme::{Palette, SemanticRole};
