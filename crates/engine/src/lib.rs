@@ -5,6 +5,7 @@ pub mod events;
 mod practice;
 mod presentation;
 mod storage;
+pub mod summary;
 pub mod view;
 use cadence_core::ledger::AttemptLedger;
 use cadence_core::progress::{Checkpoint, HistorySummary, ProgressStatus, TrackProgress};
@@ -13,7 +14,7 @@ use cadence_core::{CoreError, EventSeq, ExerciseId, FrameRevision, Micros, MonoT
 use cadence_trainer::{Phase, SessionPlan};
 pub use events::{EventEnvelope, EventKind, Key};
 use storage::Storage;
-use view::{MINIMUM_COLUMNS, MINIMUM_ROWS, TextSize};
+use view::{MINIMUM_COLUMNS, MINIMUM_ROWS, TextSize, TextSupport};
 pub use view::{PreparedView, ScreenView, StatusFigures, UnitSpan};
 
 /// Geometry below the full-practice minimum can never accept scored input.
@@ -126,6 +127,7 @@ pub struct Engine {
     checkpoint_due: bool,
     finishing: bool,
     text_size: TextSize,
+    text_support: TextSupport,
     viewport: ViewportState,
 }
 impl Engine {
@@ -179,6 +181,7 @@ impl Engine {
             checkpoint_due: false,
             finishing: false,
             text_size: TextSize::Auto,
+            text_support: TextSupport::NormalOnly,
             viewport: ViewportState::Usable,
         })
     }
@@ -234,6 +237,7 @@ impl Engine {
         let boundary = self.advance_clock(at)?;
         match envelope.kind {
             EventKind::SetTextSize(size) => self.text_size = size,
+            EventKind::SetTextSupport(support) => self.text_support = support,
             EventKind::Key(Key::ToggleTextSize) => self.text_size = self.text_size.next(),
             EventKind::Resized { columns, rows } => self.resize(at, columns, rows)?,
             EventKind::StorageReady {

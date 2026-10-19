@@ -8,20 +8,30 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::{Paragraph, Widget};
 
-use super::{
-    SPACIOUS_STAGE_ROWS, Time, WORDMARK_ROWS, WORDMARK_WIDTH, action, centered_height, emphasis,
-    minimal, style, take, text, wordmark,
-};
+use super::{Time, action, centered_height, emphasis, headlines, minimal, style, take, text};
+use crate::native_text::NativeText;
 use crate::theme::{Palette, SemanticRole as Role};
 
-const SUMMARY_BRAND_ROWS: u16 = 23;
-const SUMMARY_SPACED_ROWS: u16 = 25;
+/// Title and final action must remain visible before optional review detail.
+const TITLE_ACTION_ROWS: u16 = 2;
+/// Gaps after the heading, after the tiles and before the final action.
+const SECTION_GAP_ROWS: u16 = 3;
 const SUMMARY_COLUMN_WIDTHS: [u16; 6] = [10, 9, 9, 5, 6, 12];
 const SUMMARY_MIN_WIDTH: u16 = 56;
-pub(super) fn paint(buffer: &mut Buffer, area: Rect, view: &PreparedView, palette: Palette) {
-    let count = u16::try_from(view.summary_reports.len()).unwrap_or(u16::MAX);
-    let table_rows = count.max(1);
-    if area.height < table_rows.saturating_add(3) {
+pub(super) fn paint(
+    buffer: &mut Buffer,
+    area: Rect,
+    view: &PreparedView,
+    palette: Palette,
+    native: &mut NativeText<'_>,
+) {
+    let table_rows = u16::try_from(view.summary_reports.len())
+        .unwrap_or(u16::MAX)
+        .max(1);
+    let minimum = headlines::COMPACT_ROWS
+        .saturating_add(TITLE_ACTION_ROWS)
+        .saturating_add(1);
+    if area.height < minimum {
         minimal(
             buffer,
             area,
@@ -32,30 +42,26 @@ pub(super) fn paint(buffer: &mut Buffer, area: Rect, view: &PreparedView, palett
         );
         return;
     }
-    let stride = if area.height >= SUMMARY_SPACED_ROWS {
+    let detailed_height = minimum.saturating_add(table_rows);
+    let show_table = area.height >= detailed_height;
+    let base = if show_table { detailed_height } else { minimum };
+    let mut remaining = area.height.saturating_sub(base);
+    let tile_rows = if reserve(&mut remaining, 1) {
+        headlines::ROOMY_ROWS
+    } else {
+        headlines::COMPACT_ROWS
+    };
+    let show_active = reserve(&mut remaining, 1);
+    let show_legend = show_table && reserve(&mut remaining, 1);
+    let show_baseline = reserve(&mut remaining, 1);
+    let gap = u16::from(reserve(&mut remaining, SECTION_GAP_ROWS));
+    let stride = if show_table && reserve(&mut remaining, table_rows) {
         2
     } else {
         1
     };
-    let brand = if area.height >= SUMMARY_BRAND_ROWS && area.width >= WORDMARK_WIDTH {
-        WORDMARK_ROWS
-    } else {
-        0
-    };
-    let gap = u16::from(area.height >= SPACIOUS_STAGE_ROWS);
-    let show_active = area.height >= table_rows.saturating_add(4);
-    let show_legend = area.height >= table_rows.saturating_add(5);
-    let show_baseline = area.height >= table_rows.saturating_add(6);
-    let height = brand
-        .saturating_add(gap.saturating_mul(3))
-        .saturating_add(3)
-        .saturating_add(table_rows.saturating_mul(stride))
-        .saturating_add(u16::from(show_active))
-        .saturating_add(u16::from(show_legend))
-        .saturating_add(u16::from(show_baseline));
+    let height = area.height.saturating_sub(remaining);
     let mut body = centered_height(area, height);
-    wordmark(buffer, take(&mut body, brand), palette);
-    take(&mut body, gap);
     text(
         buffer,
         take(&mut body, 1),
@@ -67,32 +73,40 @@ pub(super) fn paint(buffer: &mut Buffer, area: Rect, view: &PreparedView, palett
         text(
             buffer,
             take(&mut body, 1),
-            format!(
-                "{} active · observations, not a mastery score",
-                Time(seconds)
-            ),
+            format!("{} active · session observations", Time(seconds)),
             style(palette, Role::Muted),
         );
     }
     take(&mut body, gap);
-    results_header(buffer, take(&mut body, 1), palette);
-    if view.summary_reports.is_empty() {
-        text(
-            buffer,
-            take(&mut body, stride),
-            "No scored exercises this session.",
-            style(palette, Role::Muted),
-        );
-    } else {
-        for result in &view.summary_reports {
-            result_row(
+    headlines::paint(buffer, take(&mut body, tile_rows), view, palette, native);
+    take(&mut body, gap);
+    if show_table {
+        results_header(buffer, take(&mut body, 1), palette);
+        if view.summary_reports.is_empty() {
+            text(
                 buffer,
                 take(&mut body, stride),
-                result,
-                view.summary_rate_valid,
-                palette,
+                "No scored exercises this session.",
+                style(palette, Role::Muted),
             );
+        } else {
+            for result in &view.summary_reports {
+                result_row(
+                    buffer,
+                    take(&mut body, stride),
+                    result,
+                    view.summary_rate_valid,
+                    palette,
+                );
+            }
         }
+    } else {
+        text(
+            buffer,
+            take(&mut body, 1),
+            "Resize for per-track details",
+            style(palette, Role::Muted),
+        );
     }
     if show_legend {
         text(
@@ -107,7 +121,7 @@ pub(super) fn paint(buffer: &mut Buffer, area: Rect, view: &PreparedView, palett
             buffer,
             take(&mut body, 1),
             if view.summary_rate_valid {
-                "Frozen plan · sparse evidence, not a qualified baseline"
+                "Frozen plan · session results, not a qualified benchmark"
             } else {
                 "Measurement interrupted · no qualified rates"
             },
@@ -116,6 +130,15 @@ pub(super) fn paint(buffer: &mut Buffer, area: Rect, view: &PreparedView, palett
     }
     take(&mut body, gap);
     action(buffer, take(&mut body, 1), "Close session", view, palette);
+}
+
+fn reserve(remaining: &mut u16, rows: u16) -> bool {
+    if let Some(rest) = remaining.checked_sub(rows) {
+        *remaining = rest;
+        true
+    } else {
+        false
+    }
 }
 /// Fixed numeric lanes remain aligned across tracks; surplus width goes to names.
 fn result_columns(area: Rect) -> [Rect; 6] {

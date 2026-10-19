@@ -1,9 +1,8 @@
 //! Shared-path render tests (VR-01 basis, U-02 totality).
 //!
-//! The same engine reducer and the same paint function feed a Ratatui
-//! `TestBackend`; this is the path the live terminal and the future
-//! headless driver share. Paint must be total for every nonzero
-//! bounded viewport including 1×1 — no panic, no out-of-bounds.
+//! The same engine reducer and painter produce cells and native row metadata
+//! for the live presenter and future headless driver. Paint remains total
+//! for every nonzero bounded viewport, including 1×1.
 
 // Test assertions may use expect/unwrap/panic/indexing to fail loudly;
 // the workspace denies them in production code only.
@@ -15,6 +14,7 @@
 )]
 
 use cadence_core::{EventSeq, LayoutSupportsPound, MonoTick, TrainingChar};
+use cadence_engine::view::LineRendition;
 use cadence_engine::{
     DomainOutcome, Engine, EventEnvelope, EventKind, InputOwner, Key, ScreenView, UnitSpan,
 };
@@ -65,7 +65,8 @@ fn plan_journey_through_shared_reducer_and_paint() -> Result<(), Box<dyn std::er
     let view = engine.prepare(MonoTick::ORIGIN);
     let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
     let area = buffer.area;
-    paint(&mut buffer, area, &view, palette);
+    let mut rows = vec![LineRendition::Normal; usize::from(area.height)];
+    paint(&mut buffer, area, &view, palette, &mut rows);
 
     // Enter starts the drill; type c x Backspace a t (handover example).
     let mut seq = 0u64;
@@ -108,13 +109,13 @@ fn plan_journey_through_shared_reducer_and_paint() -> Result<(), Box<dyn std::er
     let mut view = engine.prepare(MonoTick::from_us(tick));
     let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
     let mut area = buffer.area;
-    paint(&mut buffer, area, &view, palette);
+    paint(&mut buffer, area, &view, palette, &mut rows);
 
     send(&mut engine, EventKind::Key(Key::Enter), &mut seq, &mut tick);
     view = engine.prepare(MonoTick::from_us(tick));
     let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
     area = buffer.area;
-    paint(&mut buffer, area, &view, palette);
+    paint(&mut buffer, area, &view, palette, &mut rows);
     let report = view
         .summary_reports
         .first()
@@ -185,7 +186,14 @@ fn paint_respects_its_viewport_boundary() -> Result<(), Box<dyn std::error::Erro
         for cell in &mut buffer.content {
             cell.set_char('#');
         }
-        paint(&mut buffer, viewport, &view, Palette::cadence_dark());
+        let mut rows = vec![LineRendition::Normal; usize::from(surrounding.height)];
+        paint(
+            &mut buffer,
+            viewport,
+            &view,
+            Palette::cadence_dark(),
+            &mut rows,
+        );
         for y in surrounding.top()..surrounding.bottom() {
             for x in surrounding.left()..surrounding.right() {
                 if !viewport.contains((x, y).into()) {

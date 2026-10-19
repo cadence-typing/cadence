@@ -1,6 +1,7 @@
 # Visual focus: alpha.2
 
-Status: implemented, verified, released and installed as `0.1.0-alpha.2`.
+Historical status: shipped as `0.1.0-alpha.2`. Its bitmap typography is superseded
+by [smooth native text in alpha.3](0002-smooth-native-text.md).
 Scope: terminal UI only, plus typed display preferences and release/install.
 Training policy, target identity, scoring, phase allocations and persisted
 history schema remain unchanged. This is still an unsigned feedback build.

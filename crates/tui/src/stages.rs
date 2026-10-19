@@ -7,24 +7,34 @@ use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget, Wrap};
 
+use crate::native_text::NativeText;
 use crate::theme::{Palette, SemanticRole as Role};
+mod headlines;
 mod results;
 
 const STAGE_MAX_WIDTH: u16 = 92;
-const WORDMARK_WIDTH: u16 = 28;
-const WORDMARK_ROWS: u16 = 4;
+const WORDMARK_WIDTH: u16 = 14;
+const WORDMARK_ROWS: u16 = 2;
 const SPACIOUS_STAGE_ROWS: u16 = 20;
 const SPACIOUS_INTERLUDE_ROWS: u16 = 21;
 
 /// All rectangles are intersected with the caller's body; chrome belongs to paint.rs.
-pub(super) fn paint(buffer: &mut Buffer, area: Rect, view: &PreparedView, palette: Palette) {
+pub(super) fn paint(
+    buffer: &mut Buffer,
+    area: Rect,
+    view: &PreparedView,
+    palette: Palette,
+    native: &mut NativeText<'_>,
+) {
     let area = area.intersection(buffer.area);
     if area.is_empty() || matches!(view.screen, ScreenView::Practice { .. }) {
         return;
     }
     let area = centered_width(area, STAGE_MAX_WIDTH);
     match &view.screen {
-        ScreenView::Today { total_seconds } => landing(buffer, area, view, *total_seconds, palette),
+        ScreenView::Today { total_seconds } => {
+            landing(buffer, area, view, *total_seconds, palette, native);
+        }
         ScreenView::PhaseComplete {
             label,
             partial,
@@ -34,18 +44,24 @@ pub(super) fn paint(buffer: &mut Buffer, area: Rect, view: &PreparedView, palett
                 buffer,
                 area,
                 view,
-                label,
-                *partial,
-                next.as_deref(),
+                (label, *partial, next.as_deref()),
                 palette,
+                native,
             );
         }
-        ScreenView::Summary => results::paint(buffer, area, view, palette),
+        ScreenView::Summary => results::paint(buffer, area, view, palette, native),
         ScreenView::Practice { .. } => {}
     }
 }
 
-fn landing(buffer: &mut Buffer, area: Rect, view: &PreparedView, seconds: u64, palette: Palette) {
+fn landing(
+    buffer: &mut Buffer,
+    area: Rect,
+    view: &PreparedView,
+    seconds: u64,
+    palette: Palette,
+    native: &mut NativeText<'_>,
+) {
     if area.height < 7 {
         minimal(
             buffer,
@@ -72,7 +88,7 @@ fn landing(buffer: &mut Buffer, area: Rect, view: &PreparedView, seconds: u64, p
         .saturating_add(purpose_rows)
         .saturating_add(baseline);
     let mut body = centered_height(area, height);
-    wordmark(buffer, take(&mut body, brand), palette);
+    wordmark(buffer, take(&mut body, brand), palette, native);
     take(&mut body, gap);
     text(
         buffer,
@@ -122,11 +138,11 @@ fn interlude(
     buffer: &mut Buffer,
     area: Rect,
     view: &PreparedView,
-    label: &str,
-    partial: bool,
-    next: Option<&str>,
+    phase: (&str, bool, Option<&str>),
     palette: Palette,
+    native: &mut NativeText<'_>,
 ) {
+    let (label, partial, next) = phase;
     if area.height < 9 {
         minimal(
             buffer,
@@ -157,7 +173,7 @@ fn interlude(
         .saturating_add(report_rows)
         .saturating_add(purpose_rows);
     let mut body = centered_height(area, height);
-    wordmark(buffer, take(&mut body, brand), palette);
+    wordmark(buffer, take(&mut body, brand), palette, native);
     take(&mut body, gap);
     text(
         buffer,
@@ -391,12 +407,8 @@ fn action(buffer: &mut Buffer, area: Rect, label: &str, view: &PreparedView, pal
     );
 }
 
-fn wordmark(buffer: &mut Buffer, area: Rect, palette: Palette) {
-    if area.height >= WORDMARK_ROWS && area.width >= WORDMARK_WIDTH {
-        super::glyphs::paint_label(buffer, area, "cadence", style(palette, Role::Focus));
-    } else if !area.is_empty() {
-        text(buffer, area, "cadence", emphasis(palette));
-    }
+fn wordmark(buffer: &mut Buffer, area: Rect, palette: Palette, native: &mut NativeText<'_>) {
+    native.paint_label(buffer, area, "cadence", emphasis(palette));
 }
 
 fn text<'a>(

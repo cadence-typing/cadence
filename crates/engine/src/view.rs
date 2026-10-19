@@ -13,6 +13,28 @@ pub const MINIMUM_COLUMNS: u16 = 60;
 /// U-02 minimum viewport height for scored practice, in terminal cells.
 pub const MINIMUM_ROWS: u16 = 18;
 
+/// Runtime terminal capability, independent of the requested display size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextSupport {
+    /// Use ordinary terminal text until native support has been established.
+    #[default]
+    NormalOnly,
+    /// The terminal supports native double-height, double-width line pairs.
+    DoubleHeight,
+}
+
+/// Derived native rendition for one physical terminal row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LineRendition {
+    /// Ordinary single-width, single-height text.
+    #[default]
+    Normal,
+    /// Top half of a native double-height, double-width line.
+    DoubleHeightTop,
+    /// Bottom half of a native double-height, double-width line.
+    DoubleHeightBottom,
+}
+
 /// Display preference only; never changes targets, difficulty or scoring.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TextSize {
@@ -259,6 +281,8 @@ pub struct PreparedView {
     pub history: cadence_core::progress::HistorySummary,
     /// Display-only size preference.
     pub text_size: TextSize,
+    /// Reducer-admitted terminal capability; normal text before runtime discovery.
+    pub text_support: TextSupport,
     /// Reducer-derived input/presentation mode.
     pub mode: ViewMode,
     /// Last durable watermark or outstanding storage condition.

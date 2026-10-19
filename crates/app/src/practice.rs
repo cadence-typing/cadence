@@ -51,6 +51,13 @@ pub fn run(
         EventKind::Resized { columns, rows },
         &mut dispatch,
     )?;
+    apply(
+        &mut engine,
+        &mut seq,
+        elapsed_since(origin)?,
+        EventKind::SetTextSupport(terminal.text_support()),
+        &mut dispatch,
+    )?;
     draw(&engine, &mut terminal, elapsed_since(origin)?)?;
     let mut last_frame = Instant::now();
 
@@ -142,9 +149,9 @@ fn dispatch_pending(
 
 fn draw(engine: &Engine, terminal: &mut TerminalGuard, at: MonoTick) -> Result<(), Box<dyn Error>> {
     let view = engine.prepare(at);
-    terminal.draw(|frame| {
-        let area = frame.area();
-        paint(frame.buffer_mut(), area, &view, Palette::cadence_dark());
+    terminal.draw(|buffer, rows| {
+        let area = buffer.area;
+        paint(buffer, area, &view, Palette::cadence_dark(), rows);
     })?;
     Ok(())
 }

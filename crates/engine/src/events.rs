@@ -53,6 +53,8 @@ pub enum EventKind {
     Key(Key),
     /// Display preference admitted through the reducer (CLI or explicit control).
     SetTextSize(crate::view::TextSize),
+    /// Runtime terminal capability admitted independently of display preference.
+    SetTextSupport(crate::view::TextSupport),
     /// Viewport geometry changed; layout-dependent state changes are
     /// explicit preparation events before paint (A-01).
     Resized {

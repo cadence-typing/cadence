@@ -7,7 +7,9 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 
+use crate::{presenter::Presenter, text_protocol};
 use cadence_core::{LayoutSupportsPound, MonoTick, TrainingChar};
+use cadence_engine::view::{LineRendition, TextSupport};
 use cadence_engine::{EventKind, Key};
 use crossterm::cursor::Show;
 use crossterm::event::{
@@ -18,8 +20,8 @@ use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
-use ratatui::Terminal;
-use ratatui::backend::CrosstermBackend;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Size;
 use signal_hook::{
     SigId,
     consts::{SIGINT, SIGTERM},
@@ -51,14 +53,14 @@ impl std::error::Error for TerminalError {}
 #[derive(PartialEq, Eq)]
 enum Lifecycle {
     Active,
-    Restored,
+    RestoreAttempted,
 }
 
 /// Owns raw mode, alternate screen, paste/focus reporting and the renderer.
 pub struct TerminalGuard {
     interrupted: Arc<AtomicBool>,
     signal_ids: Vec<SigId>,
-    terminal: Terminal<CrosstermBackend<Stdout>>,
+    terminal: Presenter<Stdout>,
     lifecycle: Lifecycle,
 }
 
@@ -74,7 +76,10 @@ impl TerminalGuard {
             EnableFocusChange
         )
         .map_err(setup_error)?;
-        let terminal = Terminal::new(CrosstermBackend::new(stdout)).map_err(setup_error)?;
+        let (columns, rows) = crossterm::terminal::size().map_err(setup_error)?;
+        let support = text_protocol::probe(&mut stdout, columns, crossterm::cursor::position)
+            .map_err(setup_error)?;
+        let terminal = Presenter::new(stdout, Size::new(columns, rows), support);
         let mut guard = Self {
             terminal,
             lifecycle: Lifecycle::Active,
@@ -92,12 +97,10 @@ impl TerminalGuard {
     /// Draws through the caller's shared painter without mutating product state.
     pub fn draw<P>(&mut self, painter: P) -> Result<(), TerminalError>
     where
-        P: FnOnce(&mut ratatui::Frame<'_>),
+        P: FnOnce(&mut Buffer, &mut [LineRendition]),
     {
-        self.terminal
-            .draw(painter)
-            .map(|_| ())
-            .map_err(TerminalError::Io)
+        let size = self.terminal.size().map_err(TerminalError::Io)?;
+        self.terminal.draw(size, painter).map_err(TerminalError::Io)
     }
 
     /// Actual terminal geometry for reducer-owned minimum-size handling.
@@ -106,11 +109,22 @@ impl TerminalGuard {
         Ok((size.width, size.height))
     }
 
+    /// Observed startup capability, admitted separately through the engine reducer.
+    pub const fn text_support(&self) -> TextSupport {
+        self.terminal.text_support()
+    }
+
     /// Explicit teardown surfaces errors; Drop remains the fallback.
     pub fn restore(mut self) -> Result<(), TerminalError> {
-        restore_terminal().map_err(TerminalError::Io)?;
-        self.lifecycle = Lifecycle::Restored;
-        Ok(())
+        self.restore_state().map_err(TerminalError::Io)
+    }
+
+    fn restore_state(&mut self) -> io::Result<()> {
+        let rows = self.terminal.restore_rows();
+        let terminal = restore_terminal();
+        // Never retry row commands after leaving the alternate screen.
+        self.lifecycle = Lifecycle::RestoreAttempted;
+        rows.and(terminal)
     }
 
     /// Reads at most one semantic event. A timeout is a replaceable clock hint.
@@ -129,7 +143,7 @@ impl TerminalGuard {
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
         if self.lifecycle == Lifecycle::Active
-            && let Err(error) = restore_terminal()
+            && let Err(error) = self.restore_state()
         {
             eprintln!("cadence: terminal restoration failed: {error}");
         }

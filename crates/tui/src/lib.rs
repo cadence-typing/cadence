@@ -1,16 +1,16 @@
 //! `cadence-tui` — pure presentation (A-01, U-01, U-02).
 //!
 //! Owns: theme/palette adaptation, pure layout and paint from
-//! `&PreparedView`, and the single shared Ratatui draw + cell-capture
-//! path used by both live mode and the headless driver's `TestBackend`.
+//! `&PreparedView`, and shared Ratatui cells plus native line metadata
+//! consumed by live presentation and headless capture.
 //!
 //! Must not own: mutating learning/application state, filesystem access
 //! or jobs. Paint is a total function of the prepared view, theme and
 //! viewport; it is total for every nonzero bounded viewport including
 //! 1×1, without panic or out-of-bounds access.
 
-mod glyphs;
 mod modeline;
+mod native_text;
 pub mod paint;
 mod practice;
 mod stages;

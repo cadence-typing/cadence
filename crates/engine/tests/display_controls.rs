@@ -1,7 +1,7 @@
 //! Display controls must preserve scoring facts and obey resize pause boundaries.
 
 use cadence_core::{ContentDigest, LayoutSupportsPound, MonoTick, TrainingChar};
-use cadence_engine::view::{PhaseState, TextSize, ViewMode};
+use cadence_engine::view::{PhaseState, TextSize, TextSupport, ViewMode};
 use cadence_engine::{
     DomainOutcome, Engine, EventEnvelope, EventKind, Key, ScreenView, Transition,
 };
@@ -69,12 +69,21 @@ fn content(
 }
 
 #[test]
-fn text_size_changes_never_rewrite_input_or_first_outcomes() -> TestResult {
+fn display_changes_never_rewrite_input_or_first_outcomes() -> TestResult {
     let mut engine = engine()?;
     send(&mut engine, 0, EventKind::Key(Key::Enter))?;
     content(&mut engine, 1_000_000, 'c')?;
     content(&mut engine, 2_000_000, 'x')?;
     let before = engine.prepare(MonoTick::from_us(2_000_000));
+    assert_eq!(before.text_support, TextSupport::NormalOnly);
+    for support in [TextSupport::DoubleHeight, TextSupport::NormalOnly] {
+        send(&mut engine, 2_000_000, EventKind::SetTextSupport(support))?;
+        let changed = engine.prepare(MonoTick::from_us(2_000_000));
+        assert_eq!(changed.text_support, support);
+        assert_eq!(changed.text_size, before.text_size);
+        assert_eq!(changed.screen, before.screen);
+        assert_eq!(changed.active, before.active);
+    }
     send(&mut engine, 2_000_000, EventKind::Key(Key::ToggleTextSize))?;
     let large = engine.prepare(MonoTick::from_us(2_000_000));
     assert_eq!(large.text_size, TextSize::Large);

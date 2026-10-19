@@ -2,38 +2,40 @@
 
 use std::ops::Range;
 
-use cadence_engine::view::{StatusFigures, TextSize, UnitSpan};
+use cadence_engine::view::{PreparedView, ScreenView, StatusFigures, TextSize, UnitSpan};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Paragraph, Widget};
 
-use crate::glyphs::{self, CELL_HEIGHT, CELL_WIDTH};
+use crate::native_text::{CELL_HEIGHT, CELL_WIDTH, NativeText};
 use crate::theme::{Palette, SemanticRole as Role};
 
-/// The 80×24 automatic-size threshold after chrome and canvas margins.
-const AUTO_MIN_WIDTH: u16 = 76;
-const AUTO_MIN_HEIGHT: u16 = 18;
 const AUTO_MIN_ROWS: u16 = 2;
 const LARGE_ROW_GAP: u16 = 1;
-const LARGE_FOOTER_ROWS: u16 = 3;
-const NORMAL_FOOTER_ROWS: u16 = 2;
+const FOOTER_ROWS: u16 = 2;
 
 /// The actual canvas mode, including a visible failed large-size preference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ResolvedTextSize {
     Large,
     Normal,
-    Fallback,
+    Fallback(FallbackReason),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FallbackReason {
+    Terminal,
+    Geometry,
 }
 
 impl ResolvedTextSize {
     pub(crate) const fn label(self) -> &'static str {
         match self {
-            Self::Large => "LARGE",
+            Self::Large => "LARGE 2x",
             Self::Normal => "NORMAL",
-            Self::Fallback => "NORMAL*",
+            Self::Fallback(_) => "NORMAL*",
         }
     }
 }
@@ -42,20 +44,25 @@ impl ResolvedTextSize {
 pub(super) fn paint(
     buffer: &mut Buffer,
     area: Rect,
-    spans: &[UnitSpan],
-    status: &StatusFigures,
-    paused: bool,
-    preferred: TextSize,
+    view: &PreparedView,
     palette: Palette,
+    native: &mut NativeText<'_>,
 ) -> ResolvedTextSize {
+    let ScreenView::Practice {
+        spans,
+        status,
+        paused,
+    } = &view.screen
+    else {
+        return ResolvedTextSize::Normal;
+    };
+    let preferred = view.text_size;
     let area = area.intersection(buffer.area);
-    let auto_large = area.width >= AUTO_MIN_WIDTH && area.height >= AUTO_MIN_HEIGHT;
-    let wants_large = preferred == TextSize::Large || (preferred == TextSize::Auto && auto_large);
+    // Native letters need only two cells per dimension; the former bitmap
+    // threshold is unnecessary. Auto still requires two complete text rows.
+    let wants_large = preferred != TextSize::Normal;
     // Small forced canvases may omit ancillary lines, but never a partial glyph.
-    let large_footer = area
-        .height
-        .saturating_sub(CELL_HEIGHT)
-        .min(LARGE_FOOTER_ROWS);
+    let large_footer = area.height.saturating_sub(CELL_HEIGHT).min(FOOTER_ROWS);
     let large_height = area.height.saturating_sub(large_footer);
     let large_rows = large_height
         .saturating_add(LARGE_ROW_GAP)
@@ -72,14 +79,12 @@ pub(super) fn paint(
             } else {
                 1
             };
-    let glyphs_ok = !wants_large
-        || spans.iter().all(|span| {
-            glyphs::bitmap(expected(*span)).is_some() && glyphs::bitmap(span.cell_char()).is_some()
-        });
-    let resolved = if wants_large && geometry_ok && glyphs_ok {
+    let resolved = if wants_large && !native.available() {
+        ResolvedTextSize::Fallback(FallbackReason::Terminal)
+    } else if wants_large && geometry_ok {
         ResolvedTextSize::Large
     } else if wants_large {
-        ResolvedTextSize::Fallback
+        ResolvedTextSize::Fallback(FallbackReason::Geometry)
     } else {
         ResolvedTextSize::Normal
     };
@@ -90,7 +95,7 @@ pub(super) fn paint(
     let footer_height = if large {
         large_footer
     } else {
-        area.height.saturating_sub(1).min(NORMAL_FOOTER_ROWS)
+        area.height.saturating_sub(1).min(FOOTER_ROWS)
     };
     let canvas = Rect::new(
         area.x,
@@ -103,7 +108,7 @@ pub(super) fn paint(
     } else {
         usize::from(canvas.width)
     };
-    let rows = wrap_rows(spans, width.max(1), large);
+    let rows = wrap_rows(spans, width.max(1));
     // With no cursor (notably a complete numpad entry), follow the last unit,
     // not a fictitious extra row after it.
     let caret = spans
@@ -112,12 +117,10 @@ pub(super) fn paint(
         .unwrap_or_else(|| spans.len().saturating_sub(1));
     let mut row_count = 0;
     let mut caret_row = 0;
-    let mut active_line = 0..0;
     for (index, row) in rows.clone().enumerate() {
         row_count = index.saturating_add(1);
         if row.contains(&caret) {
             caret_row = index;
-            active_line = row;
         }
     }
     let row_height = if large { CELL_HEIGHT } else { 1 };
@@ -161,7 +164,11 @@ pub(super) fn paint(
         );
         let visible_spans = spans.get(range).unwrap_or_default();
         if large {
-            paint_large_line(buffer, row, visible_spans, palette);
+            if let Some(halves) = native.pair(buffer, row) {
+                for half in halves {
+                    paint_normal_line(buffer, half, visible_spans, palette);
+                }
+            }
         } else {
             paint_normal_line(buffer, row, visible_spans, palette);
         }
@@ -172,11 +179,9 @@ pub(super) fn paint(
         footer,
         Footer {
             spans,
-            active_line,
             status,
-            paused,
+            paused: *paused,
             resolved,
-            glyphs_ok,
         },
         palette,
     );
@@ -195,11 +200,7 @@ fn expected(span: UnitSpan) -> char {
 /// Preserve every unit, including boundary spaces. Newlines terminate a row;
 /// oversized words split at unit boundaries. A restartable iterator avoids a
 /// range allocation on every redraw without cloning the target.
-fn wrap_rows(
-    spans: &[UnitSpan],
-    width: usize,
-    large: bool,
-) -> impl Clone + Iterator<Item = Range<usize>> {
+fn wrap_rows(spans: &[UnitSpan], width: usize) -> impl Clone + Iterator<Item = Range<usize>> {
     let mut start = 0;
     std::iter::from_fn(move || {
         if start >= spans.len() {
@@ -210,11 +211,7 @@ fn wrap_rows(
         let mut last_break = None;
         while let Some(span) = spans.get(end) {
             let unit = expected(*span);
-            let unit_width = if large {
-                1
-            } else {
-                char_width(display_char(unit))
-            };
+            let unit_width = char_width(display_char(unit));
             if used.saturating_add(unit_width) > width && end > start {
                 if let Some(boundary) = last_break {
                     end = boundary;
@@ -234,22 +231,6 @@ fn wrap_rows(
         start = end;
         Some(row)
     })
-}
-
-fn paint_large_line(buffer: &mut Buffer, area: Rect, spans: &[UnitSpan], palette: Palette) {
-    let width = u16::try_from(spans.len())
-        .unwrap_or(0)
-        .saturating_mul(CELL_WIDTH);
-    let start = area
-        .x
-        .saturating_add(area.width.saturating_sub(width).checked_div(2).unwrap_or(0));
-    for (index, span) in spans.iter().enumerate() {
-        if let Some(bits) = glyphs::bitmap(span.cell_char()) {
-            let x =
-                start.saturating_add(u16::try_from(index).unwrap_or(0).saturating_mul(CELL_WIDTH));
-            glyphs::paint_bitmap(buffer, area, x, area.y, &bits, unit_style(*span, palette));
-        }
-    }
 }
 
 /// Use Ratatui's Unicode-width-aware text rendering, not raw wide-cell writes.
@@ -333,35 +314,22 @@ fn char_width(unit: char) -> usize {
 
 struct Footer<'a> {
     spans: &'a [UnitSpan],
-    active_line: Range<usize>,
     status: &'a StatusFigures,
     paused: bool,
     resolved: ResolvedTextSize,
-    glyphs_ok: bool,
 }
 
 fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Palette) {
     let Footer {
         spans,
-        active_line,
         status,
         paused,
         resolved,
-        glyphs_ok,
     } = footer;
     if area.is_empty() {
         return;
     }
     let mut y = area.y;
-    if resolved == ResolvedTextSize::Large && area.height >= LARGE_FOOTER_ROWS {
-        paint_normal_line(
-            buffer,
-            Rect::new(area.x, y, area.width, 1),
-            spans.get(active_line).unwrap_or_default(),
-            palette,
-        );
-        y = y.saturating_add(1);
-    }
     let error = spans.iter().find_map(|span| match span {
         UnitSpan::Wrong { expected, .. } => Some(*expected),
         _ => None,
@@ -374,14 +342,13 @@ fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Pa
             style(palette, Role::Error),
         );
         y = y.saturating_add(1);
-    } else if resolved == ResolvedTextSize::Fallback {
+    } else if let ResolvedTextSize::Fallback(reason) = resolved {
         centered(
             buffer,
             Rect::new(area.x, y, area.width, 1),
-            if glyphs_ok {
-                "Normal text · large needs more room"
-            } else {
-                "Normal text · glyph unavailable in large font"
+            match reason {
+                FallbackReason::Geometry => "Normal text · large needs more room",
+                FallbackReason::Terminal => "Normal text · native scaling unavailable",
             },
             style(palette, Role::Warning),
         );

@@ -1,6 +1,6 @@
 # Cadence implementation and feedback-build status
 
-`0.1.0-alpha.2` is an **unsigned development preview**, not a P8-qualified
+`0.1.0-alpha.3` is an **unsigned development preview**, not a P8-qualified
 release. Earlier commit messages overstated P0–P2 completion: passing tests,
 ASCII filtering, and documentation of intended proofs did not discharge the
 handover's proof, vocabulary-vetting, adaptation, or qualification obligations.
@@ -53,17 +53,25 @@ resume a mid-word exercise or claim an uninterrupted timing trial. Store schema
 measurements or resetting it. Keep that file and use a new explicit profile
 for feedback if such a draft database exists.
 
-## Alpha.2 visual refresh
+## Alpha.3 smooth native typography
 
-The [researched proposal](plans/0001-visual-focus.md) covers centered landing,
-phase transitions and review screens; an editor-style segmented modeline; and
-large, centered practice text. Large characters use portable 4×4 terminal-cell
-glyphs, **not native font scaling** or terminal configuration changes. Auto
-normally selects large text at 80×24 or above; a diagnostic banner can reduce
-the available canvas and select normal text. Forced large falls back visibly
-if its geometry or glyph requirements cannot be met.
-Normal text is also centered; both modes follow the caret without changing the
-target, input, first-pass history or difficulty.
+The [native typography decision](plans/0002-smooth-native-text.md) supersedes
+alpha.2's rejected bitmap lettering. Cadence now asks the terminal to render its
+own font at **2× size**, using native double-height rows. It does not change font
+settings or require a Nerd Font. The old bitmap renderer and font dependency are
+removed. Centered landing, transitions, review and the segmented modeline remain.
+
+Startup verifies actual cursor geometry for both double-height halves; environment
+variables are not treated as proof. Auto uses native text when detected and two
+complete rows fit. Otherwise it uses centered ordinary text with a visible
+native-scaling fallback hint. F2 and `--text-size auto|large|normal` remain available.
+Text, correction history and timing are independent of the typography preference.
+
+Session review now leads with large correct-speed and first-pass accuracy tiles.
+Mixed-session WPM includes all typing-track time but excludes keypad units/time;
+keypad-only sessions show correct digits/minute. Accuracy aggregates positions,
+not track percentages, and cannot round an error up to 100.0%. Per-track details
+remain available below the headline cards.
 
 The modeline prioritizes mode, durability and time. `CKPT n` names the last
 acknowledged checkpoint, **not a promise that every current key is saved**.
@@ -80,8 +88,8 @@ this refresh.
 | P1 / L-02–03, VK-01–02 | implemented, behavior checked | `core/{ledger,metrics,session}`, `engine/{practice,presentation}`; scoring fixtures/properties and live corrected-entry smoke. These are not same-source Verus proofs. |
 | P2 / P-02–04, VK-03–06 | in_progress | `trainer/{allocation,plan,plan_content,policy,review,pace}`; deterministic seed/budget/track tests and bounded eligible scans. Cold-start selection only; learner adaptation, retention/benchmark comparisons and 20k vetted vocabulary acceptance remain unfinished. |
 | P3 / D-01–02, VP-01–03 | in_progress | `core/progress`, `data/{store,schema,records,files,transfer}`, `engine/storage`, `runtime/writer`. One retained writer/result slot, full-key admission, checkpoints, retry, lock, reopen, backup/export implemented. General job-registry/async planner, immutable observation chunks, full crash/storage campaigns and formal correspondence remain unfinished. |
-| P4 / H-01–04, VP-04–05 | pending | No shipped NDJSON driver, causal/durable barriers or replay. TestBackend is shared rendering evidence, not a completed headless protocol. |
-| P5 / U-01–05 | in_progress | `engine/view`, `tui/{paint,stages,stages/results,modeline,practice,glyphs}` share one painter for centered stages and text, typed modeline facts and F2/CLI text-size preferences. Reducer tests preserve corrections/timing across display changes and resize pause. Full destinations/settings/layout setup, imports and editable themes remain unfinished. |
+| P4 / H-01–04, VP-04–05 | pending | No shipped NDJSON driver, causal/durable barriers or replay. Shared cell/row-rendition capture is rendering evidence, not a completed headless protocol. |
+| P5 / U-01–05 | in_progress | `engine/{view,summary}`, `tui/{paint,stages,stages/results,stages/headlines,modeline,practice,native_text}` share cells plus native row metadata; `runtime/{presenter,text_protocol}` present and negotiate it. Reducer/summary regressions preserve correction history, weighted metrics, timing and resize pause. Full destinations/settings/layout setup, imports and editable themes remain unfinished. |
 | P6 / H-05–06 | in_progress | Hermetic Rust regressions and actual PTY/SQLite smoke; no broad terminal qualification or measured p99/memory admission claim. |
 | P7 / VP, VK, VL, VR inventory | pending | Packet models remain design probes. No TLAPS/Verus production proof inventory has passed. |
 | P8 / B-03–06 | blocked for qualification | Static feedback-bundle producer and owner trial installation exist. Buildbot recovery, authorized signing, complete inventory admission and owner terminal/keypad qualification are not completed. |

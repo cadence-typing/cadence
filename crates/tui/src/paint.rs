@@ -1,12 +1,13 @@
 //! Shared pure composition for live output and deterministic cell captures.
 
-use cadence_engine::view::{MINIMUM_COLUMNS, MINIMUM_ROWS, ViewMode};
+use cadence_engine::view::{LineRendition, MINIMUM_COLUMNS, MINIMUM_ROWS, ViewMode};
 use cadence_engine::{PreparedView, ScreenView};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap};
 
+use crate::native_text::NativeText;
 use crate::practice::ResolvedTextSize;
 use crate::theme::{Palette, SemanticRole as Role};
 
@@ -18,8 +19,15 @@ const MODELINE_ROWS: u16 = 2;
 const NOTICE_ROWS: u16 = 3;
 
 /// Paints the immutable engine snapshot without I/O, timing or state mutation.
-pub fn paint(buffer: &mut Buffer, area: Rect, view: &PreparedView, palette: Palette) {
+pub fn paint(
+    buffer: &mut Buffer,
+    area: Rect,
+    view: &PreparedView,
+    palette: Palette,
+    rows: &mut [LineRendition],
+) {
     let area = area.intersection(buffer.area);
+    let mut native = NativeText::new(view.text_support, area, buffer.area, rows);
     Clear.render(area, buffer);
     buffer.set_style(area, style(palette, Role::Text));
     if area.width < MINIMUM_COLUMNS || area.height < MINIMUM_ROWS {
@@ -49,21 +57,11 @@ pub fn paint(buffer: &mut Buffer, area: Rect, view: &PreparedView, palette: Pale
         vertical: 1,
     });
     let actual_text_size = match &view.screen {
-        ScreenView::Practice {
-            spans,
-            status,
-            paused,
-        } => crate::practice::paint(
-            buffer,
-            body,
-            spans,
-            status,
-            *paused,
-            view.text_size,
-            palette,
-        ),
+        ScreenView::Practice { .. } => {
+            crate::practice::paint(buffer, body, view, palette, &mut native)
+        }
         _ => {
-            crate::stages::paint(buffer, body, view, palette);
+            crate::stages::paint(buffer, body, view, palette, &mut native);
             ResolvedTextSize::Normal
         }
     };

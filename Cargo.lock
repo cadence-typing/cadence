@@ -46,7 +46,7 @@ dependencies = [
 
 [[package]]
 name = "cadence"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "cadence-core",
  "cadence-data",
@@ -58,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-core"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "proptest",
  "serde",
@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-data"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "cadence-core",
  "rusqlite",
@@ -79,7 +79,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-driver"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "cadence-core",
  "cadence-engine",
@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-engine"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "cadence-core",
  "cadence-trainer",
@@ -102,7 +102,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-runtime"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "cadence-core",
  "cadence-data",
@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-trainer"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "cadence-core",
  "rand",
@@ -128,12 +128,11 @@ dependencies = [
 
 [[package]]
 name = "cadence-tui"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "cadence-core",
  "cadence-engine",
  "cadence-trainer",
- "font8x8",
  "proptest",
  "ratatui",
  "serde_json",
@@ -387,12 +386,6 @@ name = "foldhash"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
-
-[[package]]
-name = "font8x8"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "875488b8711a968268c7cf5d139578713097ca4635a76044e8fe8eedf831d07e"
 
 [[package]]
 name = "generic-array"
@@ -1289,7 +1282,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "xtask"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "cadence-core",
  "cadence-trainer",

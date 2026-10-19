@@ -48,6 +48,7 @@ impl Engine {
             notice,
             history: self.history.clone(),
             text_size: self.text_size,
+            text_support: self.text_support,
             mode: self.view_mode(),
             durability: self.durability(),
             phases: self.phase_overview(),
