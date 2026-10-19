@@ -1,5 +1,7 @@
 # Smooth native text: alpha.3
 
+Status: released and installed as `0.1.0-alpha.3`, including the requested summary tiles.
+
 The owner rejected alpha.2's coarse 8×8 bitmap lettering. Replace it, rather
 than smoothing those pixels or imposing a terminal font/profile change.
 
@@ -121,4 +123,26 @@ Canonical offline Docker Compose `./ci quality` passed after removing the captur
 driver: formatting, warnings-denied Clippy, all 151 tests, architecture boundaries,
 and verification of all 48 original contract files against `MANIFEST.sha256`.
 The final native summary capture uses the balanced, grid-aligned card layout.
+
+## Release and installation receipt
+
+- [Published alpha.3](https://github.com/tknawara/cadence/releases/tag/v0.1.0-alpha.3)
+  with the static executable, notice-complete bundle, checksums and native summary
+  captures. Screenshot fixture values are explicitly distinguished from owner data.
+- Clean source: `7d8bf9a3b435b4f088c50bf5241c8bc9a7954ee9`.
+  Binary SHA-256:
+  `ac308e3ece036f26ab739b25a6e74524859f52fb001cf7ffc4dcb38c81f08327`.
+  Canonical `./ci dist` verified ELF64/x86_64, no interpreter and no shared-library
+  requirements.
+- The final static executable passed native-protocol and fallback practice smoke.
+  It also practised/saved in a scratch container as UID/GID 1000, networking off,
+  read-only root and all capabilities dropped. Corrected keypad counts stayed
+  3/4 first-pass, 4/5 attempts, one deletion; reopening/export succeeded.
+- Uploaded assets were downloaded, checked against `SHA256SUMS`, and matched to
+  the local candidate. Installation was atomic at `~/.local/bin/cadence` →
+  `~/.local/lib/cadence/0.1.0-alpha.3-7d8bf9a3b435/cadence`. Alpha.2 remains intact.
+- The installed command reopened that temporary history, exercised native/normal
+  switching and exited successfully without changing earlier counts. Normal owner
+  history was not used. The owner's already-running trial was not interrupted;
+  the new executable and summary apply on the next launch.
 

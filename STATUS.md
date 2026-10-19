@@ -155,3 +155,20 @@ The installed command reopened the temporary saved profile, showed its history,
 switched text size, and preserved earlier counts. Normal owner history was not
 used for verification. Detailed receipts and limits are in the proposal.
 
+
+## Alpha.3 delivery receipt
+
+[Native text and session headline release](https://github.com/tknawara/cadence/releases/tag/v0.1.0-alpha.3)
+is bound to clean source `7d8bf9a3b435b4f088c50bf5241c8bc9a7954ee9`.
+Canonical offline quality passed all 151 tests, formatting, strict Clippy,
+boundaries and the original manifest. Static packaging verified no interpreter
+or shared libraries. Real Windows Terminal captures covered smooth text and
+large summary tiles; deterministic fixture values are labelled as such.
+
+The final binary passed native-protocol/fallback smoke and offline non-root
+scratch-container practice/save/reopen. Uploaded bytes were downloaded and
+checksum-verified before atomic activation of
+`~/.local/lib/cadence/0.1.0-alpha.3-7d8bf9a3b435/cadence` through `~/.local/bin/cadence`.
+The installed command preserved earlier corrected-entry counts in the temporary
+profile. Alpha.2 and the owner's open trial/history were left intact.
+
