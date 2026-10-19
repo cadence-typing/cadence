@@ -1,6 +1,6 @@
 # Visual focus: alpha.2
 
-Status: approved for execution by the owner's visual-refresh request.
+Status: implemented, verified, released and installed as `0.1.0-alpha.2`.
 Scope: terminal UI only, plus typed display preferences and release/install.
 Training policy, target identity, scoring, phase allocations and persisted
 history schema remain unchanged. This is still an unsigned feedback build.
@@ -135,4 +135,29 @@ previous installation. Record actual evidence and limitations after smoke.
 - Canonical Docker Compose `./ci prepare` and offline `./ci quality` passed:
   formatting, warnings-denied Clippy, workspace tests, architecture boundaries
   and verification of all 48 original contract files against the manifest.
+
+## Release and installation receipt
+
+- [Published prerelease](https://github.com/tknawara/cadence/releases/tag/v0.1.0-alpha.2),
+  including static executable, notice-complete tarball, checksums and three
+  actual released-binary terminal captures.
+- Clean candidate: `5f932654ab8812360a4b167067c1b3b639624db5`.
+  Binary SHA-256:
+  `dd7236b3cffb446ee6f97f1bab574ed083a6df59dac9e7222f6fe2b4271f65b3`.
+  `./ci dist` verified ELF64/x86_64 with no interpreter or shared-library needs.
+- Offline Compose quality: 139 passing tests, formatting and strict Clippy.
+  Static-binary native smoke observed a natural 24-second warm-up transition;
+  SQLite retained exactly 24,000,000 active microseconds and its partial facts.
+- The same binary practised and saved in a scratch container as UID/GID 1000,
+  with no networking, read-only root and all capabilities dropped. Corrected
+  keypad counts remained 3/4 first-pass, 4/5 attempts, one deletion, schema 2.
+- Uploaded candidate assets were downloaded and checksum-verified before
+  installation and public publication. The installed executable was exercised
+  against the temporary existing profile: history appeared, F2 worked, and
+  earlier counts remained intact after closing.
+- Active link: `~/.local/bin/cadence` →
+  `~/.local/lib/cadence/0.1.0-alpha.2-5f932654ab88/cadence`.
+  Activation was atomic; `0.1.0-alpha.1-32ebebc99dc8` remains available.
+  All practice smoke runs used explicit temporary profiles and homes, never
+  the owner's normal history.
 

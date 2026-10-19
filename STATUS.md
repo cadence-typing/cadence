@@ -129,3 +129,21 @@ Build outputs/caches live only in `dist/` and `.cadence-build/`, owned by the
 caller UID/GID. No unrelated Docker resources, CI service, or owner history is
 modified by these commands. Qualification and software proofs do not establish
 human learning effectiveness or promise a WPM gain.
+
+## Alpha.2 delivery receipt
+
+[Release and screenshots](https://github.com/tknawara/cadence/releases/tag/v0.1.0-alpha.2)
+bind the static binary to clean source
+`5f932654ab8812360a4b167067c1b3b639624db5`. Compose quality passed 139 tests,
+strict Clippy, formatting, boundaries and the original contract manifest.
+Compose dist verified no ELF interpreter or shared-library dependencies.
+Native static-binary practice and a real-time phase transition passed; an
+offline, non-root scratch-container trial persisted the honest corrected-entry
+counts. Uploaded assets were downloaded and checksum-verified.
+
+Installed atomically at `~/.local/bin/cadence`, pointing to
+`~/.local/lib/cadence/0.1.0-alpha.2-5f932654ab88/cadence`; alpha.1 is retained.
+The installed command reopened the temporary saved profile, showed its history,
+switched text size, and preserved earlier counts. Normal owner history was not
+used for verification. Detailed receipts and limits are in the proposal.
+
