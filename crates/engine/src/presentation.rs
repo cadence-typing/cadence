@@ -1,6 +1,6 @@
 //! Read-only presentation; only admitted reducer events advance measurements.
 use super::{Engine, PreparedView, Screen, ScreenView, StatusFigures, UnitSpan};
-use crate::view::RateUnit;
+use crate::view::{PhaseOverview, PhaseState, RateUnit, ViewMode};
 use cadence_core::ledger::AttemptLedger;
 use cadence_core::metrics::{correct_digits, correct_wpm, digits_per_minute, first_pass_accuracy};
 use cadence_core::progress::Track;
@@ -22,13 +22,6 @@ impl Engine {
         };
         let screen = match self.screen {
             Screen::Today => ScreenView::Today {
-                plan_hint: self
-                    .plan
-                    .phases
-                    .iter()
-                    .map(|p| format!("{} {}s", phase_label(p.phase), p.seconds))
-                    .collect::<Vec<_>>()
-                    .join(" · "),
                 total_seconds: self.plan.budget_seconds,
             },
             Screen::Practice => self.practice_view(),
@@ -46,9 +39,7 @@ impl Engine {
                     .and_then(|i| self.plan.phases.get(i))
                     .map(|p| phase_label(p.phase).to_string()),
             },
-            Screen::Summary => ScreenView::Summary {
-                lines: self.summary_lines(),
-            },
+            Screen::Summary => ScreenView::Summary,
         };
         PreparedView {
             revision: self.revision,
@@ -56,8 +47,23 @@ impl Engine {
             active: self.active,
             notice,
             history: self.history.clone(),
-            saving: self.saving(),
-            save_failed: self.save_failed(),
+            text_size: self.text_size,
+            mode: self.view_mode(),
+            durability: self.durability(),
+            phases: self.phase_overview(),
+            phase_report: if matches!(self.screen, Screen::PhaseComplete { .. }) {
+                self.current_track()
+                    .ok()
+                    .and_then(|track| self.tracks.iter().find(|p| p.track == track).cloned())
+            } else {
+                None
+            },
+            summary_reports: if self.screen == Screen::Summary {
+                self.tracks.clone()
+            } else {
+                Vec::new()
+            },
+            summary_rate_valid: !self.invalid,
         }
     }
     fn practice_view(&self) -> ScreenView {
@@ -119,46 +125,55 @@ impl Engine {
                 phase_seconds_remaining: remaining
                     .map_or(0, |r| r.as_us().checked_div(1_000_000).unwrap_or(0)),
                 enter_submits: self.current_track().is_ok_and(|t| t == Track::Numpad),
+                corrections: self
+                    .ledger
+                    .as_ref()
+                    .map_or(0, |ledger| ledger.counters().deletions()),
             },
         }
     }
-    fn summary_lines(&self) -> Vec<String> {
-        let mut lines = Vec::new();
-        for track in &self.tracks {
-            lines.push(format!(
-                "{}: first-pass {}/{}  attempt {}/{}  correct units {}",
-                track.track.label(),
-                track.first_correct,
-                track.first_attempted,
-                track.correct_attempts,
-                track.content_attempts,
-                track.correct_units
-            ));
-            let duration = Micros::from_us(track.active_micros);
-            let (label, rate) = if track.track == Track::Numpad {
-                (
-                    "correct digits/min",
-                    digits_per_minute(track.correct_digits, duration),
-                )
-            } else {
-                ("correct wpm", correct_wpm(track.correct_units, duration))
-            };
-            if self.invalid {
-                lines.push("   measurement interrupted — no qualified rate".to_string());
-            } else if let Some(rate) = rate {
-                lines.push(format!("   {label} {:.1}", rate.as_f64()));
-            } else {
-                lines.push(format!("   {label} — (too little active time)"));
+    fn view_mode(&self) -> ViewMode {
+        if self.durability().is_failed() {
+            ViewMode::SaveError
+        } else if self.invalid {
+            ViewMode::Invalid
+        } else if self.finishing {
+            ViewMode::Saving
+        } else {
+            match self.screen {
+                Screen::Today => ViewMode::Ready,
+                Screen::Practice if self.session_state == SessionState::Running => ViewMode::Typing,
+                Screen::Practice => ViewMode::Paused,
+                Screen::PhaseComplete { .. } => ViewMode::Next,
+                Screen::Summary => ViewMode::Review,
             }
         }
-        if lines.is_empty() {
-            lines.push("no scored exercises this session".to_string());
-        }
-        lines.push(
-            "Frozen-plan cycling; sparse evidence, not an adaptive baseline qualification."
-                .to_string(),
-        );
-        lines
+    }
+
+    fn phase_overview(&self) -> Vec<PhaseOverview> {
+        self.plan
+            .phases
+            .iter()
+            .enumerate()
+            .map(|(index, phase)| {
+                let state = match self.screen {
+                    Screen::Today => PhaseState::Upcoming,
+                    Screen::Summary => PhaseState::Complete,
+                    _ if index < self.phase_index => PhaseState::Complete,
+                    Screen::PhaseComplete { .. } if index == self.phase_index => {
+                        PhaseState::Complete
+                    }
+                    Screen::Practice if index == self.phase_index => PhaseState::Active,
+                    _ => PhaseState::Upcoming,
+                };
+                PhaseOverview {
+                    label: phase_label(phase.phase),
+                    purpose: phase_purpose(phase.phase),
+                    seconds: phase.seconds,
+                    state,
+                }
+            })
+            .collect()
     }
 }
 fn spans_for(ledger: &AttemptLedger) -> Vec<UnitSpan> {
@@ -198,5 +213,16 @@ fn phase_label(phase: Phase) -> &'static str {
         Phase::Numpad => "numpad",
         Phase::Prose => "prose",
         Phase::Review => "review",
+    }
+}
+
+fn phase_purpose(phase: Phase) -> &'static str {
+    match phase {
+        Phase::WarmUp => "Settle into an easy rhythm.",
+        Phase::AdaptiveWords => "Familiar vocabulary with a little variety.",
+        Phase::NumberRow => "Digits in short text contexts.",
+        Phase::Numpad => "Exact entries. Leading zeros count.",
+        Phase::Prose => "Carry accuracy into sentences.",
+        Phase::Review => "Look back at the session's real measurements.",
     }
 }

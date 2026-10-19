@@ -9,7 +9,11 @@
 //! viewport; it is total for every nonzero bounded viewport including
 //! 1×1, without panic or out-of-bounds access.
 
+mod glyphs;
+mod modeline;
 pub mod paint;
+mod practice;
+mod stages;
 pub mod theme;
 
 pub use paint::paint;

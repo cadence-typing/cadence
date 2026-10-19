@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 use cadence_core::progress::Checkpoint;
 use cadence_core::{EventSeq, MonoTick};
+use cadence_engine::view::TextSize;
 use cadence_engine::{Engine, EventEnvelope, EventKind, Transition};
 use cadence_runtime::{SaveWorker, TerminalGuard, WriterError, elapsed_since};
 use cadence_tui::{Palette, paint};
@@ -13,11 +14,23 @@ use cadence_tui::{Palette, paint};
 /// Timer-only repaints are capped; semantic keys/results repaint immediately.
 const TIMER_FRAME_INTERVAL: Duration = Duration::from_millis(100);
 
-pub fn run(mut engine: Engine, profile: Option<PathBuf>, day: i64) -> Result<(), Box<dyn Error>> {
+pub fn run(
+    mut engine: Engine,
+    profile: Option<PathBuf>,
+    day: i64,
+    text_size: TextSize,
+) -> Result<(), Box<dyn Error>> {
     let (worker, bootstrap) = SaveWorker::open(profile)?;
     let origin = Instant::now();
     let mut seq = EventSeq::INITIAL;
     let mut dispatch = None;
+    apply(
+        &mut engine,
+        &mut seq,
+        MonoTick::ORIGIN,
+        EventKind::SetTextSize(text_size),
+        &mut dispatch,
+    )?;
     apply(
         &mut engine,
         &mut seq,

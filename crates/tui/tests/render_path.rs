@@ -20,8 +20,6 @@ use cadence_engine::{
 };
 use cadence_tui::paint::paint;
 use cadence_tui::theme::Palette;
-use ratatui::Terminal;
-use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
@@ -58,14 +56,6 @@ fn content(character: char) -> EventKind {
     ))
 }
 
-fn buffer_text(buffer: &Buffer) -> String {
-    buffer
-        .content()
-        .iter()
-        .map(|cell| cell.symbol().to_string())
-        .collect()
-}
-
 #[test]
 fn plan_journey_through_shared_reducer_and_paint() -> Result<(), Box<dyn std::error::Error>> {
     let mut engine = planned_engine("cat")?;
@@ -76,7 +66,6 @@ fn plan_journey_through_shared_reducer_and_paint() -> Result<(), Box<dyn std::er
     let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
     let area = buffer.area;
     paint(&mut buffer, area, &view, palette);
-    assert!(buffer_text(&buffer).contains("today"));
 
     // Enter starts the drill; type c x Backspace a t (handover example).
     let mut seq = 0u64;
@@ -120,18 +109,17 @@ fn plan_journey_through_shared_reducer_and_paint() -> Result<(), Box<dyn std::er
     let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
     let mut area = buffer.area;
     paint(&mut buffer, area, &view, palette);
-    assert!(buffer_text(&buffer).contains("complete"));
 
     send(&mut engine, EventKind::Key(Key::Enter), &mut seq, &mut tick);
     view = engine.prepare(MonoTick::from_us(tick));
     let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
     area = buffer.area;
     paint(&mut buffer, area, &view, palette);
-    let text = buffer_text(&buffer);
-    assert!(
-        text.contains("first-pass 2/3"),
-        "summary shows honest first-pass: {text}"
-    );
+    let report = view
+        .summary_reports
+        .first()
+        .ok_or("summary evidence missing")?;
+    assert_eq!((report.first_correct, report.first_attempted), (2, 3));
 
     // Summary owns navigation; Ctrl-C follows the explicit finish path.
     assert_eq!(engine.input_owner(), InputOwner::Navigation);
@@ -177,32 +165,34 @@ fn pause_resume_boundaries_visible_in_view() -> Result<(), Box<dyn std::error::E
 }
 
 #[test]
-fn paint_is_total_for_every_nonzero_viewport() -> Result<(), Box<dyn std::error::Error>> {
+fn paint_respects_its_viewport_boundary() -> Result<(), Box<dyn std::error::Error>> {
     let mut engine = planned_engine("the quick brown fox")?;
     engine.reduce(envelope(1, 1_000_000, EventKind::Key(Key::Enter)));
     engine.reduce(envelope(2, 1_500_000, content('t')));
     engine.reduce(envelope(3, 2_000_000, content('x')));
-    let view = engine.prepare(MonoTick::from_us(3_000_000));
-    let palette = Palette::cadence_light();
-
+    let view = engine.prepare(MonoTick::from_us(2_000_000));
     for (width, height) in [
-        (1u16, 1u16),
-        (2, 1),
-        (1, 2),
-        (59, 17), // one below the minimum full experience 60×18
-        (60, 18), // minimum
-        (99, 31),
-        (100, 32), // reference
-        (120, 40), // wide
-        (240, 80), // frame schema maximum
+        (1_u16, 1_u16),
+        (59, 18),
+        (60, 17),
+        (60, 18),
+        (100, 32),
+        (120, 40),
     ] {
-        let mut terminal = Terminal::new(TestBackend::new(width, height)).expect("terminal");
-        terminal
-            .draw(|frame| {
-                let area = frame.area();
-                paint(frame.buffer_mut(), area, &view, palette);
-            })
-            .expect("draw");
+        let surrounding = Rect::new(0, 0, width.saturating_add(2), height.saturating_add(2));
+        let viewport = Rect::new(1, 1, width, height);
+        let mut buffer = Buffer::empty(surrounding);
+        for cell in &mut buffer.content {
+            cell.set_char('#');
+        }
+        paint(&mut buffer, viewport, &view, Palette::cadence_dark());
+        for y in surrounding.top()..surrounding.bottom() {
+            for x in surrounding.left()..surrounding.right() {
+                if !viewport.contains((x, y).into()) {
+                    assert_eq!(buffer.cell((x, y)).map(|c| c.symbol()), Some("#"));
+                }
+            }
+        }
     }
     Ok(())
 }

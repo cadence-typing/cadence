@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use cadence_engine::view::TextSize;
 use cadence_trainer::Phase;
 
 /// Command selected after validating the complete argument vector.
@@ -25,6 +26,7 @@ pub struct Options {
     pub minutes: Option<u64>,
     pub track: Option<Phase>,
     pub seed: Option<u64>,
+    pub text_size: Option<TextSize>,
 }
 
 pub fn parse() -> Result<Options, String> {
@@ -35,6 +37,7 @@ pub fn parse() -> Result<Options, String> {
         minutes: None,
         track: None,
         seed: None,
+        text_size: None,
     };
     let mut action = None;
     let mut output = None;
@@ -90,6 +93,17 @@ pub fn parse() -> Result<Options, String> {
                         .map_err(|_| "--seed requires an unsigned 64-bit integer")?,
                 );
             }
+            "--text-size" => {
+                if options.text_size.is_some() {
+                    return Err("duplicate --text-size".into());
+                }
+                options.text_size = Some(match value(&mut args, &arg)?.as_str() {
+                    "auto" => TextSize::Auto,
+                    "large" => TextSize::Large,
+                    "normal" => TextSize::Normal,
+                    _ => return Err("--text-size requires auto, large or normal".into()),
+                });
+            }
             _ => return Err(format!("unknown argument {arg:?}; use --help")),
         }
     }
@@ -113,9 +127,12 @@ pub fn parse() -> Result<Options, String> {
         return Err("--output is only valid for backup/export".into());
     }
     if !matches!(options.command, Command::Practice)
-        && (options.minutes.is_some() || options.track.is_some() || options.seed.is_some())
+        && (options.minutes.is_some()
+            || options.track.is_some()
+            || options.seed.is_some()
+            || options.text_size.is_some())
     {
-        return Err("--minutes, --track and --seed apply only to practice".into());
+        return Err("--minutes, --track, --seed and --text-size apply only to practice".into());
     }
     Ok(options)
 }
@@ -144,10 +161,10 @@ pub fn help() {
     println!(
         "Cadence — offline typing practice (development preview)\n\n\
         cadence [--minutes 5|10|15|20|30] [--track words|number-row|numpad|prose]\n\
-        cadence [--profile-dir /absolute/private/profile] [--seed INTEGER]\n\
+        cadence [--profile-dir /absolute/private/profile] [--seed INTEGER] [--text-size auto|large|normal]\n\
         cadence backup --output /absolute/new.sqlite3 [--profile-dir PATH]\n\
         cadence export --output /absolute/new.json [--profile-dir PATH]\n\n\
-        Enter starts/continues. Esc pauses/resumes. Ctrl-C saves and quits.\n\
+        Enter starts/continues. Esc pauses/resumes. F2 cycles text size. Ctrl-C saves and quits.\n\
         Numpad entries require Enter; physical keypad origin is unverified.\n\
         Progress stays local. This preview is not formally qualified or signed."
     );

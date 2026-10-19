@@ -50,8 +50,9 @@ history schema remain unchanged. This is still an unsigned feedback build.
 
 ## Layout contract
 
-- Default `--text-size auto`: large at ≥80×24 when the practice viewport can
-  hold at least two complete glyph rows; otherwise centered normal text.
+- Default `--text-size auto`: large at ≥80×24 when the practice body is at
+  least 76×18 and holds two complete glyph rows; otherwise centered normal.
+  A diagnostic banner can reduce the available body and select normal text.
 - `--text-size large|normal` selects a preference. Large still falls back safely
   when geometry/glyph support cannot satisfy the contract. F2 cycles
   Auto → Large → Normal without changing scores, target or clocks.
@@ -77,7 +78,7 @@ history schema remain unchanged. This is still an unsigned feedback build.
 - `engine/view.rs`: typed display preference, UI mode, durability, ordered phase
   overview and actual phase/summary numbers. `presentation.rs` prepares these
   bounded values. F2 and CLI preference are admitted through the reducer.
-- `tui/stages.rs`: landing/interlude/summary compositions.
+- `tui/stages.rs`, `tui/stages/results.rs`: landing/interlude and summary.
 - `tui/modeline.rs`: segmented width-aware status and action hints.
 - `tui/practice.rs`, `tui/glyphs.rs`: centered target layout and portable glyphs.
 - `tui/paint.rs`: composition only; semantic colours stay in `theme.rs`.
@@ -107,3 +108,31 @@ previous installation. Record actual evidence and limitations after smoke.
 [wt]: https://learn.microsoft.com/en-us/windows/terminal/customize-settings/profile-appearance
 [font]: https://docs.rs/font8x8/0.3.1/font8x8/
 [big]: https://docs.rs/tui-big-text/0.7.0/tui_big_text/
+
+## Execution evidence
+
+- Implemented one shared stage/practice/modeline painter and reducer-owned
+  display preferences. Summary is separated by responsibility in
+  `stages/results.rs`; glyph painting and target wrapping avoid per-glyph
+  strings and per-frame row-vector allocations.
+- Native debug-binary PTY captures inspected landing, large and normal practice,
+  corrected input, pause/resize recovery, keypad submission and save failure at
+  100×32 and 60×18. A real SQLite rejection showed ERROR / SAVE ERROR and retry
+  controls; removing the rejection and pressing `r` produced an acknowledged
+  checkpoint. Corrected `9494` persisted first-pass 3/4, attempts 4/5 and one
+  deletion, unchanged from alpha.1 semantics.
+- Production reducer/shared-painter captures inspected interludes and actual
+  per-track summary at reference, wide and compact sizes. A throwaway driver
+  exercised 80×23 normal versus 80×24 large, 59×18 / 60×17 / 1×1 fallback,
+  and renderer-only unsupported-glyph fallback. The latter is a boundary fixture,
+  not a claim that this ASCII-first preview admits arbitrary Unicode.
+- Captures before and after removing the row allocation were byte-identical.
+  The throwaway Rust capture driver was removed after these smoke runs.
+- Native font-scaling capability, the owner's particular terminal font, and
+  physical-keypad provenance remain unqualified. Software checks do not prove
+  human learning gains. Release/install receipts accompany the prerelease.
+
+- Canonical Docker Compose `./ci prepare` and offline `./ci quality` passed:
+  formatting, warnings-denied Clippy, workspace tests, architecture boundaries
+  and verification of all 48 original contract files against the manifest.
+

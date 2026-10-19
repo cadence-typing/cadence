@@ -13,7 +13,15 @@ use cadence_core::{CoreError, EventSeq, ExerciseId, FrameRevision, Micros, MonoT
 use cadence_trainer::{Phase, SessionPlan};
 pub use events::{EventEnvelope, EventKind, Key};
 use storage::Storage;
+use view::{MINIMUM_COLUMNS, MINIMUM_ROWS, TextSize};
 pub use view::{PreparedView, ScreenView, StatusFigures, UnitSpan};
+
+/// Geometry below the full-practice minimum can never accept scored input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ViewportState {
+    Usable,
+    TooSmall,
+}
 
 /// Current input-routing surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,6 +125,8 @@ pub struct Engine {
     status: ProgressStatus,
     checkpoint_due: bool,
     finishing: bool,
+    text_size: TextSize,
+    viewport: ViewportState,
 }
 impl Engine {
     /// Validates the frozen plan before accepting any input.
@@ -168,6 +178,8 @@ impl Engine {
             status: ProgressStatus::Running,
             checkpoint_due: false,
             finishing: false,
+            text_size: TextSize::Auto,
+            viewport: ViewportState::Usable,
         })
     }
     /// Active practice alone owns printable characters.
@@ -221,6 +233,9 @@ impl Engine {
         // Control and storage responses are never swallowed by a deadline.
         let boundary = self.advance_clock(at)?;
         match envelope.kind {
+            EventKind::SetTextSize(size) => self.text_size = size,
+            EventKind::Key(Key::ToggleTextSize) => self.text_size = self.text_size.next(),
+            EventKind::Resized { columns, rows } => self.resize(at, columns, rows)?,
             EventKind::StorageReady {
                 next_session,
                 day,
@@ -274,18 +289,39 @@ impl Engine {
     }
     fn apply_kind(&mut self, at: MonoTick, kind: EventKind) -> Result<DomainOutcome, CoreError> {
         match (&self.screen, kind) {
-            (Screen::Today, EventKind::Key(Key::Enter)) => {
+            (Screen::Today, EventKind::Key(Key::Enter))
+                if self.viewport == ViewportState::Usable =>
+            {
                 self.screen = Screen::Practice;
                 self.session_state = SessionState::Running;
                 self.open_exercise()?;
                 Ok(DomainOutcome::SessionStarted)
             }
-            (Screen::PhaseComplete { .. }, EventKind::Key(Key::Enter | Key::Escape)) => {
+            (Screen::PhaseComplete { .. }, EventKind::Key(Key::Enter | Key::Escape))
+                if self.viewport == ViewportState::Usable =>
+            {
                 self.advance_phase()
             }
             (Screen::Practice, EventKind::Key(key)) => self.practice_key(at, key),
             _ => Ok(DomainOutcome::None),
         }
+    }
+
+    fn resize(&mut self, at: MonoTick, columns: u16, rows: u16) -> Result<(), CoreError> {
+        self.viewport = if columns < MINIMUM_COLUMNS || rows < MINIMUM_ROWS {
+            ViewportState::TooSmall
+        } else {
+            ViewportState::Usable
+        };
+        if self.viewport == ViewportState::TooSmall
+            && self.screen == Screen::Practice
+            && self.session_state == SessionState::Running
+        {
+            self.timing.pause(at)?;
+            self.session_state = SessionState::Paused;
+            self.checkpoint_due = true;
+        }
+        Ok(())
     }
 }
 fn invalid(reason: &'static str) -> CoreError {

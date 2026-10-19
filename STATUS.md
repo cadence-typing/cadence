@@ -1,6 +1,6 @@
 # Cadence implementation and feedback-build status
 
-`0.1.0-alpha.1` is an **unsigned development preview**, not a P8-qualified
+`0.1.0-alpha.2` is an **unsigned development preview**, not a P8-qualified
 release. Earlier commit messages overstated P0–P2 completion: passing tests,
 ASCII filtering, and documentation of intended proofs did not discharge the
 handover's proof, vocabulary-vetting, adaptation, or qualification obligations.
@@ -9,7 +9,7 @@ unchanged in `docs/01-*` through `docs/10-*` and `MANIFEST.sha256`.
 
 ## Try the feedback binary
 
-Linux x86_64, including WSL2; ordinary terminal font, at least 60×18 cells.
+Linux x86_64, including WSL2; at least 60×18 cells, no Nerd Font required.
 Download the versioned tarball and `SHA256SUMS` from the matching GitHub
 prerelease. Check `sha256sum --check SHA256SUMS` for the files downloaded,
 extract the archive, then run `./cadence` inside it. The archive contains the
@@ -20,13 +20,15 @@ Checksums detect byte changes; they are **not signatures**.
 cadence
 cadence --minutes 5 --track numpad
 cadence --minutes 5 --track words --seed 42
+cadence --text-size normal    # auto (default), large, or normal
 cadence --profile-dir /absolute/private/profile
 cadence backup --output /absolute/new-backup.sqlite3
 cadence export --output /absolute/new-progress.json
 ```
 
 Enter starts/continues and submits numpad entries. Esc pauses/resumes;
-Ctrl-C saves and quits. Summary Enter/Esc finishes the process after the final
+F2 cycles Auto → Large → Normal. Ctrl-C saves and quits.
+Summary Enter/Esc finishes the process after the final
 save acknowledgement. A save failure pauses practice: `r` retries; an explicit
 unsuccessful exit retains only acknowledged progress. Final flush has a
 10-second watchdog and returns non-success rather than hanging or claiming a
@@ -51,6 +53,25 @@ resume a mid-word exercise or claim an uninterrupted timing trial. Store schema
 measurements or resetting it. Keep that file and use a new explicit profile
 for feedback if such a draft database exists.
 
+## Alpha.2 visual refresh
+
+The [researched proposal](plans/0001-visual-focus.md) covers centered landing,
+phase transitions and review screens; an editor-style segmented modeline; and
+large, centered practice text. Large characters use portable 4×4 terminal-cell
+glyphs, **not native font scaling** or terminal configuration changes. Auto
+normally selects large text at 80×24 or above; a diagnostic banner can reduce
+the available canvas and select normal text. Forced large falls back visibly
+if its geometry or glyph requirements cannot be met.
+Normal text is also centered; both modes follow the caret without changing the
+target, input, first-pass history or difficulty.
+
+The modeline prioritizes mode, durability and time. `CKPT n` names the last
+acknowledged checkpoint, **not a promise that every current key is saved**.
+Shrinking below 60×18 pauses through the reducer; restoring the window leaves
+practice paused until Esc. Stage screens and explicit pauses do not accumulate
+active practice time. No scoring-policy or stored-schema change accompanies
+this refresh.
+
 ## Requirement ledger
 
 | Packet / claims | Status | Production mapping, evidence, remaining obligation |
@@ -60,7 +81,7 @@ for feedback if such a draft database exists.
 | P2 / P-02–04, VK-03–06 | in_progress | `trainer/{allocation,plan,plan_content,policy,review,pace}`; deterministic seed/budget/track tests and bounded eligible scans. Cold-start selection only; learner adaptation, retention/benchmark comparisons and 20k vetted vocabulary acceptance remain unfinished. |
 | P3 / D-01–02, VP-01–03 | in_progress | `core/progress`, `data/{store,schema,records,files,transfer}`, `engine/storage`, `runtime/writer`. One retained writer/result slot, full-key admission, checkpoints, retry, lock, reopen, backup/export implemented. General job-registry/async planner, immutable observation chunks, full crash/storage campaigns and formal correspondence remain unfinished. |
 | P4 / H-01–04, VP-04–05 | pending | No shipped NDJSON driver, causal/durable barriers or replay. TestBackend is shared rendering evidence, not a completed headless protocol. |
-| P5 / U-01–05 | in_progress | Today/practice/boundary/summary and save errors render through one painter; minimum-size pause and CLI duration/track selection work. Full destinations/settings/layout setup, imports and editable themes remain unfinished. |
+| P5 / U-01–05 | in_progress | `engine/view`, `tui/{paint,stages,stages/results,modeline,practice,glyphs}` share one painter for centered stages and text, typed modeline facts and F2/CLI text-size preferences. Reducer tests preserve corrections/timing across display changes and resize pause. Full destinations/settings/layout setup, imports and editable themes remain unfinished. |
 | P6 / H-05–06 | in_progress | Hermetic Rust regressions and actual PTY/SQLite smoke; no broad terminal qualification or measured p99/memory admission claim. |
 | P7 / VP, VK, VL, VR inventory | pending | Packet models remain design probes. No TLAPS/Verus production proof inventory has passed. |
 | P8 / B-03–06 | blocked for qualification | Static feedback-bundle producer and owner trial installation exist. Buildbot recovery, authorized signing, complete inventory admission and owner terminal/keypad qualification are not completed. |
@@ -77,6 +98,12 @@ for feedback if such a draft database exists.
   portable export and SIGINT terminal restoration were observed. A real SQLite
   rejection produced a visible save error, unsuccessful explicit exit, terminal
   restoration, and preservation of the prior acknowledged checkpoint.
+- Alpha.2 native PTY captures exercised 100×32 and 60×18 landing/practice,
+  large/normal switching, visible corrected input, completed keypad entries,
+  below-minimum pause/recovery, save-error priority and successful retry after
+  a real SQLite rejection. The corrected keypad trial again persisted 3/4
+  first-pass, 4/5 attempts and one deletion. Shared production reducer/painter
+  captures additionally exercised 120×40, interludes and per-track review.
 - Release packaging inspects ELF64/x86_64 headers and requires **no PT_INTERP
   and no DT_NEEDED entries**. Bundles retain exact lock/policy/corpus hashes,
   source commit/clean flag, compiler identity and binary SHA-256. Packaging is

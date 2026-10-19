@@ -148,6 +148,7 @@ impl Engine {
         if self.session_state == SessionState::Paused {
             if matches!(key, Key::Escape | Key::Enter)
                 && !self.invalid
+                && self.viewport == super::ViewportState::Usable
                 && !self.storage.as_ref().is_some_and(|s| s.failed.is_some())
             {
                 self.timing.resume(at)?;

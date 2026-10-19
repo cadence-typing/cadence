@@ -73,7 +73,12 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
                 .checked_div(SECONDS_PER_DAY)
                 .ok_or("invalid day conversion")?;
             let engine = build_engine(&options, day)?;
-            practice::run(engine, options.profile, i64::try_from(day)?)
+            practice::run(
+                engine,
+                options.profile,
+                i64::try_from(day)?,
+                options.text_size.unwrap_or_default(),
+            )
         }
     }
 }

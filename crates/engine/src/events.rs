@@ -24,6 +24,8 @@ pub enum Key {
     Escape,
     /// Ctrl-C: documented quit/flush path.
     Interrupt,
+    /// F2 changes visual text size without becoming scored content.
+    ToggleTextSize,
     /// Any other non-training key (arrows, function keys, Tab) —
     /// admitted for accounting, interpreted per input owner.
     Other,
@@ -49,6 +51,8 @@ pub enum EventKind {
     FocusLost,
     /// A normalized key event.
     Key(Key),
+    /// Display preference admitted through the reducer (CLI or explicit control).
+    SetTextSize(crate::view::TextSize),
     /// Viewport geometry changed; layout-dependent state changes are
     /// explicit preparation events before paint (A-01).
     Resized {

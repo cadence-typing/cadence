@@ -170,9 +170,13 @@ fn exact_boundary_key_is_not_scored() -> TestResult {
         DomainOutcome::PhaseDeadline { partial: true, .. }
     ));
     key(&mut e, 12_000_000, Key::Enter)?;
-    assert!(
-        matches!(e.prepare(MonoTick::from_us(12_000_000)).screen,ScreenView::Summary {lines} if lines.iter().any(|s|s.contains("first-pass 2/2")))
-    );
+    let view = e.prepare(MonoTick::from_us(12_000_000));
+    assert!(matches!(view.screen, ScreenView::Summary));
+    let report = view
+        .summary_reports
+        .first()
+        .ok_or("summary missing partial evidence")?;
+    assert_eq!((report.first_correct, report.first_attempted), (2, 2));
     Ok(())
 }
 #[test]
@@ -289,11 +293,23 @@ fn per_exercise_and_track_durations_are_not_session_denominators() -> TestResult
     key(&mut e, 42_000_000, Key::Enter)?;
     send(&mut e, 60_000_000, EventKind::Tick)?;
     key(&mut e, 61_000_000, Key::Enter)?;
-    let ScreenView::Summary { lines } = e.prepare(MonoTick::from_us(61_000_000)).screen else {
-        return Err("summary expected".into());
-    };
-    assert!(lines.iter().any(|s| s.contains("correct wpm 7.2")));
-    assert!(lines.iter().any(|s| s.contains("correct digits/min 6.0")));
+    let view = e.prepare(MonoTick::from_us(61_000_000));
+    assert!(matches!(view.screen, ScreenView::Summary));
+    let words = view
+        .summary_reports
+        .iter()
+        .find(|p| p.track == cadence_core::progress::Track::Words)
+        .ok_or("word evidence missing")?;
+    let digits = view
+        .summary_reports
+        .iter()
+        .find(|p| p.track == cadence_core::progress::Track::Numpad)
+        .ok_or("numeric evidence missing")?;
+    assert_eq!((words.correct_units, words.active_micros), (6, 10_000_000));
+    assert_eq!(
+        (digits.correct_digits, digits.active_micros),
+        (2, 20_000_000)
+    );
     Ok(())
 }
 #[test]
@@ -322,8 +338,8 @@ fn stale_success_and_failure_keys_cannot_release_final_quit() -> TestResult {
             }),
         )?;
         assert!(!t.quit);
-        assert!(e.prepare(MonoTick::from_us(4)).saving);
-        assert!(!e.prepare(MonoTick::from_us(4)).save_failed);
+        assert!(e.prepare(MonoTick::from_us(4)).durability.is_saving());
+        assert!(!e.prepare(MonoTick::from_us(4)).durability.is_failed());
     }
     assert!(ack(&mut e, 5, &final_save)?.quit);
     Ok(())
@@ -361,7 +377,7 @@ fn pending_checkpoint_retains_dirty_tail_and_retry_uses_fresh_full_key() -> Test
             result: Err("disk full".to_string()),
         }),
     )?;
-    assert!(e.prepare(MonoTick::from_us(8)).save_failed);
+    assert!(e.prepare(MonoTick::from_us(8)).durability.is_failed());
     let retry = checkpoint(content(&mut e, 9, 'r')?)?;
     assert_eq!(retry.progress, final_save.progress);
     assert_ne!(retry.key.sequence, final_save.key.sequence);
@@ -505,7 +521,11 @@ fn final_flush_timeout_exits_unsuccessfully_without_fabricating_ack() -> TestRes
     assert!(!waiting.quit);
     let timed_out = send(&mut e, 10_200_000, EventKind::Tick)?;
     assert!(timed_out.quit && timed_out.exit_failed);
-    assert!(e.prepare(MonoTick::from_us(10_200_000)).saving);
+    assert!(
+        e.prepare(MonoTick::from_us(10_200_000))
+            .durability
+            .is_saving()
+    );
     assert!(timed_out.checkpoint.is_none());
     assert!(final_save.key.sequence > initial.key.sequence);
     Ok(())

@@ -1,6 +1,7 @@
 //! Single-flight checkpoint state; runtime alone performs durable I/O.
 use super::practice::merge_track;
 use super::{DomainOutcome, Engine, Screen, Transition, invalid};
+use crate::view::Durability;
 use cadence_core::progress::{
     Checkpoint, HistorySummary, ProgressStatus, SaveKey, SaveResult, SessionProgress,
 };
@@ -68,11 +69,9 @@ impl Engine {
             Ok(()) => {
                 storage.last_ack = Some(response.key);
                 if !self.invalid {
-                    self.notice = Some(format!(
-                        "Saved checkpoint {}.{}",
-                        response.key.session.get(),
-                        response.key.sequence.get()
-                    ));
+                    // The typed watermark belongs in the modeline; a routine
+                    // acknowledgement must not keep a diagnostic banner open.
+                    self.notice = None;
                 }
                 if self.finishing
                     && !self.checkpoint_due
@@ -226,10 +225,19 @@ impl Engine {
         t.checkpoint = Some(checkpoint);
         Ok(())
     }
-    pub(super) fn saving(&self) -> bool {
-        self.storage.as_ref().is_some_and(|s| s.pending.is_some())
-    }
-    pub(super) fn save_failed(&self) -> bool {
-        self.storage.as_ref().is_some_and(|s| s.failed.is_some())
+    pub(super) fn durability(&self) -> Durability {
+        let Some(storage) = self.storage.as_ref() else {
+            return Durability::Transient;
+        };
+        let last_ack = storage.last_ack.map(|key| key.sequence);
+        if storage.failed.is_some() {
+            Durability::Failed { last_ack }
+        } else if storage.pending.is_some() {
+            Durability::Saving { last_ack }
+        } else if let Some(sequence) = last_ack {
+            Durability::Checkpointed { sequence }
+        } else {
+            Durability::Local
+        }
     }
 }

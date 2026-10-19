@@ -204,6 +204,7 @@ fn translate_key(key: KeyEvent) -> Key {
         KeyCode::Backspace => Key::Backspace,
         KeyCode::Enter => Key::Enter,
         KeyCode::Esc => Key::Escape,
+        KeyCode::F(2) => Key::ToggleTextSize,
         _ => Key::Other,
     }
 }
