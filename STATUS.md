@@ -93,6 +93,19 @@ Displayed scores are unchanged by any of this. Targeted words are harder by
 design and are labelled; whether this produces faster learning is an
 empirical question this preview does not answer.
 
+### Alpha.4 delivery receipt
+
+[Learning-from-mistakes release](https://github.com/tknawara/cadence/releases/tag/v0.1.0-alpha.4)
+is bound to clean source `123b044bbb04594010c7c63c34ee23e34c08c6a9`. Offline
+Compose quality passed 180 tests, strict Clippy, boundaries and the original
+manifest. The release bytes migrated a copy of the owner's schema-2 profile in
+an offline container and drove two real PTY sessions that showed in-session
+reinforcement and next-session targeting. Uploaded assets were re-downloaded,
+checksum-verified and atomically activated at
+`~/.local/lib/cadence/0.1.0-alpha.4-123b044bbb04/cadence`; the owner's profile
+was backed up with alpha.3 beforehand and opened at schema 3 with all 10
+sessions afterwards. Details: [plan 0003](plans/0003-learning-from-mistakes.md).
+
 ## Alpha.3 smooth native typography
 
 The [native typography decision](plans/0002-smooth-native-text.md) supersedes

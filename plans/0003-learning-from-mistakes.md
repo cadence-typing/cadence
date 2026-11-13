@@ -88,3 +88,27 @@ reinforcement; schema 2→3 migration of a populated database with digests
 intact; learning round-trip. Canonical offline Docker Compose quality,
 static musl dist, GitHub prerelease, checksum-verified atomic install with
 a pre-upgrade backup of the owner's profile.
+
+## Integration evidence (alpha.4 delivery)
+
+- Clean source `123b044bbb04594010c7c63c34ee23e34c08c6a9`; canonical offline
+  Compose quality passed (fmt, strict Clippy, 180 tests, boundaries, 48
+  contract hashes). Static musl bundle: binary SHA-256
+  `e78f91685974fe3c32e29628be6b5df01aeeed1c1d145775ade5ada9886ba318`.
+- Offline container (`--network none`, read-only root, all capabilities
+  dropped) migrated a copy of the owner's 10-session schema-2 profile to
+  schema 3 with every session and its 2,474 receipts intact and no learning
+  evidence invented.
+- Real PTY runs of the release binary on that copy: session 1, which fumbled
+  `th`/`ou`, re-served missed words mid-session ("missed earlier, again");
+  session 2 opened with "Today targets th · ou" and labelled its exercises.
+  Prose sessions started on different passages, each attributed.
+- An earlier smoke showed noise (unerring, jitter-slow `pe`/`he`) and
+  redundant keys (`n`, `r`) in the focus list; explicit focus thresholds and
+  the explained-key filter were added with regression tests before release.
+- The uploaded assets were downloaded, checksum-verified (tarball binary
+  identical to the standalone asset), installed at
+  `~/.local/lib/cadence/0.1.0-alpha.4-123b044bbb04/` and activated by an
+  atomic symlink swap. The owner's profile was backed up with alpha.3 first
+  (`~/.local/share/cadence-backups/`); the installed alpha.4 then opened and
+  exported it at schema 3 with all 10 sessions. Alpha.3 remains installed.
