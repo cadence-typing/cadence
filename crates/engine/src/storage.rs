@@ -214,7 +214,12 @@ impl Engine {
             active_micros: self.active.as_us(),
         };
         let sequence = storage.sequence.next()?;
-        let checkpoint = Checkpoint::new(storage.session, sequence, progress)?;
+        let checkpoint = Checkpoint::new(
+            storage.session,
+            sequence,
+            progress,
+            Some(self.learning.evidence.clone()),
+        )?;
         if let Some(storage) = self.storage.as_mut() {
             storage.sequence = sequence;
             storage.pending = Some(checkpoint.clone());

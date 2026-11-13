@@ -7,15 +7,24 @@ use std::error::Error;
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use cadence_core::LayoutSupportsPound;
-use cadence_data::ProgressStore;
+use cadence_core::{LayoutSupportsPound, UtcDay};
+use cadence_data::{ProgressStore, StoreBootstrap};
 use cadence_engine::Engine;
-use cadence_trainer::{Phase, WordPack, build_session_plan, parse_policy};
+use cadence_runtime::SaveWorker;
+use cadence_trainer::{
+    LearnerModel, Phase, PlanInputs, ProseBank, TrainerPolicy, WordPack, build_session_plan,
+    parse_policy,
+};
 
 /// The complete distributed word data, not a demo-only practice path.
 const WORDS: &str = include_str!("../../../corpus/words-en-v1.tsv");
-const PROSE: &str = include_str!("../../../corpus/prose-en-v1.txt");
-const POLICY: &str = include_str!("../../../policies/trainer-v1.toml");
+const PROSE: &str = include_str!("../../../corpus/prose-en-v2.tsv");
+const PROSE_SOURCES: &str = include_str!("../../../corpus/prose-sources-v2.tsv");
+const POLICY: &str = include_str!("../../../policies/trainer-v2.toml");
+/// Shipped prose lower bound (plan 0003): enough for a long no-repeat window.
+const MINIMUM_PASSAGES: usize = 2_000;
+/// Domain separation for the per-session plan seed.
+const SEED_DOMAIN: &[u8] = b"cadence-plan-seed-v1";
 /// UTC day partition; not used to measure intra-run cadence.
 const SECONDS_PER_DAY: u64 = 86_400;
 /// Minutes accepted at the CLI convert exactly into policy seconds.
@@ -72,21 +81,38 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
                 .as_secs()
                 .checked_div(SECONDS_PER_DAY)
                 .ok_or("invalid day conversion")?;
-            let engine = build_engine(&options, day)?;
+            let day = i64::try_from(day)?;
+            let policy = parse_policy(POLICY.as_bytes())?;
+            // Store first: the plan is built from its evidence, before the
+            // terminal and the input/reduce/render loop start.
+            let (worker, bootstrap) =
+                SaveWorker::open(options.profile.clone(), policy.learning.history_window())?;
+            let engine = build_engine(&options, &policy, &bootstrap, day)?;
             practice::run(
                 engine,
-                options.profile,
-                i64::try_from(day)?,
+                worker,
+                bootstrap,
+                day,
                 options.text_size.unwrap_or_default(),
             )
         }
     }
 }
 
-fn build_engine(options: &cli::Options, day: u64) -> Result<Engine, Box<dyn Error>> {
-    // Content work finishes before entering the hot input/reducer/render path.
-    let policy = parse_policy(POLICY.as_bytes())?;
+fn build_engine(
+    options: &cli::Options,
+    policy: &TrainerPolicy,
+    bootstrap: &StoreBootstrap,
+    day: i64,
+) -> Result<Engine, Box<dyn Error>> {
+    // Content and learner work finish before the hot input/reducer/render path.
     let pack = WordPack::from_tsv(WORDS, MINIMUM_WORDS, LayoutSupportsPound::US)?;
+    let prose = ProseBank::from_tsv(PROSE, PROSE_SOURCES, MINIMUM_PASSAGES)?;
+    let learner = LearnerModel::from_history(
+        &bootstrap.learner,
+        policy,
+        UtcDay::from_days_since_epoch(day)?,
+    )?;
     let budget = match options.minutes {
         Some(minutes) => minutes
             .checked_mul(SECONDS_PER_MINUTE)
@@ -103,7 +129,26 @@ fn build_engine(options: &cli::Options, day: u64) -> Result<Engine, Box<dyn Erro
             .collect(),
         None => Vec::new(),
     };
-    let seed = options.seed.unwrap_or(day);
-    let plan = build_session_plan(&policy, &pack, PROSE, seed, &disabled, budget)?;
+    let seed = options
+        .seed
+        .unwrap_or_else(|| session_seed(bootstrap.next_session.get(), day));
+    let inputs = PlanInputs {
+        pack: &pack,
+        prose: &prose,
+        learner: &learner,
+    };
+    let plan = build_session_plan(policy, inputs, seed, &disabled, budget)?;
     Ok(Engine::new_plan(plan)?)
+}
+
+/// A distinct, replayable seed per session (persisted with the plan), so
+/// two sessions on one day no longer repeat the same content.
+fn session_seed(session: u64, day: i64) -> u64 {
+    let mut bytes = SEED_DOMAIN.to_vec();
+    bytes.extend_from_slice(&session.to_le_bytes());
+    bytes.extend_from_slice(&day.to_le_bytes());
+    let digest = cadence_trainer::corpus::digest_of(&bytes);
+    let mut seed = [0_u8; 8];
+    seed.copy_from_slice(digest.as_bytes().get(..8).unwrap_or(&[0; 8]));
+    u64::from_le_bytes(seed)
 }

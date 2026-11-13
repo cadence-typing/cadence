@@ -1,7 +1,7 @@
 //! Validated trainer policy (L-04, L-05, L-06).
 //!
 //! Every coefficient, limit and threshold is a named, typed field
-//! parsed from `policies/trainer-v1.toml`. There are no naked policy
+//! parsed from `policies/trainer-v2.toml`. There are no naked policy
 //! numbers at call sites. Validation happens once at load; all later
 //! arithmetic works with in-range values.
 
@@ -231,6 +231,8 @@ pub struct TrainerPolicy {
     pub pace: PacePolicy,
     /// Benchmark cadence and comparability rules.
     pub benchmark: BenchmarkPolicy,
+    /// Learner model, focus selection and content rotation (plan 0003).
+    pub learning: crate::learning_policy::LearningPolicy,
     /// Digest of the source TOML bytes (PolicyVersion basis).
     pub source_digest: cadence_core::ContentDigest,
 }
@@ -273,7 +275,7 @@ impl std::fmt::Display for PolicyError {
 impl std::error::Error for PolicyError {}
 
 /// Parses and validates the policy TOML (bytes as shipped in
-/// `policies/trainer-v1.toml`).
+/// `policies/trainer-v2.toml`).
 ///
 /// # Errors
 /// Returns [`PolicyError`] for any missing, mistyped or out-of-range
@@ -284,7 +286,7 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
         std::str::from_utf8(bytes).map_err(|_| PolicyError::WrongType("document".to_string()))?,
     )
     .map_err(|_| PolicyError::WrongType("document".to_string()))?;
-    if document.get("policy_id").and_then(toml::Value::as_str) != Some("trainer-v1")
+    if document.get("policy_id").and_then(toml::Value::as_str) != Some("trainer-v2")
         || document
             .get("scoring_version")
             .and_then(toml::Value::as_integer)
@@ -302,6 +304,7 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
     let review = parse_review(&document)?;
     let pace = parse_pace(&document)?;
     let benchmark = parse_benchmark(&document)?;
+    let learning = crate::learning_policy::parse_learning(&document)?;
 
     let policy = TrainerPolicy {
         session,
@@ -311,6 +314,7 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
         review,
         pace,
         benchmark,
+        learning,
         source_digest: digest,
     };
     policy.validate()?;

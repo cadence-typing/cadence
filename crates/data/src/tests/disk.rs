@@ -1,7 +1,7 @@
 use cadence_core::progress::{ProgressStatus, SessionProgress};
 use serde::Deserialize;
 
-use super::{TestResult, checkpoint};
+use super::{LEARNER_WINDOW, TestResult, checkpoint};
 use crate::{
     ProgressStore, SUPPORTED_SCHEMA, StoreError,
     paths::{DATABASE_FILE, LOCK_FILE},
@@ -17,7 +17,7 @@ fn lifetime_writer_lock_is_exclusive_and_released_on_drop() -> TestResult {
     ));
     drop(first);
     let reopened = ProgressStore::open_in(directory.path())?;
-    assert_eq!(reopened.bootstrap()?.next_session.get(), 1);
+    assert_eq!(reopened.bootstrap(LEARNER_WINDOW)?.next_session.get(), 1);
     Ok(())
 }
 
@@ -35,7 +35,7 @@ fn reopened_history_counts_saved_interruptions_without_resume_claims() -> TestRe
         }
     }
     let store = ProgressStore::open_in(directory.path())?;
-    let bootstrap = store.bootstrap()?;
+    let bootstrap = store.bootstrap(LEARNER_WINDOW)?;
     assert_eq!(bootstrap.next_session.get(), 4);
     assert_eq!(bootstrap.history.completed_sessions, 1);
     assert_eq!(bootstrap.history.interrupted_sessions, 2);
@@ -56,7 +56,13 @@ fn online_backup_preserves_live_wal_progress_and_receipts() -> TestResult {
     store.backup_to(&destination)?;
     let mut restored = ProgressStore::open_in(target.path())?;
     assert_eq!(restored.session_history()?, store.session_history()?);
-    assert_eq!(restored.bootstrap()?.history.completed_sessions, 1);
+    assert_eq!(
+        restored
+            .bootstrap(LEARNER_WINDOW)?
+            .history
+            .completed_sessions,
+        1
+    );
     let receipt = restored.apply_checkpoint(&original)?;
     assert_eq!(receipt.key, original.key);
     assert!(!receipt.created);

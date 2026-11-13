@@ -2,10 +2,14 @@
 
 mod checkpoints;
 mod disk;
+mod learning;
 mod schema;
 
 use cadence_core::progress::{Checkpoint, ProgressStatus, SessionProgress, Track, TrackProgress};
 use cadence_core::{CommitSeq, SessionId};
+
+/// Sessions of evidence requested by tests (any positive window).
+const LEARNER_WINDOW: usize = 60;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -37,6 +41,7 @@ fn checkpoint(
                 active_micros: 900_000,
             }],
         },
+        None,
     )
 }
 
@@ -49,5 +54,6 @@ fn rekey(
         checkpoint.key.session,
         CommitSeq::from_raw(sequence),
         progress,
+        checkpoint.learning.clone(),
     )
 }

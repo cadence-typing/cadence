@@ -233,6 +233,26 @@ pub struct StatusFigures {
     pub enter_submits: bool,
     /// Counted corrections in the current exercise.
     pub corrections: u64,
+    /// What this target is for: prose attribution, or the focus skills and
+    /// review slots of a word exercise.
+    pub context: Option<String>,
+}
+
+/// What the plan adapts to and what this session recorded (plan 0003).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct LearningView {
+    /// Whether the plan used recorded evidence.
+    pub adaptive: bool,
+    /// Focus skills as typed text, strongest first.
+    pub focus: Vec<String>,
+    /// Due spaced-review words planned this session.
+    pub due_reviews: usize,
+    /// Missed words re-served later this session.
+    pub reinforced: u64,
+    /// Distinct planned words completed with any error this session.
+    pub missed_words: usize,
+    /// First attempts recorded for the learner model this session.
+    pub observed_keys: u64,
 }
 
 /// Which screen is prepared.
@@ -295,4 +315,6 @@ pub struct PreparedView {
     pub summary_reports: Vec<cadence_core::progress::TrackProgress>,
     /// Whether throughput remains interpretable after measurement admission.
     pub summary_rate_valid: bool,
+    /// Plan adaptation and recorded evidence.
+    pub learning: LearningView,
 }

@@ -62,13 +62,16 @@ pub struct SaveWorker {
 
 impl SaveWorker {
     /// Opens a private/profile database on the writer before terminal entry.
-    pub fn open(profile: Option<PathBuf>) -> Result<(Self, StoreBootstrap), WriterError> {
+    pub fn open(
+        profile: Option<PathBuf>,
+        learner_window: usize,
+    ) -> Result<(Self, StoreBootstrap), WriterError> {
         let (requests, incoming) = mpsc::sync_channel(SAVE_SLOT_COUNT);
         let (outgoing, results) = mpsc::sync_channel(SAVE_SLOT_COUNT);
         let (startup, ready) = mpsc::sync_channel(SAVE_SLOT_COUNT);
         let thread = thread::Builder::new()
             .name("cadence-progress".to_string())
-            .spawn(move || writer_loop(profile, incoming, outgoing, startup))
+            .spawn(move || writer_loop(profile, learner_window, incoming, outgoing, startup))
             .map_err(WriterError::Spawn)?;
         match ready.recv_timeout(STORE_STARTUP_TIMEOUT) {
             Ok(Ok(bootstrap)) => Ok((
@@ -132,12 +135,13 @@ impl SaveWorker {
 
 fn writer_loop(
     profile: Option<PathBuf>,
+    learner_window: usize,
     requests: Receiver<Checkpoint>,
     results: SyncSender<SaveResult>,
     startup: SyncSender<Result<StoreBootstrap, StoreError>>,
 ) {
     let opened = ProgressStore::open(profile.as_deref()).and_then(|store| {
-        let bootstrap = store.bootstrap()?;
+        let bootstrap = store.bootstrap(learner_window)?;
         Ok((store, bootstrap))
     });
     let mut store = match opened {

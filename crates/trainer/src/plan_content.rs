@@ -1,28 +1,32 @@
-//! Startup-only content preparation. No learner evidence is fabricated: lane
-//! slots are cold-start sampling, not completed reviews or adapted weaknesses.
-//! The engine records exhaustion when it cycles these prepared targets.
-use crate::candidate::{Candidate, UtilityInputs, scan_select};
-use crate::corpus::{WordBand, WordPack};
-use crate::lanes::QuotaTracker;
-use crate::numeric::{DigitSource, number_row_exercise, numpad_exercise};
-use crate::plan::{ExerciseKind, PlanError, PlanRng, PlannedExercise};
+//! Startup-only content preparation per phase (plan 0003). Word phases use
+//! [`crate::plan_words`]; prose rotates through passages not typed within the
+//! no-repeat window, labelling any unavoidable repeat. Numeric phases remain
+//! seeded cold-start drills. The engine records exhaustion when it cycles.
+use std::cmp::Reverse;
+
+use crate::numeric::{number_row_exercise, numpad_exercise};
+use crate::plan::{ExerciseKind, PlanError, PlanInputs, PlanRng, PlannedExercise};
+use crate::plan_words::WordSelector;
 use crate::policy::{Phase, TrainerPolicy};
-use cadence_core::alphabet::{LayoutSupportsPound, TrainingChar};
-use cadence_core::{BasisPoints, WordId};
 use rand::seq::SliceRandom;
 
 pub(super) fn exercises(
     policy: &TrainerPolicy,
-    pack: &WordPack,
-    bank: &str,
+    inputs: PlanInputs<'_>,
     rng: &mut PlanRng,
     phase: Phase,
     seconds: u64,
 ) -> Result<Vec<PlannedExercise>, PlanError> {
     match phase {
         Phase::Review => Ok(Vec::new()),
-        Phase::WarmUp => words(policy, pack, rng, seconds, true),
-        Phase::AdaptiveWords => words(policy, pack, rng, seconds, false),
+        Phase::WarmUp => {
+            let selector = WordSelector::warm_up(policy, inputs.pack, inputs.learner, rng);
+            words(policy, selector, rng, seconds, ExerciseKind::WarmUp)
+        }
+        Phase::AdaptiveWords => {
+            let selector = WordSelector::adaptive(policy, inputs.pack, inputs.learner, rng);
+            words(policy, selector, rng, seconds, ExerciseKind::Words)
+        }
         Phase::NumberRow | Phase::Numpad => {
             // One prepared entry per second, not one five-entry string per 20s.
             let count = usize::try_from(seconds).map_err(|_| content("exercise count overflow"))?;
@@ -34,30 +38,14 @@ pub(super) fn exercises(
                 } else {
                     (number_row_exercise(rng, &mut used), ExerciseKind::NumberRow)
                 };
-                result.push(PlannedExercise {
-                    units: units.map_err(|error| content(&error.to_string()))?,
+                result.push(PlannedExercise::plain(
+                    units.map_err(|error| content(&error.to_string()))?,
                     kind,
-                });
+                ));
             }
             Ok(result)
         }
-        Phase::Prose => crate::prose::prose_exercises(bank, 120)
-            .map_err(|error| content(&error.to_string()))?
-            .into_iter()
-            .map(|units| {
-                Ok(PlannedExercise {
-                    units,
-                    kind: ExerciseKind::Prose,
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .and_then(|result| {
-                if result.is_empty() {
-                    Err(content("prose bank empty"))
-                } else {
-                    Ok(result)
-                }
-            }),
+        Phase::Prose => prose(policy, inputs, rng, seconds),
     }
 }
 
@@ -67,122 +55,87 @@ fn content(message: &str) -> PlanError {
 
 fn words(
     policy: &TrainerPolicy,
-    pack: &WordPack,
+    mut selector: WordSelector<'_>,
     rng: &mut PlanRng,
     seconds: u64,
-    warmup: bool,
+    kind: ExerciseKind,
 ) -> Result<Vec<PlannedExercise>, PlanError> {
-    // Shuffle once at startup, not on each key or slot. Interleaving independently
-    // shuffled bands keeps small viable bands visible without frequency claims.
-    let core_only = warmup && pack.band(WordBand::Core).len() >= policy.selection.block_slots;
-    let bands: &[WordBand] = if core_only {
-        &[WordBand::Core]
-    } else {
-        &[WordBand::Core, WordBand::Common, WordBand::Tail]
+    let count = usize::try_from(seconds.div_ceil(policy.learning.seconds_per_word_exercise))
+        .map_err(|_| content("exercise count overflow"))?;
+    let mut result = Vec::with_capacity(count);
+    for _ in 0..count {
+        let words = selector.block(rng)?;
+        result.push(PlannedExercise {
+            units: selector.units(&words)?,
+            kind,
+            words,
+            passage: None,
+            caption: None,
+        });
+    }
+    Ok(result)
+}
+
+/// Seeded passage order: never-recently-typed passages first, then the
+/// least recently typed. Enough passages are prepared for the planning rate.
+fn prose(
+    policy: &TrainerPolicy,
+    inputs: PlanInputs<'_>,
+    rng: &mut PlanRng,
+    seconds: u64,
+) -> Result<Vec<PlannedExercise>, PlanError> {
+    let learning = &policy.learning;
+    let needed = seconds
+        .checked_mul(learning.prose_units_per_second)
+        .and_then(|units| usize::try_from(units).ok())
+        .ok_or_else(|| content("prose volume overflow"))?;
+    let passages = inputs.prose.passages();
+    let mut order: Vec<usize> = (0..passages.len()).collect();
+    order.shuffle(rng);
+    let age = |index: &usize| {
+        passages
+            .get(*index)
+            .and_then(|passage| inputs.learner.passage_age(passage.id))
     };
-    let mut streams: Vec<_> = bands
-        .iter()
-        .map(|band| {
-            let mut ids: Vec<WordId> = pack
-                .band(*band)
-                .iter()
-                .filter_map(|index| pack.words().get(*index).map(|entry| entry.id))
-                .collect();
-            ids.shuffle(rng);
-            ids.into_iter()
-        })
-        .collect();
-    let mut pool = Vec::with_capacity(if core_only {
-        pack.band(WordBand::Core).len()
-    } else {
-        pack.len()
-    });
-    loop {
-        let before = pool.len();
-        for stream in &mut streams {
-            if let Some(id) = stream.next() {
-                pool.push(id);
-            }
-        }
-        if before == pool.len() {
+    let (fresh, mut stale): (Vec<usize>, Vec<usize>) =
+        order.into_iter().partition(|index| age(index).is_none());
+    stale.sort_by_key(|index| Reverse(age(index)));
+    let mut prepared = 0_usize;
+    let mut result = Vec::new();
+    for index in fresh.into_iter().chain(stale) {
+        if prepared >= needed {
             break;
         }
-    }
-    if pool.is_empty() {
-        return Err(PlanError::NoEligibleCandidate {
-            lane: crate::policy::Lane::Broad,
-        });
-    }
-    let count =
-        usize::try_from(seconds.div_ceil(5)).map_err(|_| content("exercise count overflow"))?;
-    let mut cursor = 0usize;
-    let mut result = Vec::with_capacity(count);
-    let space = TrainingChar::new(' ', LayoutSupportsPound::US)
-        .map_err(|error| content(&error.to_string()))?;
-    let mut candidates = Vec::with_capacity(policy.selection.maximum_candidates_per_slot);
-    for _ in 0..count {
-        let mut tracker = QuotaTracker::new(policy.selection.clone());
-        let mut units = Vec::new();
-        for lane in &policy.selection.lane_order {
-            candidates.clear();
-            // At most the configured bound is visited, including ineligible
-            // entries. Since bound >= block slots, a viable pool cannot hide
-            // entirely behind fewer-than-block-slots already used words.
-            let after = pool
-                .get(cursor..)
-                .ok_or_else(|| content("pool cursor out of bounds"))?;
-            let before = pool
-                .get(..cursor)
-                .ok_or_else(|| content("pool cursor out of bounds"))?;
-            for id in after
-                .iter()
-                .chain(before)
-                .take(pool.len().min(policy.selection.maximum_candidates_per_slot))
-            {
-                candidates.push(Candidate {
-                    id: *id,
-                    eligible: tracker.word_admissible(*id, *lane, None),
-                    inputs: UtilityInputs {
-                        error: BasisPoints::ZERO,
-                        hesitation: BasisPoints::ZERO,
-                        relevance: BasisPoints::ZERO,
-                        uncertainty: BasisPoints::ZERO,
-                    },
-                    tie_break: rng.below(u64::MAX),
-                });
-            }
-            let selected = scan_select(
-                &candidates,
-                &policy.weights,
-                policy.selection.maximum_candidates_per_slot,
-            )
-            .map_err(|error| content(&error.to_string()))?
-            .ok_or(PlanError::NoEligibleCandidate { lane: *lane })?;
-            tracker
-                .record(*lane, selected, None)
-                .map_err(|error| content(&error.to_string()))?;
-            let entry = pack
-                .word(selected)
-                .ok_or_else(|| content("selected word missing"))?;
-            if !units.is_empty() {
-                units.push(space);
-            }
-            units.extend_from_slice(&entry.units);
-            cursor = cursor
-                .checked_add(1)
-                .ok_or_else(|| content("pool cursor overflow"))?;
-            if cursor == pool.len() {
-                cursor = 0;
-            }
+        let passage = passages
+            .get(index)
+            .ok_or_else(|| content("passage index out of range"))?;
+        let source = inputs
+            .prose
+            .source(passage)
+            .ok_or_else(|| content("passage source missing"))?;
+        let mut caption = format!("{} \u{2014} {}", source.title, source.author);
+        if let Some(sessions) = inputs.learner.passage_age(passage.id) {
+            let ago = sessions.saturating_add(1);
+            caption.push_str(&format!(
+                " \u{b7} repeat, typed {ago} session{} ago",
+                if ago == 1 { "" } else { "s" }
+            ));
         }
-        result.push(PlannedExercise {
-            units,
-            kind: if warmup {
-                ExerciseKind::WarmUp
-            } else {
-                ExerciseKind::Words
-            },
-        });
+        for units in crate::prose::chunk_passage(&passage.units, learning.prose_exercise_units)
+            .map_err(|error| content(&error.to_string()))?
+        {
+            prepared = prepared.saturating_add(units.len());
+            result.push(PlannedExercise {
+                units,
+                kind: ExerciseKind::Prose,
+                words: Vec::new(),
+                passage: Some(passage.id),
+                caption: Some(caption.clone()),
+            });
+        }
+    }
+    if result.is_empty() {
+        return Err(content("prose bank empty"));
     }
     Ok(result)
 }

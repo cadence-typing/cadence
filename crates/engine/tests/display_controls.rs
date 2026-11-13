@@ -14,7 +14,16 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
         budget_seconds: 31,
         policy_digest: ContentDigest::from_bytes([1; 32]),
         corpus_digest: ContentDigest::from_bytes([2; 32]),
-        seed: 42,
+        record: cadence_core::learning::PlanRecord {
+            seed: 42,
+            mode: cadence_core::learning::PlannerMode::ColdStart,
+            focus: Vec::new(),
+        },
+        adaptation: cadence_trainer::Adaptation {
+            hesitation_ceiling: cadence_core::Micros::from_us(1_500_000),
+            reinforcement_capacity: 8,
+            reinforcements_per_word: 1,
+        },
         phases: vec![
             PlannedPhase {
                 phase: Phase::AdaptiveWords,
@@ -22,6 +31,9 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
                 exercises: vec![PlannedExercise {
                     units: cadence_core::validate_target("cat", LayoutSupportsPound::US)?,
                     kind: ExerciseKind::Words,
+                    words: Vec::new(),
+                    passage: None,
+                    caption: None,
                 }],
             },
             PlannedPhase {
@@ -30,6 +42,9 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
                 exercises: vec![PlannedExercise {
                     units: cadence_core::validate_target("005.20", LayoutSupportsPound::US)?,
                     kind: ExerciseKind::Numpad,
+                    words: Vec::new(),
+                    passage: None,
+                    caption: None,
                 }],
             },
             PlannedPhase {

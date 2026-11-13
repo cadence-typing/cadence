@@ -1,6 +1,6 @@
 # Cadence implementation and feedback-build status
 
-`0.1.0-alpha.3` is an **unsigned development preview**, not a P8-qualified
+`0.1.0-alpha.4` is an **unsigned development preview**, not a P8-qualified
 release. Earlier commit messages overstated P0–P2 completion: passing tests,
 ASCII filtering, and documentation of intended proofs did not discharge the
 handover's proof, vocabulary-vetting, adaptation, or qualification obligations.
@@ -39,8 +39,10 @@ values are ignored. Backup/export refuse to overwrite an existing destination.
 The default plan allocates 900 seconds (840 typing + 60 dismissible review).
 The phase clock starts on its first content key. Ordinary hesitation remains
 in active time; explicit pauses and inter-phase screens do not. Prepared
-exercise lists cycle until the deadline, visibly labelled as repeat practice.
-The planner is currently **cold-start mixed practice, not learned adaptation**.
+exercise lists cycle until the deadline. A prose passage typed within the
+no-repeat window is labelled as a repeat; cycling of prepared word and numeric
+lists is **not yet labelled**. Since alpha.4 the words phase is **adaptive**
+(below); warm-up, number-row and numpad content remain cold-start drills.
 Numpad strings preserve leading zeros and require Enter; physical-keypad origin
 is unverified. This preview supports ASCII-first practice, not full first-run
 layout configuration, imports, benchmark qualification, or the full settings UI.
@@ -52,6 +54,44 @@ resume a mid-word exercise or claim an uninterrupted timing trial. Store schema
 2 safely refuses a populated historical draft schema 1 rather than inventing
 measurements or resetting it. Keep that file and use a new explicit profile
 for feedback if such a draft database exists.
+
+## Alpha.4 learning from mistakes
+
+[Plan 0003](plans/0003-learning-from-mistakes.md) responds to an independent
+review that found nothing typed influenced later content and prose repeated
+the same six paragraphs every session.
+
+- **Evidence.** The reducer records every first attempt per key and per key
+  transition (main keyboard and numpad separately), clean inter-key intervals
+  on active time (corrections and pauses break the chain; gaps above 1.5 s are
+  excluded from the learner model only, never from scores), per-word outcomes
+  and typed prose passages. A corrected slip stays an error.
+- **Learner model** (startup only): recency-weighted Beta-prior error rate,
+  relative hesitation and uncertainty over the last 60 sessions. A skill
+  becomes a focus only above explicit error/hesitation thresholds with enough
+  attempts; sparse evidence is uncertain, never mastered.
+- **Words phase.** Target slots rotate over up to six focus transitions and
+  draw core/common words containing them, ranked by the existing bounded
+  utility scan; broad slots keep variety; review slots serve due missed words
+  on a 1/3/7/14/30-day ladder (promotion needs clean typing in two sessions on
+  different days; an error resets). A word missed in this session returns
+  once in a later review slot. The start screen and each exercise name the
+  focus; cold start says so.
+- **Prose.** 2,643 passages (863k characters): 19 public-domain books with
+  recorded Gutenberg sources and digests, plus the 16 original passages.
+  Passages typed within 200 sessions are not re-served while unseen ones
+  remain; every exercise shows title and author.
+- **Seed.** Derived from the session id and day and persisted, so same-day
+  sessions differ and each plan is replayable. `--seed` still overrides.
+- **Schema 3.** Additive tables for plans, focus, skill observations, word
+  outcomes and seen passages. A populated schema 2 migrates in one
+  transaction with those tables empty; older receipts keep their exact
+  digests. Alpha.3 and earlier refuse a schema-3 profile (`SchemaTooNew`), so
+  take a backup before downgrading.
+
+Displayed scores are unchanged by any of this. Targeted words are harder by
+design and are labelled; whether this produces faster learning is an
+empirical question this preview does not answer.
 
 ## Alpha.3 smooth native typography
 
@@ -86,8 +126,8 @@ this refresh.
 |---|---|---|
 | P0 / A-01, B-02 | in_progress | Pinned Rust image/toolchain, Cargo lock, musl C compiler, architecture feedback check. Proof-tool compatibility, full dependency/security audit and shared CI admission remain unqualified. |
 | P1 / L-02–03, VK-01–02 | implemented, behavior checked | `core/{ledger,metrics,session}`, `engine/{practice,presentation}`; scoring fixtures/properties and live corrected-entry smoke. These are not same-source Verus proofs. |
-| P2 / P-02–04, VK-03–06 | in_progress | `trainer/{allocation,plan,plan_content,policy,review,pace}`; deterministic seed/budget/track tests and bounded eligible scans. Cold-start selection only; learner adaptation, retention/benchmark comparisons and 20k vetted vocabulary acceptance remain unfinished. |
-| P3 / D-01–02, VP-01–03 | in_progress | `core/progress`, `data/{store,schema,records,files,transfer}`, `engine/storage`, `runtime/writer`. One retained writer/result slot, full-key admission, checkpoints, retry, lock, reopen, backup/export implemented. General job-registry/async planner, immutable observation chunks, full crash/storage campaigns and formal correspondence remain unfinished. |
+| P2 / P-02–04, VK-03–06 | in_progress | `trainer/{allocation,plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Pace hysteresis (`pace.rs`) and benchmark probes remain unwired; numeric tracks are not adapted; retention/benchmark comparisons and 20k vetted vocabulary acceptance remain unfinished. |
+| P3 / D-01–02, VP-01–03 | in_progress | `core/{progress,learning}`, `data/{store,schema,records,learning_rows,files,transfer}`, schema 3 with migration/round-trip/regression tests, `engine/storage`, `runtime/writer`. One retained writer/result slot, full-key admission, checkpoints, retry, lock, reopen, backup/export implemented. General job-registry/async planner, immutable observation chunks, full crash/storage campaigns and formal correspondence remain unfinished. |
 | P4 / H-01–04, VP-04–05 | pending | No shipped NDJSON driver, causal/durable barriers or replay. Shared cell/row-rendition capture is rendering evidence, not a completed headless protocol. |
 | P5 / U-01–05 | in_progress | `engine/{view,summary}`, `tui/{paint,stages,stages/results,stages/headlines,modeline,practice,native_text}` share cells plus native row metadata; `runtime/{presenter,text_protocol}` present and negotiate it. Reducer/summary regressions preserve correction history, weighted metrics, timing and resize pause. Full destinations/settings/layout setup, imports and editable themes remain unfinished. |
 | P6 / H-05–06 | in_progress | Hermetic Rust regressions and actual PTY/SQLite smoke; no broad terminal qualification or measured p99/memory admission claim. |
@@ -119,8 +159,10 @@ this refresh.
 - The word pack contains 25,000 alphabet-filtered wordfreq tokens, not a
   professionally vetted dictionary. It may include names, abbreviations,
   offensive words or nonwords. Full upstream notices and CC-BY-SA terms ship
-  in `corpus/`; practice prose is explicitly original AI-assisted material,
-  not verified literary excerpts or unseen benchmark content.
+  in `corpus/`. Prose combines the original AI-assisted passages with verbatim
+  public-domain book paragraphs whose sources, digests and extraction recipe
+  are recorded in `corpus/NOTICE` and `corpus/manifest.json`; it is practice
+  content, not unseen benchmark material.
 
 ## Reproduce
 

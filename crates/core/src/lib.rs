@@ -13,6 +13,7 @@
 pub mod alphabet;
 pub mod error;
 pub mod id;
+pub mod learning;
 pub mod ledger;
 pub mod metrics;
 pub mod ports;
@@ -25,7 +26,7 @@ pub use alphabet::{AlphabetError, LayoutSupportsPound, TrainingChar, validate_ta
 pub use error::CoreError;
 pub use id::{
     BasisPoints, CommitSeq, ContentDigest, CorpusVersion, EventSeq, ExerciseId, FrameRevision,
-    JobId, LayoutRevision, LearnerRevision, PolicyVersion, ProfileId, RequestRevision,
+    JobId, LayoutRevision, LearnerRevision, PassageId, PolicyVersion, ProfileId, RequestRevision,
     SessionEpoch, SessionId, ViewId, ViewSlot, WordId,
 };
 pub use ledger::{

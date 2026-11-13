@@ -2,15 +2,18 @@
 //!
 //! Draft v1 omitted deletions, overflow, digit units and per-track time. A populated
 //! v1 is deliberately refused rather than backfilling fabricated measurements.
-//! An empty v1 can safely acquire those columns. The entire 0 -> 1 -> 2 migration
-//! is one transaction; no destructive reset path exists.
+//! An empty v1 can safely acquire those columns. Schema 3 (plan 0003) adds
+//! per-session learning evidence in new tables only; a populated schema 2
+//! migrates with those tables empty, because per-key evidence cannot be
+//! reconstructed from track totals. Every 0/1/2 -> 3 path is one
+//! transaction; no destructive reset path exists.
 
 use rusqlite::{Connection, OptionalExtension};
 
 use crate::StoreError;
 
 /// Highest supported persistence schema version.
-pub const SUPPORTED_SCHEMA: i64 = 2;
+pub const SUPPORTED_SCHEMA: i64 = 3;
 
 pub(crate) fn inspect(connection: &Connection) -> Result<i64, StoreError> {
     let has_schema: bool = connection.query_row(
@@ -81,18 +84,15 @@ pub(crate) fn migrate(connection: &mut Connection, current: i64) -> Result<(), S
         return Ok(());
     }
     let tx = connection.transaction()?;
-    if current == 0 {
-        tx.execute_batch(MIGRATION_V1)
-            .map_err(|error| StoreError::Migration {
-                target: 1,
-                message: error.to_string(),
-            })?;
+    for (target, sql) in [(1, MIGRATION_V1), (2, MIGRATION_V2), (3, MIGRATION_V3)] {
+        if current < target {
+            tx.execute_batch(sql)
+                .map_err(|error| StoreError::Migration {
+                    target,
+                    message: error.to_string(),
+                })?;
+        }
     }
-    tx.execute_batch(MIGRATION_V2)
-        .map_err(|error| StoreError::Migration {
-            target: 2,
-            message: error.to_string(),
-        })?;
     tx.commit()?;
     Ok(())
 }
@@ -131,10 +131,53 @@ CREATE TABLE commit_receipts (
 CREATE INDEX idx_sessions_day ON sessions(day);
 ";
 
-const MIGRATION_V2: &str = "
+pub(crate) const MIGRATION_V2: &str = "
 ALTER TABLE session_tracks ADD COLUMN deletions INTEGER NOT NULL CHECK(deletions>=0) DEFAULT 0;
 ALTER TABLE session_tracks ADD COLUMN overflow_attempts INTEGER NOT NULL CHECK(overflow_attempts>=0) DEFAULT 0;
 ALTER TABLE session_tracks ADD COLUMN correct_digits INTEGER NOT NULL CHECK(correct_digits>=0) DEFAULT 0;
 ALTER TABLE session_tracks ADD COLUMN active_micros INTEGER NOT NULL CHECK(active_micros>=0) DEFAULT 0;
 UPDATE schema_info SET version=2 WHERE id=1;
+";
+
+/// Learning evidence (plan 0003). Seeds and passage ids are full `u64`
+/// values, stored as 16 lowercase hex digits because SQLite integers are i64.
+const MIGRATION_V3: &str = "
+CREATE TABLE session_plans (
+    session_id INTEGER PRIMARY KEY REFERENCES sessions(session_id) ON DELETE CASCADE,
+    seed TEXT NOT NULL CHECK(length(seed)=16),
+    mode TEXT NOT NULL CHECK(mode IN ('cold_start','adaptive')),
+    reinforced INTEGER NOT NULL CHECK(reinforced>=0)
+);
+CREATE TABLE plan_focus (
+    session_id INTEGER NOT NULL REFERENCES session_plans(session_id) ON DELETE CASCADE,
+    rank INTEGER NOT NULL CHECK(rank>=0),
+    lane TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    skill TEXT NOT NULL,
+    PRIMARY KEY(session_id,rank)
+);
+CREATE TABLE skill_observations (
+    session_id INTEGER NOT NULL REFERENCES session_plans(session_id) ON DELETE CASCADE,
+    lane TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    skill TEXT NOT NULL,
+    attempts INTEGER NOT NULL CHECK(attempts>=0),
+    errors INTEGER NOT NULL CHECK(errors>=0 AND errors<=attempts),
+    timed INTEGER NOT NULL CHECK(timed>=0 AND timed<=attempts),
+    timed_micros INTEGER NOT NULL CHECK(timed_micros>=0),
+    PRIMARY KEY(session_id,lane,kind,skill)
+);
+CREATE TABLE word_outcomes (
+    session_id INTEGER NOT NULL REFERENCES session_plans(session_id) ON DELETE CASCADE,
+    word_id INTEGER NOT NULL CHECK(word_id>0),
+    attempts INTEGER NOT NULL CHECK(attempts>=0),
+    errors INTEGER NOT NULL CHECK(errors>=0 AND errors<=attempts),
+    PRIMARY KEY(session_id,word_id)
+);
+CREATE TABLE prose_seen (
+    session_id INTEGER NOT NULL REFERENCES session_plans(session_id) ON DELETE CASCADE,
+    passage_id TEXT NOT NULL CHECK(length(passage_id)=16),
+    PRIMARY KEY(session_id,passage_id)
+);
+UPDATE schema_info SET version=3 WHERE id=1;
 ";

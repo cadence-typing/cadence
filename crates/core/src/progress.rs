@@ -1,4 +1,5 @@
 //! Portable, validated cumulative progress and exact checkpoint identities.
+use crate::learning::SessionLearning;
 use crate::{CommitSeq, ContentDigest, CoreError, SessionId};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -220,7 +221,13 @@ pub struct Checkpoint {
     pub key: SaveKey,
     /// Full replacement progress.
     pub progress: SessionProgress,
+    /// Full replacement learning evidence. Sessions saved before schema 3
+    /// have none; their digest is exactly the original v1 encoding.
+    pub learning: Option<SessionLearning>,
 }
+/// Tag separating the v1 progress encoding from the learning section. Track
+/// bytes are 0..=4, so this byte can never begin another track record.
+const LEARNING_SECTION_TAG: u8 = 0xFF;
 impl Checkpoint {
     /// Validates and hashes a canonical, unambiguous binary encoding.
     /// # Errors
@@ -229,8 +236,12 @@ impl Checkpoint {
         session: SessionId,
         sequence: CommitSeq,
         mut progress: SessionProgress,
+        learning: Option<SessionLearning>,
     ) -> Result<Self, CoreError> {
         progress.validate()?;
+        if let Some(learning) = &learning {
+            learning.validate()?;
+        }
         progress.tracks.sort_by_key(|t| t.track);
         let mut h = Sha256::new();
         h.update(b"cadence-progress-v1");
@@ -255,6 +266,10 @@ impl Checkpoint {
                 h.update(v.to_le_bytes());
             }
         }
+        if let Some(learning) = &learning {
+            h.update([LEARNING_SECTION_TAG]);
+            learning.digest_into(&mut h);
+        }
         Ok(Self {
             key: SaveKey {
                 session,
@@ -262,6 +277,7 @@ impl Checkpoint {
                 digest: ContentDigest::from_bytes(h.finalize().into()),
             },
             progress,
+            learning,
         })
     }
 }

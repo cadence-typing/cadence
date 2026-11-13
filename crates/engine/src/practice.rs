@@ -1,11 +1,17 @@
 //! Practice timing, bounded ledger updates and fixed-track accumulation.
 use super::{DomainOutcome, Engine, Key, Screen, invalid};
+use cadence_core::learning::KeyLane;
 use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent};
 use cadence_core::metrics::{correct_digits, first_pass_accuracy};
 use cadence_core::progress::{ProgressStatus, Track, TrackProgress};
 use cadence_core::session::SessionState;
 use cadence_core::{CoreError, ExerciseId, Micros, MonoTick};
 use cadence_trainer::{ExerciseKind, Phase};
+
+/// Mirrors runtime policy `maximum_extra_input_units` (trainer-v2.toml).
+const EXTRA_INPUT_UNITS: u32 = 128;
+/// One accumulator per distinct `Track` variant.
+pub(super) const TRACK_CAPACITY: usize = 5;
 
 impl Engine {
     pub(super) fn advance_clock(
@@ -76,9 +82,10 @@ impl Engine {
             .exercises
             .get(self.exercise_index)
             .ok_or_else(|| invalid("missing exercise"))?;
+        let units = self.learning.open(exercise)?;
         self.ledger = Some(AttemptLedger::new(
-            exercise.units.clone(),
-            ExtraInputAllowance::new(128)?,
+            units,
+            ExtraInputAllowance::new(EXTRA_INPUT_UNITS)?,
         )?);
         self.exercise_start = self.active;
         Ok(())
@@ -113,7 +120,15 @@ impl Engine {
         if let Some(progress) = self.current_progress()? {
             merge_track(&mut self.tracks, progress)?;
         }
-        self.ledger = None;
+        if let Some(ledger) = self.ledger.take() {
+            let exercise = self
+                .plan
+                .phases
+                .get(self.phase_index)
+                .and_then(|phase| phase.exercises.get(self.exercise_index))
+                .ok_or_else(|| invalid("missing exercise"))?;
+            self.learning.close(exercise, &ledger)?;
+        }
         Ok(())
     }
     pub(super) fn advance_phase(&mut self) -> Result<DomainOutcome, CoreError> {
@@ -172,15 +187,46 @@ impl Engine {
         match key {
             Key::Content(c) => {
                 self.timing.first_content(at)?;
-                if ledger.apply(LedgerEvent::Content(c))? == Applied::RejectedOverBound {
+                let position = ledger.buffer().len();
+                let first = ledger
+                    .first_outcomes()
+                    .get(position)
+                    .is_some_and(Option::is_none);
+                let applied = ledger.apply(LedgerEvent::Content(c))?;
+                if applied == Applied::RejectedOverBound {
                     return Err(invalid("typed input exceeded the bounded buffer"));
                 }
-                if ledger.is_complete() && !numpad {
+                let complete = ledger.is_complete();
+                match applied {
+                    Applied::Content {
+                        position: Some(p),
+                        matched,
+                    } if first => {
+                        let active = self.timing.active_through(at)?;
+                        let lane = if numpad {
+                            KeyLane::Numpad
+                        } else {
+                            KeyLane::Main
+                        };
+                        let target = self
+                            .ledger
+                            .as_ref()
+                            .map(|l| l.target())
+                            .ok_or_else(|| invalid("missing practice ledger"))?;
+                        let position = usize::try_from(p.get())
+                            .map_err(|_| invalid("unit index outside address space"))?;
+                        self.learning
+                            .first_attempt(target, position, matched, active, lane)?;
+                    }
+                    _ => self.learning.break_timing(),
+                }
+                if complete && !numpad {
                     return self.finish_exercise();
                 }
             }
             Key::Backspace => {
                 ledger.apply(LedgerEvent::Backspace)?;
+                self.learning.break_timing();
             }
             Key::Enter if numpad && ledger.is_complete() => return self.finish_exercise(),
             _ => {}
@@ -227,7 +273,7 @@ pub(super) fn merge_track(
     if let Some(existing) = tracks.iter_mut().find(|t| t.track == progress.track) {
         existing.add(&progress)?;
     } else {
-        if tracks.len() >= 5 {
+        if tracks.len() >= TRACK_CAPACITY {
             return Err(invalid("track capacity exhausted"));
         }
         tracks.push(progress);

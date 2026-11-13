@@ -46,7 +46,7 @@ dependencies = [
 
 [[package]]
 name = "cadence"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "cadence-core",
  "cadence-data",
@@ -58,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-core"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "proptest",
  "serde",
@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-data"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "cadence-core",
  "rusqlite",
@@ -79,7 +79,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-driver"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "cadence-core",
  "cadence-engine",
@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-engine"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "cadence-core",
  "cadence-trainer",
@@ -102,7 +102,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-runtime"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "cadence-core",
  "cadence-data",
@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-trainer"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "cadence-core",
  "rand",
@@ -128,7 +128,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-tui"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "cadence-core",
  "cadence-engine",
@@ -1282,7 +1282,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "xtask"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "cadence-core",
  "cadence-trainer",

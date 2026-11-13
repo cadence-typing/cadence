@@ -121,7 +121,8 @@ pub fn build_dist() -> Result<(), String> {
         "CC-BY-SA-4.0.txt",
         "manifest.json",
         "words-en-v1.tsv",
-        "prose-en-v1.txt",
+        "prose-en-v2.tsv",
+        "prose-sources-v2.tsv",
     ] {
         fs::copy(root.join("corpus").join(name), corpus.join(name))
             .map_err(|e| format!("mandatory corpus notice/content {name}: {e}"))?;
@@ -138,13 +139,14 @@ pub fn build_dist() -> Result<(), String> {
         "source_clean": clean,
         "compiler": compiler,
         "cargo_lock_sha256": digest_file(&root.join("Cargo.lock"))?,
-        "policy_sha256": digest_file(&root.join("policies/trainer-v1.toml"))?,
+        "policy_sha256": digest_file(&root.join("policies/trainer-v2.toml"))?,
         "corpus_sha256": digest_file(&root.join("corpus/words-en-v1.tsv"))?,
+        "prose_sha256": digest_file(&root.join("corpus/prose-en-v2.tsv"))?,
         "binary_sha256": binary_hash,
         "elf64_x86_64": true,
         "elf_interpreter": false,
         "elf_needed_libraries": [],
-        "limitations": ["no formal qualification/signature", "cold-start mixed practice, not learned adaptation", "interrupted sessions retain acknowledged progress, not a resumed uninterrupted trial"]
+        "limitations": ["no formal qualification/signature", "adaptive word targeting and spaced review are empirical hypotheses, not proven training gains", "numeric tracks remain cold-start drills", "interrupted sessions retain acknowledged progress, not a resumed uninterrupted trial"]
     });
     fs::write(
         bundle.join("manifest.json"),

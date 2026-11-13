@@ -49,3 +49,63 @@ authorship or copyrightability is made for AI-generated material.
 These passages are practice content, not validated benchmark material.
 The prepared bank is finite; runtime cycling must be disclosed as repeat
 practice rather than unseen transfer or retention evidence.
+
+Public-domain prose (prose-en-v2.tsv)
+-------------------------------------
+`prose-en-v2.tsv` holds 2643 passages: the 16 original passages above
+(source key `cadence-original`, extracted from `prose-en-v1.txt`) plus
+verbatim paragraphs from the following works, which are in the public
+domain in the United States. They were downloaded from Project Gutenberg
+on 2026-11-13 by `tools/corpus/extract_prose.py`; only the text between
+the Gutenberg START/END markers was used, and the Project Gutenberg
+header, footer, licence and trademark are not distributed. Copyright
+status outside the United States has not been audited. Passages are
+attributed in the application by title and author (`prose-sources-v2.tsv`).
+
+- Pride and Prejudice by Jane Austen (https://www.gutenberg.org/cache/epub/1342/pg1342.txt), 150 passages,
+  source SHA-256 3f6bb9d6f78e0293b56acd4714dd68cb7d6d1d293402031ce9d5a216bcaf9d75
+- Emma by Jane Austen (https://www.gutenberg.org/cache/epub/158/pg158.txt), 150 passages,
+  source SHA-256 532b122b4e6a76cc556d6fdcd729b5892f5c4ce4a1b7060b9f832adfad8680dc
+- The Adventures of Sherlock Holmes by Arthur Conan Doyle (https://www.gutenberg.org/cache/epub/1661/pg1661.txt), 150 passages,
+  source SHA-256 922e2a12ccb43a4c9544c260b2166c6ad2097aeb5957faeee113f173bb857cd0
+- The Hound of the Baskervilles by Arthur Conan Doyle (https://www.gutenberg.org/cache/epub/2852/pg2852.txt), 150 passages,
+  source SHA-256 aea75dfb3977a0a0222f838593c45dfbcb1af9fbb7bf5b60b1f13d5e452cbcf7
+- Frankenstein by Mary Wollstonecraft Shelley (https://www.gutenberg.org/cache/epub/84/pg84.txt), 150 passages,
+  source SHA-256 2b97b7f8aad508649481d8dd4f6b54f9b965ddb3ba634e9151c815f537b49e42
+- Treasure Island by Robert Louis Stevenson (https://www.gutenberg.org/cache/epub/120/pg120.txt), 150 passages,
+  source SHA-256 5bc08275eacea8640b1aa185c645283bb8c564d7b23df6b03437d229b4fc6ebd
+- Walden by Henry David Thoreau (https://www.gutenberg.org/cache/epub/205/pg205.txt), 95 passages,
+  source SHA-256 2d9a76a2e3e8195c69430516ebd33c4d0757a53ad432ff6186b7b794e6fe99f9
+- The Wind in the Willows by Kenneth Grahame (https://www.gutenberg.org/cache/epub/289/pg289.txt), 150 passages,
+  source SHA-256 98f6b6cda20087857cefe9121b71d6166c1b92423bb7645fdba3c45ff0c141e8
+- The Time Machine by H. G. Wells (https://www.gutenberg.org/cache/epub/35/pg35.txt), 38 passages,
+  source SHA-256 2892e919000e17c83e1dac51b30f4675db50536b644d7579fe8a89bb399a9bdc
+- The War of the Worlds by H. G. Wells (https://www.gutenberg.org/cache/epub/36/pg36.txt), 150 passages,
+  source SHA-256 8417469e3ab664749f7b36ebb85799075818207b0380b54c27d07d592a44117d
+- The Picture of Dorian Gray by Oscar Wilde (https://www.gutenberg.org/cache/epub/174/pg174.txt), 150 passages,
+  source SHA-256 38f36b510417177aa87a6a24c968e3ec63a447b7df36a9c1a7c5a3f2d9e51547
+- Jane Eyre by Charlotte Bronte (https://www.gutenberg.org/cache/epub/1260/pg1260.txt), 150 passages,
+  source SHA-256 13414dee2951c3ee731d76d2ffd822016b2479c892162760c5d0eb2aa5fa7631
+- A Tale of Two Cities by Charles Dickens (https://www.gutenberg.org/cache/epub/98/pg98.txt), 150 passages,
+  source SHA-256 d54c2b80d40a40b982cd88852c6180bb944d95acdb028af3d0e01a1750681784
+- Dracula by Bram Stoker (https://www.gutenberg.org/cache/epub/345/pg345.txt), 150 passages,
+  source SHA-256 96cd16eacdbfebae8fdda5591f66e0cc8ee76be18e0cd1aca02bc00615782d28
+- Little Women by Louisa May Alcott (https://www.gutenberg.org/cache/epub/514/pg514.txt), 150 passages,
+  source SHA-256 36831477b339dbcd7e7206119d77e9e58b9727ef3c299d1a1dc4446e1db97850
+- Anne of Green Gables by L. M. Montgomery (https://www.gutenberg.org/cache/epub/45/pg45.txt), 150 passages,
+  source SHA-256 89a5e9fb2e0bb44562a969785385366f94e1da736aebee7d9cdf459eb0b5f9f6
+- The Call of the Wild by Jack London (https://www.gutenberg.org/cache/epub/215/pg215.txt), 94 passages,
+  source SHA-256 30f569c5671bba7bbc4a92ab6d8ee01a0d3be00f994819c77da62c28041eb8a2
+- The Secret Garden by Frances Hodgson Burnett (https://www.gutenberg.org/cache/epub/113/pg113.txt), 150 passages,
+  source SHA-256 40709a2894f0816a97dd8a67d3082cfc4dac31e45b45ee55a908d62e1dd18c23
+- Around the World in Eighty Days by Jules Verne (https://www.gutenberg.org/cache/epub/103/pg103.txt), 150 passages,
+  source SHA-256 6f608ea2da50caf73245ad2996e4ee3c02ef1aa2152f7fcfe209df9aa39e7512
+
+Normalisation (recorded in the recipe) only maps typographic quotes and
+dashes to ASCII, removes `_italic_` markers and joins line breaks; any
+paragraph containing other non-ASCII or editorial markup was rejected
+rather than edited. These passages are practice content, not validated
+benchmark material.
+
+SHA-256 of prose-en-v2.tsv: 23abc1b2e003f503ea62a42efe23235bb3c7e889ae42015bfceb84987e64ca3e
+SHA-256 of prose-sources-v2.tsv: 3b325213c3e9995feade598f0bae6972c6dc3231fd6cb6f8fc9b462780d43be7

@@ -1,13 +1,18 @@
 //! Consumer-boundary coverage for the distributed policy and corpus.
 use cadence_core::{ContentDigest, LayoutSupportsPound};
 use cadence_trainer::{
-    ExerciseKind, Phase, TrainerPolicy, WordBand, WordPack, build_session_plan, parse_policy,
+    ExerciseKind, LearnerModel, Phase, PlanInputs, ProseBank, TrainerPolicy, WordBand, WordPack,
+    build_session_plan, parse_policy,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
-const POLICY: &str = include_str!("../../../policies/trainer-v1.toml");
+const POLICY: &str = include_str!("../../../policies/trainer-v2.toml");
 const WORDS: &str = include_str!("../../../corpus/words-en-v1.tsv");
-const PROSE: &str = include_str!("../../../corpus/prose-en-v1.txt");
+const PROSE: &str = include_str!("../../../corpus/prose-en-v2.tsv");
+const SOURCES: &str = include_str!("../../../corpus/prose-sources-v2.tsv");
+fn bank() -> Result<ProseBank, cadence_trainer::ProseError> {
+    ProseBank::from_tsv(PROSE, SOURCES, 1)
+}
 fn policy() -> Result<TrainerPolicy, cadence_trainer::PolicyError> {
     parse_policy(POLICY.as_bytes())
 }
@@ -16,11 +21,32 @@ fn policy() -> Result<TrainerPolicy, cadence_trainer::PolicyError> {
 fn shipped_startup_replays_many_seeds_and_obeys_caps() -> TestResult {
     let policy = policy()?;
     let pack = WordPack::from_tsv(WORDS, 25_000, LayoutSupportsPound::US)?;
+    let (prose, learner) = (bank()?, LearnerModel::cold(&policy));
     for seed in 0..32 {
-        let plan = build_session_plan(&policy, &pack, PROSE, seed, &[], 900)?;
+        let plan = build_session_plan(
+            &policy,
+            PlanInputs {
+                pack: &pack,
+                prose: &prose,
+                learner: &learner,
+            },
+            seed,
+            &[],
+            900,
+        )?;
         assert_eq!(
             plan,
-            build_session_plan(&policy, &pack, PROSE, seed, &[], 900)?
+            build_session_plan(
+                &policy,
+                PlanInputs {
+                    pack: &pack,
+                    prose: &prose,
+                    learner: &learner
+                },
+                seed,
+                &[],
+                900
+            )?
         );
         assert_eq!(
             plan.phases
@@ -84,11 +110,15 @@ fn caps_are_filtered_before_ranking_with_smallest_legal_scan() -> TestResult {
         1,
         LayoutSupportsPound::US,
     )?;
+    let (prose, learner) = (bank()?, LearnerModel::cold(&policy));
     for seed in 0..32 {
         let plan = build_session_plan(
             &policy,
-            &pack,
-            PROSE,
+            PlanInputs {
+                pack: &pack,
+                prose: &prose,
+                learner: &learner,
+            },
             seed,
             &[Phase::Numpad, Phase::NumberRow, Phase::Prose],
             300,
@@ -105,6 +135,7 @@ fn caps_are_filtered_before_ranking_with_smallest_legal_scan() -> TestResult {
 fn all_cli_track_presets_keep_exact_budget() -> TestResult {
     let policy = policy()?;
     let pack = WordPack::from_tsv(WORDS, 1, LayoutSupportsPound::US)?;
+    let (prose, learner) = (bank()?, LearnerModel::cold(&policy));
     for selected in [
         Phase::AdaptiveWords,
         Phase::NumberRow,
@@ -119,7 +150,17 @@ fn all_cli_track_presets_keep_exact_budget() -> TestResult {
             .filter(|phase| *phase != selected && *phase != Phase::Review)
             .collect();
         for budget in [300, 600, 900, 1200, 1800] {
-            let plan = build_session_plan(&policy, &pack, PROSE, 7, &disabled, budget)?;
+            let plan = build_session_plan(
+                &policy,
+                PlanInputs {
+                    pack: &pack,
+                    prose: &prose,
+                    learner: &learner,
+                },
+                7,
+                &disabled,
+                budget,
+            )?;
             assert_eq!(
                 plan.phases.iter().map(|phase| phase.seconds).sum::<u64>(),
                 budget

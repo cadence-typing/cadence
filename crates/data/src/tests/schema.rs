@@ -1,7 +1,7 @@
 use cadence_core::progress::ProgressStatus;
 use rusqlite::Connection;
 
-use super::{TestResult, checkpoint};
+use super::{LEARNER_WINDOW, TestResult, checkpoint};
 use crate::{ProgressStore, SUPPORTED_SCHEMA, StoreError, paths::DATABASE_FILE};
 
 #[test]
@@ -113,7 +113,7 @@ fn malformed_saved_integers_and_digest_tampering_fail_before_open_writes() -> Te
             let mut store = ProgressStore::open_in(directory.path())?;
             store.apply_checkpoint(&checkpoint(1, 1, ProgressStatus::Running)?)?;
             store.connection.execute_batch(mutation)?;
-            assert!(store.bootstrap().is_err(), "{mutation}");
+            assert!(store.bootstrap(LEARNER_WINDOW).is_err(), "{mutation}");
         }
         let before = std::fs::read(&database)?;
         assert!(

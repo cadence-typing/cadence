@@ -1,9 +1,9 @@
 //! Deterministic session plan builder (P-02, L-05).
 //!
-//! Builds a replayable cold-start schedule from validated policy, corpus,
-//! original prose and pinned ChaCha8 randomness. No learner observations
-//! are supplied here: word slots are practice samples, not due reviews,
-//! weakness adaptation, baseline measurements or benchmark results.
+//! Builds a replayable schedule from validated policy, corpus, prose bank,
+//! the startup learner model and pinned ChaCha8 randomness (plan 0003).
+//! With no evidence the plan is a cold start; otherwise target slots favour
+//! recorded weak keys/transitions and review slots serve due missed words.
 //! Phase deadlines, not target counts, determine elapsed practice time.
 //! Prepared content is finite; the engine records repeated-target cycling.
 
@@ -11,11 +11,14 @@ use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 
 use crate::allocation::allocate;
-use crate::corpus::WordPack;
+use crate::corpus::{WordPack, digest_of};
+use crate::learner::LearnerModel;
 use crate::numeric::DigitSource;
 use crate::policy::{Lane, Phase, TrainerPolicy};
+use crate::prose::ProseBank;
 use cadence_core::alphabet::TrainingChar;
-use cadence_core::{ContentDigest, CoreError};
+use cadence_core::learning::{PlanRecord, SkillKey};
+use cadence_core::{ContentDigest, CoreError, Micros, PassageId, WordId};
 
 /// The seeded PRNG used for planning (L-05: established, pinned,
 /// deterministic; algorithm recorded here for trace headers).
@@ -60,6 +63,19 @@ impl ExerciseKind {
     }
 }
 
+/// Why a word occupies its slot (L-05 slot reason).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlannedWord {
+    /// Corpus identity.
+    pub id: WordId,
+    /// Lane quota the slot counts against.
+    pub lane: Lane,
+    /// The focus skill that selected it, if any.
+    pub focus: Option<SkillKey>,
+    /// Whether it is a due spaced review.
+    pub due_review: bool,
+}
+
 /// One planned exercise: an immutable target plus its track kind.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlannedExercise {
@@ -67,6 +83,49 @@ pub struct PlannedExercise {
     pub units: Vec<TrainingChar>,
     /// The content track.
     pub kind: ExerciseKind,
+    /// Word slots in target order (word exercises only).
+    pub words: Vec<PlannedWord>,
+    /// The prose passage this exercise is part of.
+    pub passage: Option<PassageId>,
+    /// Attribution or repeat notice shown with the target.
+    pub caption: Option<String>,
+}
+
+impl PlannedExercise {
+    /// An exercise with no word slots, passage or caption.
+    #[must_use]
+    pub const fn plain(units: Vec<TrainingChar>, kind: ExerciseKind) -> Self {
+        Self {
+            units,
+            kind,
+            words: Vec::new(),
+            passage: None,
+            caption: None,
+        }
+    }
+}
+
+/// Reducer-side adaptation bounds carried with the plan, so the engine
+/// stays policy-free and replay uses the bounds the plan was built with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Adaptation {
+    /// Clean intervals above this are pauses for the learner model only.
+    pub hesitation_ceiling: Micros,
+    /// Missed words waiting for same-session reinforcement.
+    pub reinforcement_capacity: usize,
+    /// Times one word may be reinforced in a session.
+    pub reinforcements_per_word: u32,
+}
+
+/// Content and evidence a plan is built from.
+#[derive(Debug, Clone, Copy)]
+pub struct PlanInputs<'a> {
+    /// Word pack.
+    pub pack: &'a WordPack,
+    /// Prose bank.
+    pub prose: &'a ProseBank,
+    /// Startup learner model.
+    pub learner: &'a LearnerModel,
 }
 
 /// One planned phase with its exact seconds and exercise queue.
@@ -87,10 +146,12 @@ pub struct SessionPlan {
     pub budget_seconds: u64,
     /// Policy digest the plan was built under.
     pub policy_digest: ContentDigest,
-    /// Corpus digest the plan was built under.
+    /// Corpus digest (words and prose) the plan was built under.
     pub corpus_digest: ContentDigest,
-    /// The RNG seed (recorded for replay).
-    pub seed: u64,
+    /// Seed, planner mode and focus skills (persisted for replay).
+    pub record: PlanRecord,
+    /// Reducer-side adaptation bounds.
+    pub adaptation: Adaptation,
     /// Phases in policy order (disabled phases omitted).
     pub phases: Vec<PlannedPhase>,
 }
@@ -139,8 +200,7 @@ impl std::error::Error for PlanError {}
 /// - [`PlanError::Content`] on generator bugs.
 pub fn build_session_plan(
     policy: &TrainerPolicy,
-    pack: &WordPack,
-    prose_bank: &str,
+    inputs: PlanInputs<'_>,
     seed: u64,
     disabled: &[Phase],
     budget_seconds: u64,
@@ -177,8 +237,7 @@ pub fn build_session_plan(
     let mut rng = PlanRng::seed_from_u64(seed);
     let mut phases = Vec::with_capacity(enabled.len());
     for (((phase, _), _), seconds) in enabled.into_iter().zip(allocation) {
-        let exercises =
-            crate::plan_content::exercises(policy, pack, prose_bank, &mut rng, phase, seconds)?;
+        let exercises = crate::plan_content::exercises(policy, inputs, &mut rng, phase, seconds)?;
         phases.push(PlannedPhase {
             phase,
             seconds,
@@ -186,164 +245,26 @@ pub fn build_session_plan(
         });
     }
 
+    let mut corpus = inputs.pack.digest().as_bytes().to_vec();
+    corpus.extend_from_slice(inputs.prose.digest().as_bytes());
     Ok(SessionPlan {
         budget_seconds,
         policy_digest: policy.source_digest,
-        corpus_digest: pack.digest(),
-        seed,
+        corpus_digest: digest_of(&corpus),
+        record: PlanRecord {
+            seed,
+            mode: inputs.learner.mode(),
+            focus: inputs.learner.focus().to_vec(),
+        },
+        adaptation: Adaptation {
+            hesitation_ceiling: policy.learning.hesitation_ceiling,
+            reinforcement_capacity: policy.learning.reinforcement_queue_capacity,
+            reinforcements_per_word: policy.review.maximum_same_session_reinforcements,
+        },
         phases,
     })
 }
 
 #[cfg(test)]
-mod tests {
-    // Test assertions may use expect/unwrap/panic to fail loudly; the
-    // workspace denies them in production code only.
-    #![allow(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::panic,
-        clippy::indexing_slicing,
-        clippy::arithmetic_side_effects
-    )]
-
-    use super::*;
-    use crate::corpus::WordBand;
-
-    fn policy() -> TrainerPolicy {
-        crate::policy::parse_policy(
-            std::fs::read(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../policies/trainer-v1.toml"
-            ))
-            .unwrap()
-            .as_slice(),
-        )
-        .unwrap()
-    }
-
-    fn pack(word_count: u64) -> WordPack {
-        let mut entries = Vec::new();
-        for n in 1..=word_count {
-            let band = if n <= 2_000 {
-                WordBand::Core
-            } else if n <= 10_000 {
-                WordBand::Common
-            } else {
-                WordBand::Tail
-            };
-            entries.push((n, format!("word{n}"), band));
-        }
-        WordPack::new(
-            entries,
-            ContentDigest::from_bytes([9; 32]),
-            1,
-            cadence_core::LayoutSupportsPound::US,
-        )
-        .unwrap()
-    }
-
-    const PROSE: &str =
-        "Alpha beta gamma delta. Epsilon zeta eta theta.\n\nIota kappa lambda mu nu.";
-
-    #[test]
-    fn default_plan_is_deterministic_and_replayable() {
-        let policy = policy();
-        let pack = pack(1_000);
-        let first = build_session_plan(&policy, &pack, PROSE, 42, &[], 900).unwrap();
-        let second = build_session_plan(&policy, &pack, PROSE, 42, &[], 900).unwrap();
-        assert_eq!(first, second, "same inputs produce the same plan");
-        assert_eq!(
-            first.phases.iter().map(|phase| phase.seconds).sum::<u64>(),
-            900
-        );
-        // The default split is the pinned table.
-        let seconds: Vec<u64> = first.phases.iter().map(|phase| phase.seconds).collect();
-        assert_eq!(seconds, vec![60, 300, 120, 180, 180, 60]);
-    }
-
-    #[test]
-    fn different_seeds_differ() {
-        let policy = policy();
-        let pack = pack(1_000);
-        let first = build_session_plan(&policy, &pack, PROSE, 1, &[], 900).unwrap();
-        let second = build_session_plan(&policy, &pack, PROSE, 2, &[], 900).unwrap();
-        assert_ne!(first, second);
-    }
-
-    #[test]
-    fn disabled_tracks_are_omitted_and_budget_stays_exact() {
-        let policy = policy();
-        let pack = pack(1_000);
-        let disabled = vec![Phase::Numpad, Phase::NumberRow];
-        let plan = build_session_plan(&policy, &pack, PROSE, 7, &disabled, 900).unwrap();
-        assert_eq!(
-            plan.phases
-                .iter()
-                .map(|phase| phase.phase)
-                .collect::<Vec<_>>(),
-            vec![
-                Phase::WarmUp,
-                Phase::AdaptiveWords,
-                Phase::Prose,
-                Phase::Review
-            ]
-        );
-        assert_eq!(
-            plan.phases.iter().map(|phase| phase.seconds).sum::<u64>(),
-            900
-        );
-    }
-
-    #[test]
-    fn shorter_budget_still_serves_every_enabled_track() {
-        let policy = policy();
-        let pack = pack(1_000);
-        let plan = build_session_plan(&policy, &pack, PROSE, 9, &[], 300).unwrap();
-        assert_eq!(plan.phases.len(), 6);
-        assert_eq!(plan.phases.iter().map(|p| p.seconds).sum::<u64>(), 300);
-        assert!(plan.phases.iter().all(|phase| phase.seconds > 0));
-    }
-
-    #[test]
-    fn infeasible_budget_fails_explicitly() {
-        let policy = policy();
-        let pack = pack(100);
-        match build_session_plan(&policy, &pack, PROSE, 1, &[], 100) {
-            Err(PlanError::Infeasible { .. }) => {}
-            other => panic!("expected infeasible, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn tiny_corpus_fails_with_no_eligible_candidate() {
-        let policy = policy();
-        let pack = pack(4); // far below lane capacity
-        match build_session_plan(&policy, &pack, PROSE, 1, &[], 900) {
-            Err(PlanError::NoEligibleCandidate { .. }) | Err(PlanError::Infeasible { .. }) => {}
-            other => panic!("expected explicit failure, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn phases_carry_their_track_content() {
-        let policy = policy();
-        let pack = pack(1_000);
-        let plan = build_session_plan(&policy, &pack, PROSE, 5, &[], 900).unwrap();
-        for phase in &plan.phases {
-            match phase.phase {
-                Phase::Review => assert!(phase.exercises.is_empty()),
-                Phase::WarmUp | Phase::AdaptiveWords => {
-                    assert!(!phase.exercises.is_empty());
-                    assert!(
-                        phase.exercises[0].kind == ExerciseKind::WarmUp
-                            || phase.exercises[0].kind == ExerciseKind::Words
-                    );
-                }
-                Phase::NumberRow => assert_eq!(phase.exercises[0].kind, ExerciseKind::NumberRow),
-                Phase::Numpad => assert_eq!(phase.exercises[0].kind, ExerciseKind::Numpad),
-                Phase::Prose => assert_eq!(phase.exercises[0].kind, ExerciseKind::Prose),
-            }
-        }
-    }
-}
+#[path = "plan_tests.rs"]
+mod tests;

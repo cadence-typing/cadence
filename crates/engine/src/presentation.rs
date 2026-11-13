@@ -1,12 +1,13 @@
 //! Read-only presentation; only admitted reducer events advance measurements.
 use super::{Engine, PreparedView, Screen, ScreenView, StatusFigures, UnitSpan};
-use crate::view::{PhaseOverview, PhaseState, RateUnit, ViewMode};
+use crate::view::{LearningView, PhaseOverview, PhaseState, RateUnit, ViewMode};
+use cadence_core::learning::{PlannerMode, Skill, SkillKey};
 use cadence_core::ledger::AttemptLedger;
 use cadence_core::metrics::{correct_digits, correct_wpm, digits_per_minute, first_pass_accuracy};
 use cadence_core::progress::Track;
 use cadence_core::session::SessionState;
 use cadence_core::{Micros, MonoTick};
-use cadence_trainer::Phase;
+use cadence_trainer::{Lane, Phase};
 impl Engine {
     /// Builds a view without I/O, state mutation or advancing the clock.
     /// An invalid view timestamp is visibly rejected, never converted to zero time.
@@ -65,7 +66,74 @@ impl Engine {
                 Vec::new()
             },
             summary_rate_valid: !self.invalid,
+            learning: self.learning_view(),
         }
+    }
+    fn learning_view(&self) -> LearningView {
+        let evidence = &self.learning.evidence;
+        LearningView {
+            adaptive: evidence.plan.mode == PlannerMode::Adaptive,
+            focus: evidence
+                .plan
+                .focus
+                .iter()
+                .map(|key| skill_label(*key))
+                .collect(),
+            due_reviews: self
+                .plan
+                .phases
+                .iter()
+                .flat_map(|phase| phase.exercises.iter())
+                .flat_map(|exercise| exercise.words.iter())
+                .filter(|word| word.due_review)
+                .count(),
+            reinforced: evidence.reinforced,
+            missed_words: evidence.words.values().filter(|t| t.errors > 0).count(),
+            observed_keys: evidence
+                .skills
+                .iter()
+                .filter(|(key, _)| matches!(key.skill, Skill::Unit(_)))
+                .map(|(_, tally)| tally.attempts)
+                .fold(0_u64, u64::saturating_add),
+        }
+    }
+    /// Why the current target was chosen, without efficacy claims.
+    fn exercise_context(&self) -> Option<String> {
+        let exercise = self
+            .plan
+            .phases
+            .get(self.phase_index)?
+            .exercises
+            .get(self.exercise_index)?;
+        if let Some(caption) = &exercise.caption {
+            return Some(caption.clone());
+        }
+        let words = &self.learning.words;
+        let mut parts = Vec::new();
+        let mut focus: Vec<String> = Vec::new();
+        for word in words {
+            if let Some(key) = word.focus {
+                let label = skill_label(key);
+                if !focus.contains(&label) {
+                    focus.push(label);
+                }
+            }
+        }
+        if !focus.is_empty() {
+            parts.push(format!("Targeting {}", focus.join(" \u{b7} ")));
+        }
+        if words.iter().any(|word| word.due_review) {
+            parts.push("due review".to_string());
+        }
+        let planned = exercise.words.iter().map(|w| w.id);
+        if words
+            .iter()
+            .zip(planned)
+            .any(|(word, planned)| word.lane == Lane::Review && word.id != planned)
+        {
+            parts.push("missed earlier, again".to_string());
+        }
+        (!parts.is_empty()).then(|| parts.join(" \u{b7} "))
     }
     fn practice_view(&self) -> ScreenView {
         let phase = self.plan.phases.get(self.phase_index);
@@ -130,6 +198,7 @@ impl Engine {
                     .ledger
                     .as_ref()
                     .map_or(0, |ledger| ledger.counters().deletions()),
+                context: self.exercise_context(),
             },
         }
     }
@@ -169,7 +238,7 @@ impl Engine {
                 };
                 PhaseOverview {
                     label: phase_label(phase.phase),
-                    purpose: phase_purpose(phase.phase),
+                    purpose: phase_purpose(phase.phase, self.learning.evidence.plan.mode),
                     seconds: phase.seconds,
                     state,
                 }
@@ -206,6 +275,19 @@ fn spans_for(ledger: &AttemptLedger) -> Vec<UnitSpan> {
     }
     spans
 }
+/// A skill as the learner sees it; space and newline are made visible.
+fn skill_label(key: SkillKey) -> String {
+    key.skill
+        .text()
+        .chars()
+        .map(|c| match c {
+            ' ' => '\u{2423}',
+            '\n' => '\u{21b5}',
+            other => other,
+        })
+        .collect()
+}
+
 fn phase_label(phase: Phase) -> &'static str {
     match phase {
         Phase::WarmUp => "warm-up",
@@ -217,10 +299,13 @@ fn phase_label(phase: Phase) -> &'static str {
     }
 }
 
-fn phase_purpose(phase: Phase) -> &'static str {
+fn phase_purpose(phase: Phase, mode: PlannerMode) -> &'static str {
     match phase {
+        Phase::AdaptiveWords if mode == PlannerMode::ColdStart => {
+            "Broad vocabulary while Cadence records your slips."
+        }
         Phase::WarmUp => "Settle into an easy rhythm.",
-        Phase::AdaptiveWords => "Familiar vocabulary with a little variety.",
+        Phase::AdaptiveWords => "Words chosen from your recorded slips, plus variety.",
         Phase::NumberRow => "Digits in short text contexts.",
         Phase::Numpad => "Exact entries. Leading zeros count.",
         Phase::Prose => "Carry accuracy into sentences.",

@@ -29,13 +29,25 @@ fn planned_engine(text: &str) -> Result<Engine, Box<dyn std::error::Error>> {
         budget_seconds: 60,
         policy_digest: cadence_core::ContentDigest::from_bytes([1; 32]),
         corpus_digest: cadence_core::ContentDigest::from_bytes([2; 32]),
-        seed: 0,
+        record: cadence_core::learning::PlanRecord {
+            seed: 0,
+            mode: cadence_core::learning::PlannerMode::ColdStart,
+            focus: Vec::new(),
+        },
+        adaptation: cadence_trainer::Adaptation {
+            hesitation_ceiling: cadence_core::Micros::from_us(1_500_000),
+            reinforcement_capacity: 8,
+            reinforcements_per_word: 1,
+        },
         phases: vec![cadence_trainer::PlannedPhase {
             phase: cadence_trainer::Phase::AdaptiveWords,
             seconds: 60,
             exercises: vec![cadence_trainer::PlannedExercise {
                 units,
                 kind: cadence_trainer::ExerciseKind::Words,
+                words: Vec::new(),
+                passage: None,
+                caption: None,
             }],
         }],
     })?)

@@ -9,6 +9,8 @@ use cadence_trainer::{WordBand, WordPack};
 
 /// Minimum distinct vetted forms promised for the first release (P-04).
 pub const MINIMUM_RELEASE_WORDS: usize = 20_000;
+/// Shipped prose passages (plan 0003); mirrors the application lower bound.
+pub const MINIMUM_PASSAGES: usize = 2_000;
 
 fn repo_root() -> Result<PathBuf, String> {
     let mut root = PathBuf::from(
@@ -74,7 +76,7 @@ pub fn check() -> Result<(), String> {
 
     // Offline lane capacity for the default block configuration.
     let policy = cadence_trainer::parse_policy(
-        &std::fs::read(root.join("policies/trainer-v1.toml"))
+        &std::fs::read(root.join("policies/trainer-v2.toml"))
             .map_err(|error| format!("cannot read policy: {error}"))?,
     )
     .map_err(|error| format!("policy invalid: {error}"))?;
@@ -84,13 +86,55 @@ pub fn check() -> Result<(), String> {
     )
     .map_err(|error| format!("capacity check failed: {error}"))?;
 
+    // Prose bank (plan 0003): recorded digest, size, and enough text for the
+    // policy's no-repeat window at the planning rate of the default plan.
+    let prose_text = std::fs::read_to_string(root.join("corpus/prose-en-v2.tsv"))
+        .map_err(|error| format!("cannot read prose bank: {error}"))?;
+    let sources = std::fs::read_to_string(root.join("corpus/prose-sources-v2.tsv"))
+        .map_err(|error| format!("cannot read prose sources: {error}"))?;
+    let recorded_prose = manifest
+        .get("prose")
+        .and_then(|prose| prose.get("sha256"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or("manifest prose.sha256 missing")?;
+    let actual_prose = cadence_trainer::corpus::digest_of(prose_text.as_bytes()).to_hex();
+    if recorded_prose != actual_prose {
+        return Err(format!(
+            "prose digest mismatch: manifest {recorded_prose}, actual {actual_prose}; rerun tools/corpus/extract_prose.py"
+        ));
+    }
+    let bank = cadence_trainer::ProseBank::from_tsv(&prose_text, &sources, MINIMUM_PASSAGES)
+        .map_err(|error| format!("prose bank invalid: {error}"))?;
+    let prose_units: u64 = bank
+        .passages()
+        .iter()
+        .map(|passage| u64::try_from(passage.units.len()).unwrap_or(u64::MAX))
+        .fold(0, u64::saturating_add);
+    let prose_seconds = policy
+        .session
+        .phase_order
+        .iter()
+        .zip(&policy.session.phase_seconds)
+        .find(|(phase, _)| **phase == cadence_trainer::Phase::Prose)
+        .map_or(0, |(_, seconds)| *seconds);
+    let window_units = u64::try_from(policy.learning.prose_no_repeat_sessions)
+        .unwrap_or(u64::MAX)
+        .saturating_mul(prose_seconds)
+        .saturating_mul(policy.learning.prose_units_per_second);
+    if prose_units < window_units {
+        return Err(format!(
+            "prose bank has {prose_units} units; the no-repeat window needs {window_units}"
+        ));
+    }
+
     // Licence notice present.
     if !root.join("corpus/NOTICE").is_file() {
         return Err("corpus/NOTICE missing (licence attribution is mandatory)".to_string());
     }
 
     println!(
-        "corpus gate: {words} words (core {core}, common {common}, tail {tail}), digest {actual}"
+        "corpus gate: {words} words (core {core}, common {common}, tail {tail}), digest {actual}; prose {} passages, {prose_units} units",
+        bank.passages().len()
     );
     Ok(())
 }

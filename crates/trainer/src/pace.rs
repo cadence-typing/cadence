@@ -186,7 +186,7 @@ mod tests {
         parse_policy(
             std::fs::read(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../policies/trainer-v1.toml"
+                "/../../policies/trainer-v2.toml"
             ))
             .unwrap()
             .as_slice(),

@@ -1,7 +1,10 @@
 //! Pure single-owner reducer for the static development binary.
-//! Plans are frozen upfront and cycle deterministically until phase deadlines;
-//! this is not an adaptive-planner or formal-proof qualification claim.
+//! Plans are built at startup from the learner model and cycle
+//! deterministically until phase deadlines. The reducer records first-attempt
+//! evidence and re-serves missed words within bounds (plan 0003); this is not
+//! a formal-proof qualification claim.
 pub mod events;
+mod learning;
 mod practice;
 mod presentation;
 mod storage;
@@ -14,8 +17,8 @@ use cadence_core::{CoreError, EventSeq, ExerciseId, FrameRevision, Micros, MonoT
 use cadence_trainer::{Phase, SessionPlan};
 pub use events::{EventEnvelope, EventKind, Key};
 use storage::Storage;
+pub use view::{LearningView, PreparedView, ScreenView, StatusFigures, UnitSpan};
 use view::{MINIMUM_COLUMNS, MINIMUM_ROWS, TextSize, TextSupport};
-pub use view::{PreparedView, ScreenView, StatusFigures, UnitSpan};
 
 /// Geometry below the full-practice minimum can never accept scored input.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -123,6 +126,7 @@ pub struct Engine {
     notice: Option<String>,
     history: HistorySummary,
     storage: Option<Storage>,
+    learning: learning::Learning,
     status: ProgressStatus,
     checkpoint_due: bool,
     finishing: bool,
@@ -157,8 +161,13 @@ impl Engine {
                 }
             }
         }
+        let learning = learning::Learning::new(
+            cadence_core::learning::SessionLearning::new(plan.record.clone()),
+            plan.adaptation,
+        );
         Ok(Self {
             plan,
+            learning,
             screen: Screen::Today,
             phase_index: 0,
             exercise_index: 0,
@@ -169,7 +178,7 @@ impl Engine {
             phase_start: Micros::ZERO,
             exercise_start: Micros::ZERO,
             active: Micros::ZERO,
-            tracks: Vec::with_capacity(5),
+            tracks: Vec::with_capacity(practice::TRACK_CAPACITY),
             consumed: EventSeq::INITIAL,
             last_at: None,
             revision: FrameRevision::INITIAL,

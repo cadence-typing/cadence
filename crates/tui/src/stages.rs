@@ -123,10 +123,21 @@ fn landing(
         style(palette, Role::Muted),
     );
     if baseline != 0 {
+        let learning = &view.learning;
+        let line = if learning.adaptive && !learning.focus.is_empty() {
+            format!(
+                "Today targets {} from your recorded slips",
+                learning.focus.join(" \u{b7} ")
+            )
+        } else if learning.adaptive {
+            format!("{} missed words are due for review", learning.due_reviews)
+        } else {
+            "No per-key history yet: this session teaches Cadence your slips.".to_string()
+        };
         text(
             buffer,
             take(&mut body, 1),
-            "A baseline in the making. Accuracy before speed.",
+            line,
             style(palette, Role::Muted),
         );
     }

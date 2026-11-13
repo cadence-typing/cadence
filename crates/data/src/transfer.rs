@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use cadence_core::learning::SessionLearning;
 use cadence_core::progress::SessionProgress;
 use rusqlite::{
     Connection, OpenFlags,
@@ -17,6 +18,80 @@ struct PortableSession {
     sequence: u64,
     digest: String,
     progress: SessionProgress,
+    /// Schema-3 evidence; absent for sessions recorded before it existed.
+    learning: Option<PortableLearning>,
+}
+
+#[derive(Serialize)]
+struct PortableSkill {
+    lane: &'static str,
+    kind: &'static str,
+    skill: String,
+    attempts: u64,
+    errors: u64,
+    timed: u64,
+    timed_micros: u64,
+}
+
+#[derive(Serialize)]
+struct PortableWord {
+    word_id: u64,
+    attempts: u64,
+    errors: u64,
+}
+
+#[derive(Serialize)]
+struct PortableLearning {
+    seed: String,
+    mode: &'static str,
+    focus: Vec<String>,
+    reinforced: u64,
+    skills: Vec<PortableSkill>,
+    words: Vec<PortableWord>,
+    passages: Vec<String>,
+}
+
+impl PortableLearning {
+    fn new(learning: &SessionLearning) -> Self {
+        Self {
+            seed: format!("{:016x}", learning.plan.seed),
+            mode: learning.plan.mode.key(),
+            focus: learning
+                .plan
+                .focus
+                .iter()
+                .map(|key| format!("{}:{}", key.lane.key(), key.skill.text()))
+                .collect(),
+            reinforced: learning.reinforced,
+            skills: learning
+                .skills
+                .iter()
+                .map(|(key, tally)| PortableSkill {
+                    lane: key.lane.key(),
+                    kind: key.skill.kind_key(),
+                    skill: key.skill.text(),
+                    attempts: tally.attempts,
+                    errors: tally.errors,
+                    timed: tally.timed,
+                    timed_micros: tally.timed_micros,
+                })
+                .collect(),
+            words: learning
+                .words
+                .iter()
+                .map(|(word, tally)| PortableWord {
+                    word_id: word.get(),
+                    attempts: tally.attempts,
+                    errors: tally.errors,
+                })
+                .collect(),
+            passages: learning
+                .passages
+                .iter()
+                .map(|passage| format!("{:016x}", passage.get()))
+                .collect(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -87,6 +162,7 @@ impl ProgressStore {
                     session_id: checkpoint.key.session.get(),
                     sequence: checkpoint.key.sequence.get(),
                     digest: checkpoint.key.digest.to_hex(),
+                    learning: checkpoint.learning.as_ref().map(PortableLearning::new),
                     progress: checkpoint.progress,
                 }
             })

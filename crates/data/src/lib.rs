@@ -8,6 +8,7 @@
 
 mod error;
 mod files;
+mod learning_rows;
 mod records;
 mod schema;
 mod transfer;

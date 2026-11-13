@@ -1,7 +1,7 @@
 use cadence_core::progress::ProgressStatus;
 use cadence_core::{CommitSeq, ContentDigest, SessionId};
 
-use super::{TestResult, checkpoint, rekey};
+use super::{LEARNER_WINDOW, TestResult, checkpoint, rekey};
 use crate::{ProgressStore, StoreError};
 
 #[test]
@@ -25,7 +25,10 @@ fn lost_ack_retry_after_reopen_returns_exact_original_key() -> TestResult {
         store.session_history()?.first().map(|row| &row.checkpoint),
         Some(&latest)
     );
-    assert_eq!(store.bootstrap()?.history.completed_sessions, 1);
+    assert_eq!(
+        store.bootstrap(LEARNER_WINDOW)?.history.completed_sessions,
+        1
+    );
     Ok(())
 }
 
@@ -212,7 +215,7 @@ fn sqlite_integer_boundaries_are_checked_not_clamped() -> TestResult {
         Some(&candidate)
     );
     assert!(matches!(
-        store.bootstrap(),
+        store.bootstrap(LEARNER_WINDOW),
         Err(StoreError::IntegerRange { .. })
     ));
     Ok(())

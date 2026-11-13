@@ -8,6 +8,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use cadence_core::SessionId;
+use cadence_core::learning::{HistoricSession, LearnerHistory};
 use cadence_core::progress::{Checkpoint, HistorySummary, ProgressStatus, SaveKey};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
@@ -26,6 +27,8 @@ pub struct StoreBootstrap {
     pub next_session: SessionId,
     /// Counts of completed versus interrupted saved sessions.
     pub history: HistorySummary,
+    /// The most recent sessions' learning evidence, oldest first.
+    pub learner: LearnerHistory,
 }
 
 /// Receipt returned only after the transaction has committed durably.
@@ -102,14 +105,29 @@ impl ProgressStore {
         })
     }
 
-    /// Returns the next legal SQLite-backed session identity and honest durable history.
+    /// Returns the next legal SQLite-backed session identity, honest durable
+    /// history and up to `learner_window` most recent sessions' evidence.
     ///
     /// # Errors
     /// Rejects corrupt rows and exhausted identity space rather than clamping either.
-    pub fn bootstrap(&self) -> Result<StoreBootstrap, StoreError> {
+    pub fn bootstrap(&self, learner_window: usize) -> Result<StoreBootstrap, StoreError> {
         let sessions = self.session_history()?;
         let mut history = HistorySummary::default();
         let mut maximum = 0_u64;
+        let mut learner: Vec<HistoricSession> = sessions
+            .iter()
+            .rev()
+            .filter_map(|session| {
+                let checkpoint = &session.checkpoint;
+                checkpoint.learning.clone().map(|learning| HistoricSession {
+                    session: checkpoint.key.session,
+                    day: checkpoint.progress.day,
+                    learning,
+                })
+            })
+            .take(learner_window)
+            .collect();
+        learner.reverse();
         for session in sessions {
             let checkpoint = session.checkpoint;
             maximum = maximum.max(checkpoint.key.session.get());
@@ -134,6 +152,7 @@ impl ProgressStore {
         Ok(StoreBootstrap {
             next_session,
             history,
+            learner: LearnerHistory { sessions: learner },
         })
     }
 
@@ -181,7 +200,7 @@ impl ProgressStore {
             if key.sequence <= previous.checkpoint.key.sequence {
                 return Err(StoreError::StaleSequence);
             }
-            records::validate_advance(&previous.checkpoint.progress, &checkpoint.progress)?;
+            records::validate_advance(&previous.checkpoint, checkpoint)?;
         }
         let progress = &checkpoint.progress;
         tx.execute(
@@ -208,6 +227,9 @@ impl ProgressStore {
                     sql_integer(track.overflow_attempts, "overflow_attempts")?, sql_integer(track.correct_units, "correct_units")?,
                     sql_integer(track.correct_digits, "correct_digits")?, sql_integer(track.active_micros, "track active_micros")?],
             )?;
+        }
+        if let Some(learning) = &checkpoint.learning {
+            crate::learning_rows::save(&tx, session, learning)?;
         }
         tx.execute(
             "INSERT INTO commit_receipts(session_id,commit_seq,digest,created_at_epoch) VALUES (?1,?2,?3,?4)",

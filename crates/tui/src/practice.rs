@@ -360,7 +360,10 @@ fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Pa
         } else if status.enter_submits {
             "Keypad origin unverified · Enter submits the entry"
         } else {
-            "Follow the caret · Backspace corrects"
+            status
+                .context
+                .as_deref()
+                .unwrap_or("Follow the caret · Backspace corrects")
         };
         centered(
             buffer,

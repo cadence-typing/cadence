@@ -121,9 +121,12 @@ pub(super) fn paint(
             buffer,
             take(&mut body, 1),
             if view.summary_rate_valid {
-                "Frozen plan · session results, not a qualified benchmark"
+                format!(
+                    "{} keys recorded · {} missed words scheduled · not a benchmark",
+                    view.learning.observed_keys, view.learning.missed_words
+                )
             } else {
-                "Measurement interrupted · no qualified rates"
+                "Measurement interrupted · no qualified rates".to_string()
             },
             style(palette, Role::Muted),
         );

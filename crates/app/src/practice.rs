@@ -1,11 +1,11 @@
 //! The owner loop composes adapters; all application mutations use reduce.
 
 use std::error::Error;
-use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use cadence_core::progress::Checkpoint;
 use cadence_core::{EventSeq, MonoTick};
+use cadence_data::StoreBootstrap;
 use cadence_engine::view::TextSize;
 use cadence_engine::{Engine, EventEnvelope, EventKind, Transition};
 use cadence_runtime::{SaveWorker, TerminalGuard, WriterError, elapsed_since};
@@ -16,11 +16,11 @@ const TIMER_FRAME_INTERVAL: Duration = Duration::from_millis(100);
 
 pub fn run(
     mut engine: Engine,
-    profile: Option<PathBuf>,
+    worker: SaveWorker,
+    bootstrap: StoreBootstrap,
     day: i64,
     text_size: TextSize,
 ) -> Result<(), Box<dyn Error>> {
-    let (worker, bootstrap) = SaveWorker::open(profile)?;
     let origin = Instant::now();
     let mut seq = EventSeq::INITIAL;
     let mut dispatch = None;

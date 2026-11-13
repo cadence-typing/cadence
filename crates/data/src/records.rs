@@ -96,7 +96,8 @@ pub(crate) fn load_session(
         });
     }
     progress.tracks.sort_by_key(|track| track.track);
-    let checkpoint = Checkpoint::new(session, sequence, progress)
+    let learning = crate::learning_rows::load(connection, id)?;
+    let checkpoint = Checkpoint::new(session, sequence, progress, learning)
         .map_err(|error| StoreError::Corrupt(error.to_string()))?;
     let digest: String = connection.query_row(
         "SELECT digest FROM commit_receipts WHERE session_id=?1 AND commit_seq=?2",
@@ -158,6 +159,7 @@ pub(crate) fn validate_checkpoint(checkpoint: &Checkpoint) -> Result<(), StoreEr
         checkpoint.key.session,
         checkpoint.key.sequence,
         checkpoint.progress.clone(),
+        checkpoint.learning.clone(),
     )
     .map_err(|error| StoreError::InvalidCheckpoint(error.to_string()))?;
     if checkpoint.key != canonical.key {
@@ -186,7 +188,20 @@ pub(crate) fn validate_checkpoint(checkpoint: &Checkpoint) -> Result<(), StoreEr
     Ok(())
 }
 
-pub(crate) fn validate_advance(
+pub(crate) fn validate_advance(old: &Checkpoint, new: &Checkpoint) -> Result<(), StoreError> {
+    match (&old.learning, &new.learning) {
+        (None, None) => {}
+        (Some(previous), Some(current)) if current.advances_from(previous) => {}
+        _ => {
+            return Err(StoreError::Regression(
+                "learning evidence changed plan or decreased".into(),
+            ));
+        }
+    }
+    validate_progress_advance(&old.progress, &new.progress)
+}
+
+fn validate_progress_advance(
     old: &SessionProgress,
     new: &SessionProgress,
 ) -> Result<(), StoreError> {

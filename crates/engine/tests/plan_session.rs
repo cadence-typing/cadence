@@ -21,6 +21,9 @@ fn phase(
         exercises.push(PlannedExercise {
             kind,
             units: cadence_core::validate_target(text, LayoutSupportsPound::US)?,
+            words: Vec::new(),
+            passage: None,
+            caption: None,
         });
     }
     Ok(PlannedPhase {
@@ -34,7 +37,16 @@ fn engine(phases: Vec<PlannedPhase>) -> Result<Engine, CoreError> {
         budget_seconds: 30,
         policy_digest: ContentDigest::from_bytes([1; 32]),
         corpus_digest: ContentDigest::from_bytes([2; 32]),
-        seed: 7,
+        record: cadence_core::learning::PlanRecord {
+            seed: 7,
+            mode: cadence_core::learning::PlannerMode::ColdStart,
+            focus: Vec::new(),
+        },
+        adaptation: cadence_trainer::Adaptation {
+            hesitation_ceiling: cadence_core::Micros::from_us(1_500_000),
+            reinforcement_capacity: 8,
+            reinforcements_per_word: 1,
+        },
         phases,
     })
 }

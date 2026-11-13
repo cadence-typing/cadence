@@ -128,6 +128,11 @@ typed_name!(
     /// One reserved asynchronous job slot (A-04).
     JobId
 );
+typed_name!(
+    /// A prose passage identity derived from its text digest, so it
+    /// survives corpus reordering (plan 0003).
+    PassageId
+);
 
 typed_counter!(
     /// Ordered semantic event sequence within a driver stream or trace
