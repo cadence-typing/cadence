@@ -94,6 +94,17 @@ critique of the alpha.4 TUI, captured from real PTY runs.
 
 No schema change; scores are computed exactly as before.
 
+### Alpha.5 delivery receipt
+
+[Calm-flow release](https://github.com/tknawara/cadence/releases/tag/v0.1.0-alpha.5)
+is bound to clean source `b5917366380fceac6ac56b77a436b9c9a456d69f`. Offline
+Compose quality passed 188 tests, strict Clippy, boundaries and the original
+manifest. PTY runs on a profile copy covered pause reasons, ending early,
+two full sessions and the review at three sizes. Assets were re-downloaded,
+checksum-verified and atomically activated at
+`~/.local/lib/cadence/0.1.0-alpha.5-b5917366380f/cadence` after a profile
+backup. Details: [plan 0004](plans/0004-calm-flow-and-honest-results.md).
+
 ## Alpha.4 learning from mistakes
 
 [Plan 0003](plans/0003-learning-from-mistakes.md) responds to an independent

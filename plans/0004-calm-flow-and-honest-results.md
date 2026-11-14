@@ -109,3 +109,25 @@ tests: sentence-aware chunking keeps every unit and respects bounds; blocks
 contain no repeated word. Canonical offline Compose quality, static musl
 dist, GitHub prerelease, checksum-verified atomic install, PTY smoke on a
 copy of the owner's profile. No schema change.
+
+## Integration evidence (alpha.5 delivery)
+
+- Clean source `b5917366380fceac6ac56b77a436b9c9a456d69f`; canonical offline
+  Compose quality passed (fmt, strict Clippy, 188 tests, boundaries, 48
+  contract hashes). Static musl bundle: binary SHA-256
+  `d58b25079c090bbd79840a24c962964006a2c9280d59497efcf629b43462407d`.
+- PTY runs of the candidate on a copy of the owner's profile: focus loss and
+  paste paused with their reasons and hid the target; Ctrl-C opened the
+  review ("ended early, saved as unfinished") at 100x30, 80x24 and 60x18;
+  Enter saved and printed the recap line. Two full 5-minute sessions showed
+  every interlude (the 0.7 s grace absorbed the driver's in-flight Enter),
+  named re-served words, per-track and like-for-like changes, the slips
+  sentence, and the next start screen's last-session line. A prose-only run
+  showed chunks ending at sentence boundaries with attribution.
+- The PTY run exposed "−0.0 pts" for a sub-precision drop and clipped review
+  lines at 80 and 60 columns; both were fixed with tests before release.
+- Uploaded assets were downloaded, checksum-verified (tarball binary
+  identical to the standalone asset), installed at
+  `~/.local/lib/cadence/0.1.0-alpha.5-b5917366380f/` and activated by an
+  atomic symlink swap after `cadence backup` of the owner's profile. The
+  installed binary exported it at schema 3 with all 11 sessions.
