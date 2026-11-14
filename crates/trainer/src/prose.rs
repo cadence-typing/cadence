@@ -179,8 +179,10 @@ fn passage_id(text: &str) -> Option<PassageId> {
     PassageId::new(u64::from_le_bytes(bytes)).ok()
 }
 
-/// Splits one passage into exercises of at most `target_units`, preferring
-/// word boundaries; an overlong word is split.
+/// Splits one passage into exercises of at most `target_units`. A chunk ends
+/// at the last sentence end that keeps it at least half full, else at the
+/// last clause end, else at a word boundary; an overlong word is split.
+/// Every unit is kept, in order; only the separating spaces move.
 ///
 /// # Errors
 /// Rejects a zero bound.
@@ -192,38 +194,91 @@ pub fn chunk_passage(
         return Err(ProseError::InvalidBound);
     }
     let space = TrainingChar::new(' ', LayoutSupportsPound::US).map_err(ProseError::Alphabet)?;
+    let minimum = target_units.div_ceil(2);
     let mut result = Vec::new();
-    let mut current: Vec<TrainingChar> = Vec::new();
+    let mut pending: Vec<&[TrainingChar]> = Vec::new();
     for word in units
         .split(|unit| unit.get() == ' ')
         .filter(|word| !word.is_empty())
     {
-        let extra = word
-            .len()
-            .checked_add(usize::from(!current.is_empty()))
-            .ok_or(ProseError::InvalidBound)?;
-        if !current.is_empty()
-            && current
-                .len()
-                .checked_add(extra)
-                .is_none_or(|length| length > target_units)
+        if word.len() > target_units {
+            flush(&mut result, &mut pending, space, 0);
+            let mut pieces = word.chunks(target_units).peekable();
+            while let Some(piece) = pieces.next() {
+                if pieces.peek().is_some() {
+                    result.push(piece.to_vec());
+                } else {
+                    pending.push(piece);
+                }
+            }
+            continue;
+        }
+        while !pending.is_empty()
+            && joined_len(&pending)
+                .saturating_add(1)
+                .saturating_add(word.len())
+                > target_units
         {
-            result.push(std::mem::take(&mut current));
+            let split = break_point(&pending, minimum);
+            flush(&mut result, &mut pending, space, split);
         }
-        for chunk in word.chunks(target_units) {
-            if !current.is_empty() {
-                current.push(space);
-            }
-            current.extend_from_slice(chunk);
-            if current.len() >= target_units {
-                result.push(std::mem::take(&mut current));
-            }
-        }
+        pending.push(word);
     }
-    if !current.is_empty() {
-        result.push(current);
-    }
+    flush(&mut result, &mut pending, space, 0);
     Ok(result)
+}
+
+/// Length of words joined by single spaces.
+fn joined_len(words: &[&[TrainingChar]]) -> usize {
+    words
+        .iter()
+        .map(|word| word.len())
+        .fold(words.len().saturating_sub(1), usize::saturating_add)
+}
+
+/// Number of leading words to emit: the preferred boundary that leaves the
+/// chunk at least `minimum` units long, or all of them.
+fn break_point(words: &[&[TrainingChar]], minimum: usize) -> usize {
+    let ends = |count: usize, marks: &[char]| {
+        let last = words
+            .get(count.saturating_sub(1))
+            .and_then(|word| {
+                word.iter()
+                    .rev()
+                    .find(|unit| !matches!(unit.get(), '"' | '\'' | ')' | ']'))
+            })
+            .map(|unit| unit.get());
+        last.is_some_and(|c| marks.contains(&c))
+            && words
+                .get(..count)
+                .is_some_and(|head| joined_len(head) >= minimum)
+    };
+    let all = words.len();
+    (1..all)
+        .rev()
+        .find(|count| ends(*count, &['.', '!', '?']))
+        .or_else(|| (1..all).rev().find(|count| ends(*count, &[',', ';', ':'])))
+        .unwrap_or(all)
+}
+
+/// Emits the first `count` pending words (all when `count` is 0) as a chunk.
+fn flush(
+    result: &mut Vec<Vec<TrainingChar>>,
+    pending: &mut Vec<&[TrainingChar]>,
+    space: TrainingChar,
+    count: usize,
+) {
+    if pending.is_empty() {
+        return;
+    }
+    let count = if count == 0 {
+        pending.len()
+    } else {
+        count.min(pending.len())
+    };
+    let rest = pending.split_off(count);
+    result.push(pending.join(&space));
+    *pending = rest;
 }
 
 #[cfg(test)]
@@ -254,6 +309,29 @@ mod tests {
             );
         }
         assert!(chunk_passage(&units, 0).is_err());
+    }
+
+    #[test]
+    fn chunks_prefer_sentence_then_clause_boundaries() {
+        let units = validate_target(
+            "The sun rose. It was cold, and the road was long; we walked on",
+            LayoutSupportsPound::US,
+        )
+        .unwrap();
+        let chunks: Vec<String> = chunk_passage(&units, 30)
+            .unwrap()
+            .iter()
+            .map(|c| text(c))
+            .collect();
+        // "The sun rose." is under half the bound, so the clause end wins.
+        assert_eq!(chunks[0], "The sun rose. It was cold,");
+        let chunks: Vec<String> = chunk_passage(&units, 20)
+            .unwrap()
+            .iter()
+            .map(|c| text(c))
+            .collect();
+        assert_eq!(chunks[0], "The sun rose.");
+        assert!(chunks.iter().all(|c| c.len() <= 20));
     }
 
     #[test]

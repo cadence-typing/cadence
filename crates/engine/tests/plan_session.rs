@@ -1,106 +1,12 @@
 //! Behavioral regressions for exact clocks, scoring and durable quit.
-use cadence_core::progress::{Checkpoint, HistorySummary, SaveResult};
-use cadence_core::{
-    ContentDigest, CoreError, EventSeq, LayoutSupportsPound, MonoTick, SessionId, TrainingChar,
-};
+use cadence_core::progress::SaveResult;
+use cadence_core::{ContentDigest, EventSeq, MonoTick};
 use cadence_engine::{
-    DomainOutcome, Engine, EventEnvelope, EventKind, InputOwner, Key, ScreenView, Transition,
-    UnitSpan,
+    DomainOutcome, EventEnvelope, EventKind, InputOwner, Key, ScreenView, UnitSpan,
 };
-use cadence_trainer::{ExerciseKind, Phase, PlannedExercise, PlannedPhase, SessionPlan};
-type TestResult = Result<(), Box<dyn std::error::Error>>;
-
-fn phase(
-    kind: ExerciseKind,
-    phase: Phase,
-    seconds: u64,
-    targets: &[&str],
-) -> Result<PlannedPhase, Box<dyn std::error::Error>> {
-    let mut exercises = Vec::new();
-    for text in targets {
-        exercises.push(PlannedExercise {
-            kind,
-            units: cadence_core::validate_target(text, LayoutSupportsPound::US)?,
-            words: Vec::new(),
-            passage: None,
-            caption: None,
-        });
-    }
-    Ok(PlannedPhase {
-        phase,
-        seconds,
-        exercises,
-    })
-}
-fn engine(phases: Vec<PlannedPhase>) -> Result<Engine, CoreError> {
-    Engine::new_plan(SessionPlan {
-        budget_seconds: 30,
-        policy_digest: ContentDigest::from_bytes([1; 32]),
-        corpus_digest: ContentDigest::from_bytes([2; 32]),
-        record: cadence_core::learning::PlanRecord {
-            seed: 7,
-            mode: cadence_core::learning::PlannerMode::ColdStart,
-            focus: Vec::new(),
-        },
-        adaptation: cadence_trainer::Adaptation {
-            hesitation_ceiling: cadence_core::Micros::from_us(1_500_000),
-            reinforcement_capacity: 8,
-            reinforcements_per_word: 1,
-        },
-        phases,
-    })
-}
-fn words() -> Result<Engine, Box<dyn std::error::Error>> {
-    Ok(engine(vec![phase(
-        ExerciseKind::Words,
-        Phase::AdaptiveWords,
-        10,
-        &["cat", "dog"],
-    )?])?)
-}
-fn send(e: &mut Engine, at: u64, kind: EventKind) -> Result<Transition, CoreError> {
-    let seq = e.consumed_events().next()?;
-    Ok(e.reduce(EventEnvelope {
-        seq,
-        at: MonoTick::from_us(at),
-        kind,
-    }))
-}
-fn key(e: &mut Engine, at: u64, key: Key) -> Result<Transition, CoreError> {
-    send(e, at, EventKind::Key(key))
-}
-fn content(e: &mut Engine, at: u64, c: char) -> Result<Transition, Box<dyn std::error::Error>> {
-    Ok(key(
-        e,
-        at,
-        Key::Content(TrainingChar::new(c, LayoutSupportsPound::US)?),
-    )?)
-}
-fn ready(e: &mut Engine) -> Result<(), CoreError> {
-    send(
-        e,
-        0,
-        EventKind::StorageReady {
-            next_session: SessionId::new(1)?,
-            day: 123,
-            history: HistorySummary::default(),
-        },
-    )?;
-    Ok(())
-}
-fn ack(e: &mut Engine, at: u64, checkpoint: &Checkpoint) -> Result<Transition, CoreError> {
-    send(
-        e,
-        at,
-        EventKind::SaveResult(SaveResult {
-            key: checkpoint.key,
-            result: Ok(()),
-        }),
-    )
-}
-fn checkpoint(t: Transition) -> Result<Checkpoint, Box<dyn std::error::Error>> {
-    t.checkpoint.ok_or_else(|| "checkpoint expected".into())
-}
+use cadence_trainer::{ExerciseKind, Phase};
+mod support;
+use support::*;
 
 #[test]
 fn correction_preserves_first_pass_and_cycles_without_early_end() -> TestResult {
@@ -123,7 +29,7 @@ fn correction_preserves_first_pass_and_cycles_without_early_end() -> TestResult 
     content(&mut e, 7_000_000, 'g')?;
     assert_eq!(e.input_owner(), InputOwner::Practice);
     assert!(
-        matches!(e.prepare(MonoTick::from_us(7_000_000)).screen,ScreenView::Practice {status,..} if status.exercise_index==1)
+        matches!(e.prepare(MonoTick::from_us(7_000_000)).screen,ScreenView::Practice {status,..} if status.phase_position==1 && status.phase_count==1)
     );
     Ok(())
 }
@@ -227,8 +133,13 @@ fn pause_before_first_input_and_paused_controls_do_not_score() -> TestResult {
         e.prepare(MonoTick::from_us(81_000_000)).active.as_us(),
         2_000_000
     );
+    // Live figures cover completed exercises only (P-05: no per-key jitter).
     assert!(
-        matches!(e.prepare(MonoTick::from_us(81_000_000)).screen,ScreenView::Practice {status,..} if status.first_pass_percent==Some(100))
+        matches!(e.prepare(MonoTick::from_us(81_000_000)).screen,ScreenView::Practice {status,..} if status.first_pass_percent.is_none())
+    );
+    content(&mut e, 82_000_000, 't')?;
+    assert!(
+        matches!(e.prepare(MonoTick::from_us(82_000_000)).screen,ScreenView::Practice {status,..} if status.first_pass_percent==Some(100))
     );
     Ok(())
 }
@@ -258,22 +169,6 @@ fn backward_time_and_bad_sequences_visibly_invalidate() -> TestResult {
     Ok(())
 }
 #[test]
-fn paste_and_focus_loss_stop_scoring() -> TestResult {
-    for event in [EventKind::PasteRejected, EventKind::FocusLost] {
-        let mut e = words()?;
-        key(&mut e, 0, Key::Enter)?;
-        assert!(matches!(
-            send(&mut e, 1, event)?.outcome,
-            DomainOutcome::MeasurementInvalid { .. }
-        ));
-        content(&mut e, 2, 'c')?;
-        assert!(
-            matches!(e.prepare(MonoTick::from_us(2)).screen,ScreenView::Practice {spans,paused:true,..} if spans.first()==Some(&UnitSpan::Cursor {expected:'c'}))
-        );
-    }
-    Ok(())
-}
-#[test]
 fn per_exercise_and_track_durations_are_not_session_denominators() -> TestResult {
     let mut e = engine(vec![
         phase(
@@ -294,8 +189,10 @@ fn per_exercise_and_track_durations_are_not_session_denominators() -> TestResult
     ] {
         content(&mut e, at, c)?;
     }
+    // "cat": 3 correct units in its own 2 active seconds = 18 WPM; the
+    // unfinished "do" does not move the figure.
     assert!(
-        matches!(e.prepare(MonoTick::from_us(5_000_000)).screen,ScreenView::Practice {status,..} if status.rate.as_deref()==Some("12.0"))
+        matches!(e.prepare(MonoTick::from_us(5_000_000)).screen,ScreenView::Practice {status,..} if status.rate.as_deref()==Some("18"))
     );
     content(&mut e, 6_000_000, 'g')?;
     send(&mut e, 11_000_000, EventKind::Tick)?;
@@ -331,7 +228,7 @@ fn stale_success_and_failure_keys_cannot_release_final_quit() -> TestResult {
     let initial = checkpoint(key(&mut e, 0, Key::Enter)?)?;
     ack(&mut e, 1, &initial)?;
     content(&mut e, 2, 'c')?;
-    let finish = key(&mut e, 3, Key::Interrupt)?;
+    let finish = send(&mut e, 3, EventKind::Terminate)?;
     assert!(!finish.quit);
     let final_save = checkpoint(finish)?;
     for failure in [false, true] {
@@ -366,7 +263,7 @@ fn pending_checkpoint_retains_dirty_tail_and_retry_uses_fresh_full_key() -> Test
     key(&mut e, 3, Key::Backspace)?;
     content(&mut e, 4, 'a')?;
     content(&mut e, 5, 't')?;
-    let finish = key(&mut e, 6, Key::Interrupt)?;
+    let finish = send(&mut e, 6, EventKind::Terminate)?;
     assert!(!finish.quit);
     assert!(finish.checkpoint.is_none());
     let final_save = checkpoint(ack(&mut e, 7, &first)?)?;
@@ -403,7 +300,7 @@ fn explicit_second_interrupt_after_failure_is_unsuccessful_exit() -> TestResult 
     ready(&mut e)?;
     let first = checkpoint(key(&mut e, 0, Key::Enter)?)?;
     ack(&mut e, 1, &first)?;
-    let final_save = checkpoint(key(&mut e, 2, Key::Interrupt)?)?;
+    let final_save = checkpoint(send(&mut e, 2, EventKind::Terminate)?)?;
     send(
         &mut e,
         3,
@@ -454,7 +351,7 @@ fn repeated_typing_and_checkpoint_ack_do_not_duplicate_counts() -> TestResult {
         (101, 101, 100, 1, 1)
     );
     ack(&mut e, 5, &paused)?;
-    let final_save = checkpoint(key(&mut e, 6, Key::Interrupt)?)?;
+    let final_save = checkpoint(send(&mut e, 6, EventKind::Terminate)?)?;
     assert_eq!(final_save.progress.tracks, paused.progress.tracks);
     Ok(())
 }
@@ -493,7 +390,7 @@ fn late_success_ack_is_consumed_even_when_watchdog_invalidates() -> TestResult {
     let replacement = checkpoint(late)?;
     assert_ne!(replacement.key, first.key);
     ack(&mut e, 3_000_001, &replacement)?;
-    let final_save = checkpoint(key(&mut e, 3_000_002, Key::Interrupt)?)?;
+    let final_save = checkpoint(send(&mut e, 3_000_002, EventKind::Terminate)?)?;
     assert!(ack(&mut e, 3_000_003, &final_save)?.quit);
     Ok(())
 }
@@ -510,14 +407,18 @@ fn live_numeric_rate_excludes_decimal_units() -> TestResult {
     content(&mut e, 1_000_000, '1')?;
     content(&mut e, 2_000_000, '2')?;
     content(&mut e, 3_000_000, '.')?;
-    let ScreenView::Practice { status, .. } = e.prepare(MonoTick::from_us(3_000_000)).screen else {
-        return Err("numpad must still await submission".into());
+    content(&mut e, 4_000_000, '3')?;
+    content(&mut e, 5_000_000, '4')?;
+    key(&mut e, 6_000_000, Key::Enter)?;
+    let ScreenView::Practice { status, .. } = e.prepare(MonoTick::from_us(6_000_000)).screen else {
+        return Err("numpad must continue with the next entry".into());
     };
     assert_eq!(
         status.rate_unit,
         cadence_engine::view::RateUnit::DigitsPerMinute
     );
-    assert_eq!(status.rate.as_deref(), Some("60.0"));
+    // 4 digits in 5 active seconds = 48/min; the decimal point is excluded.
+    assert_eq!(status.rate.as_deref(), Some("48"));
     Ok(())
 }
 
@@ -528,7 +429,7 @@ fn final_flush_timeout_exits_unsuccessfully_without_fabricating_ack() -> TestRes
     let initial = checkpoint(key(&mut e, 0, Key::Enter)?)?;
     ack(&mut e, 0, &initial)?;
     content(&mut e, 100_000, 'c')?;
-    let final_save = checkpoint(key(&mut e, 200_000, Key::Interrupt)?)?;
+    let final_save = checkpoint(send(&mut e, 200_000, EventKind::Terminate)?)?;
     let waiting = send(&mut e, 10_199_999, EventKind::Tick)?;
     assert!(!waiting.quit);
     let timed_out = send(&mut e, 10_200_000, EventKind::Tick)?;

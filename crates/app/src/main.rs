@@ -94,6 +94,7 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
                 bootstrap,
                 day,
                 options.text_size.unwrap_or_default(),
+                options.theme.palette(),
             )
         }
     }

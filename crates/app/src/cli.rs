@@ -19,6 +19,25 @@ pub enum Command {
     Export(PathBuf),
 }
 
+/// Display palette (U-02); never affects targets or scoring.
+#[derive(Clone, Copy, Default)]
+pub enum Theme {
+    #[default]
+    Dark,
+    Light,
+    Terminal,
+}
+
+impl Theme {
+    pub const fn palette(self) -> cadence_tui::Palette {
+        match self {
+            Self::Dark => cadence_tui::Palette::cadence_dark(),
+            Self::Light => cadence_tui::Palette::cadence_light(),
+            Self::Terminal => cadence_tui::Palette::terminal(),
+        }
+    }
+}
+
 /// Validated CLI settings. Unspecified settings retain the pinned policy.
 pub struct Options {
     pub command: Command,
@@ -27,6 +46,7 @@ pub struct Options {
     pub track: Option<Phase>,
     pub seed: Option<u64>,
     pub text_size: Option<TextSize>,
+    pub theme: Theme,
 }
 
 pub fn parse() -> Result<Options, String> {
@@ -38,7 +58,9 @@ pub fn parse() -> Result<Options, String> {
         track: None,
         seed: None,
         text_size: None,
+        theme: Theme::Dark,
     };
+    let mut theme = None;
     let mut action = None;
     let mut output = None;
     while let Some(arg) = args.next() {
@@ -104,6 +126,17 @@ pub fn parse() -> Result<Options, String> {
                     _ => return Err("--text-size requires auto, large or normal".into()),
                 });
             }
+            "--theme" => {
+                if theme.is_some() {
+                    return Err("duplicate --theme".into());
+                }
+                theme = Some(match value(&mut args, &arg)?.as_str() {
+                    "dark" => Theme::Dark,
+                    "light" => Theme::Light,
+                    "terminal" => Theme::Terminal,
+                    _ => return Err("--theme requires dark, light or terminal".into()),
+                });
+            }
             _ => return Err(format!("unknown argument {arg:?}; use --help")),
         }
     }
@@ -130,10 +163,14 @@ pub fn parse() -> Result<Options, String> {
         && (options.minutes.is_some()
             || options.track.is_some()
             || options.seed.is_some()
-            || options.text_size.is_some())
+            || options.text_size.is_some()
+            || theme.is_some())
     {
-        return Err("--minutes, --track, --seed and --text-size apply only to practice".into());
+        return Err(
+            "--minutes, --track, --seed, --text-size and --theme apply only to practice".into(),
+        );
     }
+    options.theme = theme.unwrap_or_default();
     Ok(options)
 }
 
@@ -162,9 +199,12 @@ pub fn help() {
         "Cadence — offline typing practice (development preview)\n\n\
         cadence [--minutes 5|10|15|20|30] [--track words|number-row|numpad|prose]\n\
         cadence [--profile-dir /absolute/private/profile] [--seed INTEGER] [--text-size auto|large|normal]\n\
+        cadence [--theme dark|light|terminal]\n\
         cadence backup --output /absolute/new.sqlite3 [--profile-dir PATH]\n\
         cadence export --output /absolute/new.json [--profile-dir PATH]\n\n\
-        Enter starts/continues. Esc pauses/resumes. F2 cycles text size. Ctrl-C saves and quits.\n\
+        Enter starts/continues. Esc pauses; while paused, e ends the session and shows the review.\n\
+        Ctrl-C during practice also ends it and shows the review; Enter there saves and exits.\n\
+        F2 cycles text size. Losing focus or pasting pauses practice; nothing is inserted.\n\
         Numpad entries require Enter; physical keypad origin is unverified.\n\
         Progress stays local. This preview is not formally qualified or signed."
     );

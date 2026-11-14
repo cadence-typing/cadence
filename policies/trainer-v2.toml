@@ -17,8 +17,8 @@ lane_order = ["target", "broad", "target", "review", "target", "target", "broad"
 target_slots = 6
 review_slots = 2
 broad_slots = 2
-maximum_word_occurrences_per_block = 2
-maximum_consecutive_word_occurrences = 2
+maximum_word_occurrences_per_block = 1
+maximum_consecutive_word_occurrences = 1
 maximum_focus_owned_target_slots = 3
 maximum_candidates_per_slot = 256
 
@@ -93,7 +93,7 @@ reinforcement_queue_capacity = 8
 # unseen passages remain.
 prose_no_repeat_sessions = 200
 # Prose exercise length in units (one screenful of native 2x text).
-prose_exercise_units = 120
+prose_exercise_units = 160
 # Planning headroom: prepared prose units per allocated second (≈ 3x a
 # 100 WPM typist); unused passages are simply not served.
 prose_units_per_second = 15

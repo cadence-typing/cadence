@@ -3,10 +3,13 @@
 //! deterministically until phase deadlines. The reducer records first-attempt
 //! evidence and re-serves missed words within bounds (plan 0003); this is not
 //! a formal-proof qualification claim.
+pub mod commands;
 pub mod events;
+mod flow;
 mod learning;
 mod practice;
 mod presentation;
+mod review;
 mod storage;
 pub mod summary;
 pub mod view;
@@ -17,7 +20,10 @@ use cadence_core::{CoreError, EventSeq, ExerciseId, FrameRevision, Micros, MonoT
 use cadence_trainer::{Phase, SessionPlan};
 pub use events::{EventEnvelope, EventKind, Key};
 use storage::Storage;
-pub use view::{LearningView, PreparedView, ScreenView, StatusFigures, UnitSpan};
+pub use view::{
+    Baseline, LearningView, PauseReason, PreparedView, ReviewContext, ScreenView, Slip,
+    StatusFigures, UnitSpan,
+};
 use view::{MINIMUM_COLUMNS, MINIMUM_ROWS, TextSize, TextSupport};
 
 /// Geometry below the full-practice minimum can never accept scored input.
@@ -133,6 +139,9 @@ pub struct Engine {
     text_size: TextSize,
     text_support: TextSupport,
     viewport: ViewportState,
+    pause_reason: Option<PauseReason>,
+    interlude_opened: Option<MonoTick>,
+    ended_early: bool,
 }
 impl Engine {
     /// Validates the frozen plan before accepting any input.
@@ -192,6 +201,9 @@ impl Engine {
             text_size: TextSize::Auto,
             text_support: TextSupport::NormalOnly,
             viewport: ViewportState::Usable,
+            pause_reason: None,
+            interlude_opened: None,
+            ended_early: false,
         })
     }
     /// Active practice alone owns printable characters.
@@ -255,15 +267,19 @@ impl Engine {
                 history,
             } => self.storage_ready(next_session, day, history)?,
             EventKind::SaveResult(result) => self.save_result(result, &mut t)?,
-            EventKind::Key(Key::Interrupt) => self.request_exit(at, &mut t)?,
+            EventKind::Key(Key::Interrupt) => self.interrupt(at, &mut t)?,
+            EventKind::Terminate => self.request_exit(at, &mut t)?,
             EventKind::Key(Key::Content(c)) if self.screen == Screen::Today && c.get() == 'q' => {
                 self.request_exit(at, &mut t)?
             }
             EventKind::Key(Key::Enter | Key::Escape) if self.screen == Screen::Summary => {
                 self.request_exit(at, &mut t)?
             }
-            EventKind::PasteRejected | EventKind::FocusLost if self.screen == Screen::Practice => {
-                return Err(invalid("paste or focus loss interrupted measurement"));
+            EventKind::PasteRejected if !self.finishing && !self.invalid => {
+                self.pause_for(at, PauseReason::PasteRejected)?;
+            }
+            EventKind::FocusLost if !self.finishing && !self.invalid => {
+                self.pause_for(at, PauseReason::FocusLost)?;
             }
             EventKind::Key(Key::Content(c))
                 if self.session_state == SessionState::Paused && c.get() == 'r' =>
@@ -295,7 +311,8 @@ impl Engine {
         self.invalid = true;
         self.session_state = SessionState::Paused;
         self.notice = Some(format!(
-            "Measurement invalid: {reason}. Quit to retain partial evidence; no qualified score."
+            "Measurement stopped: {}. Ctrl-C keeps the partial evidence; no qualified score.",
+            flow::describe(&reason)
         ));
         self.checkpoint_due = true;
         Transition::changed(DomainOutcome::MeasurementInvalid { reason })
@@ -311,7 +328,7 @@ impl Engine {
                 Ok(DomainOutcome::SessionStarted)
             }
             (Screen::PhaseComplete { .. }, EventKind::Key(Key::Enter | Key::Escape))
-                if self.viewport == ViewportState::Usable =>
+                if self.viewport == ViewportState::Usable && self.interlude_settled(at)? =>
             {
                 self.advance_phase()
             }
@@ -332,6 +349,7 @@ impl Engine {
         {
             self.timing.pause(at)?;
             self.session_state = SessionState::Paused;
+            self.pause_reason = Some(PauseReason::TooSmall);
             self.checkpoint_due = true;
         }
         Ok(())

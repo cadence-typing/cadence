@@ -233,8 +233,8 @@ mod tests {
     #[test]
     fn quotas_never_overrun() {
         let mut tracker = QuotaTracker::new(selection());
-        for _ in 0..2 {
-            tracker.record(Lane::Review, word(1), None).unwrap();
+        for id in 1..=2 {
+            tracker.record(Lane::Review, word(id), None).unwrap();
         }
         match tracker.record(Lane::Review, word(9), None) {
             Err(CoreError::CapacityExhausted { limit }) => {
@@ -249,9 +249,9 @@ mod tests {
         let mut tracker = QuotaTracker::new(selection());
         let repeated = word(5);
         assert!(tracker.record(Lane::Target, repeated, Some(1)).is_ok());
-        assert!(tracker.record(Lane::Target, repeated, Some(1)).is_ok());
-        // Third occurrence in one block exceeds the cap of 2.
+        // A second occurrence in one block exceeds the shipped cap of 1.
         assert!(tracker.record(Lane::Target, repeated, Some(2)).is_err());
+        assert!(tracker.record(Lane::Target, word(6), Some(2)).is_ok());
     }
 
     #[test]

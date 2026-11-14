@@ -122,7 +122,7 @@ impl Driver {
     }
 
     fn finish(mut self, at: u64) -> Result<SessionLearning, Error> {
-        self.key(at, Key::Interrupt)?;
+        self.send(at, EventKind::Terminate)?;
         self.last
             .and_then(|checkpoint| checkpoint.learning)
             .ok_or_else(|| "final checkpoint carries learning evidence".into())
@@ -234,7 +234,7 @@ fn a_missed_word_returns_once_in_a_later_review_slot() -> TestResult {
     };
     let target: String = spans.iter().map(|span| span.cell_char()).collect();
     assert_eq!(target, "sun cat", "the review slot now re-serves the miss");
-    assert_eq!(status.context.as_deref(), Some("missed earlier, again"));
+    assert_eq!(status.context.as_deref(), Some("again: cat"));
     for c in "sun cat".chars() {
         driver.typed(at, c)?;
         at += 100_000;

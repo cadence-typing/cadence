@@ -173,6 +173,11 @@ pub enum UnitSpan {
         /// The expected unit.
         expected: char,
     },
+    /// Typed past the end of the target; always an error to delete.
+    Extra {
+        /// What was typed.
+        typed: char,
+    },
 }
 
 impl UnitSpan {
@@ -181,7 +186,7 @@ impl UnitSpan {
     pub const fn cell_char(self) -> char {
         match self {
             Self::Correct { unit } => unit,
-            Self::Wrong { typed, .. } => typed,
+            Self::Wrong { typed, .. } | Self::Extra { typed } => typed,
             Self::Cursor { expected } | Self::Upcoming { expected } => expected,
         }
     }
@@ -211,11 +216,12 @@ impl RateUnit {
 /// at this edge (L-02).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct StatusFigures {
-    /// Live correct throughput; absent until measurable.
+    /// Correct throughput of this track's completed exercises, as an integer;
+    /// updated at exercise boundaries, not per keystroke (P-05).
     pub rate: Option<String>,
     /// Units for the throughput figure.
     pub rate_unit: RateUnit,
-    /// First-pass accuracy percentage, truncated for display only.
+    /// First-pass accuracy of this track's completed exercises, truncated.
     pub first_pass_percent: Option<u16>,
     /// Active seconds so far in the whole session.
     pub active_seconds: u64,
@@ -223,10 +229,10 @@ pub struct StatusFigures {
     pub paused: bool,
     /// The current phase label (U-01: answer what am I practising).
     pub phase_label: String,
-    /// Exercise index within the phase (one-based).
-    pub exercise_index: u32,
-    /// Exercises planned in this phase.
-    pub exercise_total: u32,
+    /// One-based position of this phase among the session's typing phases.
+    pub phase_position: u32,
+    /// Typing phases in the session.
+    pub phase_count: u32,
     /// Seconds remaining in the phase (active-time basis).
     pub phase_seconds_remaining: u64,
     /// Whether Enter submits (numpad phase).
@@ -253,6 +259,67 @@ pub struct LearningView {
     pub missed_words: usize,
     /// First attempts recorded for the learner model this session.
     pub observed_keys: u64,
+}
+
+/// Why practice is paused; the controls explain it in plain words.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PauseReason {
+    /// Esc.
+    Requested,
+    /// The terminal window lost focus.
+    FocusLost,
+    /// A paste was refused; nothing was inserted.
+    PasteRejected,
+    /// The terminal became smaller than the practice minimum.
+    TooSmall,
+}
+
+/// An earlier session (or one of its tracks) used for comparison.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Baseline {
+    /// Local days between that session and today.
+    pub days_ago: i64,
+    /// Whether that session finished its plan.
+    pub completed: bool,
+    /// Its exact totals.
+    pub tracks: Vec<cadence_core::progress::TrackProgress>,
+}
+
+impl Baseline {
+    /// When, in words.
+    #[must_use]
+    pub fn when(&self) -> String {
+        match self.days_ago {
+            0 => "earlier today".to_string(),
+            1 => "yesterday".to_string(),
+            days => format!("{days} days ago"),
+        }
+    }
+}
+
+/// A skill that slipped this session, from recorded first attempts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Slip {
+    /// The skill as typed text, with visible space.
+    pub skill: String,
+    /// Wrong first attempts.
+    pub errors: u64,
+    /// All first attempts.
+    pub attempts: u64,
+}
+
+/// Review-only context: how this session compares and what slipped.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ReviewContext {
+    /// The session stopped before its plan finished.
+    pub ended_early: bool,
+    /// Most recent earlier session with exactly this track set.
+    pub session: Option<Baseline>,
+    /// Per track, the most recent earlier session that had it
+    /// (one track each).
+    pub tracks: Vec<Baseline>,
+    /// Most frequent slips, worst first.
+    pub slips: Vec<Slip>,
 }
 
 /// Which screen is prepared.
@@ -317,4 +384,10 @@ pub struct PreparedView {
     pub summary_rate_valid: bool,
     /// Plan adaptation and recorded evidence.
     pub learning: LearningView,
+    /// Why practice is paused, when it is.
+    pub pause_reason: Option<PauseReason>,
+    /// The most recent session with typing, for the start screen.
+    pub last_session: Option<Baseline>,
+    /// Comparison and slips, on the review only.
+    pub review: ReviewContext,
 }

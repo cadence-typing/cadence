@@ -1,6 +1,6 @@
 # Cadence implementation and feedback-build status
 
-`0.1.0-alpha.4` is an **unsigned development preview**, not a P8-qualified
+`0.1.0-alpha.5` is an **unsigned development preview**, not a P8-qualified
 release. Earlier commit messages overstated P0–P2 completion: passing tests,
 ASCII filtering, and documentation of intended proofs did not discharge the
 handover's proof, vocabulary-vetting, adaptation, or qualification obligations.
@@ -21,15 +21,19 @@ cadence
 cadence --minutes 5 --track numpad
 cadence --minutes 5 --track words --seed 42
 cadence --text-size normal    # auto (default), large, or normal
+cadence --theme light         # dark (default), light, or terminal
 cadence --profile-dir /absolute/private/profile
 cadence backup --output /absolute/new-backup.sqlite3
 cadence export --output /absolute/new-progress.json
 ```
 
-Enter starts/continues and submits numpad entries. Esc pauses/resumes;
-F2 cycles Auto → Large → Normal. Ctrl-C saves and quits.
-Summary Enter/Esc finishes the process after the final
-save acknowledgement. A save failure pauses practice: `r` retries; an explicit
+Enter starts/continues and submits numpad entries. Esc pauses and opens the
+practice controls (Esc/Enter resume, `e` ends the session and shows the
+review); losing terminal focus or pasting pauses the same way, and a paste
+inserts nothing. F2 cycles Auto → Large → Normal. Ctrl-C during practice ends
+the session and shows the review (saved as unfinished); on the review, Enter
+saves and exits after the final acknowledgement and prints a one-line recap.
+On the start screen `q` or Ctrl-C quits without recording anything. A save failure pauses practice: `r` retries; an explicit
 unsuccessful exit retains only acknowledged progress. Final flush has a
 10-second watchdog and returns non-success rather than hanging or claiming a
 save without an acknowledgement. The normal profile is
@@ -54,6 +58,41 @@ resume a mid-word exercise or claim an uninterrupted timing trial. Store schema
 2 safely refuses a populated historical draft schema 1 rather than inventing
 measurements or resetting it. Keep that file and use a new explicit profile
 for feedback if such a draft database exists.
+
+## Alpha.5 calm flow and honest results
+
+[Plan 0004](plans/0004-calm-flow-and-honest-results.md) adopts an independent
+critique of the alpha.4 TUI, captured from real PTY runs.
+
+- **No session-killing accidents.** Focus loss and paste now pause (with the
+  reason shown) instead of invalidating the session; input past the bounded
+  extra allowance is refused with "Past the end · Backspace to the first
+  error" instead of invalidating. Invalidation remains for real invariant
+  failures, and its controls never offer an unavailable resume.
+- **End early, still see results.** `e` in the pause controls or Ctrl-C during
+  practice opens the review; the session is saved as unfinished. The pause
+  controls replace the target, so a stopped clock is not reading time. Keys
+  shown in hints and controls come from one typed binding table.
+- **Interlude grace.** Enter/Esc within 0.7 s of a phase-complete screen
+  opening are ignored, so the numpad's last submit cannot skip it.
+- **Results that answer "how did I do".** Per-track accuracy %, pace,
+  corrections and the change since the last session that had that track;
+  headline tiles compare only with the newest session with the same track
+  set. One sentence names the most frequent slips ("Most slips: th 9/41 ·
+  …") and the focus targeted. The interlude reads "98.0% first-pass · 54 WPM
+  · 11 corrections". The start screen shows the last session's pace and
+  accuracy, marking one that ended early.
+- **Quieter chrome.** "saved" replaces the bold `CKPT n`; live pace and
+  accuracy are integers over the current track's completed exercises (they
+  move at exercise boundaries, not per key); "phase 2/5" replaces the
+  unreachable exercise count; the practice header shows the route;
+  upcoming text is no longer DIM; footer boilerplate appears only in the
+  first session; a missed space reads "expected space".
+- **Content.** A re-served word is named ("again: other's"); a word appears
+  at most once per words exercise; prose exercises end at a sentence or
+  clause boundary (bound 160 units) instead of mid-clause.
+
+No schema change; scores are computed exactly as before.
 
 ## Alpha.4 learning from mistakes
 

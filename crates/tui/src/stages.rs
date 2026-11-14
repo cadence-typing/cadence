@@ -1,6 +1,8 @@
 //! Centered, read-only stage compositions. Counts describe observations, not mastery.
 
-use cadence_core::progress::TrackProgress;
+use cadence_core::progress::{Track, TrackProgress};
+use cadence_engine::summary::{SummaryMetrics, percent_label, track_accuracy, track_rate};
+use cadence_engine::view::RateUnit;
 use cadence_engine::view::{PhaseOverview, PhaseState, PreparedView, ScreenView, ViewMode};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
@@ -113,13 +115,31 @@ fn landing(
         palette,
     );
     take(&mut body, gap);
+    let history = view.last_session.as_ref().map_or_else(
+        || {
+            format!(
+                "Local history · {} completed · {} unfinished",
+                view.history.completed_sessions, view.history.interrupted_sessions
+            )
+        },
+        |last| {
+            let metrics = SummaryMetrics::from_reports(&last.tracks, true).ok();
+            let speed = metrics
+                .and_then(|m| m.speed.map(|rate| (rate, m.speed_unit)))
+                .map_or_else(String::new, |(rate, unit)| {
+                    format!(" · {:.1} {}", rate.as_f64(), short_unit(unit))
+                });
+            let accuracy = metrics
+                .and_then(|m| m.first_pass_accuracy)
+                .map_or_else(String::new, |a| format!(" · {}", percent_label(a)));
+            let ending = if last.completed { "" } else { " (ended early)" };
+            format!("Last session{speed}{accuracy} · {}{ending}", last.when())
+        },
+    );
     text(
         buffer,
         take(&mut body, 1),
-        format!(
-            "Local history · {} completed · {} unfinished",
-            view.history.completed_sessions, view.history.interrupted_sessions
-        ),
+        history,
         style(palette, Role::Muted),
     );
     if baseline != 0 {
@@ -196,9 +216,9 @@ fn interlude(
         buffer,
         take(&mut body, 1),
         if partial {
-            "Time reached · unfinished exercise evidence retained"
+            "Time's up \u{2014} the partial line still counts"
         } else {
-            "Phase finished · a moment to reset"
+            "Phase finished \u{b7} a moment to reset"
         },
         style(palette, Role::Muted),
     );
@@ -349,15 +369,26 @@ fn report(buffer: &mut Buffer, area: Rect, report: Option<&TrackProgress>, palet
         body = block.inner(area);
         block.render(area, buffer);
     }
+    let accuracy = track_accuracy(report).ok().flatten().map_or_else(
+        || "no attempts".to_string(),
+        |a| format!("{} first-pass", percent_label(a)),
+    );
+    let unit = if report.track == Track::Numpad {
+        RateUnit::DigitsPerMinute
+    } else {
+        RateUnit::WordsPerMinute
+    };
+    let pace = track_rate(report).map_or_else(
+        || format!("\u{2014} {}", short_unit(unit)),
+        |rate| format!("{:.0} {}", rate.as_f64(), short_unit(unit)),
+    );
     text(
         buffer,
         take(&mut body, 1),
         format!(
-            "First-pass {}/{}   Attempts {}/{}",
-            report.first_correct,
-            report.first_attempted,
-            report.correct_attempts,
-            report.content_attempts
+            "{accuracy} \u{b7} {pace} \u{b7} {} correction{}",
+            report.deletions,
+            if report.deletions == 1 { "" } else { "s" }
         ),
         emphasis(palette),
     );
@@ -366,10 +397,9 @@ fn report(buffer: &mut Buffer, area: Rect, report: Option<&TrackProgress>, palet
         buffer,
         take(&mut body, 1),
         format!(
-            "{} corrections · {} correct units · {} active",
-            report.deletions,
-            report.correct_units,
-            Time(seconds)
+            "{} active \u{b7} {} correct characters",
+            Time(seconds),
+            report.correct_units
         ),
         style(palette, Role::Muted),
     );
@@ -466,6 +496,14 @@ fn style(palette: Palette, role: Role) -> Style {
 
 fn emphasis(palette: Palette) -> Style {
     style(palette, Role::Focus).add_modifier(Modifier::BOLD)
+}
+
+/// Compact rate unit for one-line summaries.
+const fn short_unit(unit: RateUnit) -> &'static str {
+    match unit {
+        RateUnit::WordsPerMinute => "WPM",
+        RateUnit::DigitsPerMinute => "digits/min",
+    }
 }
 
 struct Time(u64);

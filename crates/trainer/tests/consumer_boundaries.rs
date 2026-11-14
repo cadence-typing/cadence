@@ -185,7 +185,7 @@ fn malformed_policy_is_rejected_not_clamped() {
             "maximum_candidates_per_slot = 0",
         ),
         (
-            "maximum_word_occurrences_per_block = 2",
+            "maximum_word_occurrences_per_block = 1",
             "maximum_word_occurrences_per_block = 0",
         ),
         (

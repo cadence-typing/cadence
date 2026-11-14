@@ -22,7 +22,8 @@ pub enum Key {
     Enter,
     /// Escape: pause/controls during practice; back otherwise.
     Escape,
-    /// Ctrl-C: documented quit/flush path.
+    /// Ctrl-C: ends practice and opens the review; exits from the review,
+    /// the start screen, or after a failure.
     Interrupt,
     /// F2 changes visual text size without becoming scored content.
     ToggleTextSize,
@@ -45,10 +46,12 @@ pub enum EventKind {
     },
     /// Terminal acknowledgement, matched against the entire pending key.
     SaveResult(cadence_core::progress::SaveResult),
-    /// Paste is rejected and measurement is interrupted.
+    /// A paste was refused; practice pauses and nothing is inserted.
     PasteRejected,
-    /// Focus loss interrupts measurement.
+    /// The terminal lost focus; practice pauses.
     FocusLost,
+    /// The process was asked to terminate (SIGTERM): save and exit directly.
+    Terminate,
     /// A normalized key event.
     Key(Key),
     /// Display preference admitted through the reducer (CLI or explicit control).

@@ -23,6 +23,12 @@ pub(super) struct Storage {
     sent_at: Option<MonoTick>,
     last_dispatch: Option<MonoTick>,
 }
+impl Storage {
+    /// Local calendar day of this session.
+    pub(super) const fn day(&self) -> i64 {
+        self.day
+    }
+}
 impl Engine {
     pub(super) fn storage_ready(
         &mut self,

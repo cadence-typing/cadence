@@ -163,3 +163,33 @@ fn decreasing_or_replanned_learning_is_a_regression() -> TestResult {
     store.apply_checkpoint(&with(2, learning(5, 11)?)?)?;
     Ok(())
 }
+
+#[test]
+fn recent_history_is_newest_first_with_status_and_skips_untyped_sessions() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    {
+        let mut store = ProgressStore::open_in(directory.path())?;
+        store.apply_checkpoint(&checkpoint(1, 1, ProgressStatus::Completed)?)?;
+        store.apply_checkpoint(&checkpoint(2, 1, ProgressStatus::Abandoned)?)?;
+        // A session that never recorded a first attempt has nothing to compare.
+        let mut empty = checkpoint(3, 1, ProgressStatus::Abandoned)?;
+        for track in &mut empty.progress.tracks {
+            *track = cadence_core::progress::TrackProgress {
+                active_micros: track.active_micros,
+                ..cadence_core::progress::TrackProgress::empty(track.track)
+            };
+        }
+        let empty = rekey(&empty, 1, empty.progress.clone())?;
+        store.apply_checkpoint(&empty)?;
+    }
+    let store = ProgressStore::open_in(directory.path())?;
+    let recent = store.bootstrap(2)?.history.recent;
+    let seen: Vec<bool> = recent.iter().map(|recap| recap.completed).collect();
+    assert_eq!(seen, vec![false, true]);
+    assert!(
+        recent
+            .iter()
+            .all(|recap| recap.day == 20_000 && recap.tracks.len() == 1)
+    );
+    Ok(())
+}

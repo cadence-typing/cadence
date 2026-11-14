@@ -74,3 +74,75 @@ impl SummaryMetrics {
         })
     }
 }
+
+const BASIS_POINTS_PER_PERCENT: u16 = 100;
+const BASIS_POINTS_PER_TENTH: u16 = 10;
+
+/// One-decimal percentage, truncated: a remaining first-pass error never
+/// displays as a perfect 100.0%.
+#[must_use]
+pub fn percent_label(value: BasisPoints) -> String {
+    let value = value.get();
+    let whole = value.checked_div(BASIS_POINTS_PER_PERCENT).unwrap_or(0);
+    let tenth = value
+        .checked_rem(BASIS_POINTS_PER_PERCENT)
+        .and_then(|fraction| fraction.checked_div(BASIS_POINTS_PER_TENTH))
+        .unwrap_or(0);
+    format!("{whole}.{tenth}%")
+}
+
+/// Signed change in percentage points, truncated toward zero to one decimal.
+#[must_use]
+pub fn points_change(now: BasisPoints, before: BasisPoints) -> String {
+    let (sign, magnitude) = if now.get() >= before.get() {
+        ('+', now.get().saturating_sub(before.get()))
+    } else {
+        ('\u{2212}', before.get().saturating_sub(now.get()))
+    };
+    let whole = magnitude.checked_div(BASIS_POINTS_PER_PERCENT).unwrap_or(0);
+    let tenth = magnitude
+        .checked_rem(BASIS_POINTS_PER_PERCENT)
+        .and_then(|fraction| fraction.checked_div(BASIS_POINTS_PER_TENTH))
+        .unwrap_or(0);
+    if whole == 0 && tenth == 0 {
+        // A change below the displayed precision carries no sign.
+        return "0.0 pts".to_string();
+    }
+    format!("{sign}{whole}.{tenth} pts")
+}
+
+/// Signed change of a rate, one decimal, for display only.
+#[must_use]
+pub fn rate_change(now: Ratio, before: Ratio) -> String {
+    let change = now.as_f64() - before.as_f64();
+    if format!("{:.1}", change.abs()) == "0.0" {
+        return "0.0".to_string();
+    }
+    if change < 0.0 {
+        format!("\u{2212}{:.1}", -change)
+    } else {
+        format!("+{change:.1}")
+    }
+}
+
+/// First-pass accuracy of one track, truncated.
+///
+/// # Errors
+/// Refuses an invalid ratio.
+pub fn track_accuracy(report: &TrackProgress) -> Result<Option<BasisPoints>, CoreError> {
+    if report.first_attempted == 0 {
+        return Ok(None);
+    }
+    BasisPoints::from_ratio_truncating(report.first_correct, report.first_attempted).map(Some)
+}
+
+/// Correct pace of one track in its own unit (digits/min for the keypad).
+#[must_use]
+pub fn track_rate(report: &TrackProgress) -> Option<Ratio> {
+    let active = Micros::from_us(report.active_micros);
+    if report.track == Track::Numpad {
+        digits_per_minute(report.correct_digits, active)
+    } else {
+        correct_wpm(report.correct_units, active)
+    }
+}

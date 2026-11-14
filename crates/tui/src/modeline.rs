@@ -6,6 +6,7 @@
 
 use std::fmt::{self, Write};
 
+use cadence_engine::commands::{Action, bindings};
 use cadence_engine::view::{Durability, PreparedView, RateUnit, ScreenView, ViewMode};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -60,36 +61,31 @@ pub(super) fn paint(
     let mut left = area.x.saturating_add(width(badge));
     let mut right = area.right();
 
-    let mut durable = Label::new();
-    let durable_role = match &view.durability {
-        Durability::Transient => {
-            durable.set(format_args!("VOLATILE"));
-            Role::Warning
+    // Routine saving is quiet; only an unsaved run or a failure asks for
+    // attention. A save in flight keeps the earlier acknowledgement.
+    let (durable, durable_style) = match &view.durability {
+        Durability::Transient => (
+            "NOT SAVED",
+            style(palette, Role::Warning, Role::SelectedBackground).add_modifier(Modifier::BOLD),
+        ),
+        Durability::Local | Durability::Saving { last_ack: None } => {
+            ("local", style(palette, Role::Muted, Role::Panel))
         }
-        Durability::Local => {
-            durable.set(format_args!("LOCAL"));
-            Role::Muted
+        Durability::Saving { last_ack: Some(_) } | Durability::Checkpointed { .. } => {
+            ("saved", style(palette, Role::Muted, Role::Panel))
         }
-        Durability::Saving { .. } => {
-            durable.set(format_args!("SAVING"));
-            Role::Warning
-        }
-        Durability::Checkpointed { sequence } => {
-            durable.set(format_args!("CKPT {}", sequence.get()));
-            Role::Focus
-        }
-        Durability::Failed { .. } => {
-            durable.set(format_args!("SAVE ERROR"));
-            Role::Error
-        }
+        Durability::Failed { .. } => (
+            "SAVE ERROR",
+            style(palette, Role::Error, Role::SelectedBackground).add_modifier(Modifier::BOLD),
+        ),
     };
     right_segment(
         buffer,
         area.y,
         left,
         &mut right,
-        durable.as_str(),
-        style(palette, durable_role, Role::SelectedBackground).add_modifier(Modifier::BOLD),
+        durable,
+        durable_style,
         palette,
     );
 
@@ -142,9 +138,9 @@ pub(super) fn paint(
         if right.saturating_sub(left) >= 8 {
             let mut accuracy = Label::new();
             if let Some(percent) = status.first_pass_percent {
-                accuracy.set(format_args!("FP {percent}%"));
+                accuracy.set(format_args!("acc {percent}%"));
             } else {
-                accuracy.set(format_args!("FP --"));
+                accuracy.set(format_args!("acc --"));
             }
             right_segment(
                 buffer,
@@ -189,11 +185,11 @@ pub(super) fn paint(
                 palette,
             );
         }
-        if right.saturating_sub(left) >= 9 {
+        if right.saturating_sub(left) >= 12 {
             let mut exercise = Label::new();
             exercise.set(format_args!(
-                "ex {}/{}",
-                status.exercise_index, status.exercise_total
+                "phase {}/{}",
+                status.phase_position, status.phase_count
             ));
             right_segment(
                 buffer,
@@ -205,25 +201,6 @@ pub(super) fn paint(
                 palette,
             );
         }
-    } else if let Durability::Saving {
-        last_ack: Some(sequence),
-    }
-    | Durability::Failed {
-        last_ack: Some(sequence),
-    } = &view.durability
-        && right.saturating_sub(left) >= 9
-    {
-        let mut acknowledged = Label::new();
-        acknowledged.set(format_args!("CKPT {}", sequence.get()));
-        right_segment(
-            buffer,
-            area.y,
-            left,
-            &mut right,
-            acknowledged.as_str(),
-            style(palette, Role::Muted, Role::Panel),
-            palette,
-        );
     }
     if area.height > ROW_HEIGHT {
         hints(
@@ -249,40 +226,31 @@ fn hints(
     text_size: ResolvedTextSize,
 ) {
     buffer.set_style(area, style(palette, Role::Muted, Role::Background));
-    let (primary, exit) = match view.mode {
-        ViewMode::Ready => ("Enter begin", "Ctrl-C quit"),
-        ViewMode::Typing => ("Esc pause", "Ctrl-C finish"),
-        ViewMode::Paused => ("Esc resume", "Ctrl-C finish"),
-        ViewMode::Next => ("Enter next", "Ctrl-C finish"),
-        ViewMode::Review => ("Enter exit", ""),
-        ViewMode::Saving => ("", ""),
-        ViewMode::SaveError => ("r retry", "Ctrl-C x2 exit (tail at risk)"),
-        ViewMode::Invalid => ("", "Ctrl-C finish"),
+    let enter_submits =
+        matches!(&view.screen, ScreenView::Practice { status, .. } if status.enter_submits);
+    // Practice shows the size actually painted; other screens the preference.
+    let size = if matches!(view.screen, ScreenView::Practice { .. }) {
+        text_size.label()
+    } else {
+        view.text_size.label()
     };
     let mut x = area.x;
     let key_style = style(palette, Role::Text, Role::Background);
     let quiet_style = style(palette, Role::Muted, Role::Background);
-    hint(buffer, area, &mut x, primary, key_style);
-    hint(buffer, area, &mut x, exit, quiet_style);
-    let mut size = Label::new();
-    size.set(format_args!(
-        "F2 {}>{}",
-        view.text_size.label(),
-        view.text_size.next().label()
-    ));
-    if !hint(buffer, area, &mut x, size.as_str(), quiet_style) {
-        hint(buffer, area, &mut x, "F2 size", quiet_style);
-    }
-    if view.mode == ViewMode::Typing
-        && let ScreenView::Practice { status, .. } = &view.screen
-        && status.enter_submits
-    {
-        hint(buffer, area, &mut x, "Enter submit", key_style);
-    }
-    if matches!(view.screen, ScreenView::Practice { .. }) {
-        let mut resolved = Label::new();
-        resolved.set(format_args!("text {}", text_size.label()));
-        hint(buffer, area, &mut x, resolved.as_str(), quiet_style);
+    for (index, binding) in bindings(view.mode, enter_submits).iter().enumerate() {
+        let mut label = Label::new();
+        if binding.action == Action::TextSize {
+            label.set(format_args!(
+                "{} {} ({})",
+                binding.keys, binding.label, size
+            ));
+        } else {
+            label.set(format_args!("{} {}", binding.keys, binding.label));
+        }
+        let hint_style = if index == 0 { key_style } else { quiet_style };
+        if !hint(buffer, area, &mut x, label.as_str(), hint_style) {
+            break;
+        }
     }
 }
 

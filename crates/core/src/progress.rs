@@ -298,6 +298,23 @@ pub struct HistorySummary {
     pub interrupted_sessions: u64,
     /// Most recent local calendar day.
     pub latest_day: Option<i64>,
+    /// Exact track totals of recent sessions with typed evidence, newest
+    /// first, bounded by [`RECENT_SESSION_CAPACITY`]. Used only for display
+    /// and like-for-like comparison.
+    pub recent: Vec<SessionRecap>,
+}
+/// Earlier sessions kept for comparison: enough to find the last
+/// session with the same track set after a few single-track runs.
+pub const RECENT_SESSION_CAPACITY: usize = 30;
+/// One earlier session's exact per-track totals.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionRecap {
+    /// Local calendar day the session was recorded on.
+    pub day: i64,
+    /// Whether every planned phase finished; otherwise it ended early.
+    pub completed: bool,
+    /// Exact cumulative track totals, in stored order.
+    pub tracks: Vec<TrackProgress>,
 }
 fn invalid() -> CoreError {
     CoreError::InvalidIdentity {

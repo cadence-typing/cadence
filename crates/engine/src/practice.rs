@@ -47,6 +47,7 @@ impl Engine {
             self.record_exercise()?;
             self.screen = Screen::PhaseComplete { partial };
             self.session_state = SessionState::PhaseComplete;
+            self.interlude_opened = Some(at);
             let next = self
                 .phase_index
                 .checked_add(1)
@@ -138,6 +139,7 @@ impl Engine {
             .ok_or_else(|| invalid("phase index exhausted"))?;
         self.exercise_index = 0;
         self.phase_start = self.active;
+        self.interlude_opened = None;
         let Some(phase) = self.plan.phases.get(self.phase_index) else {
             self.screen = Screen::Summary;
             self.session_state = SessionState::Review;
@@ -161,13 +163,16 @@ impl Engine {
         key: Key,
     ) -> Result<DomainOutcome, CoreError> {
         if self.session_state == SessionState::Paused {
-            if matches!(key, Key::Escape | Key::Enter)
-                && !self.invalid
-                && self.viewport == super::ViewportState::Usable
-                && !self.storage.as_ref().is_some_and(|s| s.failed.is_some())
-            {
-                self.timing.resume(at)?;
-                self.session_state = SessionState::Running;
+            match key {
+                Key::Escape | Key::Enter => self.resume(at)?,
+                Key::Content(c)
+                    if c.get() == 'e'
+                        && !self.invalid
+                        && !self.storage.as_ref().is_some_and(|s| s.failed.is_some()) =>
+                {
+                    return self.end_early(at);
+                }
+                _ => {}
             }
             return Ok(DomainOutcome::None);
         }
@@ -175,9 +180,7 @@ impl Engine {
             return Ok(DomainOutcome::None);
         }
         if key == Key::Escape {
-            self.timing.pause(at)?;
-            self.session_state = SessionState::Paused;
-            self.checkpoint_due = true;
+            self.pause_for(at, super::PauseReason::Requested)?;
             return Ok(DomainOutcome::None);
         }
         let numpad = self.current_track()? == Track::Numpad;
@@ -194,7 +197,11 @@ impl Engine {
                     .is_some_and(Option::is_none);
                 let applied = ledger.apply(LedgerEvent::Content(c))?;
                 if applied == Applied::RejectedOverBound {
-                    return Err(invalid("typed input exceeded the bounded buffer"));
+                    // Refused, visibly: the footer asks for Backspace. The
+                    // ledger marks the tail word interrupted, and units past
+                    // the target never count as correct, so no score improves.
+                    self.learning.break_timing();
+                    return Ok(DomainOutcome::None);
                 }
                 let complete = ledger.is_complete();
                 match applied {

@@ -59,6 +59,7 @@ enum Lifecycle {
 /// Owns raw mode, alternate screen, paste/focus reporting and the renderer.
 pub struct TerminalGuard {
     interrupted: Arc<AtomicBool>,
+    terminated: Arc<AtomicBool>,
     signal_ids: Vec<SigId>,
     terminal: Presenter<Stdout>,
     lifecycle: Lifecycle,
@@ -84,11 +85,15 @@ impl TerminalGuard {
             terminal,
             lifecycle: Lifecycle::Active,
             interrupted: Arc::new(AtomicBool::new(false)),
+            terminated: Arc::new(AtomicBool::new(false)),
             signal_ids: Vec::new(),
         };
-        for signal in [SIGINT, SIGTERM] {
-            let id = signal_hook::flag::register(signal, Arc::clone(&guard.interrupted))
-                .map_err(TerminalError::Io)?;
+        // SIGINT is the learner's Ctrl-C; SIGTERM asks the process to save and exit.
+        for (signal, flag) in [
+            (SIGINT, Arc::clone(&guard.interrupted)),
+            (SIGTERM, Arc::clone(&guard.terminated)),
+        ] {
+            let id = signal_hook::flag::register(signal, flag).map_err(TerminalError::Io)?;
             guard.signal_ids.push(id);
         }
         Ok(guard)
@@ -129,6 +134,9 @@ impl TerminalGuard {
 
     /// Reads at most one semantic event. A timeout is a replaceable clock hint.
     pub fn next_event(&mut self) -> Result<Option<EventKind>, TerminalError> {
+        if self.terminated.swap(false, Ordering::Relaxed) {
+            return Ok(Some(EventKind::Terminate));
+        }
         if self.interrupted.swap(false, Ordering::Relaxed) {
             return Ok(Some(EventKind::Key(Key::Interrupt)));
         }

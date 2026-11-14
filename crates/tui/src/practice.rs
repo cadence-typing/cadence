@@ -2,7 +2,10 @@
 
 use std::ops::Range;
 
-use cadence_engine::view::{PreparedView, ScreenView, StatusFigures, TextSize, UnitSpan};
+use cadence_engine::commands::bindings;
+use cadence_engine::view::{
+    PauseReason, PreparedView, ScreenView, StatusFigures, TextSize, UnitSpan, ViewMode,
+};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
@@ -89,6 +92,12 @@ pub(super) fn paint(
         ResolvedTextSize::Normal
     };
     if area.is_empty() {
+        return resolved;
+    }
+    // A stopped clock must not become free reading time: the controls
+    // replace the target until practice resumes.
+    if view.mode == ViewMode::Paused {
+        paused_controls(buffer, area, view, palette);
         return resolved;
     }
     let large = resolved == ResolvedTextSize::Large;
@@ -182,15 +191,81 @@ pub(super) fn paint(
             status,
             paused: *paused,
             resolved,
+            first_session: view.history.completed_sessions == 0,
         },
         palette,
     );
     resolved
 }
 
+/// Width of the controls panel; keys and labels are short by design.
+const CONTROLS_WIDTH: u16 = 44;
+/// Column where a binding's label starts inside the panel.
+const CONTROLS_KEY_COLUMN: u16 = 14;
+
+fn paused_controls(buffer: &mut Buffer, area: Rect, view: &PreparedView, palette: Palette) {
+    let reason = match view.pause_reason {
+        Some(PauseReason::FocusLost) => "The terminal lost focus; the clock stopped.",
+        Some(PauseReason::PasteRejected) => "Paste ignored; nothing was inserted.",
+        Some(PauseReason::TooSmall) => "The terminal was too small; the clock stopped.",
+        Some(PauseReason::Requested) | None => "The clock is stopped; your line is kept.",
+    };
+    let keys = bindings(ViewMode::Paused, false);
+    let rows = u16::try_from(keys.len())
+        .unwrap_or(u16::MAX)
+        .saturating_add(4);
+    let width = CONTROLS_WIDTH.min(area.width);
+    let x = area
+        .x
+        .saturating_add(area.width.saturating_sub(width).checked_div(2).unwrap_or(0));
+    let y = area
+        .y
+        .saturating_add(area.height.saturating_sub(rows).checked_div(2).unwrap_or(0));
+    let panel = Rect::new(x, y, width, rows).intersection(area);
+    let heading = Style::default()
+        .fg(palette.color(Role::Focus))
+        .bg(palette.color(Role::Background))
+        .add_modifier(Modifier::BOLD);
+    let mut line = panel.y;
+    let mut next = |text: &str, text_style: Style, buffer: &mut Buffer| {
+        if line < panel.bottom() {
+            centered(
+                buffer,
+                Rect::new(panel.x, line, panel.width, 1),
+                text,
+                text_style,
+            );
+        }
+        line = line.saturating_add(1);
+    };
+    next("Paused", heading, buffer);
+    next(reason, style(palette, Role::Muted), buffer);
+    next("", style(palette, Role::Muted), buffer);
+    for binding in keys {
+        if line >= panel.bottom() {
+            break;
+        }
+        let key_area = Rect::new(panel.x, line, CONTROLS_KEY_COLUMN.min(panel.width), 1);
+        Paragraph::new(binding.keys)
+            .style(style(palette, Role::Text).add_modifier(Modifier::BOLD))
+            .render(key_area, buffer);
+        let label_x = panel.x.saturating_add(CONTROLS_KEY_COLUMN);
+        if label_x < panel.right() {
+            Paragraph::new(binding.label)
+                .style(style(palette, Role::Muted))
+                .render(
+                    Rect::new(label_x, line, panel.right().saturating_sub(label_x), 1),
+                    buffer,
+                );
+        }
+        line = line.saturating_add(1);
+    }
+}
+
 fn expected(span: UnitSpan) -> char {
     match span {
         UnitSpan::Correct { unit } => unit,
+        UnitSpan::Extra { typed } => typed,
         UnitSpan::Wrong { expected, .. }
         | UnitSpan::Cursor { expected }
         | UnitSpan::Upcoming { expected } => expected,
@@ -317,6 +392,7 @@ struct Footer<'a> {
     status: &'a StatusFigures,
     paused: bool,
     resolved: ResolvedTextSize,
+    first_session: bool,
 }
 
 fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Palette) {
@@ -325,6 +401,7 @@ fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Pa
         status,
         paused,
         resolved,
+        first_session,
     } = footer;
     if area.is_empty() {
         return;
@@ -334,11 +411,20 @@ fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Pa
         UnitSpan::Wrong { expected, .. } => Some(*expected),
         _ => None,
     });
-    if let Some(expected) = error {
+    let past_end = spans
+        .iter()
+        .any(|span| matches!(span, UnitSpan::Extra { .. }));
+    if past_end || error.is_some() {
+        let message = match error {
+            _ if past_end => "Past the end · Backspace to the first error".to_string(),
+            Some(' ') => "Correction needed · expected space".to_string(),
+            Some(expected) => format!("Correction needed · expected ‘{}’", expected.escape_debug()),
+            None => String::new(),
+        };
         centered(
             buffer,
             Rect::new(area.x, y, area.width, 1),
-            &format!("Correction needed · expected ‘{}’", expected.escape_debug()),
+            &message,
             style(palette, Role::Error),
         );
         y = y.saturating_add(1);
@@ -356,14 +442,15 @@ fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Pa
     }
     if y < area.bottom() {
         let instruction = if paused {
-            "Paused · Esc resumes"
+            ""
         } else if status.enter_submits {
-            "Keypad origin unverified · Enter submits the entry"
+            "Enter submits"
+        } else if let Some(context) = status.context.as_deref() {
+            context
+        } else if first_session {
+            "Follow the caret · Backspace corrects"
         } else {
-            status
-                .context
-                .as_deref()
-                .unwrap_or("Follow the caret · Backspace corrects")
+            ""
         };
         centered(
             buffer,
@@ -384,13 +471,15 @@ fn centered(buffer: &mut Buffer, area: Rect, text: &str, style: Style) {
 fn unit_style(span: UnitSpan, palette: Palette) -> Style {
     match span {
         UnitSpan::Correct { .. } => style(palette, Role::Correct),
-        UnitSpan::Wrong { .. } => {
+        UnitSpan::Wrong { .. } | UnitSpan::Extra { .. } => {
             style(palette, Role::Error).add_modifier(Modifier::UNDERLINED | Modifier::REVERSED)
         }
         UnitSpan::Cursor { .. } => {
             style(palette, Role::Focus).add_modifier(Modifier::REVERSED | Modifier::BOLD)
         }
-        UnitSpan::Upcoming { .. } => style(palette, Role::Muted).add_modifier(Modifier::DIM),
+        // Upcoming text is what the eyes read ahead: quieter than typed text,
+        // but never faint (DIM roughly halves its contrast on many terminals).
+        UnitSpan::Upcoming { .. } => style(palette, Role::Muted),
     }
 }
 

@@ -1,9 +1,9 @@
 //! Read-only presentation; only admitted reducer events advance measurements.
 use super::{Engine, PreparedView, Screen, ScreenView, StatusFigures, UnitSpan};
+use crate::summary::{track_accuracy, track_rate};
 use crate::view::{LearningView, PhaseOverview, PhaseState, RateUnit, ViewMode};
 use cadence_core::learning::{PlannerMode, Skill, SkillKey};
 use cadence_core::ledger::AttemptLedger;
-use cadence_core::metrics::{correct_digits, correct_wpm, digits_per_minute, first_pass_accuracy};
 use cadence_core::progress::Track;
 use cadence_core::session::SessionState;
 use cadence_core::{Micros, MonoTick};
@@ -67,6 +67,17 @@ impl Engine {
             },
             summary_rate_valid: !self.invalid,
             learning: self.learning_view(),
+            pause_reason: if self.session_state == SessionState::Paused {
+                self.pause_reason
+            } else {
+                None
+            },
+            last_session: if self.screen == Screen::Today {
+                self.last_session()
+            } else {
+                None
+            },
+            review: self.review_context(),
         }
     }
     fn learning_view(&self) -> LearningView {
@@ -125,13 +136,22 @@ impl Engine {
         if words.iter().any(|word| word.due_review) {
             parts.push("due review".to_string());
         }
-        let planned = exercise.words.iter().map(|w| w.id);
-        if words
-            .iter()
-            .zip(planned)
-            .any(|(word, planned)| word.lane == Lane::Review && word.id != planned)
-        {
-            parts.push("missed earlier, again".to_string());
+        // Name the re-served words exactly as they appear in the target.
+        let again: Vec<String> = self
+            .ledger
+            .as_ref()
+            .map(|ledger| {
+                ledger
+                    .target()
+                    .split(|unit| unit.get() == ' ')
+                    .zip(words.iter().zip(exercise.words.iter().map(|w| w.id)))
+                    .filter(|(_, (word, planned))| word.lane == Lane::Review && word.id != *planned)
+                    .map(|(units, _)| units.iter().map(|unit| unit.get()).collect())
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !again.is_empty() {
+            parts.push(format!("again: {}", again.join(", ")));
         }
         (!parts.is_empty()).then(|| parts.join(" \u{b7} "))
     }
@@ -142,35 +162,42 @@ impl Engine {
         let remaining = phase
             .and_then(|p| Micros::from_seconds(p.seconds).ok())
             .and_then(|b| elapsed.ok().and_then(|e| b.checked_sub(e).ok()));
-        let duration = self.active.checked_sub(self.exercise_start).ok();
         let rate_unit = if self.current_track().is_ok_and(|t| t == Track::Numpad) {
             RateUnit::DigitsPerMinute
         } else {
             RateUnit::WordsPerMinute
         };
+        // Completed exercises of this track only: the figures move at exercise
+        // boundaries, never with every keystroke (P-05).
+        let completed = self
+            .current_track()
+            .ok()
+            .and_then(|track| self.tracks.iter().find(|p| p.track == track));
         let rate = if self.invalid {
             None
         } else {
-            self.ledger
-                .as_ref()
-                .and_then(|l| {
-                    duration.and_then(|d| match rate_unit {
-                        RateUnit::WordsPerMinute => correct_wpm(l.correct_visible_units().get(), d),
-                        RateUnit::DigitsPerMinute => digits_per_minute(correct_digits(l).get(), d),
-                    })
-                })
-                .map(|r| format!("{:.1}", r.as_f64()))
+            completed
+                .and_then(track_rate)
+                .map(|r| format!("{:.0}", r.as_f64()))
         };
-        let first_pass_percent = self
-            .ledger
-            .as_ref()
-            .and_then(first_pass_accuracy)
-            .and_then(|r| {
-                r.numerator()
-                    .checked_mul(100)
-                    .and_then(|n| n.checked_div(r.denominator()))
-            })
-            .and_then(|p| u16::try_from(p).ok());
+        let first_pass_percent = completed
+            .and_then(|p| track_accuracy(p).ok().flatten())
+            .map(|a| a.get().checked_div(100).unwrap_or(0));
+        let typing: Vec<usize> = self
+            .plan
+            .phases
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.phase != Phase::Review)
+            .map(|(index, _)| index)
+            .collect();
+        let phase_position = typing
+            .iter()
+            .position(|index| *index == self.phase_index)
+            .and_then(|p| p.checked_add(1))
+            .and_then(|p| u32::try_from(p).ok())
+            .unwrap_or(0);
+        let phase_count = u32::try_from(typing.len()).unwrap_or(0);
         ScreenView::Practice {
             spans: self.ledger.as_ref().map_or_else(Vec::new, spans_for),
             paused,
@@ -183,14 +210,8 @@ impl Engine {
                 phase_label: phase
                     .map_or("practice", |p| phase_label(p.phase))
                     .to_string(),
-                exercise_index: self
-                    .exercise_index
-                    .checked_add(1)
-                    .and_then(|i| u32::try_from(i).ok())
-                    .unwrap_or(0),
-                exercise_total: phase
-                    .and_then(|p| u32::try_from(p.exercises.len()).ok())
-                    .unwrap_or(0),
+                phase_position,
+                phase_count,
                 phase_seconds_remaining: remaining
                     .map_or(0, |r| r.as_us().checked_div(1_000_000).unwrap_or(0)),
                 enter_submits: self.current_track().is_ok_and(|t| t == Track::Numpad),
@@ -267,16 +288,13 @@ fn spans_for(ledger: &AttemptLedger) -> Vec<UnitSpan> {
     }
     if let Some(extra) = ledger.buffer().get(ledger.target().len()..) {
         for c in extra {
-            spans.push(UnitSpan::Wrong {
-                typed: c.get(),
-                expected: ' ',
-            });
+            spans.push(UnitSpan::Extra { typed: c.get() });
         }
     }
     spans
 }
 /// A skill as the learner sees it; space and newline are made visible.
-fn skill_label(key: SkillKey) -> String {
+pub(super) fn skill_label(key: SkillKey) -> String {
     key.skill
         .text()
         .chars()

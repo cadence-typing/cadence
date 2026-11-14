@@ -1,7 +1,6 @@
 //! Two prominent session measures; native rows are shared by both cards.
 
-use cadence_core::BasisPoints;
-use cadence_engine::summary::SummaryMetrics;
+use cadence_engine::summary::{SummaryMetrics, percent_label, points_change, rate_change};
 use cadence_engine::view::{PreparedView, RateUnit};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Margin, Rect};
@@ -19,13 +18,11 @@ pub(super) const ROOMY_ROWS: u16 = 5;
 const CARD_GAP: u16 = 4;
 /// Ten logical characters fit inside a native tile at the 60-column minimum.
 const MAX_VALUE_CELLS: usize = 10;
-const BASIS_POINTS_PER_PERCENT: u16 = 100;
-const BASIS_POINTS_PER_TENTH: u16 = 10;
 
 struct Tile {
     heading: &'static str,
     value: Option<String>,
-    note: &'static str,
+    note: String,
 }
 
 pub(super) fn paint(
@@ -39,6 +36,23 @@ pub(super) fn paint(
         return;
     }
     let metrics = SummaryMetrics::from_reports(&view.summary_reports, view.summary_rate_valid);
+    // Like-for-like only: the engine supplies a baseline with the same track set.
+    let before = view.review.session.as_ref().and_then(|b| {
+        SummaryMetrics::from_reports(&b.tracks, true)
+            .ok()
+            .map(|m| (b, m))
+    });
+    let (speed_change, accuracy_change) = match (&metrics, before) {
+        (Ok(now), Some((baseline, then))) => (
+            now.speed
+                .zip(then.speed)
+                .map(|(n, t)| format!("{} vs {}", rate_change(n, t), baseline.when())),
+            now.first_pass_accuracy
+                .zip(then.first_pass_accuracy)
+                .map(|(n, t)| format!("{} vs {}", points_change(n, t), baseline.when())),
+        ),
+        _ => (None, None),
+    };
     let (speed, accuracy, note) = match metrics {
         Ok(metrics) => {
             let speed = metrics.speed.map(|rate| {
@@ -53,7 +67,7 @@ pub(super) fn paint(
                 RateUnit::WordsPerMinute => "WPM · typing tracks",
                 RateUnit::DigitsPerMinute => "Keypad digits / min",
             };
-            (speed, accuracy_label(metrics.first_pass_accuracy), note)
+            (speed, metrics.first_pass_accuracy.map(percent_label), note)
         }
         Err(_) => (None, None, "Totals unavailable"),
     };
@@ -61,12 +75,12 @@ pub(super) fn paint(
         Tile {
             heading: "CORRECT SPEED",
             value: speed,
-            note,
+            note: speed_change.unwrap_or_else(|| note.to_string()),
         },
         Tile {
             heading: "FIRST-PASS ACCURACY",
             value: accuracy,
-            note: "Mistakes stay counted",
+            note: accuracy_change.unwrap_or_else(|| "Mistakes stay counted".to_string()),
         },
     ];
     let [left, _, right] = Layout::horizontal([
@@ -108,7 +122,7 @@ pub(super) fn paint(
                 .style(panel_style.fg(palette.color(Role::Muted)))
                 .render(Rect::new(panel.x, panel.y, panel.width, 1), buffer);
         }
-        Paragraph::new(tile.note)
+        Paragraph::new(tile.note.as_str())
             .centered()
             .style(panel_style.fg(palette.color(Role::Muted)))
             .render(
@@ -200,39 +214,6 @@ fn number(buffer: &mut Buffer, area: Rect, tile: &Tile, palette: Palette) {
     );
 }
 
-fn accuracy_label(accuracy: Option<BasisPoints>) -> Option<String> {
-    accuracy.map(|accuracy| {
-        let value = accuracy.get();
-        let whole = value.checked_div(BASIS_POINTS_PER_PERCENT).unwrap_or(0);
-        let tenth = value
-            .checked_rem(BASIS_POINTS_PER_PERCENT)
-            .and_then(|fraction| fraction.checked_div(BASIS_POINTS_PER_TENTH))
-            .unwrap_or(0);
-        // Never round a corrected mistake up to a displayed perfect 100.0%.
-        format!("{whole}.{tenth}%")
-    })
-}
-
 fn style(palette: Palette, role: Role) -> Style {
     Style::default().fg(palette.color(role))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_remaining_first_pass_error_never_displays_perfect_accuracy()
-    -> Result<(), cadence_core::CoreError> {
-        assert_eq!(
-            accuracy_label(Some(BasisPoints::new(9999)?)).as_deref(),
-            Some("99.9%")
-        );
-        assert_eq!(
-            accuracy_label(Some(BasisPoints::MAX)).as_deref(),
-            Some("100.0%")
-        );
-        assert_eq!(accuracy_label(None), None);
-        Ok(())
-    }
 }

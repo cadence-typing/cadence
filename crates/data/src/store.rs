@@ -9,7 +9,9 @@ use std::time::Duration;
 
 use cadence_core::SessionId;
 use cadence_core::learning::{HistoricSession, LearnerHistory};
-use cadence_core::progress::{Checkpoint, HistorySummary, ProgressStatus, SaveKey};
+use cadence_core::progress::{
+    Checkpoint, HistorySummary, ProgressStatus, RECENT_SESSION_CAPACITY, SaveKey, SessionRecap,
+};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
 pub use crate::error::StoreError;
@@ -128,6 +130,26 @@ impl ProgressStore {
             .take(learner_window)
             .collect();
         learner.reverse();
+        // Sessions arrive in day/session order; keep the newest ones that
+        // recorded any typing, finished or not (the status is carried).
+        history.recent = sessions
+            .iter()
+            .rev()
+            .filter(|session| {
+                session
+                    .checkpoint
+                    .progress
+                    .tracks
+                    .iter()
+                    .any(|track| track.first_attempted > 0)
+            })
+            .take(RECENT_SESSION_CAPACITY)
+            .map(|session| SessionRecap {
+                day: session.checkpoint.progress.day,
+                completed: session.checkpoint.progress.status == ProgressStatus::Completed,
+                tracks: session.checkpoint.progress.tracks.clone(),
+            })
+            .collect();
         for session in sessions {
             let checkpoint = session.checkpoint;
             maximum = maximum.max(checkpoint.key.session.get());

@@ -98,3 +98,23 @@ fn exhausted_totals_return_an_error_instead_of_wrapping() {
         Err(CoreError::IdExhaustion { .. })
     ));
 }
+
+#[test]
+fn a_remaining_first_pass_error_never_displays_perfect_accuracy() -> Result<(), CoreError> {
+    use cadence_engine::summary::{percent_label, points_change};
+    assert_eq!(percent_label(BasisPoints::new(9999)?), "99.9%");
+    assert_eq!(percent_label(BasisPoints::MAX), "100.0%");
+    assert_eq!(
+        points_change(BasisPoints::new(9300)?, BasisPoints::new(9700)?),
+        "\u{2212}4.0 pts"
+    );
+    assert_eq!(
+        points_change(BasisPoints::new(9765)?, BasisPoints::new(9700)?),
+        "+0.6 pts"
+    );
+    assert_eq!(
+        points_change(BasisPoints::new(9695)?, BasisPoints::new(9700)?),
+        "0.0 pts"
+    );
+    Ok(())
+}

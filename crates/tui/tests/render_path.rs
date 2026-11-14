@@ -123,6 +123,8 @@ fn plan_journey_through_shared_reducer_and_paint() -> Result<(), Box<dyn std::er
     let mut area = buffer.area;
     paint(&mut buffer, area, &view, palette, &mut rows);
 
+    // A deliberate Enter, after the interlude's in-flight-key grace.
+    tick += 1_000_000;
     send(&mut engine, EventKind::Key(Key::Enter), &mut seq, &mut tick);
     view = engine.prepare(MonoTick::from_us(tick));
     let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
@@ -258,6 +260,87 @@ fn sequence_gaps_invalidate_without_scoring_input() -> Result<(), Box<dyn std::e
             assert_eq!(spans[0], UnitSpan::Cursor { expected: 'c' });
         }
         other => panic!("expected practice screen, got {other:?}"),
+    }
+    Ok(())
+}
+
+fn screen_text(buffer: &Buffer) -> String {
+    let area = buffer.area;
+    (area.y..area.bottom())
+        .map(|y| {
+            (area.x..area.right())
+                .map(|x| buffer[(x, y)].symbol().to_string())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn render(engine: &Engine, at: u64, columns: u16, rows: u16) -> String {
+    let view = engine.prepare(MonoTick::from_us(at));
+    let mut buffer = Buffer::empty(Rect::new(0, 0, columns, rows));
+    let area = buffer.area;
+    let mut renditions = vec![LineRendition::Normal; usize::from(area.height)];
+    paint(
+        &mut buffer,
+        area,
+        &view,
+        Palette::cadence_dark(),
+        &mut renditions,
+    );
+    screen_text(&buffer)
+}
+
+#[test]
+fn pause_controls_hide_the_target_and_name_the_reason() -> Result<(), Box<dyn std::error::Error>> {
+    for (columns, rows) in [(100, 30), (80, 24), (60, 18)] {
+        let mut engine = planned_engine("quiet harbour")?;
+        engine.reduce(envelope(1, 1_000, EventKind::Key(Key::Enter)));
+        engine.reduce(envelope(2, 2_000, content('q')));
+        engine.reduce(envelope(3, 3_000, EventKind::FocusLost));
+        let screen = render(&engine, 3_000, columns, rows);
+        assert!(screen.contains("Paused"), "{columns}x{rows}:\n{screen}");
+        assert!(screen.contains("lost focus"), "{columns}x{rows}:\n{screen}");
+        assert!(screen.contains("end session & review"), "{screen}");
+        assert!(
+            !screen.contains("harbour"),
+            "target readable while paused:\n{screen}"
+        );
+        assert!(!screen.contains("INVALID"));
+    }
+    Ok(())
+}
+
+#[test]
+fn review_names_slips_and_end_state_at_every_size() -> Result<(), Box<dyn std::error::Error>> {
+    for (columns, rows) in [(100, 30), (80, 24), (60, 18)] {
+        let mut engine = planned_engine("the theme then")?;
+        let mut seq = 0;
+        let mut at = 1_000;
+        let mut send = |engine: &mut Engine, kind: EventKind| {
+            seq += 1;
+            at += 200_000;
+            engine.reduce(envelope(seq, at, kind));
+        };
+        send(&mut engine, EventKind::Key(Key::Enter));
+        for c in ['t', 'g'] {
+            send(&mut engine, content(c));
+        }
+        send(&mut engine, EventKind::Key(Key::Interrupt));
+        let screen = render(&engine, at, columns, rows);
+        assert!(screen.contains("Session review"), "{screen}");
+        assert!(screen.contains("Save & exit"), "{screen}");
+        if rows >= 24 {
+            assert!(
+                screen.contains("ended early"),
+                "{columns}x{rows}:\n{screen}"
+            );
+            assert!(
+                screen.contains("Most slips: th 1/1"),
+                "{columns}x{rows}:\n{screen}"
+            );
+            assert!(screen.contains("first time"), "{columns}x{rows}:\n{screen}");
+        }
     }
     Ok(())
 }

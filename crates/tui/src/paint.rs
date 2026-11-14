@@ -1,10 +1,11 @@
 //! Shared pure composition for live output and deterministic cell captures.
 
-use cadence_engine::view::{LineRendition, MINIMUM_COLUMNS, MINIMUM_ROWS, ViewMode};
+use cadence_engine::view::{LineRendition, MINIMUM_COLUMNS, MINIMUM_ROWS, PhaseState, ViewMode};
 use cadence_engine::{PreparedView, ScreenView};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap};
 
 use crate::native_text::NativeText;
@@ -97,13 +98,44 @@ fn header_bar(buffer: &mut Buffer, area: Rect, view: &PreparedView, palette: Pal
         .render(area, buffer);
     let [left, right] =
         Layout::horizontal([Constraint::Min(1), Constraint::Length(22)]).areas(area);
-    Paragraph::new(label)
-        .style(style(palette, Role::Focus).add_modifier(Modifier::BOLD))
-        .render(left, buffer);
+    // During practice the header answers "where am I in today's session".
+    let route = matches!(view.screen, ScreenView::Practice { .. })
+        .then(|| route_line(view, palette))
+        .filter(|line| u16::try_from(line.width()).is_ok_and(|w| w <= left.width));
+    if let Some(line) = route {
+        Paragraph::new(line).render(left, buffer);
+    } else {
+        Paragraph::new(label)
+            .style(style(palette, Role::Focus).add_modifier(Modifier::BOLD))
+            .render(left, buffer);
+    }
     Paragraph::new(concat!(env!("CARGO_PKG_VERSION"), "  "))
         .alignment(Alignment::Right)
         .style(style(palette, Role::Muted))
         .render(right, buffer);
+}
+
+fn route_line(view: &PreparedView, palette: Palette) -> Line<'static> {
+    let mut spans = vec![Span::styled("  ", style(palette, Role::Muted))];
+    for (index, phase) in view.phases.iter().enumerate() {
+        if index > 0 {
+            spans.push(Span::styled("  ", style(palette, Role::Muted)));
+        }
+        let (marker, role) = match phase.state {
+            PhaseState::Complete => ("\u{2713}", Role::Correct),
+            PhaseState::Active => ("\u{25cf}", Role::Focus),
+            PhaseState::Upcoming => ("\u{25cb}", Role::Muted),
+        };
+        let mut text_style = style(palette, role);
+        if phase.state == PhaseState::Active {
+            text_style = text_style.add_modifier(Modifier::BOLD);
+        }
+        spans.push(Span::styled(
+            format!("{marker} {}", phase.label),
+            text_style,
+        ));
+    }
+    Line::from(spans)
 }
 
 fn style(palette: Palette, role: Role) -> Style {

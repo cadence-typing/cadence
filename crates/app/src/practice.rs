@@ -20,6 +20,7 @@ pub fn run(
     bootstrap: StoreBootstrap,
     day: i64,
     text_size: TextSize,
+    palette: Palette,
 ) -> Result<(), Box<dyn Error>> {
     let origin = Instant::now();
     let mut seq = EventSeq::INITIAL;
@@ -58,7 +59,7 @@ pub fn run(
         EventKind::SetTextSupport(terminal.text_support()),
         &mut dispatch,
     )?;
-    draw(&engine, &mut terminal, elapsed_since(origin)?)?;
+    draw(&engine, &mut terminal, elapsed_since(origin)?, palette)?;
     let mut last_frame = Instant::now();
 
     let outcome = loop {
@@ -76,7 +77,7 @@ pub fn run(
                 break transition.exit_failed;
             }
             if transition.dirty {
-                draw(&engine, &mut terminal, elapsed_since(origin)?)?;
+                draw(&engine, &mut terminal, elapsed_since(origin)?, palette)?;
                 last_frame = Instant::now();
             }
         }
@@ -95,7 +96,7 @@ pub fn run(
             break transition.exit_failed;
         }
         if transition.dirty && (semantic || last_frame.elapsed() >= TIMER_FRAME_INTERVAL) {
-            draw(&engine, &mut terminal, at)?;
+            draw(&engine, &mut terminal, at, palette)?;
             last_frame = Instant::now();
         }
     };
@@ -111,6 +112,9 @@ pub fn run(
         );
     }
     worker.finish()?;
+    if let Some(line) = engine.recap() {
+        println!("{line}");
+    }
     Ok(())
 }
 
@@ -147,11 +151,16 @@ fn dispatch_pending(
     }
 }
 
-fn draw(engine: &Engine, terminal: &mut TerminalGuard, at: MonoTick) -> Result<(), Box<dyn Error>> {
+fn draw(
+    engine: &Engine,
+    terminal: &mut TerminalGuard,
+    at: MonoTick,
+    palette: Palette,
+) -> Result<(), Box<dyn Error>> {
     let view = engine.prepare(at);
     terminal.draw(|buffer, rows| {
         let area = buffer.area;
-        paint(buffer, area, &view, Palette::cadence_dark(), rows);
+        paint(buffer, area, &view, palette, rows);
     })?;
     Ok(())
 }
