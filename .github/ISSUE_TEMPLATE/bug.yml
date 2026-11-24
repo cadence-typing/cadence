@@ -1,0 +1,54 @@
+name: Bug report
+description: Something broke, measured wrongly, or the docs are wrong.
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suspected vulnerability? Stop here and follow [SECURITY.md](https://github.com/cadence-typing/cadence/blob/main/SECURITY.md).
+        Please never attach your practice database. If a profile is needed, reproduce with `--profile-dir /tmp/some-new-dir`.
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened?
+      description: The screen or output, the keys you pressed, and the exit status. A screenshot of the terminal helps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How can we reproduce it?
+      description: The smallest steps, e.g. `cadence --minutes 5 --track numpad --seed 42`, then which keys.
+    validations:
+      required: true
+  - type: dropdown
+    id: measurement
+    attributes:
+      label: Does this affect a score, timing or saved history?
+      options:
+        - "No"
+        - "Yes: a displayed score or timing looks wrong"
+        - "Yes: saved progress was lost or changed"
+        - "Not sure"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Cadence version
+      description: Paste `cadence --version`.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Distribution or WSL version, terminal emulator and version, and terminal size (columns × rows).
+    validations:
+      required: true

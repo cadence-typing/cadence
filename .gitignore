@@ -8,3 +8,9 @@
 /captures
 /dist
 /.cadence-build
+
+# Pinned TLC evidence is part of MANIFEST.sha256.
+!/evidence/model-checks/*.log
+
+# Local agent worktrees.
+/.claude/

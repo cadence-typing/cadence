@@ -1,54 +1,100 @@
-# Cadence — implementation handover
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo-wordmark-dark.svg">
+    <img src="assets/brand/logo-wordmark.svg" width="320" alt="Cadence">
+  </picture>
+</p>
 
-Revision 1 · 8 October 2026 · Owner: Tarek
+<p align="center"><b>Fifteen honest minutes of typing practice a day, in your Linux terminal.</b></p>
 
-**Build an offline, Linux-native personal typing trainer in Rust/Ratatui, with a guided 15-minute daily session.** Practice quality, reliable measurement, and maintainable code take precedence over decoration. The owner approved the visual direction and authorised this implementation handover. “Cadence” is a working product/binary name; package and domain availability have not been established. Internal crates need not be published.
+<p align="center">
+  <a href="https://cadence-typing.github.io">Website</a> ·
+  <a href="#install">Install</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="docs/rfcs/README.md">RFCs</a> ·
+  <a href="https://github.com/cadence-typing/cadence/milestones">Roadmap</a>
+</p>
 
-This package is an implementation contract, not a working application or a release certificate. Commands below describe interfaces the implementation agent must deliver. The included TLA+ models are small, executable design checks; their actual execution status is recorded in `evidence/packet-validation.json`. Production proofs, implementation correspondence, runtime tests, and Buildbot qualification remain mandatory future work.
+Cadence is an offline typing trainer. Run `cadence`, press Enter, and it walks you through a guided session: a warm-up, adaptive words, the number row, the numpad and real prose. It remembers what you got wrong and brings it back. It works without an account, a network connection or telemetry. Your history is a SQLite file in your home directory.
 
-## Read in this order
+> **Status: unsigned development preview** (`0.1.0-alpha.5`). Linux x86_64 and WSL2 only, in a terminal of at least 60×18. What is finished, tested and proved is tracked precisely in [STATUS.md](STATUS.md).
 
-1. [Agent rules](AGENTS.md).
-2. [Product and daily practice](docs/01-product.md).
-3. [Learning, scoring and planner](docs/02-learning.md).
-4. [Architecture and event protocols](docs/03-architecture.md).
-5. [UI and configuration](docs/04-ui.md).
-6. [Persistence and corpus](docs/05-data.md).
-7. [Headless interface and tests](docs/06-headless-tests.md).
-8. [Formal assurance](docs/07-assurance.md).
-9. [Buildbot, Docker and release](docs/08-build-release.md).
-10. [Work packets and acceptance](docs/09-execution.md).
-11. [Inspected references and evidence limits](docs/10-references.md).
+## Install
 
-`HANDOVER.html` combines the documents for convenient reading. Canonical editable contracts are the individual Markdown documents, configuration, schemas, fixtures, and formal specifications. The copied [shared CI plan](reference/shared-buildbot-ci-plan-2026-10-04.md) is the owner's supplied source, preserved unchanged. It governs shared infrastructure; do not copy unrelated Gripsack release matrices into this new application.
+```sh
+curl -fsSL https://cadence-typing.github.io/install.sh | sh
+```
 
-## Decisions already made
+The script downloads the newest release from GitHub and checks it against the release's `SHA256SUMS`. It installs the bundle to `~/.local/lib/cadence/` and links `~/.local/bin/cadence`. It never uses `sudo` and never touches your practice history. To read the script before running it:
 
-- Local operation, no login, no telemetry, no remote training service. No LLM/API dependency for daily practice.
-- Linux x86_64 is the first qualified target, covering native Linux, WSL2 and interactive Docker. No macOS or native Windows executable. ARM64 is deferred for this new product; this does not withdraw any existing project's ARM/Windows commitments.
-- A 15-minute plan, with separate main-keyboard, number-row and numpad learning histories.
-- Accurate word/sequence practice, broad real vocabulary, prose transfer checks, optional Rust/shell and local imports.
-- One state owner, typed commands/events, domain-specific generations, immutable presentation snapshots, bounded asynchronous work. No blocking I/O or `await` in the input/reducer/render path.
-- Same engine and same Ratatui rendering path in the TUI, headless driver and replay.
-- Rust-first behavioural tests; a deliberately small real-PTY suite. Python is acceptable for Buildbot configuration and packet tooling, not a second implementation of the trainer.
-- TLA+/TLC plus general safety proofs in TLAPS for the small protocols; Verus on the shipping Rust decision/arithmetic kernels. Formal claims must state their assumptions and scope.
-- Buildbot on owned WSL/Linux capacity, project-owned gate commands, immutable candidate-bound evidence, resumable qualification, owner installation before optional public distribution.
+```sh
+curl -fsSLO https://cadence-typing.github.io/install.sh
+less install.sh
+sh install.sh                        # or: sh install.sh --version v0.1.0-alpha.5
+sh install.sh --uninstall            # removes what it installed; keeps your history
+```
 
-## First action for the implementing agent
+You can also download the tarball and `SHA256SUMS` from [Releases](https://github.com/cadence-typing/cadence/releases) and run `sha256sum --check`. Checksums detect corrupted or altered downloads; **they are not signatures**.
 
-Create a clean project checkout, copy these contracts, and execute P0 in the work-packet document. Inspect the owner's current shared Buildbot setup before provisioning anything. The supplied plan records a decision, not proof that services exist. No repository, CI service, signing identity, domain or registry package was created by this handover.
+## Use
 
-Implement a small working vertical slice early: type a sentence → preserve first-attempt errors → render it through both frontends → commit a session → reopen the same progress. Continue through all required work packets; do not label that slice the finished product.
+```sh
+cadence                                   # today's 15-minute session
+cadence --minutes 5 --track numpad        # a short single-track drill
+cadence --minutes 5 --track words --seed 42
+cadence --theme light                     # dark (default), light, terminal
+cadence --text-size normal                # auto (default), large, normal
+cadence backup --output ~/cadence-backup.sqlite3
+cadence export --output ~/cadence-progress.json
+```
 
-## Package helpers
+| Key | Does |
+|---|---|
+| Enter | start, continue, submit a numpad entry |
+| Esc | pause; while paused, `e` ends the session and shows your review |
+| Ctrl-C | end practice and show the review (saved as unfinished) |
+| F2 | cycle text size: auto → large → normal |
 
-- `python3 tools/check_packet.py`: checks this packet's cross-references, structured contracts, fixture arithmetic, budget totals and manifest.
-- `TLA2TOOLS_JAR=/absolute/path/tla2tools.jar python3 tools/run_models.py`: runs bounded models and requires named counterexamples from deliberately faulty variants.
-- `contracts/headless-request.schema.json`: normative request envelope and operations for version 1.
-- `fixtures/scoring.json`: independent expected results, including correction, pause and numeric cases.
-- `fixtures/headless-session.jsonl`: proposed deterministic driver example; requires the future Cadence executable.
-- `design/initial-concept.html`: original approved visual reference with illustrative data. It still shows the initial 12-minute proposal. The 15-minute contract in this packet supersedes that number and the browser prototype's simplified scoring/controls. It is not production code or a behavioural oracle.
+Switching windows or pasting pauses practice; a paste never inserts text. Progress lives in `$XDG_DATA_HOME/cadence` (usually `~/.local/share/cadence`). Use `--profile-dir` to keep a separate profile.
 
-## Definition of done
+## What makes it honest
 
-All required P0–P8 acceptance rows have source-bound passing evidence; required proof inventories are complete; the exact qualified bundle installs in a fresh private home and completes the daily/headless/native smoke journeys; Buildbot can recover an interrupted qualification without inventing success or redoing valid completed gates. The owner can run `cadence`, press Enter, practise, quit and resume progress without configuration or accounts.
+- **A corrected mistake is still a mistake.** First-attempt accuracy is what's scored; fixing a typo with Backspace doesn't erase it.
+- **Time is real.** Hesitation counts as practice time; only explicit pauses and between-phase screens don't.
+- **Adaptation is labelled.** When the words phase targets your weak key transitions or brings back a missed word, it tells you. Harder targeted words are harder by design.
+- **No promises about learning.** Cadence measures carefully. Whether it makes you faster is an empirical question, and the software claims no guaranteed gain.
+
+## How it's built
+
+Rust and [Ratatui](https://ratatui.rs). There is one state owner with a typed reducer and immutable presentation snapshots, and no I/O on the keypress → render path. The same reducer and renderer drive the live TUI, the headless driver and replay. Release builds are static musl binaries with no runtime library dependencies.
+
+| Crate | Role |
+|---|---|
+| [`core`](crates/core) | domain types, sessions, ledger, scoring, progress |
+| [`trainer`](crates/trainer) | session planner, learner model, corpus, review ladder |
+| [`engine`](crates/engine) | reducer, practice state, presentation snapshots |
+| [`data`](crates/data) | SQLite profile, schema migrations, backup and export |
+| [`tui`](crates/tui) | rendering: practice, stages, review, modeline |
+| [`runtime`](crates/runtime) | terminal lifecycle, input, durable writer |
+| [`driver`](crates/driver) | headless driver and capture |
+| [`app`](crates/app) | the `cadence` binary (composition root) |
+
+**Assurance**, labelled honestly:
+
+- The protocol designs (async admission, causal barriers, durable checkpoints) have bounded [TLA+ models](formal/), each with named counterexamples from deliberately faulty variants (*model-checked*).
+- Scoring behaviour is pinned by [independent fixtures](fixtures/scoring.json) and property tests (*tested*).
+- The code follows the [tauten](https://github.com/tauten-dev/tauten) strictness profile. Lean proofs over the scoring kernel are being added ([RFC](docs/rfcs/2026-11-24-tauten-and-lean-kernel.md), [TAUTEN.md](docs/TAUTEN.md)); each claim carries the badge its evidence supports.
+
+## Develop
+
+```sh
+./ci prepare     # build the pinned gate image and fetch dependencies (networked)
+./ci quality     # offline: fmt, strict Clippy, all tests, boundaries, contract hashes
+./ci dist        # offline: the static release bundle in dist/
+```
+
+Start with [CONTRIBUTING.md](CONTRIBUTING.md), then [AGENTS.md](AGENTS.md) for the engineering rules (they apply to people too) and [GOVERNANCE.md](GOVERNANCE.md) for how decisions are made. Designs go through [RFCs](docs/rfcs/README.md). The original implementation contract is archived in [docs/handover/](docs/handover/README.md).
+
+## License
+
+Code: [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT), at your option. Word list: derived from [wordfreq](https://github.com/rspeer/wordfreq) (CC BY-SA 4.0). Prose: public-domain books and original passages. Sources and notices are in [`corpus/`](corpus/).

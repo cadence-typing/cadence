@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a vulnerability privately
+    url: https://github.com/cadence-typing/cadence/blob/main/SECURITY.md
+    about: Follow the security policy. Do not disclose vulnerabilities in public issues.
+  - name: RFC process and registry
+    url: https://github.com/cadence-typing/cadence/blob/main/docs/rfcs/README.md
+    about: Check existing decisions, and whether your proposal needs an RFC.

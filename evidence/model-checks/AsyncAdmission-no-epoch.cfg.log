@@ -1,0 +1,47 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 87 and seed -542509982331072228 with 1 worker on 8 cores with 228MB heap and 64MB offheap memory [pid: 90] (Linux 6.18.44 amd64, Ubuntu 17.0.20 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /workspace/scratch/3b0a8622b7dc/cadence-handover/formal/AsyncAdmission.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module AsyncAdmission
+Starting... (2026-10-08 22:05:13)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-08 22:05:13.
+Error: Invariant AcceptedFresh is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ pending = {}
+/\ epoch = 0
+/\ request = 0
+/\ accepted = <<>>
+/\ issued = {}
+
+State 2: <Start line 10, col 10 to line 13, col 50 of module AsyncAdmission>
+/\ pending = {[epoch |-> 0, request |-> 0]}
+/\ epoch = 0
+/\ request = 0
+/\ accepted = <<>>
+/\ issued = {[epoch |-> 0, request |-> 0]}
+
+State 3: <Restart line 17, col 12 to line 19, col 53 of module AsyncAdmission>
+/\ pending = {[epoch |-> 0, request |-> 0]}
+/\ epoch = 1
+/\ request = 0
+/\ accepted = <<>>
+/\ issued = {[epoch |-> 0, request |-> 0]}
+
+State 4: <Next line 32, col 41 to line 32, col 68 of module AsyncAdmission>
+/\ pending = {}
+/\ epoch = 1
+/\ request = 0
+/\ accepted = <<[ticket |-> [epoch |-> 0, request |-> 0], atEpoch |-> 1, atRequest |-> 0]>>
+/\ issued = {[epoch |-> 0, request |-> 0]}
+
+17 states generated, 15 distinct states found, 8 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 2 (minimum is 1, the maximum 3 and the 95th percentile is 3).
+Finished in 00s at (2026-10-08 22:05:13)

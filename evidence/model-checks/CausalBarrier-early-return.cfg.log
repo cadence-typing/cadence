@@ -1,0 +1,38 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 127 and seed 8020994071355713740 with 1 worker on 8 cores with 228MB heap and 64MB offheap memory [pid: 202] (Linux 6.18.44 amd64, Ubuntu 17.0.20 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /workspace/scratch/3b0a8622b7dc/cadence-handover/formal/CausalBarrier.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module CausalBarrier
+Starting... (2026-10-08 22:05:16)
+Implied-temporal checking--satisfiability problem has 1 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-08 22:05:16.
+Error: Invariant NoEarlyReturn is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ deferred = {}
+/\ pending = {0}
+/\ returned = FALSE
+/\ finished = {}
+
+State 2: <ProcessAny line 15, col 15 to line 15, col 43 of module CausalBarrier>
+/\ deferred = {1}
+/\ pending = {}
+/\ returned = FALSE
+/\ finished = {0}
+
+State 3: <Return line 19, col 11 to line 22, col 54 of module CausalBarrier>
+/\ deferred = {1}
+/\ pending = {}
+/\ returned = TRUE
+/\ finished = {0}
+
+4 states generated, 4 distinct states found, 1 states left on queue.
+The depth of the complete state graph search is 3.
+The average outdegree of the complete state graph is 1 (minimum is 1, the maximum 1 and the 95th percentile is 1).
+Finished in 00s at (2026-10-08 22:05:16)

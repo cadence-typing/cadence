@@ -1,0 +1,8 @@
+version: 2
+updates:
+  # Cargo dependencies are pinned and updated deliberately (AGENTS.md); only
+  # the CI actions are watched here.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

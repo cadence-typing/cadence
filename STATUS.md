@@ -61,7 +61,7 @@ for feedback if such a draft database exists.
 
 ## Alpha.5 calm flow and honest results
 
-[Plan 0004](plans/0004-calm-flow-and-honest-results.md) adopts an independent
+[Plan 0004](docs/rfcs/2026-11-14-calm-flow-and-honest-results.md) adopts an independent
 critique of the alpha.4 TUI, captured from real PTY runs.
 
 - **No session-killing accidents.** Focus loss and paste now pause (with the
@@ -103,11 +103,11 @@ manifest. PTY runs on a profile copy covered pause reasons, ending early,
 two full sessions and the review at three sizes. Assets were re-downloaded,
 checksum-verified and atomically activated at
 `~/.local/lib/cadence/0.1.0-alpha.5-b5917366380f/cadence` after a profile
-backup. Details: [plan 0004](plans/0004-calm-flow-and-honest-results.md).
+backup. Details: [plan 0004](docs/rfcs/2026-11-14-calm-flow-and-honest-results.md).
 
 ## Alpha.4 learning from mistakes
 
-[Plan 0003](plans/0003-learning-from-mistakes.md) responds to an independent
+[Plan 0003](docs/rfcs/2026-11-13-learning-from-mistakes.md) responds to an independent
 review that found nothing typed influenced later content and prose repeated
 the same six paragraphs every session.
 
@@ -154,11 +154,11 @@ reinforcement and next-session targeting. Uploaded assets were re-downloaded,
 checksum-verified and atomically activated at
 `~/.local/lib/cadence/0.1.0-alpha.4-123b044bbb04/cadence`; the owner's profile
 was backed up with alpha.3 beforehand and opened at schema 3 with all 10
-sessions afterwards. Details: [plan 0003](plans/0003-learning-from-mistakes.md).
+sessions afterwards. Details: [plan 0003](docs/rfcs/2026-11-13-learning-from-mistakes.md).
 
 ## Alpha.3 smooth native typography
 
-The [native typography decision](plans/0002-smooth-native-text.md) supersedes
+The [native typography decision](docs/rfcs/2026-10-19-smooth-native-text.md) supersedes
 alpha.2's rejected bitmap lettering. Cadence now asks the terminal to render its
 own font at **2× size**, using native double-height rows. It does not change font
 settings or require a Nerd Font. The old bitmap renderer and font dependency are

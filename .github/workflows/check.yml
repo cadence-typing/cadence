@@ -1,0 +1,49 @@
+name: check
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    # The same offline Docker Compose gate the owner runs locally (./ci).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Prepare gate image and locked dependencies (networked)
+        run: ./ci prepare
+      - name: fmt, strict Clippy, tests, boundaries, contract hashes (offline)
+        run: ./ci quality
+      - name: Static musl bundle (offline)
+        run: ./ci dist
+      - name: Inspect the bundle
+        run: |
+          cat dist/SHA256SUMS
+          dist/cadence --version
+
+  installer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: ShellCheck
+        run: shellcheck -s sh install.sh
+      - name: Install the newest release into a clean, unprivileged container
+        run: |
+          docker run --rm -v "$PWD/install.sh:/install.sh:ro" debian:trixie-slim sh -euc '
+            apt-get update -qq && apt-get install -y -qq --no-install-recommends curl ca-certificates >/dev/null
+            useradd -m learner
+            su learner -c "sh /install.sh"
+            su learner -c "\$HOME/.local/bin/cadence --version"
+            su learner -c "sh /install.sh --uninstall"
+            test ! -e /home/learner/.local/bin/cadence
+          '

@@ -1,3 +1,22 @@
+---
+rfc: "2026-10-19-smooth-native-text"
+title: "Smooth native 2× terminal text"
+status: accepted
+implementation: complete
+authors:
+  - tknawara
+created: 2026-10-19
+updated: 2026-11-24
+issue: null
+milestone: null
+supersedes: []
+superseded_by: []
+blocked_on: []
+legacy_id: "plan/0002"
+---
+
+> Backfilled on 2026-11-24 from `plans/0002-*.md`; shipped in `0.1.0-alpha.3`. The text below is the original record and describes its time. It amends the typography section of [visual focus](2026-10-19-visual-focus.md).
+
 # Smooth native text: alpha.3
 
 Status: released and installed as `0.1.0-alpha.3`, including the requested summary tiles.

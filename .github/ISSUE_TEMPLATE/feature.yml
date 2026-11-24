@@ -1,0 +1,32 @@
+name: Feature or change
+description: Propose an outcome you want from Cadence.
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Changes to scoring, timing, the learning model, saved data or the CLI need an [RFC](https://github.com/cadence-typing/cadence/blob/main/docs/rfcs/README.md) after triage. Start with the outcome here.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What you were trying to practise or learn, and what got in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What outcome would satisfy it?
+      description: Describe something observable, such as a screen, a command or a number you could check.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Fit
+      options:
+        - label: This works offline, with no account and no telemetry.
+          required: true

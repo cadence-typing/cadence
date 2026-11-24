@@ -1,7 +1,26 @@
+---
+rfc: "2026-10-19-visual-focus"
+title: "Centered visual focus and large practice text"
+status: accepted
+implementation: complete
+authors:
+  - tknawara
+created: 2026-10-19
+updated: 2026-11-24
+issue: null
+milestone: null
+supersedes: []
+superseded_by: []
+blocked_on: []
+legacy_id: "plan/0001"
+---
+
+> Backfilled on 2026-11-24 from `plans/0001-*.md`; shipped in `0.1.0-alpha.2`. The text below is the original record and describes its time. Superseded in part: the bitmap typography was replaced by [smooth native text](2026-10-19-smooth-native-text.md). The centered layout, route and modeline remain in force.
+
 # Visual focus: alpha.2
 
 Historical status: shipped as `0.1.0-alpha.2`. Its bitmap typography is superseded
-by [smooth native text in alpha.3](0002-smooth-native-text.md).
+by [smooth native text in alpha.3](2026-10-19-smooth-native-text.md).
 Scope: terminal UI only, plus typed display preferences and release/install.
 Training policy, target identity, scoring, phase allocations and persisted
 history schema remain unchanged. This is still an unsigned feedback build.

@@ -1,3 +1,22 @@
+---
+rfc: "2026-11-14-calm-flow-and-honest-results"
+title: "Calm flow and results that answer \"how did I do\""
+status: accepted
+implementation: complete
+authors:
+  - tknawara
+created: 2026-11-14
+updated: 2026-11-24
+issue: null
+milestone: null
+supersedes: []
+superseded_by: []
+blocked_on: []
+legacy_id: "plan/0004"
+---
+
+> Backfilled on 2026-11-24 from `plans/0004-*.md`; shipped in `0.1.0-alpha.5`. The text below is the original record and describes its time. 
+
 # 0004 — Calm flow and results that answer "how did I do" (alpha.5)
 
 Status: accepted by the owner's request of 2026-11-14 ("critique the TUI and
