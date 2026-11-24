@@ -9,6 +9,11 @@ User-visible changes per release. Design decisions live in the [RFC registry](do
 - One-line install: `curl -fsSL https://cadence-typing.github.io/install.sh | sh`. It verifies the release checksum, installs for the current user only, never uses `sudo`, and never touches your practice history. `--version`, `--prefix`, `--bin-dir` and `--uninstall` are supported.
 - Public home at [cadence-typing.github.io](https://cadence-typing.github.io) and [github.com/cadence-typing/cadence](https://github.com/cadence-typing/cadence), with issues, milestones and an RFC process ([GOVERNANCE.md](GOVERNANCE.md)).
 
+### Verification
+
+- Scoring decisions moved into a `no_std` kernel crate that production calls. 19 Lean theorems over its Aeneas translation are proved, each calibrated by mutants that must break it, covering first-attempt write-once, counters, pace and accuracy arithmetic, active time, track validity and checkpoint admission. No score, timing or saved data changed. [#2](https://github.com/cadence-typing/cadence/issues/2)
+- The workspace follows the tauten strictness profile (`cargo tauten check` passes with no baseline). Release builds now enable overflow checks.
+
 ### Fixed
 
 - The TLC model-check logs pinned by `MANIFEST.sha256` are now committed, so contract verification passes on a fresh clone.

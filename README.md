@@ -81,9 +81,19 @@ Rust and [Ratatui](https://ratatui.rs). There is one state owner with a typed re
 
 **Assurance**, labelled honestly:
 
-- The protocol designs (async admission, causal barriers, durable checkpoints) have bounded [TLA+ models](formal/), each with named counterexamples from deliberately faulty variants (*model-checked*).
-- Scoring behaviour is pinned by [independent fixtures](fixtures/scoring.json) and property tests (*tested*).
-- The code follows the [tauten](https://github.com/tauten-dev/tauten) strictness profile. Lean proofs over the scoring kernel are being added ([RFC](docs/rfcs/2026-11-24-tauten-and-lean-kernel.md), [TAUTEN.md](docs/TAUTEN.md)); each claim carries the badge its evidence supports.
+- **Proved:** the scoring decisions live in a small `no_std` crate, [`crates/kernel`](crates/kernel), which production calls directly. It has 19 Lean theorems over its [Charon/Aeneas](https://github.com/AeneasVerif/aeneas) translation, for example:
+  - a corrected mistake stays an error;
+  - accuracy never exceeds 100%;
+  - active time plus pauses equals elapsed time;
+  - pace is exactly `units·60 s / (5·active)` and never overflows;
+  - a checkpoint is never credited twice.
+
+  Each claim passes an axiom audit, and every one of its 34 deliberate source mutants must break it. The inventory, and what remains only tested, is in [docs/TAUTEN.md](docs/TAUTEN.md).
+- **Model-checked:** the protocol designs (async admission, causal barriers, durable checkpoints) have bounded [TLA+ models](formal/). Deliberately faulty variants must produce named counterexamples.
+- **Tested:** [independent scoring fixtures](fixtures/scoring.json), property tests, 193 tests in all, plus real-PTY smoke runs.
+- **Profile:** the code follows the [tauten](https://github.com/tauten-dev/tauten) strictness profile: kernel/core/edge tiers, no ambient I/O outside the edge, checked arithmetic, typed errors. `cargo tauten check` passes with no baseline.
+
+Proofs cover the decisions they name, not the whole program, and they do not show that practice makes you faster.
 
 ## Develop
 
@@ -91,6 +101,8 @@ Rust and [Ratatui](https://ratatui.rs). There is one state owner with a typed re
 ./ci prepare     # build the pinned gate image and fetch dependencies (networked)
 ./ci quality     # offline: fmt, strict Clippy, all tests, boundaries, contract hashes
 ./ci dist        # offline: the static release bundle in dist/
+cargo +1.98.0 tauten check     # strictness profile
+cargo +1.98.0 tauten proofs    # Lean gate: extract, build, axiom audit, mutants (Docker, ~20 GB image)
 ```
 
 Start with [CONTRIBUTING.md](CONTRIBUTING.md), then [AGENTS.md](AGENTS.md) for the engineering rules (they apply to people too) and [GOVERNANCE.md](GOVERNANCE.md) for how decisions are made. Designs go through [RFCs](docs/rfcs/README.md). The original implementation contract is archived in [docs/handover/](docs/handover/README.md).

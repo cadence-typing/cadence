@@ -47,3 +47,19 @@ jobs:
             su learner -c "sh /install.sh --uninstall"
             test ! -e /home/learner/.local/bin/cadence
           '
+
+  tauten:
+    # Strictness profile (docs/TAUTEN.md). cargo-tauten 0.2.0 needs Rust 1.98.0;
+    # the product itself stays on the rust-toolchain.toml pin.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Rust 1.98.0 and cargo-tauten 0.2.0
+        run: |
+          rustup toolchain install 1.98.0 --profile minimal --component clippy
+          cargo +1.98.0 install --locked cargo-tauten --version 0.2.0
+      - name: cargo tauten check
+        run: cargo +1.98.0 tauten check

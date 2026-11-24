@@ -1,6 +1,6 @@
 # tauten and the Lean kernel: adoption record
 
-Status: adopted on branch `tauten-lean`, 2026-11-24. RFC:
+Status: adopted 2026-11-24. RFC:
 [2026-11-24-tauten-and-lean-kernel](rfcs/2026-11-24-tauten-and-lean-kernel.md)
 (draft; the owner decides acceptance). Working rules: `AGENTS.md`, section
 "Strictness profile (tauten)".

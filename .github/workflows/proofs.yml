@@ -1,0 +1,49 @@
+name: proofs
+
+# Lean proofs over crates/kernel (docs/TAUTEN.md, proofs/README.md): extract
+# with Charon/Aeneas, refuse drift against proofs/Extracted/, lake build with
+# the axiom audit, then every mutant in proofs/claims.toml must break its
+# claim. A timeout or a missing tool is a failure, never a pass.
+on:
+  push:
+    branches: [main]
+    paths: ["crates/kernel/**", "proofs/**", ".github/workflows/proofs.yml"]
+  pull_request:
+    paths: ["crates/kernel/**", "proofs/**", ".github/workflows/proofs.yml"]
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proofs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROOFS_IMAGE: ghcr.io/tauten-dev/proofs-toolchain:lean-4.35.0-aeneas-c5eb4a2-charon-8cae8fd
+
+jobs:
+  proofs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Free disk space for the proofs image (about 20 GB unpacked)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift \
+            /usr/local/lib/node_modules /usr/local/share/powershell /usr/local/share/chromium
+          sudo docker image prune --all --force
+          df -h /
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Pull the pinned proofs toolchain image (public)
+        run: time docker pull "$PROOFS_IMAGE"
+      - name: Install Rust 1.98.0 and cargo-tauten 0.2.0
+        run: |
+          rustup toolchain install 1.98.0 --profile minimal --component clippy
+          cargo +1.98.0 install --locked cargo-tauten --version 0.2.0
+      - name: Proofs gate (extract, drift, lake build, axiom audit, mutants)
+        run: time cargo +1.98.0 tauten proofs
