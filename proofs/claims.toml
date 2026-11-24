@@ -435,3 +435,40 @@ name = "valid-skips-ordering"
 file = "crates/kernel/src/progress.rs"
 before = "    in_range(t) && ordered(t) && split_fits(t)\n"
 after = "    in_range(t) && split_fits(t)\n"
+
+# Reviewed amendments (remove once proofs/claims.json is re-recorded).
+
+[[amend]]
+file = "crates/kernel/src/checkpoint.rs"
+function = "checkpoint::admit"
+kind = "theorem"
+name = "Proofs.Checkpoint.latest_never_decreases"
+reason = "checkpoint::latest_after had no production caller and existed only to state a multi-step theorem; removed so every proved function is one production calls. No-double-credit is stated over admit alone (applied_sequence_never_reapplies)."
+
+[[amend]]
+file = "crates/kernel/src/checkpoint.rs"
+function = "checkpoint::latest_after"
+kind = "theorem"
+name = "Proofs.Checkpoint.latest_after_spec"
+reason = "checkpoint::latest_after had no production caller and existed only to state a multi-step theorem; removed so every proved function is one production calls. No-double-credit is stated over admit alone (applied_sequence_never_reapplies)."
+
+[[amend]]
+file = "crates/kernel/src/checkpoint.rs"
+function = "checkpoint::latest_after"
+kind = "theorem"
+name = "Proofs.Checkpoint.latest_never_decreases"
+reason = "checkpoint::latest_after had no production caller and existed only to state a multi-step theorem; removed so every proved function is one production calls. No-double-credit is stated over admit alone (applied_sequence_never_reapplies)."
+
+[[amend]]
+file = "crates/kernel/src/checkpoint.rs"
+function = "checkpoint::latest_after"
+kind = "mutant"
+name = "latest-forgotten-on-refusal"
+reason = "checkpoint::latest_after had no production caller and existed only to state a multi-step theorem; removed so every proved function is one production calls. No-double-credit is stated over admit alone (applied_sequence_never_reapplies)."
+
+[[amend]]
+file = "crates/kernel/src/checkpoint.rs"
+function = "checkpoint::latest_after"
+kind = "mutant"
+name = "latest-moves-on-stale"
+reason = "checkpoint::latest_after had no production caller and existed only to state a multi-step theorem; removed so every proved function is one production calls. No-double-credit is stated over admit alone (applied_sequence_never_reapplies)."
