@@ -76,7 +76,10 @@ fn every_scoring_case_matches_the_independent_expectation() {
         assert_eq!(counters.overflow, get("overflow_attempts"), "{id}");
         assert_eq!(visible as u64, get("correct_visible_units"), "{id}");
         let active = case["active_microseconds"].as_u64().expect("active");
-        match (wpm(visible as u64, active), expected["correct_wpm_fraction"].as_array()) {
+        match (
+            wpm(visible as u64, active),
+            expected["correct_wpm_fraction"].as_array(),
+        ) {
             (Pace::Rate(rate), Some(pair)) => {
                 assert_eq!(rate.num, u128::from(pair[0].as_u64().expect("num")), "{id}");
                 assert_eq!(rate.den, u128::from(pair[1].as_u64().expect("den")), "{id}");
@@ -115,7 +118,9 @@ fn timing_case_excludes_only_explicit_pauses() {
         .iter()
         .map(|pair| pair[1].as_u64().expect("end") - pair[0].as_u64().expect("start"))
         .collect();
-    let want = timing["expected_active_microseconds"].as_u64().expect("active");
+    let want = timing["expected_active_microseconds"]
+        .as_u64()
+        .expect("active");
     assert_eq!(active_time(elapsed, &pauses), Active::Time(want));
 }
 

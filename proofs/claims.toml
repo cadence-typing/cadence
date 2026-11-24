@@ -1,0 +1,459 @@
+# Proof claims for cadence-kernel (tauten proof tier). `cargo tauten proofs`
+# runs the gate below and records one outcome per claim in
+# proofs/claims.json: proved, drift, build-failed, audit-failed,
+# mutant-survived or tool-missing. Each [[mutant]] is a textual change to the
+# Rust source (it must match exactly once) that must break at least one of
+# its claim's theorems.
+version = 1
+
+[gate]
+# Run from the workspace root. proofs/run.sh checks for Docker and the
+# pinned image, then runs proofs/gate.py in it.
+command = ["sh", "proofs/run.sh"]
+# Only translate: the authoritative check that kernel code stays inside what
+# the toolchain translates.
+extract = ["sh", "proofs/run.sh", "python3", "proofs/gate.py", "--extract-only"]
+# The developer loop: every stage, but only the named mutants; never recorded.
+try = ["sh", "proofs/run.sh", "python3", "proofs/gate.py", "--only-mutants"]
+# Crate directories the gate translates with Charon/Aeneas.
+crates = ["crates/kernel"]
+
+# ---- first-attempt slots (crates/kernel/src/first.rs)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/first.rs"
+function = "first::settle"
+lean = "cadence_kernel.first.settle"
+theorems = [
+  "Proofs.First.settle_spec",
+  "Proofs.First.settle_write_once",
+  "Proofs.First.mistake_stays_an_error",
+  "Proofs.First.first_match_is_kept",
+]
+total = "Proofs.First.settle_spec"
+mutants = ["settle-forgives-correction", "settle-overwrites-correct", "settle-open-always-correct"]
+
+[[mutant]]
+name = "settle-forgives-correction"
+file = "crates/kernel/src/first.rs"
+before = "        Slot::Incorrect => Slot::Incorrect,\n"
+after = "        Slot::Incorrect => if matched { Slot::Correct } else { Slot::Incorrect },\n"
+
+[[mutant]]
+name = "settle-overwrites-correct"
+file = "crates/kernel/src/first.rs"
+before = "        Slot::Correct => Slot::Correct,\n"
+after = "        Slot::Correct => if matched { Slot::Correct } else { Slot::Incorrect },\n"
+
+[[mutant]]
+name = "settle-open-always-correct"
+file = "crates/kernel/src/first.rs"
+before = "            if matched {\n                Slot::Correct\n            } else {\n                Slot::Incorrect\n            }\n"
+after = "            if matched || !matched {\n                Slot::Correct\n            } else {\n                Slot::Incorrect\n            }\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/first.rs"
+function = "first::count_first_loop"
+lean = "cadence_kernel.first.count_first_loop"
+theorems = ["Proofs.First.count_first_loop_spec"]
+mutants = ["count-open-as-attempted", "count-correct-twice", "count-skips-last"]
+
+[[mutant]]
+name = "count-open-as-attempted"
+file = "crates/kernel/src/first.rs"
+before = "                Slot::Open => {}\n"
+after = "                Slot::Open => {\n                    attempted = attempted.saturating_add(1);\n                }\n"
+
+[[mutant]]
+name = "count-correct-twice"
+file = "crates/kernel/src/first.rs"
+before = "                    correct = correct.saturating_add(1);\n"
+after = "                    correct = correct.saturating_add(2);\n"
+
+[[mutant]]
+name = "count-skips-last"
+file = "crates/kernel/src/first.rs"
+before = "    while i < slots.len() {\n"
+after = "    while i.saturating_add(1) < slots.len() {\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/first.rs"
+function = "first::count_first"
+lean = "cadence_kernel.first.count_first"
+theorems = ["Proofs.First.count_first_spec"]
+total = "Proofs.First.count_first_spec"
+mutants = ["count-open-as-attempted", "count-correct-twice", "count-skips-last"]
+
+# ---- attempt counters (crates/kernel/src/counters.rs)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/counters.rs"
+function = "counters::matched"
+lean = "cadence_kernel.counters.matched"
+theorems = ["Proofs.Counters.matched_spec", "Proofs.Counters.overflow_never_matches"]
+total = "Proofs.Counters.matched_spec"
+mutants = ["matched-ignores-position"]
+
+[[mutant]]
+name = "matched-ignores-position"
+file = "crates/kernel/src/counters.rs"
+before = "    expected_present && same\n"
+after = "    same\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/counters.rs"
+function = "counters::content_step"
+lean = "cadence_kernel.counters.content_step"
+theorems = [
+  "Proofs.Counters.content_step_spec",
+  "Proofs.Counters.overflow_insertion_never_correct",
+  "Proofs.Counters.mistype_counts_attempt_not_correct",
+  "Proofs.Counters.content_step_keeps_inv",
+  "Proofs.Counters.content_step_counts_below_limit",
+]
+total = "Proofs.Counters.content_step_spec"
+mutants = ["matched-ignores-position", "mistype-not-an-attempt", "overflow-not-counted", "correct-counted-twice"]
+
+[[mutant]]
+name = "mistype-not-an-attempt"
+file = "crates/kernel/src/counters.rs"
+before = "    match c.content.checked_add(1) {\n"
+after = "    match c.content.checked_add(add_correct) {\n"
+
+[[mutant]]
+name = "overflow-not-counted"
+file = "crates/kernel/src/counters.rs"
+before = "    let add_overflow: u64 = if expected_present { 0 } else { 1 };\n"
+after = "    let add_overflow: u64 = 0;\n"
+
+[[mutant]]
+name = "correct-counted-twice"
+file = "crates/kernel/src/counters.rs"
+before = "    let add_correct: u64 = if matched(expected_present, same) { 1 } else { 0 };\n"
+after = "    let add_correct: u64 = if matched(expected_present, same) { 2 } else { 0 };\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/counters.rs"
+function = "counters::deletion_step"
+lean = "cadence_kernel.counters.deletion_step"
+theorems = ["Proofs.Counters.deletion_step_spec", "Proofs.Counters.deletion_step_monotone"]
+total = "Proofs.Counters.deletion_step_spec"
+mutants = ["deletion-saturates", "deletion-forgets-count"]
+
+[[mutant]]
+name = "deletion-saturates"
+file = "crates/kernel/src/counters.rs"
+before = "    match c.deletions.checked_add(removed) {\n"
+after = "    match Some(c.deletions.saturating_add(removed)) {\n"
+
+[[mutant]]
+name = "deletion-forgets-count"
+file = "crates/kernel/src/counters.rs"
+before = "    match c.deletions.checked_add(removed) {\n"
+after = "    match c.deletions.checked_add(0) {\n"
+
+# ---- ratios, pace and accuracy (crates/kernel/src/ratio.rs)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ratio.rs"
+function = "ratio::fraction"
+lean = "cadence_kernel.ratio.fraction"
+theorems = ["Proofs.Ratio.fraction_spec"]
+total = "Proofs.Ratio.fraction_spec"
+mutants = ["fraction-allows-zero"]
+
+[[mutant]]
+name = "fraction-allows-zero"
+file = "crates/kernel/src/ratio.rs"
+before = "pub fn fraction(num: u64, den: u64) -> Option<Fraction> {\n    if den == 0 {\n"
+after = "pub fn fraction(num: u64, den: u64) -> Option<Fraction> {\n    if den == 1 {\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ratio.rs"
+function = "ratio::wpm"
+lean = "cadence_kernel.ratio.wpm"
+theorems = [
+  "Proofs.Ratio.wpm_spec",
+  "Proofs.Ratio.wpm_monotone_in_units",
+  "Proofs.Ratio.wpm_idle_time_never_helps",
+]
+total = "Proofs.Ratio.wpm_spec"
+mutants = ["wpm-four-units-per-word", "wpm-minute-is-ten-seconds", "wpm-zero-time-allowed"]
+
+[[mutant]]
+name = "wpm-four-units-per-word"
+file = "crates/kernel/src/ratio.rs"
+before = "pub const WPM_UNITS_PER_WORD: u128 = 5;"
+after = "pub const WPM_UNITS_PER_WORD: u128 = 4;"
+
+[[mutant]]
+name = "wpm-minute-is-ten-seconds"
+file = "crates/kernel/src/ratio.rs"
+before = "pub const MICROSECONDS_PER_MINUTE: u128 = 60_000_000;"
+after = "pub const MICROSECONDS_PER_MINUTE: u128 = 10_000_000;"
+
+[[mutant]]
+name = "wpm-zero-time-allowed"
+file = "crates/kernel/src/ratio.rs"
+before = "pub fn wpm(units: u64, active_us: u64) -> Pace {\n    if units == 0 || active_us == 0 {\n"
+after = "pub fn wpm(units: u64, active_us: u64) -> Pace {\n    if units == 0 {\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ratio.rs"
+function = "ratio::digits_per_minute"
+lean = "cadence_kernel.ratio.digits_per_minute"
+theorems = ["Proofs.Ratio.digits_per_minute_spec"]
+total = "Proofs.Ratio.digits_per_minute_spec"
+mutants = ["digits-minute-is-ten-seconds", "digits-denominator-off-by-one"]
+
+[[mutant]]
+name = "digits-minute-is-ten-seconds"
+file = "crates/kernel/src/ratio.rs"
+before = "pub const MICROSECONDS_PER_MINUTE: u128 = 60_000_000;"
+after = "pub const MICROSECONDS_PER_MINUTE: u128 = 10_000_000;"
+
+[[mutant]]
+name = "digits-denominator-off-by-one"
+file = "crates/kernel/src/ratio.rs"
+before = "            den: u128::from(active_us),\n"
+after = "            den: u128::from(active_us).saturating_add(1),\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ratio.rs"
+function = "ratio::basis_points"
+lean = "cadence_kernel.ratio.basis_points"
+theorems = [
+  "Proofs.Ratio.basis_points_spec",
+  "Proofs.Ratio.accuracy_in_range",
+  "Proofs.Ratio.accuracy_computed",
+]
+total = "Proofs.Ratio.basis_points_spec"
+mutants = ["basis-allows-over-full", "basis-remainder-not-quotient", "basis-full-is-9999"]
+
+[[mutant]]
+name = "basis-allows-over-full"
+file = "crates/kernel/src/ratio.rs"
+before = "    if num > den {\n"
+after = "    if num > den.saturating_add(den) {\n"
+
+[[mutant]]
+name = "basis-remainder-not-quotient"
+file = "crates/kernel/src/ratio.rs"
+before = "scaled.checked_div(den)"
+after = "scaled.checked_rem(den)"
+
+[[mutant]]
+name = "basis-full-is-9999"
+file = "crates/kernel/src/ratio.rs"
+before = "pub const BASIS_POINTS_FULL: u64 = 10_000;"
+after = "pub const BASIS_POINTS_FULL: u64 = 9_999;"
+
+# ---- active time and the phase window (crates/kernel/src/time.rs)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/time.rs"
+function = "time::pause_total_loop"
+lean = "cadence_kernel.time.pause_total_loop"
+theorems = ["Proofs.Time.pause_total_loop_spec"]
+mutants = ["pauses-saturate", "pauses-skip-last"]
+
+[[mutant]]
+name = "pauses-saturate"
+file = "crates/kernel/src/time.rs"
+before = "            match total.checked_add(*pause) {\n                Some(next) => total = next,\n                None => return Total::Overflow,\n            }\n"
+after = "            total = total.saturating_add(*pause);\n"
+
+[[mutant]]
+name = "pauses-skip-last"
+file = "crates/kernel/src/time.rs"
+before = "    while i < pauses.len() {\n"
+after = "    while i.saturating_add(1) < pauses.len() {\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/time.rs"
+function = "time::pause_total"
+lean = "cadence_kernel.time.pause_total"
+theorems = ["Proofs.Time.pause_total_spec"]
+total = "Proofs.Time.pause_total_spec"
+mutants = ["pauses-saturate", "pauses-skip-last"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/time.rs"
+function = "time::active_time"
+lean = "cadence_kernel.time.active_time"
+theorems = [
+  "Proofs.Time.active_time_spec",
+  "Proofs.Time.active_time_le_elapsed",
+  "Proofs.Time.active_time_no_pauses",
+]
+total = "Proofs.Time.active_time_spec"
+mutants = ["active-ignores-pauses", "pauses-exceeding-clamp-to-zero", "pauses-saturate"]
+
+[[mutant]]
+name = "active-ignores-pauses"
+file = "crates/kernel/src/time.rs"
+before = "            match elapsed.checked_sub(total) {\n"
+after = "            match elapsed.checked_sub(0) {\n"
+
+[[mutant]]
+name = "pauses-exceeding-clamp-to-zero"
+file = "crates/kernel/src/time.rs"
+before = "                None => Active::PausesExceed(total),\n"
+after = "                None => Active::Time(0),\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/time.rs"
+function = "time::in_window"
+lean = "cadence_kernel.time.in_window"
+theorems = ["Proofs.Time.in_window_spec"]
+total = "Proofs.Time.in_window_spec"
+mutants = ["window-deadline-inclusive", "window-start-exclusive"]
+
+[[mutant]]
+name = "window-deadline-inclusive"
+file = "crates/kernel/src/time.rs"
+before = "    tick >= start && tick < deadline\n"
+after = "    tick >= start && tick <= deadline\n"
+
+[[mutant]]
+name = "window-start-exclusive"
+file = "crates/kernel/src/time.rs"
+before = "    tick >= start && tick < deadline\n"
+after = "    tick > start && tick < deadline\n"
+
+# ---- checkpoint credit (crates/kernel/src/checkpoint.rs)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/checkpoint.rs"
+function = "checkpoint::admit"
+lean = "cadence_kernel.checkpoint.admit"
+theorems = [
+  "Proofs.Checkpoint.admit_spec",
+  "Proofs.Checkpoint.admit_apply_iff",
+  "Proofs.Checkpoint.refused_never_applies",
+  "Proofs.Checkpoint.applications_strictly_increase",
+  "Proofs.Checkpoint.applied_sequence_never_reapplies",
+  "Proofs.Checkpoint.latest_never_decreases",
+]
+total = "Proofs.Checkpoint.admit_spec"
+mutants = ["admit-equal-sequence-applies", "admit-replay-applies", "admit-conflict-replays"]
+
+[[mutant]]
+name = "admit-equal-sequence-applies"
+file = "crates/kernel/src/checkpoint.rs"
+before = "                if incoming <= latest {\n"
+after = "                if incoming < latest {\n"
+
+[[mutant]]
+name = "admit-replay-applies"
+file = "crates/kernel/src/checkpoint.rs"
+before = "        Receipt::Same => Admission::Replay,\n"
+after = "        Receipt::Same => Admission::Apply,\n"
+
+[[mutant]]
+name = "admit-conflict-replays"
+file = "crates/kernel/src/checkpoint.rs"
+before = "        Receipt::Different => Admission::Conflict,\n"
+after = "        Receipt::Different => Admission::Replay,\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/checkpoint.rs"
+function = "checkpoint::latest_after"
+lean = "cadence_kernel.checkpoint.latest_after"
+theorems = ["Proofs.Checkpoint.latest_after_spec", "Proofs.Checkpoint.latest_never_decreases"]
+total = "Proofs.Checkpoint.latest_after_spec"
+mutants = ["latest-forgotten-on-refusal", "latest-moves-on-stale"]
+
+[[mutant]]
+name = "latest-forgotten-on-refusal"
+file = "crates/kernel/src/checkpoint.rs"
+before = "        Admission::Replay | Admission::Conflict | Admission::Stale => latest,\n"
+after = "        Admission::Replay | Admission::Conflict | Admission::Stale => None,\n"
+
+[[mutant]]
+name = "latest-moves-on-stale"
+file = "crates/kernel/src/checkpoint.rs"
+before = "        Admission::Replay | Admission::Conflict | Admission::Stale => latest,\n"
+after = "        Admission::Replay | Admission::Conflict => latest,\n        Admission::Stale => Some(incoming),\n"
+
+# ---- track counter validity (crates/kernel/src/progress.rs)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/progress.rs"
+function = "progress::in_range"
+lean = "cadence_kernel.progress.in_range"
+theorems = ["Proofs.Progress.in_range_spec"]
+total = "Proofs.Progress.in_range_spec"
+mutants = ["range-skips-active"]
+
+[[mutant]]
+name = "range-skips-active"
+file = "crates/kernel/src/progress.rs"
+before = "        && t.active_micros <= COUNTER_MAXIMUM\n"
+after = "        && true\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/progress.rs"
+function = "progress::ordered"
+lean = "cadence_kernel.progress.ordered"
+theorems = ["Proofs.Progress.ordered_spec"]
+total = "Proofs.Progress.ordered_spec"
+mutants = ["ordered-skips-first-pass"]
+
+[[mutant]]
+name = "ordered-skips-first-pass"
+file = "crates/kernel/src/progress.rs"
+before = "    t.first_correct <= t.first_attempted\n        && t.first_attempted"
+after = "    true\n        && t.first_attempted"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/progress.rs"
+function = "progress::split_fits"
+lean = "cadence_kernel.progress.split_fits"
+theorems = ["Proofs.Progress.split_fits_spec"]
+total = "Proofs.Progress.split_fits_spec"
+mutants = ["split-ignores-overflow-attempts"]
+
+[[mutant]]
+name = "split-ignores-overflow-attempts"
+file = "crates/kernel/src/progress.rs"
+before = "        Some(sum) => sum <= t.content_attempts,\n"
+after = "        Some(_) => true,\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/progress.rs"
+function = "progress::track_valid"
+lean = "cadence_kernel.progress.track_valid"
+theorems = [
+  "Proofs.Progress.track_valid_spec",
+  "Proofs.Progress.valid_accuracy_at_most_full",
+  "Proofs.Progress.valid_track_accuracy_in_range",
+]
+total = "Proofs.Progress.track_valid_spec"
+mutants = ["range-skips-active", "ordered-skips-first-pass", "split-ignores-overflow-attempts", "valid-skips-ordering"]
+
+[[mutant]]
+name = "valid-skips-ordering"
+file = "crates/kernel/src/progress.rs"
+before = "    in_range(t) && ordered(t) && split_fits(t)\n"
+after = "    in_range(t) && split_fits(t)\n"
