@@ -24,6 +24,19 @@ pub enum Track {
     Prose,
 }
 impl Track {
+    /// Stable byte in the checkpoint digest (declaration order of the v1
+    /// encoding; never reuse a value).
+    #[must_use]
+    pub const fn digest_tag(self) -> u8 {
+        match self {
+            Self::WarmUp => 0,
+            Self::Words => 1,
+            Self::NumberRow => 2,
+            Self::Numpad => 3,
+            Self::Prose => 4,
+        }
+    }
+
     /// Human-readable label.
     #[must_use]
     pub const fn label(self) -> &'static str {
@@ -130,6 +143,20 @@ impl TrackProgress {
         };
         Ok(())
     }
+    /// The kernel's view of the counters, for its validity decision.
+    fn counters(&self) -> cadence_kernel::progress::TrackCounters {
+        cadence_kernel::progress::TrackCounters {
+            first_correct: self.first_correct,
+            first_attempted: self.first_attempted,
+            correct_attempts: self.correct_attempts,
+            content_attempts: self.content_attempts,
+            deletions: self.deletions,
+            overflow_attempts: self.overflow_attempts,
+            correct_units: self.correct_units,
+            correct_digits: self.correct_digits,
+            active_micros: self.active_micros,
+        }
+    }
     fn values(&self) -> [u64; 9] {
         [
             self.first_correct,
@@ -171,7 +198,7 @@ impl SessionProgress {
             .iter()
             .any(|s| s.is_empty() || s.len() > 256 || s.chars().any(char::is_control))
             || self.tracks.len() > 5
-            || self.active_micros > i64::MAX as u64
+            || self.active_micros > cadence_kernel::progress::COUNTER_MAXIMUM
         {
             return Err(invalid());
         }
@@ -182,17 +209,7 @@ impl SessionProgress {
                 .iter()
                 .take(index)
                 .any(|previous| previous.track == t.track)
-                || t.values().iter().any(|v| *v > i64::MAX as u64)
-                || t.first_correct > t.first_attempted
-                || t.first_attempted > t.content_attempts
-                || t.correct_attempts > t.content_attempts
-                || t.first_correct > t.correct_attempts
-                || t.overflow_attempts > t.content_attempts
-                || t.correct_units > t.correct_attempts
-                || t.correct_digits > t.correct_units
-                || t.correct_attempts
-                    .checked_add(t.overflow_attempts)
-                    .is_none_or(|v| v > t.content_attempts)
+                || !cadence_kernel::progress::track_valid(t.counters())
             {
                 return Err(invalid());
             }
@@ -250,7 +267,11 @@ impl Checkpoint {
             &progress.policy_digest,
             &progress.corpus_digest,
         ] {
-            h.update(u64::try_from(s.len()).map_err(|_| invalid())?.to_le_bytes());
+            h.update(
+                u64::try_from(s.len())
+                    .map_err(|_too_long| invalid())?
+                    .to_le_bytes(),
+            );
             h.update(s.as_bytes());
         }
         h.update(progress.day.to_le_bytes());
@@ -261,7 +282,7 @@ impl Checkpoint {
         }]);
         h.update(progress.active_micros.to_le_bytes());
         for t in &progress.tracks {
-            h.update([t.track as u8]);
+            h.update([t.track.digest_tag()]);
             for v in t.values() {
                 h.update(v.to_le_bytes());
             }

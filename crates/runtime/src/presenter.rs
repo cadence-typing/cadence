@@ -93,8 +93,9 @@ impl<W: Write> Presenter<W> {
             if old == new {
                 continue;
             }
-            let y = u16::try_from(index)
-                .map_err(|_| io::Error::other("row index exceeds terminal geometry"))?;
+            let y = u16::try_from(index).map_err(|_unrepresentable| {
+                io::Error::other("row index exceeds terminal geometry")
+            })?;
             queue!(
                 self.backend,
                 MoveTo(0, y),

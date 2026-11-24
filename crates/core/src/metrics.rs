@@ -6,20 +6,19 @@
 //! baseline. Numerators and denominators are aggregated, never averaged
 //! per exercise.
 //!
-//! Verus target (VK-02): every construction is defined only with valid
-//! denominators and is bounded and overflow-safe; the conventional
-//! five-unit WPM factor lives in one named constant.
+//! The arithmetic is decided by `cadence-kernel` (`ratio`, `time`), which
+//! carries Lean theorems for exactness, overflow-freedom and monotonicity
+//! (`docs/TAUTEN.md`); this module adapts its results to the core types.
 
 use crate::ledger::AttemptLedger;
 use crate::tick::Micros;
 use crate::units::UnitCount;
+use cadence_kernel::ratio::{
+    Fraction, Pace, digits_per_minute as kernel_digits_per_minute, fraction, wpm,
+};
+use cadence_kernel::time::{Active, active_time as kernel_active_time};
 
-/// The conventional five-unit word length in the WPM definition (L-02).
-pub const WPM_UNITS_PER_WORD: u128 = 5;
-
-/// Seconds per minute in the WPM numerator, in microseconds so the whole
-/// computation stays in integer arithmetic.
-pub const MICROSECONDS_PER_MINUTE: u128 = 60_000_000;
+pub use cadence_kernel::ratio::{MICROSECONDS_PER_MINUTE, WPM_UNITS_PER_WORD};
 
 /// An exact non-negative rational `numerator / denominator`. Constructed
 /// only through checked paths; never reduced silently (fixtures pin the
@@ -58,9 +57,21 @@ impl Ratio {
         self.denominator
     }
 
+    /// A kernel fraction, whose denominator the kernel proves nonzero.
+    const fn from_fraction(fraction: Fraction) -> Self {
+        Self {
+            numerator: fraction.num,
+            denominator: fraction.den,
+        }
+    }
+
     /// The ratio as an f64, for UI formatting only (the exact pair is the
     /// source of truth).
     #[must_use]
+    #[expect(
+        clippy::as_conversions,
+        reason = "display only: no lossless integer to f64 conversion exists; the exact pair is the source of truth"
+    )]
     pub fn as_f64(self) -> f64 {
         let numerator = self.numerator as f64;
         let denominator = self.denominator as f64;
@@ -91,14 +102,7 @@ pub fn attempt_accuracy(ledger: &AttemptLedger) -> Option<Ratio> {
 /// are zero.
 #[must_use]
 pub fn correct_wpm(correct_units: u64, active: Micros) -> Option<Ratio> {
-    if active.as_us() == 0 || correct_units == 0 {
-        return None;
-    }
-    Ratio::new(
-        u128::from(correct_units) * MICROSECONDS_PER_MINUTE,
-        WPM_UNITS_PER_WORD * u128::from(active.as_us()),
-    )
-    .ok()
+    pace_ratio(wpm(correct_units, active.as_us()))
 }
 
 /// Numpad correct digits per minute: matching digit units only; decimal
@@ -106,14 +110,7 @@ pub fn correct_wpm(correct_units: u64, active: Micros) -> Option<Ratio> {
 /// (L-02).
 #[must_use]
 pub fn digits_per_minute(correct_digits: u64, active: Micros) -> Option<Ratio> {
-    if active.as_us() == 0 || correct_digits == 0 {
-        return None;
-    }
-    Ratio::new(
-        u128::from(correct_digits) * MICROSECONDS_PER_MINUTE,
-        u128::from(active.as_us()),
-    )
-    .ok()
+    pace_ratio(kernel_digits_per_minute(correct_digits, active.as_us()))
 }
 
 /// Positionally matching digit units in the ledger buffer.
@@ -125,7 +122,7 @@ pub fn correct_digits(ledger: &AttemptLedger) -> UnitCount {
         .zip(ledger.target())
         .filter(|(typed, expected)| typed == expected && typed.is_digit())
         .count();
-    UnitCount::from_raw(count as u64)
+    UnitCount::from_len(count)
 }
 
 /// All digit units in the target (numpad denominators count digits).
@@ -136,7 +133,7 @@ pub fn target_digits(ledger: &AttemptLedger) -> UnitCount {
         .iter()
         .filter(|unit| unit.is_digit())
         .count();
-    UnitCount::from_raw(count as u64)
+    UnitCount::from_len(count)
 }
 
 /// Whether every target digit was typed correctly at its position and the
@@ -238,19 +235,31 @@ pub fn numeric_metrics(ledger: &AttemptLedger, active: Micros) -> NumericMetrics
 /// of total pause time would overflow, or
 /// [`crate::CoreError::InvalidSubtraction`] when pauses exceed elapsed.
 pub fn active_time(elapsed: Micros, pauses: &[Micros]) -> Result<Micros, crate::CoreError> {
-    let mut total = Micros::ZERO;
-    for pause in pauses {
-        total = total.checked_add(*pause)?;
+    let pauses: Vec<u64> = pauses.iter().map(|pause| pause.as_us()).collect();
+    match kernel_active_time(elapsed.as_us(), &pauses) {
+        Active::Time(active) => Ok(Micros::from_us(active)),
+        Active::PauseOverflow => Err(crate::CoreError::ArithmeticOverflow {
+            operation: "Micros::checked_add",
+        }),
+        Active::PausesExceed(total) => Err(crate::CoreError::InvalidSubtraction {
+            left: elapsed.as_us(),
+            right: total,
+        }),
     }
-    elapsed.checked_sub(total)
 }
 
 /// Ratio of two counts, or `None` when the denominator is zero.
 fn ratio_or_none(numerator: u64, denominator: u64) -> Option<Ratio> {
-    if denominator == 0 {
-        return None;
+    fraction(numerator, denominator).map(Ratio::from_fraction)
+}
+
+/// A pace as a ratio. The kernel proves `Overflow` unreachable for `u64`
+/// inputs (`wpm_spec`), so it reads as "no pace" rather than a made-up one.
+fn pace_ratio(pace: Pace) -> Option<Ratio> {
+    match pace {
+        Pace::Rate(rate) => Some(Ratio::from_fraction(rate)),
+        Pace::Empty | Pace::Overflow => None,
     }
-    Ratio::new(u128::from(numerator), u128::from(denominator)).ok()
 }
 
 /// Re-exports for metric consumers.
@@ -260,7 +269,6 @@ pub use crate::alphabet::TrainingChar as MetricChar;
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the
     // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
     use super::*;
 

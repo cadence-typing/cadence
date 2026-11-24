@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, VecDeque};
 
 use cadence_core::alphabet::TrainingChar;
 use cadence_core::learning::{KeyLane, SessionLearning, Skill, SkillKey};
+use cadence_core::ledger::Slot;
 use cadence_core::{CoreError, Micros, WordId};
 use cadence_trainer::{Adaptation, ExerciseKind, Lane, PlannedExercise, PlannedWord};
 
@@ -174,7 +175,7 @@ impl Learning {
                 .ok_or_else(|| invalid("word boundary overflow"))?;
             let completed = last
                 .and_then(|position| outcomes.get(position))
-                .is_some_and(Option::is_some);
+                .is_some_and(|slot| *slot != Slot::Open);
             let Some(flag) = flags.get(index) else {
                 return Err(invalid("word flags do not match slots"));
             };

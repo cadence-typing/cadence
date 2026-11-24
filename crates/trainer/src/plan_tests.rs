@@ -1,13 +1,3 @@
-// Test assertions may use expect/unwrap/panic to fail loudly; the
-// workspace denies them in production code only.
-#![allow(
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects
-)]
-
 use super::*;
 use crate::corpus::WordBand;
 use cadence_core::learning::{

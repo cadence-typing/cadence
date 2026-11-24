@@ -1,7 +1,7 @@
 //! Practice timing, bounded ledger updates and fixed-track accumulation.
 use super::{DomainOutcome, Engine, Key, Screen, invalid};
 use cadence_core::learning::KeyLane;
-use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent};
+use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent, Slot};
 use cadence_core::metrics::{correct_digits, first_pass_accuracy};
 use cadence_core::progress::{ProgressStatus, Track, TrackProgress};
 use cadence_core::session::SessionState;
@@ -172,7 +172,11 @@ impl Engine {
                 {
                     return self.end_early(at);
                 }
-                _ => {}
+                Key::Content(_)
+                | Key::Backspace
+                | Key::Interrupt
+                | Key::ToggleTextSize
+                | Key::Other => {}
             }
             return Ok(DomainOutcome::None);
         }
@@ -194,7 +198,7 @@ impl Engine {
                 let first = ledger
                     .first_outcomes()
                     .get(position)
-                    .is_some_and(Option::is_none);
+                    .is_some_and(|slot| *slot == Slot::Open);
                 let applied = ledger.apply(LedgerEvent::Content(c))?;
                 if applied == Applied::RejectedOverBound {
                     // Refused, visibly: the footer asks for Backspace. The
@@ -220,12 +224,16 @@ impl Engine {
                             .as_ref()
                             .map(|l| l.target())
                             .ok_or_else(|| invalid("missing practice ledger"))?;
-                        let position = usize::try_from(p.get())
-                            .map_err(|_| invalid("unit index outside address space"))?;
+                        let position = usize::try_from(p.get()).map_err(|_unrepresentable| {
+                            invalid("unit index outside address space")
+                        })?;
                         self.learning
                             .first_attempt(target, position, matched, active, lane)?;
                     }
-                    _ => self.learning.break_timing(),
+                    Applied::Content { .. }
+                    | Applied::Deleted
+                    | Applied::DeletedNothing
+                    | Applied::RejectedOverBound => self.learning.break_timing(),
                 }
                 if complete && !numpad {
                     return self.finish_exercise();
@@ -236,7 +244,7 @@ impl Engine {
                 self.learning.break_timing();
             }
             Key::Enter if numpad && ledger.is_complete() => return self.finish_exercise(),
-            _ => {}
+            Key::Enter | Key::Escape | Key::Interrupt | Key::ToggleTextSize | Key::Other => {}
         }
         Ok(DomainOutcome::None)
     }

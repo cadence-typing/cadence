@@ -187,7 +187,7 @@ fn restore_terminal() -> io::Result<()> {
 pub fn elapsed_since(origin: Instant) -> Result<MonoTick, TerminalError> {
     u64::try_from(origin.elapsed().as_micros())
         .map(MonoTick::from_us)
-        .map_err(|_| TerminalError::ClockExhausted)
+        .map_err(|_source| TerminalError::ClockExhausted)
 }
 
 fn translate(event: Event) -> EventKind {

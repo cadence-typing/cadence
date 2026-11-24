@@ -266,5 +266,9 @@ pub fn build_session_plan(
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "test fixtures use small bounded counts; overflow is impossible by construction"
+)]
 #[path = "plan_tests.rs"]
 mod tests;

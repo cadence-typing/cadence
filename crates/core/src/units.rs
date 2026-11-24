@@ -126,6 +126,14 @@ bounded_unit_ranged!(
 pub struct UnitCount(u64);
 
 impl UnitCount {
+    /// A count of slots in memory. A `usize` fits `u64` on every supported
+    /// target; the clip to `u64::MAX` is the specified behaviour for a
+    /// hypothetical wider platform, never a concealed loss.
+    #[must_use]
+    pub fn from_len(count: usize) -> Self {
+        Self::from_raw(u64::try_from(count).unwrap_or(u64::MAX))
+    }
+
     /// Zero units.
     pub const ZERO: Self = Self(0);
 
@@ -180,10 +188,6 @@ impl fmt::Display for UnitCount {
 
 #[cfg(test)]
 mod tests {
-    // Test assertions may use expect/unwrap/panic to fail loudly; the
-    // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
-
     use super::*;
 
     #[test]

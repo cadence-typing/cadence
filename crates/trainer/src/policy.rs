@@ -70,7 +70,7 @@ impl SessionPolicy {
     pub fn default_allocation(&self) -> Result<Vec<u64>, CoreError> {
         let weights = self
             .allocation_weights()
-            .map_err(|_| CoreError::InvalidIdentity {
+            .map_err(|_source| CoreError::InvalidIdentity {
                 kind: "SessionPolicy",
                 reason: "invalid allocation policy",
             })?;
@@ -283,9 +283,10 @@ impl std::error::Error for PolicyError {}
 pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
     let digest = crate::corpus::digest_of(bytes);
     let document: toml::Table = toml::from_str(
-        std::str::from_utf8(bytes).map_err(|_| PolicyError::WrongType("document".to_string()))?,
+        std::str::from_utf8(bytes)
+            .map_err(|_not_utf8| PolicyError::WrongType("document".to_string()))?,
     )
-    .map_err(|_| PolicyError::WrongType("document".to_string()))?;
+    .map_err(|_source| PolicyError::WrongType("document".to_string()))?;
     if document.get("policy_id").and_then(toml::Value::as_str) != Some("trainer-v2")
         || document
             .get("scoring_version")

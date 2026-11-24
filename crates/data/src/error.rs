@@ -86,9 +86,10 @@ impl From<rusqlite::Error> for StoreError {
 }
 
 pub(crate) fn sql_integer(value: u64, field: &'static str) -> Result<i64, StoreError> {
-    i64::try_from(value).map_err(|_| StoreError::IntegerRange { field })
+    i64::try_from(value).map_err(|_unrepresentable| StoreError::IntegerRange { field })
 }
 
 pub(crate) fn read_integer(value: i64, field: &'static str) -> Result<u64, StoreError> {
-    u64::try_from(value).map_err(|_| StoreError::Corrupt(format!("negative {field}")))
+    u64::try_from(value)
+        .map_err(|_unrepresentable| StoreError::Corrupt(format!("negative {field}")))
 }

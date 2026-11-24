@@ -283,7 +283,6 @@ fn flush(
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
     use super::*;
 
     const SOURCES: &str = "a\tA Work\tAn Author\nb\tB Work\tB Author\n";

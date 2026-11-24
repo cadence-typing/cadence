@@ -1,4 +1,3 @@
-#![allow(clippy::unwrap_used, clippy::expect_used)]
 use super::*;
 use crate::progress::{Checkpoint, ProgressStatus, SessionProgress, Track, TrackProgress};
 use crate::{CommitSeq, LayoutSupportsPound};

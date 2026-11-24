@@ -83,7 +83,9 @@ impl SaveWorker {
                 bootstrap,
             )),
             Ok(Err(error)) => {
-                thread.join().map_err(|_| WriterError::Panicked)?;
+                thread
+                    .join()
+                    .map_err(|_panic_payload| WriterError::Panicked)?;
                 Err(WriterError::Store(error))
             }
             Err(mpsc::RecvTimeoutError::Timeout) => Err(WriterError::StartupTimeout),
@@ -129,7 +131,9 @@ impl SaveWorker {
         drop(requests);
         // Disconnecting results also unblocks publication on abnormal exit.
         drop(results);
-        thread.join().map_err(|_| WriterError::Panicked)
+        thread
+            .join()
+            .map_err(|_panic_payload| WriterError::Panicked)
     }
 }
 

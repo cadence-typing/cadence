@@ -13,7 +13,7 @@ use std::path::PathBuf;
 pub fn verify_manifest() -> Result<(), String> {
     let mut root = PathBuf::from(
         std::env::var("CARGO_MANIFEST_DIR")
-            .map_err(|_| "CARGO_MANIFEST_DIR not set".to_string())?,
+            .map_err(|_unset| "CARGO_MANIFEST_DIR not set".to_string())?,
     );
     root.pop();
     let manifest_path = root.join("MANIFEST.sha256");

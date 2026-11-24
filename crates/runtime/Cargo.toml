@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 description = "Bounded event transport, worker pool, effect execution, clocks, crossterm ingress, terminal lifecycle."
 
+[package.metadata.tauten]
+tier = "edge"
+
 [lints]
 workspace = true
 

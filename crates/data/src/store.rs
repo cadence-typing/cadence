@@ -12,6 +12,7 @@ use cadence_core::learning::{HistoricSession, LearnerHistory};
 use cadence_core::progress::{
     Checkpoint, HistorySummary, ProgressStatus, RECENT_SESSION_CAPACITY, SaveKey, SessionRecap,
 };
+use cadence_kernel::checkpoint::{Admission, Receipt, admit};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
 pub use crate::error::StoreError;
@@ -197,31 +198,42 @@ impl ProgressStore {
         let digest = key.digest.to_hex();
         let tx = self.connection.transaction()?;
         let previous = records::load_session(&tx, key.session)?;
-        let receipt: Option<String> = tx
+        let stored_digest: Option<String> = tx
             .query_row(
                 "SELECT digest FROM commit_receipts WHERE session_id=?1 AND commit_seq=?2",
                 params![session, sequence],
                 |row| row.get(0),
             )
             .optional()?;
-        if let Some(stored_digest) = receipt {
-            if stored_digest != digest {
+        let receipt = match &stored_digest {
+            None => Receipt::Absent,
+            Some(stored) if *stored == digest => Receipt::Same,
+            Some(_) => Receipt::Different,
+        };
+        let latest = previous
+            .as_ref()
+            .map(|previous| previous.checkpoint.key.sequence.get());
+        // The kernel decides which checkpoint is credited (Lean: no sequence
+        // is applied twice, and a replay or stale request applies nothing).
+        match admit(latest, receipt, key.sequence.get()) {
+            Admission::Replay => {
+                // Read-only replay: nothing is reapplied, even when a newer sequence exists.
+                tx.commit()?;
+                return Ok(CommitReceipt {
+                    key,
+                    created: false,
+                });
+            }
+            Admission::Conflict => {
                 return Err(StoreError::CommitConflict {
                     session: key.session,
                     sequence: key.sequence,
                 });
             }
-            // Read-only replay: nothing is reapplied, even when a newer sequence exists.
-            tx.commit()?;
-            return Ok(CommitReceipt {
-                key,
-                created: false,
-            });
+            Admission::Stale => return Err(StoreError::StaleSequence),
+            Admission::Apply => {}
         }
         if let Some(previous) = previous {
-            if key.sequence <= previous.checkpoint.key.sequence {
-                return Err(StoreError::StaleSequence);
-            }
             records::validate_advance(&previous.checkpoint, checkpoint)?;
         }
         let progress = &checkpoint.progress;

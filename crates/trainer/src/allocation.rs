@@ -62,7 +62,7 @@ pub fn allocate(budget: u64, minimums: &[u64], weights: &[u64]) -> Result<Vec<u6
             .checked_mul(u128::from(*weight))
             .ok_or_else(overflow)?;
         let floor = u64::try_from(scaled.checked_div(weight_total).ok_or_else(overflow)?)
-            .map_err(|_| overflow())?;
+            .map_err(|_unrepresentable| overflow())?;
         result.push(minimum.checked_add(floor).ok_or_else(overflow)?);
         remainders.push((
             scaled.checked_rem(weight_total).ok_or_else(overflow)?,
@@ -71,7 +71,7 @@ pub fn allocate(budget: u64, minimums: &[u64], weights: &[u64]) -> Result<Vec<u6
         allocated = allocated.checked_add(floor).ok_or_else(overflow)?;
     }
     let leftover = usize::try_from(remaining.checked_sub(allocated).ok_or_else(overflow)?)
-        .map_err(|_| overflow())?;
+        .map_err(|_unrepresentable| overflow())?;
     if leftover > result.len() {
         return Err(overflow());
     }
@@ -89,7 +89,6 @@ pub fn allocate(budget: u64, minimums: &[u64], weights: &[u64]) -> Result<Vec<u6
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the
     // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
     use super::*;
 

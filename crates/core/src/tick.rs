@@ -153,8 +153,8 @@ impl MonoTick {
     /// `[start, deadline)` — the phase-boundary admission rule (A-05: keys
     /// at the exact deadline are outside the scored slice).
     #[must_use]
-    pub const fn within_half_open(self, start: Self, deadline: Self) -> bool {
-        self.0 >= start.0 && self.0 < deadline.0
+    pub fn within_half_open(self, start: Self, deadline: Self) -> bool {
+        cadence_kernel::time::in_window(self.0, start.0, deadline.0)
     }
 }
 
@@ -223,14 +223,14 @@ impl UtcDay {
     /// Returns [`CoreError::BackwardTime`] when `self` precedes `earlier`.
     /// Wall-clock rollback is handled by review policy guards, not by
     /// silently returning negative intervals.
-    pub const fn days_since(self, earlier: Self) -> Result<i64, CoreError> {
+    pub fn days_since(self, earlier: Self) -> Result<i64, CoreError> {
         match self.0.checked_sub(earlier.0) {
             Some(days) => Ok(days),
             None => Err(CoreError::BackwardTime {
                 // Negative day indices (pre-1970) clamp to 0 in the
                 // diagnostic; the value is informational, never arithmetic.
-                admitted: if earlier.0 < 0 { 0 } else { earlier.0 as u64 },
-                arriving: if self.0 < 0 { 0 } else { self.0 as u64 },
+                admitted: u64::try_from(earlier.0).unwrap_or(0),
+                arriving: u64::try_from(self.0).unwrap_or(0),
             }),
         }
     }
@@ -246,7 +246,6 @@ impl fmt::Display for UtcDay {
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the
     // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
     use super::*;
 

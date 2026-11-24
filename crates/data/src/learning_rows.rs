@@ -42,7 +42,8 @@ pub(crate) fn save(
         "INSERT INTO plan_focus(session_id,rank,lane,kind,skill) VALUES (?1,?2,?3,?4,?5)",
     )?;
     for (rank, key) in learning.plan.focus.iter().enumerate() {
-        let rank = i64::try_from(rank).map_err(|_| StoreError::IntegerRange { field: "rank" })?;
+        let rank = i64::try_from(rank)
+            .map_err(|_unrepresentable| StoreError::IntegerRange { field: "rank" })?;
         focus.execute(params![
             session,
             rank,
@@ -193,7 +194,8 @@ fn unhex(text: &str) -> Result<u64, StoreError> {
     {
         return Err(corrupt("malformed 64-bit hex identity"));
     }
-    u64::from_str_radix(text, 16).map_err(|_| corrupt("malformed 64-bit hex identity"))
+    u64::from_str_radix(text, 16)
+        .map_err(|_unrepresentable| corrupt("malformed 64-bit hex identity"))
 }
 
 fn corrupt(message: &str) -> StoreError {

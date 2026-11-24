@@ -108,9 +108,10 @@ impl TrainerPolicy {
                 "lane counts must exactly match quotas",
             )?;
         }
-        let slots = u32::try_from(s.block_slots).map_err(|_| PolicyError::Inconsistent {
-            what: "block slots overflow",
-        })?;
+        let slots =
+            u32::try_from(s.block_slots).map_err(|_unrepresentable| PolicyError::Inconsistent {
+                what: "block slots overflow",
+            })?;
         require(
             (1..=slots).contains(&s.maximum_word_occurrences_per_block)
                 && (1..=s.maximum_word_occurrences_per_block)

@@ -1,0 +1,9 @@
+# Tests assert by panicking; production code is linted without this
+# allowance (AGENTS.md: no unwrap/expect/panic/unchecked indexing in normal
+# application logic). These four are exactly the allowances the tauten
+# profile makes for test code (`cargo tauten profile core`), so plain Clippy
+# and `cargo tauten check` agree and no test needs a lint attribute.
+allow-expect-in-tests = true
+allow-indexing-slicing-in-tests = true
+allow-panic-in-tests = true
+allow-unwrap-in-tests = true

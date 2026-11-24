@@ -61,7 +61,7 @@ pub fn paint(
         ScreenView::Practice { .. } => {
             crate::practice::paint(buffer, body, view, palette, &mut native)
         }
-        _ => {
+        ScreenView::Today { .. } | ScreenView::PhaseComplete { .. } | ScreenView::Summary => {
             crate::stages::paint(buffer, body, view, palette, &mut native);
             ResolvedTextSize::Normal
         }

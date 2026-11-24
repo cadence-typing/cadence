@@ -163,7 +163,9 @@ impl Engine {
             }
             for e in &p.exercises {
                 if e.units.is_empty()
-                    || e.units.len() > cadence_core::TextUnitIndex::MAXIMUM.get() as usize
+                    || e.units.len()
+                        > usize::try_from(cadence_core::TextUnitIndex::MAXIMUM.get())
+                            .unwrap_or(usize::MAX)
                     || practice::track_kind(e.kind) != practice::track_phase(p.phase)?
                 {
                     return Err(invalid("invalid exercise target or phase kind"));
@@ -293,7 +295,12 @@ impl Engine {
                     t.outcome = self.apply_kind(at, kind)?;
                 }
             }
-            _ => {}
+            // Guarded arms above did not apply (finishing, invalid, or a
+            // key owned by no screen): the event changes nothing.
+            EventKind::PasteRejected
+            | EventKind::FocusLost
+            | EventKind::Key(_)
+            | EventKind::Tick => {}
         }
         self.watchdog(at, &mut t)?;
         self.dispatch_checkpoint(at, &mut t)?;

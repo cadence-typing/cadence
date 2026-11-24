@@ -6,12 +6,7 @@
 //! ratios. The fixture file is pinned by `MANIFEST.sha256`.
 // Test assertions may use expect/unwrap/panic/indexing to fail loudly;
 // the workspace denies them in production code only.
-#![allow(
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::indexing_slicing
-)]
+#![cfg(test)]
 
 use cadence_core::alphabet::{LayoutSupportsPound, TrainingChar, validate_target};
 use cadence_core::ledger::{AttemptLedger, ExtraInputAllowance, LedgerEvent};
@@ -115,12 +110,12 @@ fn all_scoring_fixture_cases_match() {
                     .unwrap_or_else(|| panic!("{id}: expected a WPM fraction, got None"));
                 assert_eq!(
                     ratio.numerator(),
-                    fraction[0].as_u64().unwrap() as u128,
+                    u128::from(fraction[0].as_u64().unwrap()),
                     "{id}.wpm numerator"
                 );
                 assert_eq!(
                     ratio.denominator(),
-                    fraction[1].as_u64().unwrap() as u128,
+                    u128::from(fraction[1].as_u64().unwrap()),
                     "{id}.wpm denominator"
                 );
             }
@@ -139,8 +134,11 @@ fn all_scoring_fixture_cases_match() {
             );
             let fraction = numeric["digits_per_minute_fraction"].as_array().unwrap();
             let ratio = numpad.digits_per_minute.unwrap();
-            assert_eq!(ratio.numerator(), fraction[0].as_u64().unwrap() as u128);
-            assert_eq!(ratio.denominator(), fraction[1].as_u64().unwrap() as u128);
+            assert_eq!(ratio.numerator(), u128::from(fraction[0].as_u64().unwrap()));
+            assert_eq!(
+                ratio.denominator(),
+                u128::from(fraction[1].as_u64().unwrap())
+            );
             assert_eq!(
                 numpad.submitted_exact,
                 numeric["submitted_exact"].as_bool().unwrap()

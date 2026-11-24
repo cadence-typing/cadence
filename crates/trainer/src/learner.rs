@@ -330,7 +330,9 @@ fn due_words(
 
 /// Converts a clamped ratio in `0.0..=1.0` to basis points.
 #[expect(
+    clippy::as_conversions,
     clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
     reason = "the value is clamped to 0..=10000 and rounded before the cast"
 )]
 fn basis_points(ratio: f64) -> BasisPoints {
@@ -342,15 +344,27 @@ fn basis_points(ratio: f64) -> BasisPoints {
 }
 
 /// Counts are far below 2^52; model arithmetic is approximate by design.
+#[expect(
+    clippy::as_conversions,
+    reason = "no lossless integer to f64 conversion exists; counts are far below 2^52"
+)]
 const fn as_f64(value: u64) -> f64 {
     value as f64
 }
 
 /// Session ages are bounded by the history window.
+#[expect(
+    clippy::as_conversions,
+    reason = "no lossless integer to f64 conversion exists; ages are bounded by the history window"
+)]
 const fn as_f64_usize(value: usize) -> f64 {
     value as f64
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "test fixtures use small bounded counts; overflow is impossible by construction"
+)]
 #[path = "learner_tests.rs"]
 mod tests;

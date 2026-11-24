@@ -382,9 +382,8 @@ fn display_char(unit: char) -> char {
 
 fn char_width(unit: char) -> usize {
     let mut utf8 = [0; 4];
-    Span::raw(unit.encode_utf8(&mut utf8) as &str)
-        .width()
-        .max(1)
+    let text: &str = unit.encode_utf8(&mut utf8);
+    Span::raw(text).width().max(1)
 }
 
 struct Footer<'a> {
@@ -409,7 +408,10 @@ fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Pa
     let mut y = area.y;
     let error = spans.iter().find_map(|span| match span {
         UnitSpan::Wrong { expected, .. } => Some(*expected),
-        _ => None,
+        UnitSpan::Correct { .. }
+        | UnitSpan::Cursor { .. }
+        | UnitSpan::Upcoming { .. }
+        | UnitSpan::Extra { .. } => None,
     });
     let past_end = spans
         .iter()

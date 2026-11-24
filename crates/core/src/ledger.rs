@@ -7,68 +7,57 @@
 //! correct character and retyping incorrectly leaves the first outcome
 //! correct but marks the word non-clean.
 //!
-//! Ordinary Rust implementation with property tests. No formal-proof
-//! qualification is claimed for this production path.
+//! The scoring decisions are made by `cadence-kernel` (write-once first
+//! outcomes, checked counters), which this module calls for every content
+//! insertion and deletion; the Lean theorems over that kernel are listed in
+//! `docs/TAUTEN.md`. The buffer, word flags and event plumbing around it
+//! are ordinary Rust with property tests.
 
 use crate::CoreError;
 use crate::alphabet::TrainingChar;
 use crate::units::{TextUnitIndex, UnitCount};
+use cadence_kernel::counters::{Counters, Step, content_step, deletion_step, matched};
+use cadence_kernel::first::{count_first, settle};
+
+pub use cadence_kernel::first::Slot;
 
 #[cfg(test)]
 #[path = "ledger_atomic_tests.rs"]
 mod atomic_tests;
 
-/// First content insertion outcome at an expected position, assigned
-/// exactly once and never replaced.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Outcome {
-    /// The first content insertion at this position matched the target.
-    Correct,
-    /// The first content insertion at this position did not match.
-    Incorrect,
-}
-
 /// Cumulative event facts for one exercise attempt. Monotone; never
-/// decrease within an attempt.
+/// decrease within an attempt. Updated only by the kernel's checked steps.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct LedgerCounters {
-    /// All content insertions, including overflow attempts.
-    content_attempts: u64,
-    /// Content insertions that matched the expected position (overflow is
-    /// never correct).
-    correct_attempts: u64,
-    /// Backspace (and delete-word) events; correction events, not content
-    /// insertions.
-    deletions: u64,
-    /// Content insertions beyond the target length; they have no expected
-    /// slot, count as incorrect attempts and block completion until
-    /// deleted.
-    overflow_attempts: u64,
+    inner: Counters,
 }
 
 impl LedgerCounters {
     /// Content insertions including overflow.
     #[must_use]
     pub const fn content_attempts(self) -> u64 {
-        self.content_attempts
+        self.inner.content
     }
 
-    /// Correct content insertions.
+    /// Correct content insertions (overflow is never correct).
     #[must_use]
     pub const fn correct_attempts(self) -> u64 {
-        self.correct_attempts
+        self.inner.correct
     }
 
-    /// Deletion events.
+    /// Deleted units (backspace and delete-word); correction events, not
+    /// content insertions.
     #[must_use]
     pub const fn deletions(self) -> u64 {
-        self.deletions
+        self.inner.deletions
     }
 
-    /// Overflow content attempts.
+    /// Content insertions beyond the target length; they have no expected
+    /// slot, count as incorrect attempts and block completion until
+    /// deleted.
     #[must_use]
     pub const fn overflow_attempts(self) -> u64 {
-        self.overflow_attempts
+        self.inner.overflow
     }
 }
 
@@ -154,7 +143,7 @@ impl ExtraInputAllowance {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttemptLedger {
     target: Vec<TrainingChar>,
-    first_outcome: Vec<Option<Outcome>>,
+    first_outcome: Vec<Slot>,
     counters: LedgerCounters,
     buffer: Vec<TrainingChar>,
     /// Word index for each target position (spaces/newlines belong to
@@ -179,7 +168,7 @@ impl AttemptLedger {
         allowance: ExtraInputAllowance,
     ) -> Result<Self, CoreError> {
         let len = target.len();
-        if len > TextUnitIndex::MAXIMUM.get() as usize {
+        if len > widen(TextUnitIndex::MAXIMUM.get())? {
             return Err(CoreError::CapacityExhausted {
                 limit: "maximum target units",
             });
@@ -198,11 +187,12 @@ impl AttemptLedger {
                 // slot so every position maps to a word.
                 word_flags.push(WordFlags::default());
             }
-            let index = u32::try_from(word_flags.len().saturating_sub(1)).map_err(|_| {
-                CoreError::CapacityExhausted {
-                    limit: "maximum target units",
-                }
-            })?;
+            let index =
+                u32::try_from(word_flags.len().saturating_sub(1)).map_err(|_unrepresentable| {
+                    CoreError::CapacityExhausted {
+                        limit: "maximum target units",
+                    }
+                })?;
             word_of_position.push(index);
             if boundary {
                 open = false;
@@ -212,11 +202,11 @@ impl AttemptLedger {
             word_flags.push(WordFlags::default());
         }
         Ok(Self {
-            first_outcome: vec![None; len],
+            first_outcome: vec![Slot::Open; len],
             word_of_position,
             target,
             counters: LedgerCounters::default(),
-            buffer: Vec::with_capacity(len.checked_add(allowance.get() as usize).ok_or(
+            buffer: Vec::with_capacity(len.checked_add(widen(allowance.get())?).ok_or(
                 CoreError::CapacityExhausted {
                     limit: "typed buffer capacity",
                 },
@@ -245,10 +235,10 @@ impl AttemptLedger {
         self.counters
     }
 
-    /// First outcomes, indexed by expected position. `None` means the
-    /// position has not been attempted yet.
+    /// First outcomes, indexed by expected position. [`Slot::Open`] means
+    /// the position has not been attempted yet.
     #[must_use]
-    pub fn first_outcomes(&self) -> &[Option<Outcome>] {
+    pub fn first_outcomes(&self) -> &[Slot] {
         &self.first_outcome
     }
 
@@ -280,7 +270,7 @@ impl AttemptLedger {
                 let bound = self
                     .target
                     .len()
-                    .checked_add(self.allowance.get() as usize)
+                    .checked_add(widen(self.allowance.get())?)
                     .ok_or(CoreError::CapacityExhausted {
                         limit: "typed buffer capacity",
                     })?;
@@ -293,30 +283,37 @@ impl AttemptLedger {
                 }
                 let position = self.buffer.len();
                 let expected = self.target.get(position).copied();
-                let matched = expected == Some(character);
+                let matched = matched(expected.is_some(), expected == Some(character));
                 let index = if expected.is_some() {
                     Some(
-                        TextUnitIndex::new(u32::try_from(position).map_err(|_| {
+                        TextUnitIndex::new(u32::try_from(position).map_err(
+                            |_unrepresentable| CoreError::CapacityExhausted {
+                                limit: "maximum target units",
+                            },
+                        )?)
+                        .map_err(|_unrepresentable| {
                             CoreError::CapacityExhausted {
                                 limit: "maximum target units",
                             }
-                        })?)
-                        .map_err(|_| CoreError::CapacityExhausted {
-                            limit: "maximum target units",
                         })?,
                     )
                 } else {
                     None
                 };
-                let mut counters = self.counters;
-                counters.content_attempts = increment(counters.content_attempts)?;
-                if matched {
-                    counters.correct_attempts = increment(counters.correct_attempts)?;
-                }
-                if expected.is_none() {
-                    counters.overflow_attempts = increment(counters.overflow_attempts)?;
-                }
-                self.counters = counters;
+                // The kernel refuses on overflow before anything mutates.
+                self.counters.inner = match content_step(
+                    self.counters.inner,
+                    expected.is_some(),
+                    expected == Some(character),
+                ) {
+                    Step::Counted(counters) => counters,
+                    Step::Overflow => {
+                        return Err(CoreError::IdExhaustion {
+                            kind: "ledger counter",
+                            reason: "counter exhausted",
+                        });
+                    }
+                };
                 self.buffer.push(character);
                 if expected.is_none() {
                     if let Some(flags) = self.tail_word_flags_mut() {
@@ -327,15 +324,9 @@ impl AttemptLedger {
                         matched: false,
                     });
                 }
-                // Write-once: assign first outcome only if the slot is empty.
-                if let Some(outcome) = self.first_outcome.get_mut(position)
-                    && outcome.is_none()
-                {
-                    *outcome = Some(if matched {
-                        Outcome::Correct
-                    } else {
-                        Outcome::Incorrect
-                    });
+                // Write-once: the kernel keeps a settled slot unchanged.
+                if let Some(slot) = self.first_outcome.get_mut(position) {
+                    *slot = settle(*slot, matched);
                 }
                 if !matched
                     && let Some(index) = self.word_index_at(position)
@@ -343,21 +334,21 @@ impl AttemptLedger {
                 {
                     flags.any_error = true;
                 }
-                // All fallible arithmetic precedes mutation.
                 Ok(Applied::Content {
                     position: index,
                     matched,
                 })
             }
             LedgerEvent::Backspace => {
-                self.counters.deletions =
-                    self.counters
-                        .deletions
-                        .checked_add(1)
-                        .ok_or(CoreError::IdExhaustion {
+                self.counters.inner = match deletion_step(self.counters.inner, 1) {
+                    Step::Counted(counters) => counters,
+                    Step::Overflow => {
+                        return Err(CoreError::IdExhaustion {
                             kind: "deletions",
                             reason: "event counter exhausted; refuse instead of wrapping",
-                        })?;
+                        });
+                    }
+                };
                 // Deletion flags the word being edited (the word at the
                 // tail before removal).
                 if let Some(flags) = self.tail_word_flags_mut() {
@@ -375,18 +366,20 @@ impl AttemptLedger {
                 let removed = usize::try_from(units)
                     .unwrap_or(self.buffer.len())
                     .min(self.buffer.len());
-                self.counters.deletions = self
-                    .counters
-                    .deletions
-                    .checked_add(u64::try_from(removed).map_err(|_| {
-                        CoreError::CapacityExhausted {
-                            limit: "deletion count",
-                        }
-                    })?)
-                    .ok_or(CoreError::IdExhaustion {
-                        kind: "deletions",
-                        reason: "counter exhausted",
-                    })?;
+                let removed_count = u64::try_from(removed).map_err(|_unrepresentable| {
+                    CoreError::CapacityExhausted {
+                        limit: "deletion count",
+                    }
+                })?;
+                self.counters.inner = match deletion_step(self.counters.inner, removed_count) {
+                    Step::Counted(counters) => counters,
+                    Step::Overflow => {
+                        return Err(CoreError::IdExhaustion {
+                            kind: "deletions",
+                            reason: "counter exhausted",
+                        });
+                    }
+                };
                 if let Some(flags) = self.tail_word_flags_mut() {
                     flags.any_deletion = true;
                 }
@@ -407,27 +400,20 @@ impl AttemptLedger {
             .zip(self.target.iter())
             .filter(|(typed, expected)| typed == expected)
             .count();
-        UnitCount::from_raw(count as u64)
+        UnitCount::from_len(count)
     }
 
     /// First-attempted expected positions (slots with an assigned
     /// outcome).
     #[must_use]
     pub fn first_attempted(&self) -> UnitCount {
-        let count = self.first_outcome.iter().flatten().count();
-        UnitCount::from_raw(count as u64)
+        UnitCount::from_len(count_first(&self.first_outcome).attempted)
     }
 
-    /// First-correct positions.
+    /// First-correct expected positions (the first insertion matched).
     #[must_use]
     pub fn first_correct(&self) -> UnitCount {
-        let count = self
-            .first_outcome
-            .iter()
-            .flatten()
-            .filter(|outcome| matches!(outcome, Outcome::Correct))
-            .count();
-        UnitCount::from_raw(count as u64)
+        UnitCount::from_len(count_first(&self.first_outcome).correct)
     }
 
     /// Whether the buffer exactly equals the target.
@@ -442,7 +428,7 @@ impl AttemptLedger {
     pub fn is_clean_completion(&self) -> bool {
         self.is_complete()
             && self.word_flags.iter().all(|flags| flags.is_clean())
-            && self.counters.overflow_attempts == 0
+            && self.counters.inner.overflow == 0
             && !self.measurement_interrupted
     }
 
@@ -494,17 +480,17 @@ pub enum LedgerEvent {
     DeleteWord(u64),
 }
 
-fn increment(value: u64) -> Result<u64, CoreError> {
-    value.checked_add(1).ok_or(CoreError::IdExhaustion {
-        kind: "ledger counter",
-        reason: "counter exhausted",
+/// A `u32` bound widened to `usize` for buffer arithmetic.
+fn widen(value: u32) -> Result<usize, CoreError> {
+    usize::try_from(value).map_err(|_too_wide| CoreError::CapacityExhausted {
+        limit: "typed buffer capacity",
     })
 }
+
 #[cfg(test)]
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the
     // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
     use super::*;
     use crate::alphabet::LayoutSupportsPound;
