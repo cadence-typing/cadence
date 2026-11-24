@@ -19,7 +19,7 @@
 )]
 
 use cadence_core::alphabet::{LayoutSupportsPound, TrainingChar, validate_target};
-use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent, Outcome};
+use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent, Slot};
 use proptest::prelude::*;
 
 fn any_training_char() -> impl Strategy<Value = char> {
@@ -59,7 +59,7 @@ proptest! {
             if snapshots.len() >= 2 {
                 let previous = &snapshots[snapshots.len() - 2];
                 for (index, slot) in previous.iter().enumerate() {
-                    if slot.is_some() {
+                    if *slot != Slot::Open {
                         prop_assert_eq!(ledger.first_outcomes()[index], *slot);
                     }
                 }
@@ -116,7 +116,7 @@ proptest! {
             ledger.apply(LedgerEvent::Backspace).unwrap();
             let after = ledger.first_outcomes();
             prop_assert_eq!(after[0], before[0]);
-            prop_assert_eq!(after[0], Some(Outcome::Incorrect));
+            prop_assert_eq!(after[0], Slot::Incorrect);
         }
     }
 

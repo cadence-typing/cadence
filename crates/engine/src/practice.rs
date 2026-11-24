@@ -1,7 +1,7 @@
 //! Practice timing, bounded ledger updates and fixed-track accumulation.
 use super::{DomainOutcome, Engine, Key, Screen, invalid};
 use cadence_core::learning::KeyLane;
-use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent};
+use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent, Slot};
 use cadence_core::metrics::{correct_digits, first_pass_accuracy};
 use cadence_core::progress::{ProgressStatus, Track, TrackProgress};
 use cadence_core::session::SessionState;
@@ -194,7 +194,7 @@ impl Engine {
                 let first = ledger
                     .first_outcomes()
                     .get(position)
-                    .is_some_and(Option::is_none);
+                    .is_some_and(|slot| *slot == Slot::Open);
                 let applied = ledger.apply(LedgerEvent::Content(c))?;
                 if applied == Applied::RejectedOverBound {
                     // Refused, visibly: the footer asks for Backspace. The

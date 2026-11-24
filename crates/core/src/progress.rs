@@ -130,6 +130,20 @@ impl TrackProgress {
         };
         Ok(())
     }
+    /// The kernel's view of the counters, for its validity decision.
+    fn counters(&self) -> cadence_kernel::progress::TrackCounters {
+        cadence_kernel::progress::TrackCounters {
+            first_correct: self.first_correct,
+            first_attempted: self.first_attempted,
+            correct_attempts: self.correct_attempts,
+            content_attempts: self.content_attempts,
+            deletions: self.deletions,
+            overflow_attempts: self.overflow_attempts,
+            correct_units: self.correct_units,
+            correct_digits: self.correct_digits,
+            active_micros: self.active_micros,
+        }
+    }
     fn values(&self) -> [u64; 9] {
         [
             self.first_correct,
@@ -182,17 +196,7 @@ impl SessionProgress {
                 .iter()
                 .take(index)
                 .any(|previous| previous.track == t.track)
-                || t.values().iter().any(|v| *v > i64::MAX as u64)
-                || t.first_correct > t.first_attempted
-                || t.first_attempted > t.content_attempts
-                || t.correct_attempts > t.content_attempts
-                || t.first_correct > t.correct_attempts
-                || t.overflow_attempts > t.content_attempts
-                || t.correct_units > t.correct_attempts
-                || t.correct_digits > t.correct_units
-                || t.correct_attempts
-                    .checked_add(t.overflow_attempts)
-                    .is_none_or(|v| v > t.content_attempts)
+                || !cadence_kernel::progress::track_valid(t.counters())
             {
                 return Err(invalid());
             }

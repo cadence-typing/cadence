@@ -7,8 +7,9 @@
 //! never wrap. Errors are typed ([`CoreError`]); there is no `unwrap`,
 //! `expect`, `panic!` or unchecked indexing in production code here.
 //!
-//! These are ordinary Rust implementations with behavioral tests, not
-//! machine-checked formal proofs.
+//! The scoring and checkpoint decisions are made by `cadence-kernel`, a
+//! `no_std` crate whose functions carry Lean theorems (`docs/TAUTEN.md`);
+//! the rest of this crate is ordinary Rust with behavioural tests.
 
 pub mod alphabet;
 pub mod error;
@@ -30,7 +31,7 @@ pub use id::{
     SessionEpoch, SessionId, ViewId, ViewSlot, WordId,
 };
 pub use ledger::{
-    Applied, AttemptLedger, ExtraInputAllowance, LedgerCounters, LedgerEvent, Outcome, WordFlags,
+    Applied, AttemptLedger, ExtraInputAllowance, LedgerCounters, LedgerEvent, Slot, WordFlags,
 };
 pub use metrics::{
     ExerciseMetrics, MICROSECONDS_PER_MINUTE, NumericMetrics, Ratio, WPM_UNITS_PER_WORD,

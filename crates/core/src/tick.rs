@@ -153,8 +153,8 @@ impl MonoTick {
     /// `[start, deadline)` — the phase-boundary admission rule (A-05: keys
     /// at the exact deadline are outside the scored slice).
     #[must_use]
-    pub const fn within_half_open(self, start: Self, deadline: Self) -> bool {
-        self.0 >= start.0 && self.0 < deadline.0
+    pub fn within_half_open(self, start: Self, deadline: Self) -> bool {
+        cadence_kernel::time::in_window(self.0, start.0, deadline.0)
     }
 }
 

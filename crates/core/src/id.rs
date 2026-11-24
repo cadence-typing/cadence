@@ -309,25 +309,24 @@ impl BasisPoints {
     /// silently saturating), or [`CoreError::ArithmeticOverflow`] when the
     /// intermediate multiplication overflows.
     pub fn from_ratio_truncating(numerator: u64, denominator: u64) -> Result<Self, CoreError> {
-        if denominator == 0 {
-            return Err(CoreError::InvalidDenominator);
-        }
-        if numerator > denominator {
+        match cadence_kernel::ratio::basis_points(numerator, denominator) {
+            cadence_kernel::ratio::BasisPoints::ZeroDenominator => {
+                Err(CoreError::InvalidDenominator)
+            }
             // Ratio exceeds 100%; callers must clamp explicitly at a named
             // boundary rather than silently saturating here.
-            return Err(CoreError::InvalidBasisPoints { value: u16::MAX });
-        }
-        let scaled = numerator
-            .checked_mul(10_000)
-            .ok_or(CoreError::ArithmeticOverflow {
+            cadence_kernel::ratio::BasisPoints::OverFull => {
+                Err(CoreError::InvalidBasisPoints { value: u16::MAX })
+            }
+            cadence_kernel::ratio::BasisPoints::Overflow => Err(CoreError::ArithmeticOverflow {
                 operation: "BasisPoints::from_ratio_truncating",
-            })?;
-        let hundredths = scaled
-            .checked_div(denominator)
-            .ok_or(CoreError::InvalidDenominator)?;
-        let value = u16::try_from(hundredths)
-            .map_err(|_| CoreError::InvalidBasisPoints { value: u16::MAX })?;
-        Self::new(value)
+            }),
+            cadence_kernel::ratio::BasisPoints::Value(hundredths) => {
+                let value = u16::try_from(hundredths)
+                    .map_err(|_| CoreError::InvalidBasisPoints { value: u16::MAX })?;
+                Self::new(value)
+            }
+        }
     }
 
     /// The integer basis-point count.
@@ -406,6 +405,18 @@ mod tests {
         assert_eq!(
             BasisPoints::from_ratio_truncating(2, 1),
             Err(CoreError::InvalidBasisPoints { value: u16::MAX })
+        );
+        // Scaling a numerator above u64::MAX / 10_000 overflows: refused,
+        // never wrapped or clipped to a plausible percentage.
+        assert_eq!(
+            BasisPoints::from_ratio_truncating(u64::MAX, u64::MAX),
+            Err(CoreError::ArithmeticOverflow {
+                operation: "BasisPoints::from_ratio_truncating"
+            })
+        );
+        assert_eq!(
+            BasisPoints::from_ratio_truncating(2, 3).map(BasisPoints::get),
+            Ok(6_666)
         );
     }
 }

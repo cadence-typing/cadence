@@ -60,6 +60,7 @@ dependencies = [
 name = "cadence-core"
 version = "0.1.0-alpha.5"
 dependencies = [
+ "cadence-kernel",
  "proptest",
  "serde",
  "serde_json",
@@ -71,6 +72,7 @@ name = "cadence-data"
 version = "0.1.0-alpha.5"
 dependencies = [
  "cadence-core",
+ "cadence-kernel",
  "rusqlite",
  "serde",
  "serde_json",
@@ -98,6 +100,13 @@ dependencies = [
  "cadence-core",
  "cadence-trainer",
  "proptest",
+]
+
+[[package]]
+name = "cadence-kernel"
+version = "0.1.0-alpha.5"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]

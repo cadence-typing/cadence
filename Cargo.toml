@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/kernel",
     "crates/core",
     "crates/trainer",
     "crates/engine",
@@ -37,6 +38,7 @@ cast_possible_truncation = "warn"
 cast_possible_wrap = "warn"
 
 [workspace.dependencies]
+cadence-kernel = { path = "crates/kernel" }
 cadence-core = { path = "crates/core" }
 cadence-trainer = { path = "crates/trainer" }
 cadence-engine = { path = "crates/engine" }

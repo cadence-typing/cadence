@@ -1,0 +1,52 @@
+[package]
+name = "cadence-kernel"
+description = "Cadence scoring and checkpoint decisions as total no_std functions, translated to Lean by Charon/Aeneas and proved (proofs/)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.tauten]
+tier = "kernel"
+
+# No dependencies: the proof gate translates this crate on its own, and
+# anything it depended on would be trusted.
+[dependencies]
+
+# Read by Charon when the proofs gate translates this crate. Functions are
+# named one by one so the derives the shell uses are never translated.
+[package.metadata.charon]
+start_from = [
+    "cadence_kernel::first::settle",
+    "cadence_kernel::first::count_first_loop",
+    "cadence_kernel::first::count_first",
+    "cadence_kernel::counters::matched",
+    "cadence_kernel::counters::content_step",
+    "cadence_kernel::counters::deletion_step",
+    "cadence_kernel::ratio::fraction",
+    "cadence_kernel::ratio::wpm",
+    "cadence_kernel::ratio::digits_per_minute",
+    "cadence_kernel::ratio::basis_points",
+    "cadence_kernel::time::pause_total_loop",
+    "cadence_kernel::time::pause_total",
+    "cadence_kernel::time::active_time",
+    "cadence_kernel::time::in_window",
+    "cadence_kernel::checkpoint::admit",
+    "cadence_kernel::checkpoint::latest_after",
+    "cadence_kernel::progress::in_range",
+    "cadence_kernel::progress::ordered",
+    "cadence_kernel::progress::split_fits",
+    "cadence_kernel::progress::track_valid",
+]
+
+# Stated locally, not inherited: the proof gate translates this crate in a
+# shadow workspace that carries no `workspace.lints`.
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[dev-dependencies]
+# Test-only: the gate translates the library alone (`--lib`).
+serde_json = "1.0.145"
