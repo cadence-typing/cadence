@@ -102,8 +102,6 @@ drift against a fresh translation). The translation contains no Aeneas
 axioms. The audit admits only `propext`, `Classical.choice` and `Quot.sound`.
 "Badge" is the gate's badge for the claim, not an opinion.
 
-Gate run: see "Result of the last gate run" below.
-
 | Claim (Rust function) | Theorems (`proofs/Proofs/`) | What they say | Mutants that must break it | Badge |
 |---|---|---|---|---|
 | `first::settle` | `First.settle_spec`, `settle_write_once`, `mistake_stays_an_error`, `first_match_is_kept` | A settled slot is never changed by any later insertion. A mismatching first insertion followed by any later insertion, including the correct retype, is still `Incorrect`: a corrected mistake stays a first-attempt error (AGENTS.md rule 1). Total. | `settle-forgives-correction`, `settle-overwrites-correct`, `settle-open-always-correct` | proved |
@@ -159,7 +157,25 @@ Recorded by `cargo +1.98.0 tauten proofs` into `proofs/claims.json`; the
 summary line, the per-claim outcomes and the mutant results are copied below
 from that run (see the commit that adds `proofs/claims.json`).
 
-RESULT_PLACEHOLDER
+Command: `cargo +1.98.0 tauten proofs` (full level, every mutant), gating a
+snapshot of commit `5e1c4fa4c62aee34a2bfb9ea0bf9e3ba4a54979a`; exit 0:
+
+```text
+tauten: 19 of 19 claim(s) proved (recorded in proofs/claims.json)
+```
+
+Stages: tools ok, extract ok, drift ok (committed `proofs/Extracted/` equals a
+fresh translation), `lake build` ok, axiom and coverage audit ok (only
+`propext`, `Classical.choice`, `Quot.sound`; 90 audited theorems including
+tauten's vendored machine lemmas), mutant calibration ok: all 34 mutants
+`killed`, each by at least one directly failing theorem. Every claim has
+outcome `proved` and badge `proved`; none is `proved-under` (the claims take
+no assumptions). Two mutant anchors had been reflowed by rustfmt in an earlier
+run and reported `error`; they were fixed and re-run before this record.
+
+A claim for `checkpoint::latest_after`, a helper with no production caller,
+was removed (with an `[[amend]]` that was dropped again after this record);
+no-double-credit is stated over `admit` alone.
 
 ## Findings before and after
 
