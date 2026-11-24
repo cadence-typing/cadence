@@ -255,7 +255,7 @@ impl Engine {
                         PhaseState::Complete
                     }
                     Screen::Practice if index == self.phase_index => PhaseState::Active,
-                    _ => PhaseState::Upcoming,
+                    Screen::Practice | Screen::PhaseComplete { .. } => PhaseState::Upcoming,
                 };
                 PhaseOverview {
                     label: phase_label(phase.phase),

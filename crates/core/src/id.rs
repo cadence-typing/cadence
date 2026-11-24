@@ -109,11 +109,7 @@ typed_name!(
 
 impl SessionId {
     /// The first legal session identity (compile-time checked nonzero).
-    pub const FIRST: Self = match core::num::NonZeroU64::new(1) {
-        Some(value) => Self(value),
-        // Unreachable: 1 is nonzero; the arm exists for exhaustiveness.
-        None => unreachable!(),
-    };
+    pub const FIRST: Self = Self(core::num::NonZeroU64::MIN);
 }
 typed_name!(
     /// One immutable target presentation within a session.
@@ -188,8 +184,7 @@ impl ContentDigest {
     pub fn to_hex(self) -> String {
         let mut out = String::with_capacity(64);
         for byte in self.0 {
-            use fmt::Write as _;
-            let _ = write!(out, "{byte:02x}");
+            out.push_str(&format!("{byte:02x}"));
         }
         out
     }
@@ -323,7 +318,7 @@ impl BasisPoints {
             }),
             cadence_kernel::ratio::BasisPoints::Value(hundredths) => {
                 let value = u16::try_from(hundredths)
-                    .map_err(|_| CoreError::InvalidBasisPoints { value: u16::MAX })?;
+                    .map_err(|_too_large| CoreError::InvalidBasisPoints { value: u16::MAX })?;
                 Self::new(value)
             }
         }
@@ -350,12 +345,12 @@ impl BasisPoints {
     ///
     /// # Errors
     /// Returns [`CoreError::InvalidSubtraction`] when `other > self`.
-    pub const fn checked_sub(self, other: Self) -> Result<Self, CoreError> {
+    pub fn checked_sub(self, other: Self) -> Result<Self, CoreError> {
         match self.0.checked_sub(other.0) {
             Some(difference) => Ok(Self(difference)),
             None => Err(CoreError::InvalidSubtraction {
-                left: self.0 as u64,
-                right: other.0 as u64,
+                left: u64::from(self.0),
+                right: u64::from(other.0),
             }),
         }
     }
@@ -371,7 +366,6 @@ impl fmt::Display for BasisPoints {
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the
     // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
     use super::*;
 

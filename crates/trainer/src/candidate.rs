@@ -125,7 +125,6 @@ pub fn scan_select(
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the
     // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
     use super::*;
     use crate::policy::UtilityWeights;

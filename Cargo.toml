@@ -33,9 +33,11 @@ unwrap_used = "deny"
 expect_used = "deny"
 panic = "deny"
 arithmetic_side_effects = "deny"
-integer_division = "warn"
-cast_possible_truncation = "warn"
-cast_possible_wrap = "warn"
+as_conversions = "deny"
+cast_sign_loss = "deny"
+integer_division = "deny"
+cast_possible_truncation = "deny"
+cast_possible_wrap = "deny"
 
 [workspace.dependencies]
 cadence-kernel = { path = "crates/kernel" }
@@ -61,6 +63,7 @@ tempfile = "=3.27.0"
 signal-hook = "=0.3.18"
 
 [profile.release]
+overflow-checks = true
 lto = "thin"
 codegen-units = 1
 strip = "symbols"

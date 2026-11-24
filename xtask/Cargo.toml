@@ -8,6 +8,9 @@ repository.workspace = true
 description = "Build/test/proof gate commands, candidate receipts, packaging and adapter tooling (no runtime application dependency)."
 publish = false
 
+[package.metadata.tauten]
+tier = "edge"
+
 [lints]
 workspace = true
 

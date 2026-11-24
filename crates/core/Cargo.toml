@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 description = "Pure domain foundations: typed identities, checked time/units, error taxonomy. No terminal, SQL, OS time or runtime."
 
+[package.metadata.tauten]
+tier = "core"
+
 [lints]
 workspace = true
 

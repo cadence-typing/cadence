@@ -91,6 +91,12 @@ impl Engine {
 pub(super) fn describe(error: &CoreError) -> String {
     match error {
         CoreError::InvalidIdentity { reason, .. } => (*reason).to_string(),
-        other => other.to_string(),
+        CoreError::ArithmeticOverflow { .. }
+        | CoreError::InvalidSubtraction { .. }
+        | CoreError::InvalidDenominator
+        | CoreError::InvalidBasisPoints { .. }
+        | CoreError::IdExhaustion { .. }
+        | CoreError::CapacityExhausted { .. }
+        | CoreError::BackwardTime { .. } => error.to_string(),
     }
 }

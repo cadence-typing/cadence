@@ -172,7 +172,11 @@ impl Engine {
                 {
                     return self.end_early(at);
                 }
-                _ => {}
+                Key::Content(_)
+                | Key::Backspace
+                | Key::Interrupt
+                | Key::ToggleTextSize
+                | Key::Other => {}
             }
             return Ok(DomainOutcome::None);
         }
@@ -220,12 +224,16 @@ impl Engine {
                             .as_ref()
                             .map(|l| l.target())
                             .ok_or_else(|| invalid("missing practice ledger"))?;
-                        let position = usize::try_from(p.get())
-                            .map_err(|_| invalid("unit index outside address space"))?;
+                        let position = usize::try_from(p.get()).map_err(|_unrepresentable| {
+                            invalid("unit index outside address space")
+                        })?;
                         self.learning
                             .first_attempt(target, position, matched, active, lane)?;
                     }
-                    _ => self.learning.break_timing(),
+                    Applied::Content { .. }
+                    | Applied::Deleted
+                    | Applied::DeletedNothing
+                    | Applied::RejectedOverBound => self.learning.break_timing(),
                 }
                 if complete && !numpad {
                     return self.finish_exercise();
@@ -236,7 +244,7 @@ impl Engine {
                 self.learning.break_timing();
             }
             Key::Enter if numpad && ledger.is_complete() => return self.finish_exercise(),
-            _ => {}
+            Key::Enter | Key::Escape | Key::Interrupt | Key::ToggleTextSize | Key::Other => {}
         }
         Ok(DomainOutcome::None)
     }

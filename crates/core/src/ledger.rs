@@ -168,7 +168,7 @@ impl AttemptLedger {
         allowance: ExtraInputAllowance,
     ) -> Result<Self, CoreError> {
         let len = target.len();
-        if len > TextUnitIndex::MAXIMUM.get() as usize {
+        if len > widen(TextUnitIndex::MAXIMUM.get())? {
             return Err(CoreError::CapacityExhausted {
                 limit: "maximum target units",
             });
@@ -187,11 +187,12 @@ impl AttemptLedger {
                 // slot so every position maps to a word.
                 word_flags.push(WordFlags::default());
             }
-            let index = u32::try_from(word_flags.len().saturating_sub(1)).map_err(|_| {
-                CoreError::CapacityExhausted {
-                    limit: "maximum target units",
-                }
-            })?;
+            let index =
+                u32::try_from(word_flags.len().saturating_sub(1)).map_err(|_unrepresentable| {
+                    CoreError::CapacityExhausted {
+                        limit: "maximum target units",
+                    }
+                })?;
             word_of_position.push(index);
             if boundary {
                 open = false;
@@ -205,7 +206,7 @@ impl AttemptLedger {
             word_of_position,
             target,
             counters: LedgerCounters::default(),
-            buffer: Vec::with_capacity(len.checked_add(allowance.get() as usize).ok_or(
+            buffer: Vec::with_capacity(len.checked_add(widen(allowance.get())?).ok_or(
                 CoreError::CapacityExhausted {
                     limit: "typed buffer capacity",
                 },
@@ -269,7 +270,7 @@ impl AttemptLedger {
                 let bound = self
                     .target
                     .len()
-                    .checked_add(self.allowance.get() as usize)
+                    .checked_add(widen(self.allowance.get())?)
                     .ok_or(CoreError::CapacityExhausted {
                         limit: "typed buffer capacity",
                     })?;
@@ -285,13 +286,15 @@ impl AttemptLedger {
                 let matched = matched(expected.is_some(), expected == Some(character));
                 let index = if expected.is_some() {
                     Some(
-                        TextUnitIndex::new(u32::try_from(position).map_err(|_| {
+                        TextUnitIndex::new(u32::try_from(position).map_err(
+                            |_unrepresentable| CoreError::CapacityExhausted {
+                                limit: "maximum target units",
+                            },
+                        )?)
+                        .map_err(|_unrepresentable| {
                             CoreError::CapacityExhausted {
                                 limit: "maximum target units",
                             }
-                        })?)
-                        .map_err(|_| CoreError::CapacityExhausted {
-                            limit: "maximum target units",
                         })?,
                     )
                 } else {
@@ -363,10 +366,11 @@ impl AttemptLedger {
                 let removed = usize::try_from(units)
                     .unwrap_or(self.buffer.len())
                     .min(self.buffer.len());
-                let removed_count =
-                    u64::try_from(removed).map_err(|_| CoreError::CapacityExhausted {
+                let removed_count = u64::try_from(removed).map_err(|_unrepresentable| {
+                    CoreError::CapacityExhausted {
                         limit: "deletion count",
-                    })?;
+                    }
+                })?;
                 self.counters.inner = match deletion_step(self.counters.inner, removed_count) {
                     Step::Counted(counters) => counters,
                     Step::Overflow => {
@@ -396,20 +400,20 @@ impl AttemptLedger {
             .zip(self.target.iter())
             .filter(|(typed, expected)| typed == expected)
             .count();
-        UnitCount::from_raw(count as u64)
+        UnitCount::from_len(count)
     }
 
     /// First-attempted expected positions (slots with an assigned
     /// outcome).
     #[must_use]
     pub fn first_attempted(&self) -> UnitCount {
-        unit_count(count_first(&self.first_outcome).attempted)
+        UnitCount::from_len(count_first(&self.first_outcome).attempted)
     }
 
     /// First-correct expected positions (the first insertion matched).
     #[must_use]
     pub fn first_correct(&self) -> UnitCount {
-        unit_count(count_first(&self.first_outcome).correct)
+        UnitCount::from_len(count_first(&self.first_outcome).correct)
     }
 
     /// Whether the buffer exactly equals the target.
@@ -476,17 +480,17 @@ pub enum LedgerEvent {
     DeleteWord(u64),
 }
 
-/// A slot count as a typed unit count. A `usize` always fits `u64` on the
-/// supported targets, so the clip is unreachable.
-fn unit_count(count: usize) -> UnitCount {
-    UnitCount::from_raw(u64::try_from(count).unwrap_or(u64::MAX))
+/// A `u32` bound widened to `usize` for buffer arithmetic.
+fn widen(value: u32) -> Result<usize, CoreError> {
+    usize::try_from(value).map_err(|_too_wide| CoreError::CapacityExhausted {
+        limit: "typed buffer capacity",
+    })
 }
 
 #[cfg(test)]
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the
     // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
     use super::*;
     use crate::alphabet::LayoutSupportsPound;

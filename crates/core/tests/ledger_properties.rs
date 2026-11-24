@@ -10,12 +10,10 @@
 
 // Test assertions may use expect/unwrap/panic/indexing to fail loudly;
 // the workspace denies them in production code only.
-#![allow(
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects
+#![cfg(test)]
+#![expect(
+    clippy::arithmetic_side_effects,
+    reason = "test arithmetic is exact by construction"
 )]
 
 use cadence_core::alphabet::{LayoutSupportsPound, TrainingChar, validate_target};
@@ -81,8 +79,8 @@ proptest! {
             prop_assert!(current.correct_attempts() >= previous.correct_attempts());
             prop_assert!(current.deletions() >= previous.deletions());
             prop_assert!(current.overflow_attempts() >= previous.overflow_attempts());
-            prop_assert!(current.content_attempts() <= (step as u64) + 1);
-            prop_assert!(current.deletions() <= (step as u64) + 1);
+            prop_assert!(current.content_attempts() <= u64::try_from(step).unwrap() + 1);
+            prop_assert!(current.deletions() <= u64::try_from(step).unwrap() + 1);
             previous = current;
         }
     }
@@ -93,7 +91,7 @@ proptest! {
         events in prop::collection::vec(event_strategy(), 0..64),
     ) {
         let mut ledger = ledger_for(&target);
-        let bound = ledger.target().len() + ledger.allowance().get() as usize;
+        let bound = ledger.target().len() + usize::try_from(ledger.allowance().get()).unwrap();
         for event in &events {
             if let Ok(Applied::Content { .. }) | Ok(Applied::RejectedOverBound) = ledger.apply(*event) {
                 prop_assert!(ledger.buffer().len() <= bound);
@@ -130,7 +128,7 @@ proptest! {
             ledger.apply(*event).unwrap();
         }
         prop_assert!(ledger.first_correct().get() <= ledger.first_attempted().get());
-        prop_assert!(ledger.first_attempted().get() <= ledger.target().len() as u64);
-        prop_assert!(ledger.correct_visible_units().get() <= ledger.target().len() as u64);
+        prop_assert!(ledger.first_attempted().get() <= u64::try_from(ledger.target().len()).unwrap());
+        prop_assert!(ledger.correct_visible_units().get() <= u64::try_from(ledger.target().len()).unwrap());
     }
 }

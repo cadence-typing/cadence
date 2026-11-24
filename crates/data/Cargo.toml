@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 description = "SQLite writer/reader adapter, configuration, corpus loading/import/index adapters, backup/export."
 
+[package.metadata.tauten]
+tier = "edge"
+
 [lints]
 workspace = true
 

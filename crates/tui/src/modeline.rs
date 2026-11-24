@@ -93,7 +93,7 @@ pub(super) fn paint(
     let (seconds, suffix) = match &view.screen {
         ScreenView::Today { total_seconds } => (*total_seconds, "plan"),
         ScreenView::Practice { status, .. } => (status.phase_seconds_remaining, "left"),
-        _ => (
+        ScreenView::PhaseComplete { .. } | ScreenView::Summary => (
             view.active
                 .as_us()
                 .checked_div(MICROS_PER_SECOND)

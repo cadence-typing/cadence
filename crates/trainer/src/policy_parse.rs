@@ -20,7 +20,7 @@ fn integer<T: TryFrom<i64>>(table: &toml::Table, key: &str) -> Result<T, PolicyE
     let raw = value(table, key)?
         .as_integer()
         .ok_or_else(|| PolicyError::WrongType(key.into()))?;
-    T::try_from(raw).map_err(|_| PolicyError::OutOfRange {
+    T::try_from(raw).map_err(|_unrepresentable| PolicyError::OutOfRange {
         key: key.into(),
         reason: "integer outside representable range",
     })
@@ -43,7 +43,7 @@ fn integers<T: TryFrom<i64>>(table: &toml::Table, key: &str) -> Result<Vec<T>, P
             let raw = item
                 .as_integer()
                 .ok_or_else(|| PolicyError::WrongType(key.into()))?;
-            T::try_from(raw).map_err(|_| PolicyError::OutOfRange {
+            T::try_from(raw).map_err(|_unrepresentable| PolicyError::OutOfRange {
                 key: key.into(),
                 reason: "integer outside representable range",
             })
@@ -51,7 +51,7 @@ fn integers<T: TryFrom<i64>>(table: &toml::Table, key: &str) -> Result<Vec<T>, P
         .collect()
 }
 fn basis_points(table: &toml::Table, key: &str) -> Result<BasisPoints, PolicyError> {
-    BasisPoints::new(integer(table, key)?).map_err(|_| PolicyError::OutOfRange {
+    BasisPoints::new(integer(table, key)?).map_err(|_unrepresentable| PolicyError::OutOfRange {
         key: key.into(),
         reason: "basis points must be 0..=10000",
     })

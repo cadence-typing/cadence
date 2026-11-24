@@ -29,7 +29,8 @@ pub(super) fn exercises(
         }
         Phase::NumberRow | Phase::Numpad => {
             // One prepared entry per second, not one five-entry string per 20s.
-            let count = usize::try_from(seconds).map_err(|_| content("exercise count overflow"))?;
+            let count = usize::try_from(seconds)
+                .map_err(|_unrepresentable| content("exercise count overflow"))?;
             let mut used = std::collections::HashSet::new();
             let mut result = Vec::with_capacity(count);
             for _ in 0..count {
@@ -61,7 +62,7 @@ fn words(
     kind: ExerciseKind,
 ) -> Result<Vec<PlannedExercise>, PlanError> {
     let count = usize::try_from(seconds.div_ceil(policy.learning.seconds_per_word_exercise))
-        .map_err(|_| content("exercise count overflow"))?;
+        .map_err(|_unrepresentable| content("exercise count overflow"))?;
     let mut result = Vec::with_capacity(count);
     for _ in 0..count {
         let words = selector.block(rng)?;

@@ -41,6 +41,15 @@ pub enum KeyLane {
 }
 
 impl KeyLane {
+    /// Stable byte in the learning digest (declaration order; never reuse).
+    #[must_use]
+    pub const fn digest_tag(self) -> u8 {
+        match self {
+            Self::Main => 0,
+            Self::Numpad => 1,
+        }
+    }
+
     /// Stable persisted name.
     #[must_use]
     pub const fn key(self) -> &'static str {
@@ -99,7 +108,7 @@ impl Skill {
             .chars()
             .map(|character| TrainingChar::new(character, LayoutSupportsPound::UK));
         let mut next = || -> Result<Option<TrainingChar>, CoreError> {
-            units.next().transpose().map_err(|_| invalid())
+            units.next().transpose().map_err(|_rejected| invalid())
         };
         let skill = match (kind, next()?, next()?) {
             ("unit", Some(unit), None) => Self::Unit(unit),
@@ -166,6 +175,15 @@ pub enum PlannerMode {
 }
 
 impl PlannerMode {
+    /// Stable byte in the learning digest (declaration order; never reuse).
+    #[must_use]
+    pub const fn digest_tag(self) -> u8 {
+        match self {
+            Self::ColdStart => 0,
+            Self::Adaptive => 1,
+        }
+    }
+
     /// Stable persisted name.
     #[must_use]
     pub const fn key(self) -> &'static str {
@@ -348,7 +366,7 @@ impl SessionLearning {
     pub(crate) fn digest_into(&self, hash: &mut Sha256) {
         hash.update(b"cadence-learning-v1");
         hash.update(self.plan.seed.to_le_bytes());
-        hash.update([self.plan.mode as u8]);
+        hash.update([self.plan.mode.digest_tag()]);
         hash.update(length(self.plan.focus.len()));
         for key in &self.plan.focus {
             skill_bytes(hash, *key);
@@ -398,7 +416,7 @@ pub struct LearnerHistory {
 }
 
 fn skill_bytes(hash: &mut Sha256, key: SkillKey) {
-    hash.update([key.lane as u8]);
+    hash.update([key.lane.digest_tag()]);
     match key.skill {
         Skill::Unit(unit) => {
             hash.update([0]);

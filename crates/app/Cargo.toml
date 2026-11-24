@@ -11,6 +11,9 @@ description = "Cadence — offline Linux-native personal typing trainer (CLI com
 name = "cadence"
 path = "src/main.rs"
 
+[package.metadata.tauten]
+tier = "edge"
+
 [lints]
 workspace = true
 

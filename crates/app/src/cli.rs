@@ -87,7 +87,7 @@ pub fn parse() -> Result<Options, String> {
                 }
                 let minutes = value(&mut args, &arg)?
                     .parse()
-                    .map_err(|_| "--minutes requires 5, 10, 15, 20 or 30")?;
+                    .map_err(|_malformed| "--minutes requires 5, 10, 15, 20 or 30")?;
                 if !matches!(minutes, 5 | 10 | 15 | 20 | 30) {
                     return Err("--minutes requires 5, 10, 15, 20 or 30".into());
                 }
@@ -112,7 +112,7 @@ pub fn parse() -> Result<Options, String> {
                 options.seed = Some(
                     value(&mut args, &arg)?
                         .parse()
-                        .map_err(|_| "--seed requires an unsigned 64-bit integer")?,
+                        .map_err(|_malformed| "--seed requires an unsigned 64-bit integer")?,
                 );
             }
             "--text-size" => {

@@ -11,14 +11,21 @@ use std::path::Path;
 /// Allowed internal dependency edges, keyed by crate name. An edge not
 /// listed here is a violation; absence of an edge is always allowed.
 const ALLOWED_EDGES: &[(&str, &[&str])] = &[
-    // core has no workspace dependency.
-    ("cadence-core", &[]),
+    // The kernel is the innermost crate: no workspace dependency at all.
+    ("cadence-kernel", &[]),
+    // core depends only on the kernel.
+    ("cadence-core", &["cadence-kernel"]),
     ("cadence-trainer", &["cadence-core"]),
     ("cadence-engine", &["cadence-core", "cadence-trainer"]),
     // data may use engine port DTOs when necessary (A-01).
     (
         "cadence-data",
-        &["cadence-core", "cadence-trainer", "cadence-engine"],
+        &[
+            "cadence-kernel",
+            "cadence-core",
+            "cadence-trainer",
+            "cadence-engine",
+        ],
     ),
     ("cadence-tui", &["cadence-engine", "cadence-core"]),
     (
@@ -99,7 +106,7 @@ pub fn check() -> Result<(), String> {
 fn workspace_root() -> Result<PathBuf, String> {
     let mut dir = std::env::var("CARGO_MANIFEST_DIR")
         .map(PathBuf::from)
-        .map_err(|_| "CARGO_MANIFEST_DIR not set; run via cargo xtask".to_string())?;
+        .map_err(|_unset| "CARGO_MANIFEST_DIR not set; run via cargo xtask".to_string())?;
     dir.pop();
     Ok(dir)
 }

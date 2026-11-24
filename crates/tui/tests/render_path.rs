@@ -6,12 +6,7 @@
 
 // Test assertions may use expect/unwrap/panic/indexing to fail loudly;
 // the workspace denies them in production code only.
-#![allow(
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::indexing_slicing
-)]
+#![cfg(test)]
 
 use cadence_core::{EventSeq, LayoutSupportsPound, MonoTick, TrainingChar};
 use cadence_engine::view::LineRendition;

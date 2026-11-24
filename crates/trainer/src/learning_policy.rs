@@ -65,14 +65,14 @@ fn integer<T: TryFrom<i64>>(table: &toml::Table, key: &str) -> Result<T, PolicyE
         .ok_or_else(|| PolicyError::MissingKey(key.into()))?
         .as_integer()
         .ok_or_else(|| PolicyError::WrongType(key.into()))?;
-    T::try_from(raw).map_err(|_| PolicyError::OutOfRange {
+    T::try_from(raw).map_err(|_unrepresentable| PolicyError::OutOfRange {
         key: key.into(),
         reason: "integer outside representable range",
     })
 }
 
 fn basis_points(table: &toml::Table, key: &str) -> Result<BasisPoints, PolicyError> {
-    BasisPoints::new(integer(table, key)?).map_err(|_| PolicyError::OutOfRange {
+    BasisPoints::new(integer(table, key)?).map_err(|_unrepresentable| PolicyError::OutOfRange {
         key: key.into(),
         reason: "basis points must be 0..=10000",
     })
@@ -102,9 +102,11 @@ pub(crate) fn parse_learning(document: &toml::Table) -> Result<LearningPolicy, P
     let policy = LearningPolicy {
         history_sessions: integer(t, "history_sessions")?,
         half_life_sessions: integer(t, "half_life_sessions")?,
-        hesitation_ceiling: Micros::from_millis(ceiling).map_err(|_| PolicyError::OutOfRange {
-            key: "hesitation_ceiling_milliseconds".into(),
-            reason: "duration overflow",
+        hesitation_ceiling: Micros::from_millis(ceiling).map_err(|_unrepresentable| {
+            PolicyError::OutOfRange {
+                key: "hesitation_ceiling_milliseconds".into(),
+                reason: "duration overflow",
+            }
         })?,
         focus_skill_count: integer(t, "focus_skill_count")?,
         minimum_focus_attempts: integer(t, "minimum_focus_attempts")?,

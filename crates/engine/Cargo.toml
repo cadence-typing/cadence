@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 description = "Sole application-state reducer, UI navigation state, effect requests, prepared immutable view models."
 
+[package.metadata.tauten]
+tier = "core"
+
 [lints]
 workspace = true
 

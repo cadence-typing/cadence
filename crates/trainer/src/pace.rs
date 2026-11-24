@@ -134,14 +134,16 @@ pub fn pace_decision(
         .map(|block| block.session_ordinal)
         .collect::<std::collections::BTreeSet<_>>()
         .len();
-    let qualifying_count =
-        u64::try_from(qualifying.len()).map_err(|_| CoreError::ArithmeticOverflow {
+    let qualifying_count = u64::try_from(qualifying.len()).map_err(|_unrepresentable| {
+        CoreError::ArithmeticOverflow {
             operation: "qualifying block count",
-        })?;
-    let distinct_sessions =
-        u64::try_from(distinct_sessions).map_err(|_| CoreError::ArithmeticOverflow {
+        }
+    })?;
+    let distinct_sessions = u64::try_from(distinct_sessions).map_err(|_unrepresentable| {
+        CoreError::ArithmeticOverflow {
             operation: "distinct session count",
-        })?;
+        }
+    })?;
     if !degraded
         && qualifying_count >= u64::from(policy.qualifying_blocks_to_raise)
         && distinct_sessions >= u64::from(policy.minimum_sessions_to_raise)
@@ -177,7 +179,6 @@ fn below_band(block: &BlockEvidence, band: BasisPoints) -> Result<bool, CoreErro
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the
     // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
     use super::*;
     use crate::policy::parse_policy;

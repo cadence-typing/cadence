@@ -140,7 +140,7 @@ impl WordPack {
                 .next()
                 .ok_or_else(malformed)?
                 .parse::<u64>()
-                .map_err(|_| malformed())?;
+                .map_err(|_malformed| malformed())?;
             if rank == 0 {
                 return Err(malformed());
             }
@@ -185,7 +185,7 @@ impl WordPack {
             if !forms.insert(text.clone()) {
                 return Err(CorpusError::DuplicateForm { word: text });
             }
-            let id = WordId::new(raw_id).map_err(|_| CorpusError::InvalidWord {
+            let id = WordId::new(raw_id).map_err(|_unrepresentable| CorpusError::InvalidWord {
                 word: text.clone(),
                 reason: "identity must be nonzero".to_string(),
             })?;
@@ -261,7 +261,8 @@ impl WordPack {
         block_slots: usize,
         occurrence_cap: u32,
     ) -> Result<(), CorpusError> {
-        let cap = usize::try_from(occurrence_cap).map_err(|_| CorpusError::InvalidCapacity)?;
+        let cap = usize::try_from(occurrence_cap)
+            .map_err(|_unrepresentable| CorpusError::InvalidCapacity)?;
         if block_slots == 0 || cap == 0 {
             return Err(CorpusError::InvalidCapacity);
         }
@@ -287,7 +288,6 @@ pub fn digest_of(bytes: &[u8]) -> ContentDigest {
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the
     // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
     use super::*;
 

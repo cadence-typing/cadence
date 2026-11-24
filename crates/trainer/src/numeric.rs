@@ -32,7 +32,8 @@ pub trait DigitSource {
 fn digits(rng: &mut dyn DigitSource, length: usize) -> Result<String, NumericError> {
     (0..length)
         .map(|_| {
-            let value = u8::try_from(rng.below(10)).map_err(|_| NumericError::InvalidCharacter)?;
+            let value = u8::try_from(rng.below(10))
+                .map_err(|_unrepresentable| NumericError::InvalidCharacter)?;
             if value > 9 {
                 return Err(NumericError::InvalidCharacter);
             }
@@ -47,14 +48,16 @@ fn count(rng: &mut dyn DigitSource, base: usize, bound: u64) -> Result<usize, Nu
     if value >= bound {
         return Err(NumericError::InvalidCharacter);
     }
-    base.checked_add(usize::try_from(value).map_err(|_| NumericError::InvalidCharacter)?)
-        .ok_or(NumericError::InvalidCharacter)
+    base.checked_add(
+        usize::try_from(value).map_err(|_unrepresentable| NumericError::InvalidCharacter)?,
+    )
+    .ok_or(NumericError::InvalidCharacter)
 }
 fn units(text: &str) -> Result<Vec<TrainingChar>, NumericError> {
     text.chars()
         .map(|character| {
             TrainingChar::new(character, LayoutSupportsPound::US)
-                .map_err(|_| NumericError::InvalidCharacter)
+                .map_err(|_unrepresentable| NumericError::InvalidCharacter)
         })
         .collect()
 }
@@ -71,7 +74,8 @@ pub fn number_row_exercise(
         "route", "room", "model", "gate", "box", "unit", "line", "case",
     ];
     for _ in 0..64 {
-        let index = usize::try_from(rng.below(8)).map_err(|_| NumericError::InvalidCharacter)?;
+        let index = usize::try_from(rng.below(8))
+            .map_err(|_unrepresentable| NumericError::InvalidCharacter)?;
         let context = CONTEXTS.get(index).ok_or(NumericError::InvalidCharacter)?;
         let length = count(rng, 3, 4)?;
         let text = format!("{context} {}", digits(rng, length)?);
@@ -127,7 +131,6 @@ pub fn numpad_exercise(
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     use crate::plan::PlanRng;
     use rand::SeedableRng;

@@ -68,6 +68,10 @@ impl Ratio {
     /// The ratio as an f64, for UI formatting only (the exact pair is the
     /// source of truth).
     #[must_use]
+    #[expect(
+        clippy::as_conversions,
+        reason = "display only: no lossless integer to f64 conversion exists; the exact pair is the source of truth"
+    )]
     pub fn as_f64(self) -> f64 {
         let numerator = self.numerator as f64;
         let denominator = self.denominator as f64;
@@ -118,7 +122,7 @@ pub fn correct_digits(ledger: &AttemptLedger) -> UnitCount {
         .zip(ledger.target())
         .filter(|(typed, expected)| typed == expected && typed.is_digit())
         .count();
-    UnitCount::from_raw(count as u64)
+    UnitCount::from_len(count)
 }
 
 /// All digit units in the target (numpad denominators count digits).
@@ -129,7 +133,7 @@ pub fn target_digits(ledger: &AttemptLedger) -> UnitCount {
         .iter()
         .filter(|unit| unit.is_digit())
         .count();
-    UnitCount::from_raw(count as u64)
+    UnitCount::from_len(count)
 }
 
 /// Whether every target digit was typed correctly at its position and the
@@ -265,7 +269,6 @@ pub use crate::alphabet::TrainingChar as MetricChar;
 mod tests {
     // Test assertions may use expect/unwrap/panic to fail loudly; the
     // workspace denies them in production code only.
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
     use super::*;
 

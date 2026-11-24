@@ -15,7 +15,7 @@ pub const MINIMUM_PASSAGES: usize = 2_000;
 fn repo_root() -> Result<PathBuf, String> {
     let mut root = PathBuf::from(
         std::env::var("CARGO_MANIFEST_DIR")
-            .map_err(|_| "CARGO_MANIFEST_DIR not set".to_string())?,
+            .map_err(|_unset| "CARGO_MANIFEST_DIR not set".to_string())?,
     );
     root.pop();
     Ok(root)
@@ -27,7 +27,7 @@ pub fn load_words_pack() -> Result<WordPack, String> {
     let tsv_path = root.join("corpus/words-en-v1.tsv");
     let bytes = std::fs::read(&tsv_path)
         .map_err(|error| format!("cannot read {}: {error}", tsv_path.display()))?;
-    let text = std::str::from_utf8(&bytes).map_err(|_| "pack is not UTF-8".to_string())?;
+    let text = std::str::from_utf8(&bytes).map_err(|_not_utf8| "pack is not UTF-8".to_string())?;
 
     WordPack::from_tsv(text, MINIMUM_RELEASE_WORDS, LayoutSupportsPound::US)
         .map_err(|error| error.to_string())
@@ -43,7 +43,7 @@ pub fn check() -> Result<(), String> {
     let manifest_text = std::fs::read_to_string(&manifest_path)
         .map_err(|error| format!("cannot read {}: {error}", manifest_path.display()))?;
     let manifest: serde_json::Value = serde_json::from_str(&manifest_text)
-        .map_err(|_| "corpus/manifest.json is not valid JSON".to_string())?;
+        .map_err(|_source| "corpus/manifest.json is not valid JSON".to_string())?;
     let recorded = manifest
         .get("digests")
         .and_then(|digests| digests.get("words-en-v1.tsv"))

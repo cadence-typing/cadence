@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 description = "Versioned NDJSON commands, deterministic fixtures/clock, trace/replay, headless harness sharing the live engine and renderer."
 
+[package.metadata.tauten]
+tier = "edge"
+
 [lints]
 workspace = true
 
