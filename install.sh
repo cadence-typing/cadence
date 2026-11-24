@@ -180,6 +180,7 @@ main() {
         *":$BIN_DIR:"*) say "run: cadence" ;;
         *)
             say "$BIN_DIR is not on your PATH. Add this to your shell profile:"
+            # shellcheck disable=SC2016 # print a literal $PATH for the user's profile
             printf '\n    export PATH="%s:$PATH"\n\n' "$BIN_DIR"
             ;;
     esac
