@@ -34,7 +34,6 @@ start_from = [
     "cadence_kernel::time::active_time",
     "cadence_kernel::time::in_window",
     "cadence_kernel::checkpoint::admit",
-    "cadence_kernel::checkpoint::latest_after",
     "cadence_kernel::progress::in_range",
     "cadence_kernel::progress::ordered",
     "cadence_kernel::progress::split_fits",

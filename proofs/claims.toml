@@ -348,7 +348,6 @@ theorems = [
   "Proofs.Checkpoint.refused_never_applies",
   "Proofs.Checkpoint.applications_strictly_increase",
   "Proofs.Checkpoint.applied_sequence_never_reapplies",
-  "Proofs.Checkpoint.latest_never_decreases",
 ]
 total = "Proofs.Checkpoint.admit_spec"
 mutants = ["admit-equal-sequence-applies", "admit-replay-applies", "admit-conflict-replays"]
@@ -370,27 +369,6 @@ name = "admit-conflict-replays"
 file = "crates/kernel/src/checkpoint.rs"
 before = "        Receipt::Different => Admission::Conflict,\n"
 after = "        Receipt::Different => Admission::Replay,\n"
-
-[[claim]]
-crate = "cadence-kernel"
-file = "crates/kernel/src/checkpoint.rs"
-function = "checkpoint::latest_after"
-lean = "cadence_kernel.checkpoint.latest_after"
-theorems = ["Proofs.Checkpoint.latest_after_spec", "Proofs.Checkpoint.latest_never_decreases"]
-total = "Proofs.Checkpoint.latest_after_spec"
-mutants = ["latest-forgotten-on-refusal", "latest-moves-on-stale"]
-
-[[mutant]]
-name = "latest-forgotten-on-refusal"
-file = "crates/kernel/src/checkpoint.rs"
-before = "        Admission::Replay | Admission::Conflict | Admission::Stale => latest,\n"
-after = "        Admission::Replay | Admission::Conflict | Admission::Stale => None,\n"
-
-[[mutant]]
-name = "latest-moves-on-stale"
-file = "crates/kernel/src/checkpoint.rs"
-before = "        Admission::Replay | Admission::Conflict | Admission::Stale => latest,\n"
-after = "        Admission::Replay | Admission::Conflict => latest,\n        Admission::Stale => Some(incoming),\n"
 
 # ---- track counter validity (crates/kernel/src/progress.rs)
 

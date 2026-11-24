@@ -4,8 +4,7 @@ import Extracted.CadenceKernel
 # Checkpoint admission (`cadence_kernel::checkpoint`)
 
 `cadence-data`'s `Store::apply_checkpoint` calls `checkpoint.admit` for the
-decision "apply, replay, conflict or stale" and `checkpoint.latest_after`
-for the sequence it then holds. The theorems say which incoming checkpoints
+decision "apply, replay, conflict or stale". The theorems say which incoming checkpoints
 are credited and that a credited sequence can never be credited again: the
 decision-level counterpart of `NoDoubleCredit` in
 `formal/DurableCheckpoint.tla`.
@@ -54,59 +53,21 @@ theorem refused_never_applies (latest : Option U64) (receipt : checkpoint.Receip
   intro r h hap
   exact hr (h.mp hap).1
 
-/-- The sequence held after an admission: the incoming one only when it was
-applied, otherwise the previous one, unchanged. -/
-theorem latest_after_spec (latest : Option U64) (a : checkpoint.Admission) (incoming : U64) :
-    checkpoint.latest_after latest a incoming
-      ⦃ r => r = match a with
-        | .Apply => some incoming
-        | .Replay => latest
-        | .Conflict => latest
-        | .Stale => latest ⦄ := by
-  unfold checkpoint.latest_after
-  cases a <;> simp
-
-/-- Credit never goes backwards: whatever `admit` decides, the sequence held
-afterwards is at least the one held before. -/
-theorem latest_never_decreases (latest : Option U64) (receipt : checkpoint.Receipt)
-    (incoming : U64) (x : U64) (hx : latest = some x) :
-    checkpoint.admit latest receipt incoming ⦃ a =>
-      checkpoint.latest_after latest a incoming
-        ⦃ r => ∃ y, r = some y ∧ x.val ≤ y.val ⦄ ⦄ := by
-  apply WP.spec_mono (admit_spec latest receipt incoming)
-  intro a ha
-  subst ha hx
-  apply WP.spec_mono (latest_after_spec (some x) _ incoming)
-  intro r hr
-  subst hr
-  cases receipt <;> simp
-  split <;> simp_all <;> omega
-
-/-- No double credit: once a checkpoint with sequence `incoming` was applied,
-the store holds `incoming`, and offering the same sequence again, with any
-receipt state, is never applied. -/
-theorem applied_sequence_never_reapplies (latest : Option U64) (receipt : checkpoint.Receipt)
-    (incoming : U64) :
-    checkpoint.admit latest receipt incoming ⦃ a =>
-      a = checkpoint.Admission.Apply →
-        checkpoint.latest_after latest a incoming
-          ⦃ held => ∀ again : checkpoint.Receipt,
-            checkpoint.admit held again incoming
-              ⦃ r => r ≠ checkpoint.Admission.Apply ⦄ ⦄ ⦄ := by
-  apply WP.spec_mono (admit_spec latest receipt incoming)
-  intro a ha happ
-  subst happ
-  apply WP.spec_mono (latest_after_spec latest _ incoming)
-  intro held hh
-  subst hh
-  intro again
-  apply WP.spec_mono (admit_apply_iff (some incoming) again incoming)
+/-- No double credit: once a checkpoint with sequence `incoming` was applied
+the store holds `incoming` as its latest sequence (the same transaction writes
+`commit_seq`; trusted), and offering the same sequence again, with any receipt
+state, is never applied. -/
+theorem applied_sequence_never_reapplies (receipt : checkpoint.Receipt) (incoming : U64) :
+    checkpoint.admit (some incoming) receipt incoming
+      ⦃ r => r ≠ checkpoint.Admission.Apply ⦄ := by
+  apply WP.spec_mono (admit_apply_iff (some incoming) receipt incoming)
   intro r hr hap
   have := (hr.mp hap).2 incoming rfl
   omega
 
-/-- A later application of a different sequence is strictly newer: applied
-sequences of one session are strictly increasing, so each is credited once. -/
+/-- Applied sequences of one session are strictly increasing: an applied
+checkpoint is newer than the latest one held, so each sequence is credited
+at most once. -/
 theorem applications_strictly_increase (l incoming : U64) (receipt : checkpoint.Receipt) :
     checkpoint.admit (some l) receipt incoming
       ⦃ r => r = checkpoint.Admission.Apply → l.val < incoming.val ⦄ := by

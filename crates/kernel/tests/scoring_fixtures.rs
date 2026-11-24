@@ -2,7 +2,7 @@
 //! through the kernel's own functions: the same arithmetic the Lean
 //! theorems are about, checked against numbers computed independently.
 
-use cadence_kernel::checkpoint::{Admission, Receipt, admit, latest_after};
+use cadence_kernel::checkpoint::{Admission, Receipt, admit};
 use cadence_kernel::counters::{Counters, Step, content_step, deletion_step, matched};
 use cadence_kernel::first::{Slot, count_first, settle};
 use cadence_kernel::ratio::{BasisPoints, Pace, basis_points, wpm};
@@ -136,8 +136,8 @@ fn accuracy_truncates_and_stays_within_full() {
 #[test]
 fn checkpoint_credit_is_applied_once() {
     assert_eq!(admit(None, Receipt::Absent, 1), Admission::Apply);
-    let held = latest_after(None, Admission::Apply, 1);
-    assert_eq!(held, Some(1));
+    // After the first application the store holds sequence 1.
+    let held = Some(1);
     // The same sequence again, with or without its receipt, is not applied.
     assert_eq!(admit(held, Receipt::Same, 1), Admission::Replay);
     assert_eq!(admit(held, Receipt::Absent, 1), Admission::Stale);

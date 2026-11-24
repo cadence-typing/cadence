@@ -21,7 +21,7 @@ set_option maxRecDepth 2048
 namespace cadence_kernel
 
 /-- [cadence_kernel::checkpoint::Receipt]
-    Source: 'crates/kernel/src/checkpoint.rs', lines 7:0-14:1
+    Source: 'crates/kernel/src/checkpoint.rs', lines 9:0-16:1
     Visibility: public -/
 @[discriminant isize]
 inductive checkpoint.Receipt where
@@ -30,7 +30,7 @@ inductive checkpoint.Receipt where
 | Different : checkpoint.Receipt
 
 /-- [cadence_kernel::checkpoint::Admission]
-    Source: 'crates/kernel/src/checkpoint.rs', lines 18:0-27:1
+    Source: 'crates/kernel/src/checkpoint.rs', lines 20:0-29:1
     Visibility: public -/
 @[discriminant isize]
 inductive checkpoint.Admission where
@@ -40,7 +40,7 @@ inductive checkpoint.Admission where
 | Stale : checkpoint.Admission
 
 /-- [cadence_kernel::checkpoint::admit]:
-    Source: 'crates/kernel/src/checkpoint.rs', lines 32:0-47:1
+    Source: 'crates/kernel/src/checkpoint.rs', lines 34:0-49:1
     Visibility: public -/
 def checkpoint.admit
   (latest : Option Std.U64) (receipt : checkpoint.Receipt) (incoming : Std.U64)
@@ -57,20 +57,6 @@ def checkpoint.admit
       else ok checkpoint.Admission.Apply
   | checkpoint.Receipt.Same => ok checkpoint.Admission.Replay
   | checkpoint.Receipt.Different => ok checkpoint.Admission.Conflict
-
-/-- [cadence_kernel::checkpoint::latest_after]:
-    Source: 'crates/kernel/src/checkpoint.rs', lines 52:0-57:1
-    Visibility: public -/
-def checkpoint.latest_after
-  (latest : Option Std.U64) (admission : checkpoint.Admission)
-  (incoming : Std.U64) :
-  Result (Option Std.U64)
-  := do
-  match admission with
-  | checkpoint.Admission.Apply => ok (some incoming)
-  | checkpoint.Admission.Replay => ok latest
-  | checkpoint.Admission.Conflict => ok latest
-  | checkpoint.Admission.Stale => ok latest
 
 /-- [cadence_kernel::counters::Counters]
     Source: 'crates/kernel/src/counters.rs', lines 6:0-15:1
