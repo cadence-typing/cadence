@@ -134,8 +134,8 @@ after = "    let add_overflow: u64 = 0;\n"
 [[mutant]]
 name = "correct-counted-twice"
 file = "crates/kernel/src/counters.rs"
-before = "    let add_correct: u64 = if matched(expected_present, same) { 1 } else { 0 };\n"
-after = "    let add_correct: u64 = if matched(expected_present, same) { 2 } else { 0 };\n"
+before = "    let add_correct: u64 = if matched(expected_present, same) {\n        1\n"
+after = "    let add_correct: u64 = if matched(expected_present, same) {\n        2\n"
 
 [[claim]]
 crate = "cadence-kernel"
@@ -305,14 +305,14 @@ mutants = ["active-ignores-pauses", "pauses-exceeding-clamp-to-zero", "pauses-sa
 [[mutant]]
 name = "active-ignores-pauses"
 file = "crates/kernel/src/time.rs"
-before = "            match elapsed.checked_sub(total) {\n"
-after = "            match elapsed.checked_sub(0) {\n"
+before = "        Total::Sum(total) => match elapsed.checked_sub(total) {\n"
+after = "        Total::Sum(total) => match elapsed.checked_sub(0) {\n"
 
 [[mutant]]
 name = "pauses-exceeding-clamp-to-zero"
 file = "crates/kernel/src/time.rs"
-before = "                None => Active::PausesExceed(total),\n"
-after = "                None => Active::Time(0),\n"
+before = "            None => Active::PausesExceed(total),\n"
+after = "            None => Active::Time(0),\n"
 
 [[claim]]
 crate = "cadence-kernel"
