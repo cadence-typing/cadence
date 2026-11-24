@@ -51,5 +51,5 @@ Creation order. New proposals use `—` in the Legacy column.
 | plan/0002 | [Smooth native 2× terminal text](2026-10-19-smooth-native-text.md) | accepted | complete | — |
 | plan/0003 | [Learn from mistakes; vary natural prose](2026-11-13-learning-from-mistakes.md) | accepted | complete | — |
 | plan/0004 | [Calm flow and results that answer "how did I do"](2026-11-14-calm-flow-and-honest-results.md) | accepted | complete | — |
-| — | [Public distribution: install script, website and project process](2026-11-24-public-distribution.md) | draft | in-progress | — |
-| — | [Adopt tauten and prove the scoring kernel in Lean](2026-11-24-tauten-and-lean-kernel.md) | draft | in-progress | — |
+| — | [Public distribution: install script, website and project process](2026-11-24-public-distribution.md) | draft | in-progress | [#1](https://github.com/cadence-typing/cadence/issues/1) |
+| — | [Adopt tauten and prove the scoring kernel in Lean](2026-11-24-tauten-and-lean-kernel.md) | draft | in-progress | [#2](https://github.com/cadence-typing/cadence/issues/2) |
