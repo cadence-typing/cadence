@@ -235,7 +235,7 @@
     },
     {
       "module": "RequestCache",
-      "status": "design-probe",
+      "status": "mapped",
       "invariants": [
         "AtMostOnceApply",
         "CacheBounded",
@@ -249,8 +249,17 @@
         "RequestCache-evicted-reexecutes.cfg violates ExpiredNeverMutates",
         "RequestCache-replay-reapplies.cfg violates AtMostOnceApply"
       ],
-      "production_symbols": [],
-      "runtime_tests": [],
+      "production_symbols": [
+        "cadence_driver::protocol::{handle}",
+        "cadence_driver::stream::{admit}",
+        "cadence_kernel::request::admit",
+        "cadence_kernel::request::evict"
+      ],
+      "runtime_tests": [
+        "cadence-driver::each_rejection_class_has_its_code_and_mutates_nothing",
+        "cadence-driver::hello_comes_first",
+        "cadence-driver::repeats_replay_conflict_or_expire"
+      ],
       "constants": "Ids = {1, 2, 3, 4} Digests = {\"d1\", \"d2\"} Capacity = 2 ReplayGuard = TRUE ConflictGuard = TRUE ExpiryGuard = TRUE",
       "sha256": {
         "RequestCache.tla": "3df6a3fd3b4040adc5afd7f56214c8194b2458d3b9287b06f23f26792cdfe64a",

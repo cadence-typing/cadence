@@ -21,6 +21,7 @@ cadence-tui.workspace = true
 ratatui.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

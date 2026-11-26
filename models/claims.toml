@@ -253,14 +253,25 @@ violates = "DueEventuallyServed"
 
 # Headless request admission (VP-05, #67): ordered stream, bounded cache
 # with FIFO eviction, repeats and conflicting repeats. The decisions are the
-# proved cadence_kernel::request::{admit, evict}; the driver's cache is #68.
+# proved cadence_kernel::request::{admit, evict}, called by the driver's
+# stream and response cache (#68).
 [[model]]
 module = "RequestCache"
 dir = "models"
 config = "RequestCache.cfg"
 invariants = ["TypeOK", "AtMostOnceApply", "ConflictNeverMutates", "ExpiredNeverMutates", "CacheBounded"]
-status = "design-probe"
-blocked_on = "#68"
+status = "mapped"
+production_symbols = [
+  "cadence_kernel::request::admit",
+  "cadence_kernel::request::evict",
+  "cadence_driver::stream::{admit}",
+  "cadence_driver::protocol::{handle}",
+]
+runtime_tests = [
+  "cadence-driver::repeats_replay_conflict_or_expire",
+  "cadence-driver::hello_comes_first",
+  "cadence-driver::each_rejection_class_has_its_code_and_mutates_nothing",
+]
 
 [[model.mutant]]
 config = "RequestCache-replay-reapplies.cfg"
