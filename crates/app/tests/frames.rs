@@ -61,7 +61,11 @@ fn golden(frame: &Value) -> Result<String, Box<dyn std::error::Error>> {
             .filter_map(|c| c["symbol"].as_str())
             .collect();
         // The version would change every golden on a release.
-        let text = text.replace(env!("CARGO_PKG_VERSION"), "<version>");
+        let text = match text.split_once(env!("CARGO_PKG_VERSION")) {
+            // Right-aligned: the padding before it depends on its length.
+            Some((before, after)) => format!("{} <version>{after}", before.trim_end()),
+            None => text,
+        };
         out.push_str(&format!(
             "{index:02} {} |{}\n",
             renditions
