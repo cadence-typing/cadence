@@ -22,7 +22,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
         "lean:first.settle": "fnv1a64:566c72e13b472466",
@@ -101,7 +101,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:first.FirstCounts": "fnv1a64:951749e3ebb35e0b",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -177,7 +177,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:first.FirstCounts": "fnv1a64:951749e3ebb35e0b",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -253,7 +253,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:counters.matched": "fnv1a64:2ad1792852f58d8d",
         "mutant:matched-ignores-position": "fnv1a64:0529f9d47b522232",
@@ -310,7 +310,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -431,7 +431,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -487,7 +487,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.fraction": "fnv1a64:49e76f9c2e339bbe",
@@ -527,7 +527,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.MICROSECONDS_PER_MINUTE": "fnv1a64:0e6d1d8a66fb2711",
@@ -611,7 +611,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.MICROSECONDS_PER_MINUTE": "fnv1a64:0e6d1d8a66fb2711",
@@ -673,7 +673,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:ratio.BASIS_POINTS_FULL": "fnv1a64:599654242e42c614",
         "lean:ratio.BasisPoints": "fnv1a64:bda07eef227211d5",
@@ -755,7 +755,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:time.Through": "fnv1a64:2c7a5df47aa92b14",
         "lean:time.segment_active": "fnv1a64:2f71d90c8f3e62f6",
@@ -832,7 +832,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:time.in_window": "fnv1a64:9d5f256c9926dafd",
         "mutant:window-deadline-inclusive": "fnv1a64:7838167070585533",
@@ -884,7 +884,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:checkpoint.Admission": "fnv1a64:730283b1519f480c",
         "lean:checkpoint.Receipt": "fnv1a64:7f7df42fddf3f375",
@@ -973,7 +973,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:progress.COUNTER_MAXIMUM": "fnv1a64:3224be1f2d07a607",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1019,7 +1019,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
         "lean:progress.ordered": "fnv1a64:3488d8720654b667",
@@ -1064,7 +1064,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
         "lean:progress.split_fits": "fnv1a64:d649c86921960f7a",
@@ -1114,7 +1114,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:progress.COUNTER_MAXIMUM": "fnv1a64:3224be1f2d07a607",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1225,7 +1225,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:session.Clock": "fnv1a64:f0e1666bc976be48",
         "lean:session.Event": "fnv1a64:a84c9741bcb0cc46",
@@ -1300,7 +1300,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:progress.Merge": "fnv1a64:9618b5d2b3688a0a",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1357,7 +1357,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:progress.credit_once": "fnv1a64:31f0ee098efec42e",
         "mutant:credit-allows-equal": "fnv1a64:97d7b603ca0e68dd",
@@ -1395,7 +1395,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -1457,7 +1457,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
         "lean:first.settle": "fnv1a64:566c72e13b472466",
@@ -1497,7 +1497,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_insert": "fnv1a64:f7361bb3530d6e3a",
@@ -1536,7 +1536,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_deletion": "fnv1a64:b3e8154528cdf7a8",
@@ -1575,7 +1575,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_interrupt": "fnv1a64:f351f7f2c614224f",
@@ -1614,7 +1614,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.clean": "fnv1a64:14037ade3f2de508",
@@ -1653,7 +1653,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:620332ad5ee3e774",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
       "inputs": {
         "lean:ledger.complete": "fnv1a64:710ade383499c619",
         "mutant:complete-ignores-tail": "fnv1a64:045cbb98d4e9de86",
@@ -1675,6 +1675,231 @@
           ]
         }
       ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/plan.rs",
+      "function": "plan::total",
+      "lean": "cadence_kernel.plan.total",
+      "theorems": [
+        "Proofs.Plan.total_spec"
+      ],
+      "total": "Proofs.Plan.total_spec",
+      "subsumes": [],
+      "mutants": [
+        "total-drops-sum"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "inputs": {
+        "lean:plan.Sum": "fnv1a64:d5ddda56f46bb138",
+        "lean:plan.total": "fnv1a64:d4470cfbce1e33e6",
+        "lean:plan.total_loop": "fnv1a64:89985b87b322ddeb",
+        "lean:plan.total_loop.body": "fnv1a64:4c05511d4e84071f",
+        "mutant:total-drops-sum": "fnv1a64:be66fb417266e860",
+        "proof:Proofs/Counters.lean": "fnv1a64:b6ef300200461336",
+        "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
+        "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
+        "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "total-drops-sum",
+          "status": "killed",
+          "broken": [
+            "Proofs.Plan.allocate_infeasible_exact",
+            "Proofs.Plan.allocate_keeps_minimums",
+            "Proofs.Plan.allocate_spec",
+            "Proofs.Plan.allocate_sum_exact",
+            "Proofs.Plan.total_spec"
+          ],
+          "direct": [
+            "Proofs.Plan.total_loop_spec"
+          ],
+          "dependent": [
+            "Proofs.Plan.allocate_infeasible_exact",
+            "Proofs.Plan.allocate_keeps_minimums",
+            "Proofs.Plan.allocate_spec",
+            "Proofs.Plan.allocate_sum_exact",
+            "Proofs.Plan.total_spec"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/plan.rs",
+      "function": "plan::pick",
+      "lean": "cadence_kernel.plan.pick",
+      "theorems": [
+        "Proofs.Plan.pick_spec",
+        "Proofs.Plan.allocate_tie_to_lower_index"
+      ],
+      "total": "Proofs.Plan.pick_spec",
+      "subsumes": [],
+      "mutants": [
+        "tie-to-higher-index"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "inputs": {
+        "lean:plan.after_pick": "fnv1a64:e406a69939dd8f95",
+        "lean:plan.beats": "fnv1a64:94647b5915bbd1af",
+        "lean:plan.pick": "fnv1a64:b06581852440ab6f",
+        "lean:plan.pick_loop": "fnv1a64:66e9bae60888ced8",
+        "lean:plan.pick_loop.body": "fnv1a64:d9b538769bacc074",
+        "mutant:tie-to-higher-index": "fnv1a64:802ca6c4f1b0d863",
+        "proof:Proofs/Counters.lean": "fnv1a64:b6ef300200461336",
+        "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
+        "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
+        "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "tie-to-higher-index",
+          "status": "killed",
+          "broken": [
+            "Proofs.Plan.allocate_infeasible_exact",
+            "Proofs.Plan.allocate_keeps_minimums",
+            "Proofs.Plan.allocate_spec",
+            "Proofs.Plan.allocate_sum_exact",
+            "Proofs.Plan.allocate_tie_to_lower_index",
+            "Proofs.Plan.pick_spec"
+          ],
+          "direct": [
+            "Proofs.Plan.beats_spec"
+          ],
+          "dependent": [
+            "Proofs.Plan.allocate_infeasible_exact",
+            "Proofs.Plan.allocate_keeps_minimums",
+            "Proofs.Plan.allocate_spec",
+            "Proofs.Plan.allocate_sum_exact",
+            "Proofs.Plan.allocate_tail",
+            "Proofs.Plan.allocate_tie_to_lower_index",
+            "Proofs.Plan.hand_out_loop_spec",
+            "Proofs.Plan.hand_out_spec",
+            "Proofs.Plan.pick_loop_spec",
+            "Proofs.Plan.pick_spec",
+            "Proofs.Plan.pick_step"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/plan.rs",
+      "function": "plan::allocate",
+      "lean": "cadence_kernel.plan.allocate",
+      "theorems": [
+        "Proofs.Plan.allocate_spec",
+        "Proofs.Plan.allocate_sum_exact",
+        "Proofs.Plan.allocate_keeps_minimums",
+        "Proofs.Plan.allocate_infeasible_exact"
+      ],
+      "total": "Proofs.Plan.allocate_spec",
+      "subsumes": [],
+      "mutants": [
+        "leftover-dropped",
+        "minimum-not-added",
+        "infeasible-clamped"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "inputs": {
+        "lean:plan.Allocation": "fnv1a64:f445157ba4906118",
+        "lean:plan.Sum": "fnv1a64:d5ddda56f46bb138",
+        "lean:plan.after_pick": "fnv1a64:e406a69939dd8f95",
+        "lean:plan.allocate": "fnv1a64:527d9e70916aad8c",
+        "lean:plan.beats": "fnv1a64:94647b5915bbd1af",
+        "lean:plan.hand_out": "fnv1a64:9cfe7d1d107f1879",
+        "lean:plan.hand_out_loop": "fnv1a64:357b64ee52f180bd",
+        "lean:plan.hand_out_loop.body": "fnv1a64:4dde87ff7f74ce00",
+        "lean:plan.pick": "fnv1a64:b06581852440ab6f",
+        "lean:plan.pick_loop": "fnv1a64:66e9bae60888ced8",
+        "lean:plan.pick_loop.body": "fnv1a64:d9b538769bacc074",
+        "lean:plan.shares": "fnv1a64:f94b86878b0025c5",
+        "lean:plan.shares_loop": "fnv1a64:4f6740f2723f91fa",
+        "lean:plan.shares_loop.body": "fnv1a64:f6b2cbc05140d53a",
+        "lean:plan.total": "fnv1a64:d4470cfbce1e33e6",
+        "lean:plan.total_loop": "fnv1a64:89985b87b322ddeb",
+        "lean:plan.total_loop.body": "fnv1a64:4c05511d4e84071f",
+        "mutant:infeasible-clamped": "fnv1a64:e45cc6da36076922",
+        "mutant:leftover-dropped": "fnv1a64:714a16a55ebb34d0",
+        "mutant:minimum-not-added": "fnv1a64:84251c7cbd67a4fa",
+        "proof:Proofs/Counters.lean": "fnv1a64:b6ef300200461336",
+        "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
+        "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
+        "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "leftover-dropped",
+          "status": "killed",
+          "broken": [
+            "Proofs.Plan.allocate_infeasible_exact",
+            "Proofs.Plan.allocate_keeps_minimums",
+            "Proofs.Plan.allocate_spec",
+            "Proofs.Plan.allocate_sum_exact"
+          ],
+          "direct": [
+            "Proofs.Plan.allocate_spec"
+          ],
+          "dependent": [
+            "Proofs.Plan.allocate_infeasible_exact",
+            "Proofs.Plan.allocate_keeps_minimums",
+            "Proofs.Plan.allocate_sum_exact"
+          ]
+        },
+        {
+          "mutant": "minimum-not-added",
+          "status": "killed",
+          "broken": [
+            "Proofs.Plan.allocate_infeasible_exact",
+            "Proofs.Plan.allocate_keeps_minimums",
+            "Proofs.Plan.allocate_spec",
+            "Proofs.Plan.allocate_sum_exact"
+          ],
+          "direct": [
+            "Proofs.Plan.shares_loop_spec"
+          ],
+          "dependent": [
+            "Proofs.Plan.allocate_infeasible_exact",
+            "Proofs.Plan.allocate_keeps_minimums",
+            "Proofs.Plan.allocate_spec",
+            "Proofs.Plan.allocate_sum_exact",
+            "Proofs.Plan.allocate_tail",
+            "Proofs.Plan.shares_spec"
+          ]
+        },
+        {
+          "mutant": "infeasible-clamped",
+          "status": "killed",
+          "broken": [
+            "Proofs.Plan.allocate_infeasible_exact",
+            "Proofs.Plan.allocate_keeps_minimums",
+            "Proofs.Plan.allocate_spec",
+            "Proofs.Plan.allocate_sum_exact"
+          ],
+          "direct": [
+            "Proofs.Plan.allocate_spec"
+          ],
+          "dependent": [
+            "Proofs.Plan.allocate_infeasible_exact",
+            "Proofs.Plan.allocate_keeps_minimums",
+            "Proofs.Plan.allocate_sum_exact"
+          ]
+        }
+      ]
     }
-  ]
+  ],
+  "commit": "b373ff77a0562e0d2042baa65ba3ce973464a1cb"
 }
