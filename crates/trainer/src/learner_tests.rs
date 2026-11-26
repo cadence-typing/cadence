@@ -420,3 +420,22 @@ fn groups_keep_the_number_row_and_numpad_apart() {
     assert_eq!(group_of(key(KeyLane::Main, "4.")), None);
     assert_eq!(group_of(key(KeyLane::Main, "t4")), None);
 }
+
+/// #83: the numpad focus group treats the decimal separator, either one, as
+/// a skill of its own.
+#[test]
+fn the_separator_is_a_numpad_skill() {
+    use cadence_core::learning::{KeyLane, Skill, SkillKey};
+    for separator in ['.', ','] {
+        let key = SkillKey {
+            lane: KeyLane::Numpad,
+            skill: Skill::Unit(
+                cadence_core::TrainingChar::new(separator, cadence_core::Layout::Us).unwrap(),
+            ),
+        };
+        assert_eq!(
+            crate::learner::group_of(key),
+            Some(crate::learner::FocusGroup::Numpad)
+        );
+    }
+}

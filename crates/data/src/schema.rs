@@ -234,7 +234,7 @@ const MIGRATION_V6: &str = "
 ALTER TABLE sessions ADD COLUMN layout TEXT NOT NULL DEFAULT 'unspecified'
     CHECK(layout IN ('unspecified','us','uk','custom'));
 ALTER TABLE sessions ADD COLUMN content_class TEXT NOT NULL DEFAULT 'standard'
-    CHECK(content_class IN ('standard','imported','code'));
+    CHECK(content_class IN ('standard','imported','code','operators'));
 ALTER TABLE sessions ADD COLUMN pack_digest TEXT NULL CHECK(pack_digest IS NULL OR length(pack_digest)=64);
 CREATE TABLE settings_audit (
     at_session INTEGER NOT NULL,

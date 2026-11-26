@@ -62,6 +62,7 @@ fn build(
         learner,
         probes: None,
         pace: None,
+        numeric: crate::numeric::NumericOptions::default(),
     };
     build_session_plan(&policy(), inputs, seed, disabled, budget)
 }
@@ -368,6 +369,7 @@ fn target_words_keep_their_repeat_gap() {
                 learner: &learner,
                 probes: None,
                 pace: None,
+                numeric: crate::numeric::NumericOptions::default(),
             },
             seed,
             &[],
@@ -398,6 +400,7 @@ fn target_words_keep_their_repeat_gap() {
                     learner: &learner,
                     probes: None,
                     pace: None,
+                    numeric: crate::numeric::NumericOptions::default(),
                 },
                 seed,
                 &[],
@@ -468,6 +471,7 @@ fn numeric_entries_follow_their_own_groups_focus() {
                 learner,
                 probes: None,
                 pace: None,
+                numeric: crate::numeric::NumericOptions::default(),
             },
             9,
             &[],
@@ -690,6 +694,7 @@ fn the_seventh_completed_session_gets_a_probe() {
                     history,
                 }),
                 pace: None,
+                numeric: crate::numeric::NumericOptions::default(),
             },
             5,
             &[],
@@ -793,6 +798,7 @@ fn goal_plan(
             learner: &learner,
             probes: None,
             pace: Some(PaceInputs { recent, targets }),
+            numeric: crate::numeric::NumericOptions::default(),
         },
         4,
         &[],

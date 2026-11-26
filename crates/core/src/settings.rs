@@ -151,6 +151,11 @@ pub const KEYS: &[Key] = &[
         default: DefaultValue::List(&["standard"]),
     },
     Key {
+        name: "content.numpad_operators",
+        accepts: Accepts::Boolean,
+        default: DefaultValue::Boolean(false),
+    },
+    Key {
         name: "display.theme",
         accepts: Accepts::Theme,
         default: DefaultValue::Text("dark"),
@@ -261,6 +266,7 @@ pub fn kind(name: &str) -> Option<Kind> {
         "practice.live_pace" => Kind::LivePace,
         "content.breadth" => Kind::Breadth,
         "content.packs" => Kind::Packs,
+        "content.numpad_operators" => Kind::NumpadOperators,
         "display.theme" => Kind::Theme,
         "display.text_size" => Kind::TextSize,
         "display.key_guide" => Kind::KeyGuide,

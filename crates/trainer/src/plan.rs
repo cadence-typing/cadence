@@ -215,6 +215,8 @@ pub struct PlanInputs<'a> {
     pub probes: Option<ProbeInputs<'a>>,
     /// Pace evidence; `None` disables pace goals (tests, synthetic plans).
     pub pace: Option<PaceInputs<'a>>,
+    /// How numpad entries are written (#83).
+    pub numeric: crate::numeric::NumericOptions,
 }
 
 /// One planned phase with its exact seconds and exercise queue.

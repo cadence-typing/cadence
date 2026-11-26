@@ -23,6 +23,21 @@ pub(crate) const fn needs_setup(
     digest.is_none() && location
 }
 
+/// A session's content class (#83): with operator drills on and a numpad
+/// phase in the plan it is `Operators`, never compared with plain drills.
+pub(crate) fn content_class(options: &cli::Options) -> cadence_core::progress::ContentClass {
+    use cadence_trainer::Phase;
+    let numpad_phase = match options.track {
+        Some(track) => track == Phase::Numpad,
+        None => options.numpad,
+    };
+    if options.numeric.operators && numpad_phase {
+        cadence_core::progress::ContentClass::Operators
+    } else {
+        cadence_core::progress::ContentClass::Standard
+    }
+}
+
 /// The store, plan and engine for the config file as it is now.
 fn prepare(
     options: &cli::Options,
@@ -62,10 +77,7 @@ fn prepare(
         audit,
     )?;
     let engine = crate::build_engine(&options, policy, &bootstrap, day)?
-        .with_layout(
-            options.layout,
-            cadence_core::progress::ContentClass::Standard,
-        )
+        .with_layout(options.layout, content_class(&options))
         .with_utc_offset(Some(offset.0.checked_div(60).ok_or("offset")?), offset.1)
         .with_settings(&settings, loaded.digest)
         .with_theme(cadence_data::theme_file::for_config(
@@ -150,6 +162,27 @@ mod tests {
             assert_eq!(view.numpad_off, !numpad);
         }
         Ok(())
+    }
+
+    /// #83: operator drills are their own content class, so they are never
+    /// compared with plain drills.
+    #[test]
+    fn operator_drills_are_their_own_class() {
+        use cadence_core::comparison::{basis, same_basis};
+        use cadence_core::progress::{ContentClass, Track};
+        let mut options = crate::cli::Options::defaults();
+        assert_eq!(super::content_class(&options), ContentClass::Standard);
+        options.numeric.operators = true;
+        assert_eq!(super::content_class(&options), ContentClass::Operators);
+        options.track = Some(cadence_trainer::Phase::Prose);
+        assert_eq!(
+            super::content_class(&options),
+            ContentClass::Standard,
+            "no numpad phase"
+        );
+        let plain = basis(None, ContentClass::Standard, false, [Track::Numpad]);
+        let operators = basis(None, ContentClass::Operators, false, [Track::Numpad]);
+        assert!(!same_basis(plain, operators));
     }
 
     /// #82: changing only the theme changes no stored value: display

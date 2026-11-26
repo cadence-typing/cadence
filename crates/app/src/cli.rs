@@ -86,6 +86,8 @@ pub struct Options {
     pub layout: cadence_core::Layout,
     /// A numpad is present (config `keyboard.numpad`, #78).
     pub numpad: bool,
+    /// Numpad operators and decimal separator (config, #83).
+    pub numeric: cadence_trainer::numeric::NumericOptions,
 }
 
 impl Options {
@@ -103,6 +105,7 @@ impl Options {
             theme_set: false,
             layout: cadence_core::Layout::Us,
             numpad: true,
+            numeric: cadence_trainer::numeric::NumericOptions::default(),
         }
     }
 
@@ -120,6 +123,7 @@ impl Options {
             theme_set: self.theme_set,
             layout: self.layout,
             numpad: self.numpad,
+            numeric: self.numeric,
         }
     }
 }
@@ -138,6 +142,7 @@ pub fn parse() -> Result<Options, String> {
         theme_set: false,
         layout: cadence_core::Layout::Us,
         numpad: true,
+        numeric: cadence_trainer::numeric::NumericOptions::default(),
     };
     let mut theme = None;
     let mut action = None;

@@ -20,7 +20,7 @@ namespace Proofs.Settings
 independently of the implementation. -/
 def scoreAffecting : settings.Kind → Bool
   | .Minutes | .Tracks | .Emphasis | .AccuracyTarget | .Breadth | .Packs
-  | .Layout | .Numpad | .DecimalSeparator => true
+  | .NumpadOperators | .Layout | .Numpad | .DecimalSeparator => true
   | .LivePace | .Theme | .TextSize | .KeyGuide | .HighContrast => false
 
 /-- A score-affecting setting never applies now, and every other setting

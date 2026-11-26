@@ -2871,7 +2871,7 @@ def session.overdue
   ok (elapsed_us > bound_us)
 
 /-- [cadence_kernel::settings::Kind]
-    Source: 'crates/kernel/src/settings.rs', lines 8:0-37:1
+    Source: 'crates/kernel/src/settings.rs', lines 8:0-39:1
     Visibility: public -/
 @[discriminant isize]
 inductive settings.Kind where
@@ -2882,6 +2882,7 @@ inductive settings.Kind where
 | LivePace : settings.Kind
 | Breadth : settings.Kind
 | Packs : settings.Kind
+| NumpadOperators : settings.Kind
 | Layout : settings.Kind
 | Numpad : settings.Kind
 | DecimalSeparator : settings.Kind
@@ -2891,7 +2892,7 @@ inductive settings.Kind where
 | HighContrast : settings.Kind
 
 /-- [cadence_kernel::settings::Effect]
-    Source: 'crates/kernel/src/settings.rs', lines 41:0-46:1
+    Source: 'crates/kernel/src/settings.rs', lines 43:0-48:1
     Visibility: public -/
 @[discriminant isize]
 inductive settings.Effect where
@@ -2899,7 +2900,7 @@ inductive settings.Effect where
 | NextSession : settings.Effect
 
 /-- [cadence_kernel::settings::takes_effect]:
-    Source: 'crates/kernel/src/settings.rs', lines 50:0-65:1
+    Source: 'crates/kernel/src/settings.rs', lines 52:0-68:1
     Visibility: public -/
 def settings.takes_effect (kind : settings.Kind) : Result settings.Effect := do
   match kind with
@@ -2910,6 +2911,7 @@ def settings.takes_effect (kind : settings.Kind) : Result settings.Effect := do
   | settings.Kind.LivePace => ok settings.Effect.Now
   | settings.Kind.Breadth => ok settings.Effect.NextSession
   | settings.Kind.Packs => ok settings.Effect.NextSession
+  | settings.Kind.NumpadOperators => ok settings.Effect.NextSession
   | settings.Kind.Layout => ok settings.Effect.NextSession
   | settings.Kind.Numpad => ok settings.Effect.NextSession
   | settings.Kind.DecimalSeparator => ok settings.Effect.NextSession

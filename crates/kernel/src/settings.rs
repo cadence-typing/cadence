@@ -20,6 +20,8 @@ pub enum Kind {
     Breadth,
     /// `content.packs`.
     Packs,
+    /// `content.numpad_operators` (#83).
+    NumpadOperators,
     /// `keyboard.layout`.
     Layout,
     /// `keyboard.numpad`.
@@ -58,6 +60,7 @@ pub fn takes_effect(kind: Kind) -> Effect {
         | Kind::AccuracyTarget
         | Kind::Breadth
         | Kind::Packs
+        | Kind::NumpadOperators
         | Kind::Layout
         | Kind::Numpad
         | Kind::DecimalSeparator => Effect::NextSession,

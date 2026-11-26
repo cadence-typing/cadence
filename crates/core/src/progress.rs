@@ -79,6 +79,9 @@ pub enum ContentClass {
     Imported,
     /// Code practice packs (#85).
     Code,
+    /// Numpad drills with operators between operands (#83): never compared
+    /// with plain numpad drills.
+    Operators,
 }
 
 impl ContentClass {
@@ -89,13 +92,14 @@ impl ContentClass {
             Self::Standard => "standard",
             Self::Imported => "imported",
             Self::Code => "code",
+            Self::Operators => "operators",
         }
     }
 
     /// Parses a persisted name.
     #[must_use]
     pub fn parse(key: &str) -> Option<Self> {
-        [Self::Standard, Self::Imported, Self::Code]
+        [Self::Standard, Self::Imported, Self::Code, Self::Operators]
             .into_iter()
             .find(|c| c.key() == key)
     }
@@ -107,6 +111,7 @@ impl ContentClass {
             Self::Standard => 0,
             Self::Imported => 1,
             Self::Code => 2,
+            Self::Operators => 3,
         }
     }
 }

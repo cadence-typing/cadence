@@ -273,3 +273,16 @@ mod tests {
         assert_eq!(ratio.denominator(), 60_000_000);
     }
 }
+
+#[cfg(test)]
+mod operator_tests {
+    /// #83: on a fixed tape, operators and separators are typed units but
+    /// never digits, so the digit numerator counts digits only.
+    #[test]
+    fn digits_per_minute_counts_digits_only() -> Result<(), Box<dyn std::error::Error>> {
+        let tape = crate::validate_target("12+3.5", crate::Layout::Us)?;
+        let digits = tape.iter().filter(|unit| unit.is_digit()).count();
+        assert_eq!((tape.len(), digits), (6, 4));
+        Ok(())
+    }
+}

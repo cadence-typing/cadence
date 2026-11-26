@@ -167,6 +167,14 @@ pub(crate) fn apply_config(
         };
     }
     options.numpad = config.boolean("keyboard.numpad").unwrap_or(true);
+    options.numeric = cadence_trainer::numeric::NumericOptions {
+        operators: config.boolean("content.numpad_operators").unwrap_or(false),
+        separator: if config.text("keyboard.decimal_separator") == Some(",") {
+            cadence_trainer::numeric::Separator::Comma
+        } else {
+            cadence_trainer::numeric::Separator::Point
+        },
+    };
     options.layout = config
         .text("keyboard.layout")
         .and_then(cadence_core::Layout::parse)
@@ -268,6 +276,7 @@ pub(crate) fn build_engine(
             recent: &bootstrap.history.recent,
             targets: &bootstrap.pace_targets,
         }),
+        numeric: options.numeric,
     };
     let plan = build_session_plan(policy, inputs, seed, &disabled, budget)?;
     Ok(Engine::new_plan(plan)?)

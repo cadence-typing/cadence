@@ -109,7 +109,10 @@ pub(super) fn exercises(
                 };
                 let skill = target.map(|key| key.skill);
                 let (units, kind) = if phase == Phase::Numpad {
-                    (numpad_exercise(rng, &mut used, skill), ExerciseKind::Numpad)
+                    (
+                        numpad_exercise(rng, &mut used, skill, inputs.numeric),
+                        ExerciseKind::Numpad,
+                    )
                 } else {
                     (
                         number_row_exercise(rng, &mut used, skill),

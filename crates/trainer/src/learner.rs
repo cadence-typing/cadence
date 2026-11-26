@@ -67,7 +67,7 @@ pub enum FocusGroup {
     Letters,
     /// Number-row digits and digit pairs (lane `main`).
     Row,
-    /// Numpad digits, the decimal point and their pairs (lane `numpad`).
+    /// Numpad digits, the decimal separator and their pairs (lane `numpad`).
     Numpad,
 }
 
@@ -81,7 +81,9 @@ impl FocusGroup {
 #[must_use]
 pub fn group_of(key: SkillKey) -> Option<FocusGroup> {
     let digit = |unit: TrainingChar| unit.get().is_ascii_digit();
-    let numpad = |unit: TrainingChar| unit.get().is_ascii_digit() || unit.get() == '.';
+    // The decimal separator, either one, is a numpad skill of its own (#83).
+    let numpad =
+        |unit: TrainingChar| unit.get().is_ascii_digit() || unit.get() == '.' || unit.get() == ',';
     let all = |test: &dyn Fn(TrainingChar) -> bool| match key.skill {
         Skill::Unit(unit) => test(unit),
         Skill::Bigram(first, second) => test(first) && test(second),
