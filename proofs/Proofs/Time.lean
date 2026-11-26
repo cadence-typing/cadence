@@ -3,16 +3,17 @@ import Extracted.CadenceKernel
 /-!
 # Active time (`cadence_kernel::time`)
 
-`cadence-core`'s `metrics::active_time` calls `time.active_time` for the
-exact identity `active = elapsed - Σ pauses`, and
-`MonoTick::within_half_open` calls `time.in_window`. Only explicit pauses
-leave active time; ordinary hesitation stays in it (AGENTS.md rule 1).
+`cadence-core`'s `TimingSegments::active_through` (and so `pause`,
+`end_phase` and the engine's phase clock) calls `time.segment_active`:
+active time is the completed segments plus the open segment's elapsed time,
+exactly. The engine decides whether active time is still inside the phase
+with `Micros::within_half_open`, which calls `time.in_window`. Only explicit
+pauses close a segment; ordinary hesitation stays in active time (AGENTS.md
+rule 1).
 
-The loop of `pause_total` is proved by an invariant that conserves
-`total + Σ (remaining pauses)` in unbounded arithmetic.
-
-Trusted, not proved: that the caller passes every explicit pause once and
-nothing else (the engine's pause bookkeeping; tested).
+Trusted, not proved: that `TimingSegments` closes a segment on every
+explicit pause and nothing else, and passes the open segment's start (the
+engine's pause bookkeeping; tested, including the pinned timing fixture).
 -/
 
 open Aeneas Aeneas.Std Result
@@ -25,12 +26,7 @@ set_option linter.unreachableTactic false
 
 namespace Proofs.Time
 
-/-- The exact (unbounded) sum of a list of pauses. -/
-def pauseSum (l : List U64) : Nat := (l.map (fun p => p.val)).sum
-
-theorem pauseSum_cons (p : U64) (l : List U64) : pauseSum (p :: l) = p.val + pauseSum l := by
-  simp [pauseSum]
-
+/-- `saturating_add i 1` is `i + 1` below the maximum (shared with `First`). -/
 theorem usize_succ (i : Usize) (h : i.val < Usize.max) :
     (core.num.Usize.saturating_add i 1#usize).val = i.val + 1 := by
   have h1 : (UScalar.saturating_add i 1#usize).val = min (UScalar.max .Usize) (i.val + (1#usize).val) := by
@@ -44,116 +40,76 @@ theorem usize_succ (i : Usize) (h : i.val < Usize.max) :
   simp only [core.num.Usize.saturating_add, h1]
   simp; omega
 
-theorem pause_total_loop_spec (ps : Slice U64) (i : Usize) (total : U64)
-    (hi : i.val ≤ ps.val.length) :
-    time.pause_total_loop_loop ps i total
-      ⦃ r => match r with
-        | .Sum t => t.val = total.val + pauseSum (ps.val.drop i.val)
-        | .Overflow => U64.max < total.val + pauseSum (ps.val.drop i.val) ⦄ := by
-  unfold time.pause_total_loop_loop
-  have hlen : (Slice.len ps).val = ps.val.length := Slice.len_val ps
-  apply loop.spec_decr_nat
-    (fun s : Usize × U64 => ps.val.length - s.1.val)
-    (fun s : Usize × U64 => s.1.val ≤ ps.val.length ∧
-      s.2.val + pauseSum (ps.val.drop s.1.val) = total.val + pauseSum (ps.val.drop i.val))
-  · rintro ⟨j, t⟩ ⟨hj, hinv⟩
-    simp only at hj hinv
-    unfold time.pause_total_loop_loop.body
-    simp only [hlen]
-    split
-    · rename_i hlt
-      have hlt' : j.val < ps.val.length := by scalar_tac
-      have hget : ps.val[j.val]? = some ps.val[j.val] := List.getElem?_eq_getElem hlt'
-      simp only [core.slice.Slice.get, core.slice.index.SliceIndexUsizeSlice,
-        core.slice.index.Usize.get, bind_tc_ok, Slice.getElem?_Usize_eq, hget, bind_ok]
-      have hdrop : ps.val.drop j.val = ps.val[j.val] :: ps.val.drop (j.val + 1) :=
-        List.drop_eq_getElem_cons hlt'
-      have hs := usize_succ j (by scalar_tac)
-      have hc := U64.checked_add_bv_spec t ps.val[j.val]
-      cases hco : U64.checked_add t ps.val[j.val] with
-      | none =>
-        rw [hco] at hc
-        simp only [lift, bind_tc_ok, bind_ok, WP.spec_ok]
-        rw [hdrop, pauseSum_cons] at hinv
-        simp only [hdrop, pauseSum_cons] at *
-        omega
-      | some nx =>
-        rw [hco] at hc
-        simp only [lift, bind_tc_ok, bind_ok, WP.spec_ok, hs]
-        refine ⟨⟨by scalar_tac, ?_⟩, by scalar_tac⟩
-        rw [hdrop, pauseSum_cons] at hinv
-        omega
-    · rename_i hge
-      have hd : ps.val.drop j.val = [] := List.drop_eq_nil_of_le (by scalar_tac)
-      simp only [WP.spec_ok]
-      rw [hd] at hinv
-      simp [pauseSum] at hinv ⊢
-      omega
-  · exact ⟨hi, rfl⟩
-
-/-- `pause_total` is the exact sum when it fits `u64`, and `Overflow`
-exactly when the exact sum does not. It never fails. -/
-theorem pause_total_spec (ps : Slice U64) :
-    time.pause_total ps
-      ⦃ r => match r with
-        | .Sum t => t.val = pauseSum ps.val
-        | .Overflow => U64.max < pauseSum ps.val ⦄ := by
-  unfold time.pause_total time.pause_total_loop
-  have := pause_total_loop_spec ps 0#usize 0#u64 (by simp)
-  simpa using this
-
-/-- Every case of `active_time`, with the pause total in unbounded
-arithmetic: the identity `active + Σ pauses = elapsed`, the overflow case
-and the pauses-exceed case. -/
-theorem active_time_spec (elapsed : U64) (ps : Slice U64) :
-    time.active_time elapsed ps
-      ⦃ r => match r with
-        | .Time a => a.val + pauseSum ps.val = elapsed.val
-        | .PauseOverflow => U64.max < pauseSum ps.val
-        | .PausesExceed t => t.val = pauseSum ps.val ∧ elapsed.val < pauseSum ps.val ⦄ := by
-  unfold time.active_time
-  apply WP.spec_bind (pause_total_spec ps)
-  intro t ht
-  cases t with
-  | Overflow => simpa using ht
-  | Sum total =>
-    simp only at ht
-    have hc := U64.checked_sub_bv_spec elapsed total
-    cases hco : U64.checked_sub elapsed total with
+/-- Every case of `segment_active`, in unbounded arithmetic. With no open
+segment the result is the completed total. With a segment open since `s`:
+`Time t` with `t = completed + (now - s)` exactly, `Backward` exactly when
+`now < s`, and `Overflow` exactly when the exact sum exceeds `u64`. It never
+fails. -/
+theorem segment_active_spec (completed : U64) (open_start : Option U64) (now : U64) :
+    time.segment_active completed open_start now
+      ⦃ r => match open_start with
+        | none => r = time.Through.Time completed
+        | some s => match r with
+          | .Time t => s.val ≤ now.val ∧ t.val = completed.val + (now.val - s.val)
+          | .Backward => now.val < s.val
+          | .Overflow => s.val ≤ now.val ∧ U64.max < completed.val + (now.val - s.val) ⦄ := by
+  unfold time.segment_active
+  cases open_start with
+  | none => simp [WP.spec_ok]
+  | some s =>
+    simp only
+    have hs := U64.checked_sub_bv_spec now s
+    cases hso : U64.checked_sub now s with
     | none =>
-      rw [hco] at hc
-      simp only at hc
-      simp only [lift, bind_tc_ok, bind_ok, hco, WP.spec_ok]
+      rw [hso] at hs
+      simp only at hs
+      simp only [lift, bind_tc_ok, bind_ok, hso, WP.spec_ok]
       omega
-    | some a =>
-      rw [hco] at hc
-      simp only at hc
-      simp only [lift, bind_tc_ok, bind_ok, hco, WP.spec_ok]
-      omega
+    | some o =>
+      rw [hso] at hs
+      simp only at hs
+      have ha := U64.checked_add_bv_spec completed o
+      cases hao : U64.checked_add completed o with
+      | none =>
+        rw [hao] at ha
+        simp only at ha
+        simp only [lift, bind_tc_ok, bind_ok, hso, hao, WP.spec_ok]
+        omega
+      | some t =>
+        rw [hao] at ha
+        simp only at ha
+        simp only [lift, bind_tc_ok, bind_ok, hso, hao, WP.spec_ok]
+        omega
 
-/-- Active time never exceeds elapsed time: pausing can only remove time. -/
-theorem active_time_le_elapsed (elapsed : U64) (ps : Slice U64) :
-    time.active_time elapsed ps
-      ⦃ r => ∀ a, r = time.Active.Time a → a.val ≤ elapsed.val ⦄ := by
-  apply WP.spec_mono (active_time_spec elapsed ps)
-  intro r hr a ha
-  subst ha
-  simp only at hr
-  omega
-
-/-- With no pauses, active time is the elapsed time: nothing is excluded
-for hesitation. -/
-theorem active_time_no_pauses (elapsed : U64) (ps : Slice U64) (h : ps.val = []) :
-    time.active_time elapsed ps ⦃ r => r = time.Active.Time elapsed ⦄ := by
-  apply WP.spec_mono (active_time_spec elapsed ps)
+/-- With no open segment (paused, between phases, before the first key)
+active time is exactly the completed total, whatever the clock reads. -/
+theorem segment_active_closed (completed now : U64) :
+    time.segment_active completed none now
+      ⦃ r => r = time.Through.Time completed ⦄ := by
+  apply WP.spec_mono (segment_active_spec completed none now)
   intro r hr
-  cases r with
-  | Time a =>
-    simp only [h, pauseSum, List.map_nil, List.sum_nil, Nat.add_zero] at hr
-    have : a = elapsed := UScalar.eq_of_val_eq hr
-    simp [this]
-  | PauseOverflow => simp [h, pauseSum] at hr
-  | PausesExceed t => simp [h, pauseSum] at hr
+  exact hr
+
+/-- Active time never runs backwards: for the same segments, a later clock
+reading never gives less active time. -/
+theorem segment_active_monotone (completed : U64) (open_start : Option U64) (n1 n2 : U64)
+    (h : n1.val ≤ n2.val) :
+    time.segment_active completed open_start n1 ⦃ r1 =>
+      time.segment_active completed open_start n2 ⦃ r2 =>
+        ∀ t1 t2, r1 = time.Through.Time t1 → r2 = time.Through.Time t2 → t1.val ≤ t2.val ⦄ ⦄ := by
+  apply WP.spec_mono (segment_active_spec completed open_start n1)
+  intro r1 hr1
+  apply WP.spec_mono (segment_active_spec completed open_start n2)
+  intro r2 hr2 t1 t2 e1 e2
+  subst e1 e2
+  cases open_start with
+  | none =>
+    simp only [time.Through.Time.injEq] at hr1 hr2
+    subst hr1 hr2
+    omega
+  | some s =>
+    simp only at hr1 hr2
+    omega
 
 /-- The half-open phase window: a tick is inside exactly when
 `start ≤ tick < deadline`; a key at the deadline is outside (A-05). -/

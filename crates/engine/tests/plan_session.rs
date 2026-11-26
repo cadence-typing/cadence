@@ -443,3 +443,54 @@ fn final_flush_timeout_exits_unsuccessfully_without_fabricating_ack() -> TestRes
     assert!(final_save.key.sequence > initial.key.sequence);
     Ok(())
 }
+
+#[test]
+fn single_flight_holds_under_a_burst_of_exercise_completions() -> TestResult {
+    // models/CheckpointSave.tla SingleFlight: every completed exercise makes
+    // a checkpoint due, but none is dispatched while one is outstanding.
+    let mut e = words()?;
+    ready(&mut e)?;
+    let first = checkpoint(key(&mut e, 0, Key::Enter)?)?;
+    let mut at = 1;
+    for _ in 0..5 {
+        for unit in ['c', 'a', 't'] {
+            let step = content(&mut e, at, unit)?;
+            assert!(
+                step.checkpoint.is_none(),
+                "dispatched while one is outstanding"
+            );
+            at += 1;
+        }
+    }
+    let next = checkpoint(ack(&mut e, at, &first)?)?;
+    assert!(next.key.sequence > first.key.sequence);
+    let after = content(&mut e, at + 1, 'c')?;
+    assert!(
+        after.checkpoint.is_none(),
+        "the next one is outstanding again"
+    );
+    Ok(())
+}
+
+#[test]
+fn clean_exit_waits_for_the_final_acknowledgement() -> TestResult {
+    // models/CheckpointSave.tla CleanExitIsDurable: neither another exit
+    // request nor time short of the final-flush watchdog quits successfully;
+    // only the final checkpoint's acknowledgement does.
+    let mut e = words()?;
+    ready(&mut e)?;
+    let first = checkpoint(key(&mut e, 0, Key::Enter)?)?;
+    ack(&mut e, 1, &first)?;
+    content(&mut e, 2, 'c')?;
+    let final_save = checkpoint(send(&mut e, 3, EventKind::Terminate)?)?;
+    for (at, step) in [
+        (4, key(&mut e, 4, Key::Interrupt)?),
+        (5, send(&mut e, 5, EventKind::Terminate)?),
+        (6, send(&mut e, 9_000_000, EventKind::Tick)?),
+    ] {
+        assert!(!step.quit, "quit at {at} before the final acknowledgement");
+    }
+    let done = ack(&mut e, 9_000_001, &final_save)?;
+    assert!(done.quit && !done.exit_failed);
+    Ok(())
+}

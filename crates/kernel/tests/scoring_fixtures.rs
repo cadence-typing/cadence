@@ -6,7 +6,7 @@ use cadence_kernel::checkpoint::{Admission, Receipt, admit};
 use cadence_kernel::counters::{Counters, Step, content_step, deletion_step, matched};
 use cadence_kernel::first::{Slot, count_first, settle};
 use cadence_kernel::ratio::{BasisPoints, Pace, basis_points, wpm};
-use cadence_kernel::time::{Active, active_time};
+use cadence_kernel::time::{Through, segment_active};
 use serde_json::Value;
 
 fn fixture() -> Value {
@@ -109,19 +109,40 @@ fn a_corrected_mistake_stays_a_first_attempt_error() {
 
 #[test]
 fn timing_case_excludes_only_explicit_pauses() {
+    // The fixture's clock runs from 0 to `elapsed` with explicit pauses as
+    // absolute [start, end) pairs. Fold it the way TimingSegments does: a
+    // pause closes the open segment, its end opens the next one.
     let fixture = fixture();
     let timing = &fixture["timing_case"];
     let elapsed = timing["elapsed_microseconds"].as_u64().expect("elapsed");
-    let pauses: Vec<u64> = timing["pauses"]
-        .as_array()
-        .expect("pauses")
-        .iter()
-        .map(|pair| pair[1].as_u64().expect("end") - pair[0].as_u64().expect("start"))
-        .collect();
+    let mut completed = 0;
+    let mut open = Some(0);
+    for pair in timing["pauses"].as_array().expect("pauses") {
+        let (start, end) = (
+            pair[0].as_u64().expect("start"),
+            pair[1].as_u64().expect("end"),
+        );
+        completed = match segment_active(completed, open, start) {
+            Through::Time(total) => total,
+            other => panic!("pause start: {other:?}"),
+        };
+        open = Some(end);
+    }
     let want = timing["expected_active_microseconds"]
         .as_u64()
         .expect("active");
-    assert_eq!(active_time(elapsed, &pauses), Active::Time(want));
+    assert_eq!(
+        segment_active(completed, open, elapsed),
+        Through::Time(want)
+    );
+}
+
+#[test]
+fn segment_active_is_exact_and_checked() {
+    assert_eq!(segment_active(7, None, 3), Through::Time(7));
+    assert_eq!(segment_active(7, Some(10), 15), Through::Time(12));
+    assert_eq!(segment_active(7, Some(10), 9), Through::Backward);
+    assert_eq!(segment_active(u64::MAX, Some(0), 1), Through::Overflow);
 }
 
 #[test]

@@ -10,8 +10,9 @@
 
 use cadence_core::alphabet::{LayoutSupportsPound, TrainingChar, validate_target};
 use cadence_core::ledger::{AttemptLedger, ExtraInputAllowance, LedgerEvent};
-use cadence_core::metrics::{active_time, exercise_metrics, numeric_metrics};
-use cadence_core::tick::Micros;
+use cadence_core::metrics::{exercise_metrics, numeric_metrics};
+use cadence_core::session::TimingSegments;
+use cadence_core::tick::{Micros, MonoTick};
 use serde_json::Value;
 
 fn run_case(target: &str, events: &[Value], active: Micros) -> AttemptLedger {
@@ -160,19 +161,23 @@ fn timing_fixture_case_matches() {
     .expect("fixture file present");
     let fixture: Value = serde_json::from_str(&raw).expect("fixture parses");
     let timing = &fixture["timing_case"];
-    let elapsed = Micros::from_us(timing["elapsed_microseconds"].as_u64().unwrap());
-    let pauses: Vec<Micros> = timing["pauses"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|pair| {
-            let pair = pair.as_array().unwrap();
-            let start = pair[0].as_u64().unwrap();
-            let end = pair[1].as_u64().unwrap();
-            Micros::from_us(end - start)
-        })
-        .collect();
-    let active = active_time(elapsed, &pauses).expect("checked pause arithmetic");
+    // Drive the production timing segments: content at 0, each explicit
+    // pause [start, end) closes and reopens the segment.
+    let mut segments = TimingSegments::new();
+    segments.first_content(MonoTick::ORIGIN).unwrap();
+    for pair in timing["pauses"].as_array().unwrap() {
+        let pair = pair.as_array().unwrap();
+        segments
+            .pause(MonoTick::from_us(pair[0].as_u64().unwrap()))
+            .unwrap();
+        segments
+            .resume(MonoTick::from_us(pair[1].as_u64().unwrap()))
+            .unwrap();
+    }
+    let elapsed = MonoTick::from_us(timing["elapsed_microseconds"].as_u64().unwrap());
+    let active: Micros = segments
+        .active_through(elapsed)
+        .expect("checked active time");
     assert_eq!(
         active.as_us(),
         timing["expected_active_microseconds"].as_u64().unwrap()

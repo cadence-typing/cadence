@@ -1,57 +1,34 @@
 //! Active time and the half-open phase window (L-03). Only explicit
 //! pauses leave active time; ordinary hesitation stays in it.
+//!
+//! Production keeps active time as closed segments plus at most one open
+//! segment (`cadence_core::session::TimingSegments`), so the decision here
+//! is over that shape: what the completed total plus the open segment's
+//! elapsed time is, exactly.
 
-/// What subtracting the pauses from the elapsed time decided.
+/// What adding the open segment to the completed total decided.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Active {
-    /// Elapsed time minus the total of the pauses.
+pub enum Through {
+    /// Completed active time plus the open segment's elapsed time.
     Time(u64),
-    /// The total of the pauses overflowed.
-    PauseOverflow,
-    /// The pauses (their total is carried) exceed the elapsed time.
-    PausesExceed(u64),
-}
-
-/// The total of a list of pauses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Total {
-    /// The exact sum.
-    Sum(u64),
-    /// The sum does not fit `u64`.
+    /// `now` precedes the open segment's start.
+    Backward,
+    /// The total does not fit `u64`.
     Overflow,
 }
 
-/// The total of the pauses from position `i` on, added to `total`.
+/// Active time through `now`: `completed` plus, when a segment is open
+/// since `open_start`, `now - open_start`. All arithmetic is checked.
 #[must_use]
-pub fn pause_total_loop(pauses: &[u64], i: usize, total: u64) -> Total {
-    let mut i = i;
-    let mut total = total;
-    while i < pauses.len() {
-        if let Some(pause) = pauses.get(i) {
-            match total.checked_add(*pause) {
-                Some(next) => total = next,
-                None => return Total::Overflow,
-            }
-        }
-        i = i.saturating_add(1);
-    }
-    Total::Sum(total)
-}
-
-/// The total of all pauses.
-#[must_use]
-pub fn pause_total(pauses: &[u64]) -> Total {
-    pause_total_loop(pauses, 0, 0)
-}
-
-/// Active time: `elapsed` minus every pause, all checked.
-#[must_use]
-pub fn active_time(elapsed: u64, pauses: &[u64]) -> Active {
-    match pause_total(pauses) {
-        Total::Overflow => Active::PauseOverflow,
-        Total::Sum(total) => match elapsed.checked_sub(total) {
-            Some(active) => Active::Time(active),
-            None => Active::PausesExceed(total),
+pub fn segment_active(completed: u64, open_start: Option<u64>, now: u64) -> Through {
+    match open_start {
+        None => Through::Time(completed),
+        Some(start) => match now.checked_sub(start) {
+            None => Through::Backward,
+            Some(open) => match completed.checked_add(open) {
+                Some(total) => Through::Time(total),
+                None => Through::Overflow,
+            },
         },
     }
 }

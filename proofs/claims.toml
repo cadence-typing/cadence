@@ -263,56 +263,33 @@ after = "pub const BASIS_POINTS_FULL: u64 = 9_999;"
 [[claim]]
 crate = "cadence-kernel"
 file = "crates/kernel/src/time.rs"
-function = "time::pause_total_loop"
-lean = "cadence_kernel.time.pause_total_loop"
-theorems = ["Proofs.Time.pause_total_loop_spec"]
-mutants = ["pauses-saturate", "pauses-skip-last"]
-
-[[mutant]]
-name = "pauses-saturate"
-file = "crates/kernel/src/time.rs"
-before = "            match total.checked_add(*pause) {\n                Some(next) => total = next,\n                None => return Total::Overflow,\n            }\n"
-after = "            total = total.saturating_add(*pause);\n"
-
-[[mutant]]
-name = "pauses-skip-last"
-file = "crates/kernel/src/time.rs"
-before = "    while i < pauses.len() {\n"
-after = "    while i.saturating_add(1) < pauses.len() {\n"
-
-[[claim]]
-crate = "cadence-kernel"
-file = "crates/kernel/src/time.rs"
-function = "time::pause_total"
-lean = "cadence_kernel.time.pause_total"
-theorems = ["Proofs.Time.pause_total_spec"]
-total = "Proofs.Time.pause_total_spec"
-mutants = ["pauses-saturate", "pauses-skip-last"]
-
-[[claim]]
-crate = "cadence-kernel"
-file = "crates/kernel/src/time.rs"
-function = "time::active_time"
-lean = "cadence_kernel.time.active_time"
+function = "time::segment_active"
+lean = "cadence_kernel.time.segment_active"
 theorems = [
-  "Proofs.Time.active_time_spec",
-  "Proofs.Time.active_time_le_elapsed",
-  "Proofs.Time.active_time_no_pauses",
+  "Proofs.Time.segment_active_spec",
+  "Proofs.Time.segment_active_closed",
+  "Proofs.Time.segment_active_monotone",
 ]
-total = "Proofs.Time.active_time_spec"
-mutants = ["active-ignores-pauses", "pauses-exceeding-clamp-to-zero", "pauses-saturate"]
+total = "Proofs.Time.segment_active_spec"
+mutants = ["segment-ignores-open", "segment-saturates", "segment-backward-is-zero"]
 
 [[mutant]]
-name = "active-ignores-pauses"
+name = "segment-ignores-open"
 file = "crates/kernel/src/time.rs"
-before = "        Total::Sum(total) => match elapsed.checked_sub(total) {\n"
-after = "        Total::Sum(total) => match elapsed.checked_sub(0) {\n"
+before = "                Some(total) => Through::Time(total),\n"
+after = "                Some(_) => Through::Time(completed),\n"
 
 [[mutant]]
-name = "pauses-exceeding-clamp-to-zero"
+name = "segment-saturates"
 file = "crates/kernel/src/time.rs"
-before = "            None => Active::PausesExceed(total),\n"
-after = "            None => Active::Time(0),\n"
+before = "                None => Through::Overflow,\n"
+after = "                None => Through::Time(u64::MAX),\n"
+
+[[mutant]]
+name = "segment-backward-is-zero"
+file = "crates/kernel/src/time.rs"
+before = "            None => Through::Backward,\n"
+after = "            None => Through::Time(completed),\n"
 
 [[claim]]
 crate = "cadence-kernel"

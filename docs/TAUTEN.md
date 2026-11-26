@@ -82,8 +82,8 @@ function below is called by production code; there is no second copy.
 | `ratio::fraction` | `metrics::first_pass_accuracy`, `attempt_accuracy` (exact pairs) |
 | `ratio::wpm`, `ratio::digits_per_minute` | `metrics::correct_wpm`, `digits_per_minute`, hence `engine::summary`, `engine::review`, `engine::presentation` |
 | `ratio::basis_points` | `BasisPoints::from_ratio_truncating` (`crates/core/src/id.rs`) for every displayed accuracy percentage |
-| `time::active_time` (with `pause_total`) | `metrics::active_time` |
-| `time::in_window` | `MonoTick::within_half_open` (the phase deadline, A-05) |
+| `time::segment_active` | `TimingSegments::active_through` (`crates/core/src/session.rs`), hence `pause`, `end_phase` and the engine's phase clock |
+| `time::in_window` | `Micros::within_half_open`, called by `Engine::advance_clock` to decide whether active time is still inside the phase (A-05) |
 | `progress::track_valid` (with `in_range`, `ordered`, `split_fits`) | `SessionProgress::validate`, before a checkpoint is built or a stored one decoded |
 | `checkpoint::admit` | `Store::apply_checkpoint` (`crates/data/src/store.rs`): apply, replay, conflict or stale |
 
@@ -113,8 +113,7 @@ axioms. The audit admits only `propext`, `Classical.choice` and `Quot.sound`.
 | `ratio::wpm` | `Ratio.wpm_spec`, `wpm_monotone_in_units`, `wpm_idle_time_never_helps` | `Empty` iff no units or no time, else exactly `units*60e6 / (5*active)` (the fixture identities); the `u128` products never overflow for `u64` inputs; more units never lower the pace; more idle time never raises it. Total. | `wpm-four-units-per-word`, `wpm-minute-is-ten-seconds`, `wpm-zero-time-allowed` | proved |
 | `ratio::digits_per_minute` | `Ratio.digits_per_minute_spec` | Same for the numpad rate. Total. | `digits-minute-is-ten-seconds`, `digits-denominator-off-by-one` | proved |
 | `ratio::basis_points` | `Ratio.basis_points_spec`, `accuracy_in_range`, `accuracy_computed` | `floor(num*10000/den)`; a ratio of a count to a count at least as large is never over 100% and never `OverFull`; computed whenever `num*10000` fits `u64`. Total. | `basis-allows-over-full`, `basis-remainder-not-quotient`, `basis-full-is-9999` | proved |
-| `time::pause_total_loop`, `time::pause_total` | `Time.pause_total_loop_spec`, `pause_total_spec` | The loop returns the exact sum of the pauses, or `Overflow` exactly when the exact sum exceeds `u64::MAX`. | `pauses-saturate`, `pauses-skip-last` | proved |
-| `time::active_time` | `Time.active_time_spec`, `active_time_le_elapsed`, `active_time_no_pauses` | `active + sum(pauses) = elapsed` in unbounded arithmetic; the overflow and pauses-exceed cases are exact; with no pauses nothing is excluded (hesitation stays in active time). Total. | `active-ignores-pauses`, `pauses-exceeding-clamp-to-zero`, `pauses-saturate` | proved |
+| `time::segment_active` | `Time.segment_active_spec`, `segment_active_closed`, `segment_active_monotone` | Completed active time plus the open segment's `now - start`, exactly, in unbounded arithmetic; `Backward` exactly when `now` precedes the open segment, `Overflow` exactly when the sum exceeds `u64::MAX`; with no open segment (paused) it is the completed total; a later clock reading never gives less active time. Total. | `segment-ignores-open`, `segment-saturates`, `segment-backward-is-zero` | proved |
 | `time::in_window` | `Time.in_window_spec` | `start <= tick < deadline`; a key at the exact deadline is outside the scored slice. Total. | `window-deadline-inclusive`, `window-start-exclusive` | proved |
 | `checkpoint::admit` | `Checkpoint.admit_spec`, `admit_apply_iff`, `refused_never_applies`, `applications_strictly_increase`, `applied_sequence_never_reapplies` | The full decision table. A checkpoint is applied iff no receipt exists and it is strictly newer than the latest applied one; replay, conflict and stale are never applied; once a sequence is applied (the store then holds it as its latest sequence, written in the same transaction: trusted, tested), offering it again in any receipt state is never applied (no double credit). Total. | `admit-equal-sequence-applies`, `admit-replay-applies`, `admit-conflict-replays` | proved |
 | `progress::in_range`, `ordered`, `split_fits` | `Progress.in_range_spec`, `ordered_spec`, `split_fits_spec` | Exactly which counters are accepted. Total. | `range-skips-active`, `ordered-skips-first-pass`, `split-ignores-overflow-attempts` | proved |
@@ -132,7 +131,7 @@ them.
 |---|---|---|
 | The ledger calls `settle` for every insertion and Backspace never touches the slots (`AttemptLedger::apply` plumbing, the buffer, per-word flags) | tested | `crates/core/tests/ledger_properties.rs` (write-once, correction cannot erase first errors, counters monotone) and the fixtures. Proving the whole `apply` would need a bigger, Aeneas-translatable ledger in the kernel. |
 | The store reads the receipt and latest sequence correctly, the SQL transaction is atomic, the receipt insert and the session update commit together | tested | `crates/data/src/tests/checkpoints.rs` and `disk.rs`. The kernel only decides from facts it is given. |
-| Durable acknowledgement ordering: an acknowledgement is never observed before the commit (`AckIsDurable`) and loss of replies | not-established | Model-checked in `formal/DurableCheckpoint.tla`, which the TLC gate runs as a `design-probe` (see *Protocol models*); the shipped save protocol gets its own mapped model in #30. The kernel proves the credit half (`NoDoubleCredit` at the decision level), not the acknowledgement protocol. |
+| Durable acknowledgement ordering: an acknowledgement is never observed before the commit (`AckIsDurable`), single-flight dispatch, retry after failure, and a clean exit only after the final acknowledgement | model-proved (bounded) | `models/CheckpointSave.tla`, mapped to `engine::storage`, `SaveWorker`, `ProgressStore::apply_checkpoint` and `checkpoint::admit` (see *Protocol models*). Correspondence to the Rust is by review and the named runtime tests, not by proof. The kernel proves the credit decision (`admit`). |
 | `TrackProgress::add`, merging exercise progress into a track and into the session (`merge_track`), the engine's per-exercise credit | tested | Checked addition in `cadence-core`; no kernel claim. Double counting across exercises is covered by engine tests, not proofs. |
 | Display rounding and formatting (`as_f64`, percent labels), the UI comparison with earlier sessions | tested | f64 is outside the kernel by construction. |
 | VK-03 allocation, VK-04 candidate selection, VK-05 quotas, VK-06 review queue, VL-01 fairness, VP-01/02/04/05 protocols, VR-01 replay equivalence | pending | Unchanged from `STATUS.md`; no Lean claim yet. |
@@ -166,9 +165,10 @@ tests, not by proof. The table is generated from the registry.
 <!-- models:begin (generated by tools/tlc_gate.py --update) -->
 | Model | Invariants | Mutants that must fail | Production symbols | Badge |
 |---|---|---|---|---|
-| `formal/DurableCheckpoint.tla` | TypeOK, AckIsDurable, NoDoubleCredit | `DurableCheckpoint-early-ack.cfg` → `AckIsDurable`<br>`DurableCheckpoint-double-credit.cfg` → `NoDoubleCredit` | none; blocked on #30: the shipped save protocol is modelled by models/CheckpointSave.tla, which carries the production mapping | design-probe (not mapped) |
+| `formal/DurableCheckpoint.tla` | TypeOK, AckIsDurable, NoDoubleCredit | `DurableCheckpoint-early-ack.cfg` → `AckIsDurable`<br>`DurableCheckpoint-double-credit.cfg` → `NoDoubleCredit` | none; blocked on superseded for production by models/CheckpointSave.tla (#30); kept as the handover's design probe for crash and reopen | design-probe (not mapped) |
 | `formal/AsyncAdmission.tla` | TypeOK, AcceptedFresh, AtMostOnce | `AsyncAdmission-no-epoch.cfg` → `AcceptedFresh`<br>`AsyncAdmission-no-pending.cfg` → `AtMostOnce` | none; blocked on #4: no job registry with epoch/request tickets is shipped | design-probe (not mapped) |
 | `formal/CausalBarrier.tla` | TypeOK, NoEarlyReturn | `CausalBarrier-early-return.cfg` → `NoEarlyReturn` | none; blocked on #4: the headless driver and its barriers are not shipped | design-probe (not mapped) |
+| `models/CheckpointSave.tla` | TypeOK, AckIsDurable, NoDoubleCredit, SingleFlight, CleanExitIsDurable, FailedTailIsNamed | `CheckpointSave-two-in-flight.cfg` → `SingleFlight`<br>`CheckpointSave-early-ack.cfg` → `AckIsDurable`<br>`CheckpointSave-double-credit.cfg` → `NoDoubleCredit`<br>`CheckpointSave-quit-before-ack.cfg` → `CleanExitIsDurable` | `cadence_engine::storage::{dispatch_checkpoint, save_result, retry_save, request_exit, watchdog}`<br>`cadence_runtime::writer::SaveWorker`<br>`cadence_data::store::ProgressStore::apply_checkpoint`<br>`cadence_kernel::checkpoint::admit` | model-proved (bounded) |
 <!-- models:end -->
 
 ## Result of the last gate run
@@ -177,12 +177,16 @@ Recorded by `cargo +1.98.0 tauten proofs` into `proofs/claims.json`; the
 summary line, the per-claim outcomes and the mutant results are copied below
 from that run (see the commit that adds `proofs/claims.json`).
 
-Command: `cargo +1.98.0 tauten proofs` (full level, every mutant), gating a
-snapshot of commit `5e1c4fa4c62aee34a2bfb9ea0bf9e3ba4a54979a`; exit 0:
+Command: `cargo +1.98.0 tauten proofs --live` (full level, every mutant),
+gating the working tree of the commit that records this run (#29), with the
+temporary `[[amend]]` entries for the retired time claims still present; exit 0:
 
 ```text
-tauten: 19 of 19 claim(s) proved (recorded in proofs/claims.json)
+tauten: 17 of 17 claim(s) proved (recorded in proofs/claims.json)
 ```
+
+All 33 mutants were `killed`. The amendments were dropped after this record,
+as tauten requires. The description of the earlier run follows.
 
 Stages: tools ok, extract ok, drift ok (committed `proofs/Extracted/` equals a
 fresh translation), `lake build` ok, axiom and coverage audit ok (only
@@ -192,6 +196,11 @@ tauten's vendored machine lemmas), mutant calibration ok: all 34 mutants
 outcome `proved` and badge `proved`; none is `proved-under` (the claims take
 no assumptions). Two mutant anchors had been reflowed by rustfmt in an earlier
 run and reported `error`; they were fixed and re-run before this record.
+
+On 2026-11-26 (#29) the claims for `time::active_time`, `pause_total` and
+`pause_total_loop` were retired by `[[amend]]`: production never called them
+(active time is `TimingSegments`), so they proved a second copy. The proved
+`time::segment_active` replaced them and is what `TimingSegments` calls.
 
 A claim for `checkpoint::latest_after`, a helper with no production caller,
 was removed (with an `[[amend]]` that was dropped again after this record);

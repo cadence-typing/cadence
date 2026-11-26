@@ -35,8 +35,8 @@ pub use ledger::{
 };
 pub use metrics::{
     ExerciseMetrics, MICROSECONDS_PER_MINUTE, NumericMetrics, Ratio, WPM_UNITS_PER_WORD,
-    active_time, attempt_accuracy, correct_wpm, digits_per_minute, exercise_metrics,
-    first_pass_accuracy, numeric_metrics,
+    attempt_accuracy, correct_wpm, digits_per_minute, exercise_metrics, first_pass_accuracy,
+    numeric_metrics,
 };
 pub use ports::{Calendar, Clock};
 pub use session::{SessionState, SessionTransition, TimingSegments, next_state};

@@ -13,8 +13,10 @@ User-visible changes per release. Design decisions live in the [RFC registry](do
 
 - Scoring decisions moved into a `no_std` kernel crate that production calls. 19 Lean theorems over its Aeneas translation are proved, each calibrated by mutants that must break it, covering first-attempt write-once, counters, pace and accuracy arithmetic, active time, track validity and checkpoint admission. No score, timing or saved data changed. [#2](https://github.com/cadence-typing/cadence/issues/2)
 - The workspace follows the tauten strictness profile (`cargo tauten check` passes with no baseline). Release builds now enable overflow checks.
+- The TLA+ protocol models now run in the quality gate on every change, with their faulty variants required to fail on the named invariant. A new model of the shipped checkpoint save protocol (one save in flight, retry after failure, a clean exit only after the final save is acknowledged) is mapped to the code that implements it. [#28](https://github.com/cadence-typing/cadence/issues/28), [#30](https://github.com/cadence-typing/cadence/issues/30)
 
 ### Fixed
+- Active time and the phase deadline are now decided by proved kernel functions that the app calls. Previously the proved active-time function had no production caller and the app used its own copy. No score or timing changed. [#29](https://github.com/cadence-typing/cadence/issues/29)
 
 - The TLC model-check logs pinned by `MANIFEST.sha256` are now committed, so contract verification passes on a fresh clone.
 

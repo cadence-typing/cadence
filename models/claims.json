@@ -65,6 +65,49 @@
         "CausalBarrier.cfg": "1dca3accfee8eec25775b527846f8a5e80a2c51e8cb787a5514c9d3359c1b142",
         "CausalBarrier-early-return.cfg": "0ce715be5101a7a4adbdd555d11b7545e72a3ce9f3977e639870d89d23995412"
       }
+    },
+    {
+      "module": "CheckpointSave",
+      "status": "mapped",
+      "invariants": [
+        "AckIsDurable",
+        "CleanExitIsDurable",
+        "FailedTailIsNamed",
+        "NoDoubleCredit",
+        "SingleFlight",
+        "TypeOK"
+      ],
+      "mutants": [
+        "CheckpointSave-double-credit.cfg violates NoDoubleCredit",
+        "CheckpointSave-early-ack.cfg violates AckIsDurable",
+        "CheckpointSave-quit-before-ack.cfg violates CleanExitIsDurable",
+        "CheckpointSave-two-in-flight.cfg violates SingleFlight"
+      ],
+      "production_symbols": [
+        "cadence_data::store::ProgressStore::apply_checkpoint",
+        "cadence_engine::storage::{dispatch_checkpoint, save_result, retry_save, request_exit, watchdog}",
+        "cadence_kernel::checkpoint::admit",
+        "cadence_runtime::writer::SaveWorker"
+      ],
+      "runtime_tests": [
+        "cadence-data::tests::checkpoints::lost_ack_retry_after_reopen_returns_exact_original_key",
+        "cadence-data::tests::checkpoints::tampering_conflicts_and_unrecorded_stale_sequences_never_regress",
+        "cadence-engine::clean_exit_waits_for_the_final_acknowledgement",
+        "cadence-engine::explicit_second_interrupt_after_failure_is_unsuccessful_exit",
+        "cadence-engine::final_flush_timeout_exits_unsuccessfully_without_fabricating_ack",
+        "cadence-engine::pending_checkpoint_retains_dirty_tail_and_retry_uses_fresh_full_key",
+        "cadence-engine::repeated_typing_and_checkpoint_ack_do_not_duplicate_counts",
+        "cadence-engine::single_flight_holds_under_a_burst_of_exercise_completions"
+      ],
+      "constants": "MaxSeq = 3 SingleFlightGuard = TRUE AckAfterCommit = TRUE Idempotent = TRUE QuitWaitsForAck = TRUE",
+      "sha256": {
+        "CheckpointSave.tla": "760a992cab79f28b88dee323523d033dd83318b1036d2f7afb90468ffd703e7a",
+        "CheckpointSave.cfg": "58153a2386024308cd6396de3a468f5aedcb66d746a3eef63d82d86f18142edb",
+        "CheckpointSave-two-in-flight.cfg": "4471af68fde1437e6936430471437f2b571c8a0dc70a204a8fb7028b15f3dee4",
+        "CheckpointSave-early-ack.cfg": "26d0e748ab6a8c2b8b2048734ef9336745c2c40d7ffcee19074b1d52e7f0dad6",
+        "CheckpointSave-double-credit.cfg": "236f2dd37009a412b406955bb7374fa9752d70408ae8c63e09b9db57d12454a6",
+        "CheckpointSave-quit-before-ack.cfg": "a175b526eed7fb415ff6114afe1b2bc65b1a4104f50a73875f5134755a22cf15"
+      }
     }
   ]
 }

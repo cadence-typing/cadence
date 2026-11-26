@@ -6,11 +6,14 @@
 //! active clock. Pause records a clock boundary before changing state;
 //! resume uses a fresh contiguous timing segment. Phase timeouts admit
 //! only events whose timestamp is within the half-open phase boundary
-//! (`MonoTick::within_half_open`; keys at the exact deadline are outside
-//! the scored slice).
+//! (`Micros::within_half_open` over active time, which is the proved
+//! `cadence_kernel::time::in_window`; keys at the exact deadline are
+//! outside the scored slice). Active time itself is the proved
+//! `cadence_kernel::time::segment_active`.
 
 use crate::CoreError;
 use crate::tick::{Micros, MonoTick};
+use cadence_kernel::time::{Through, segment_active};
 
 /// Session lifecycle states (A-05).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -215,11 +218,20 @@ impl TimingSegments {
         if let Some(last) = self.last {
             now.elapsed_since(last)?;
         }
-        let mut total = self.completed;
-        if let Some(start) = self.segment_start {
-            total = total.checked_add(now.elapsed_since(start)?)?;
+        match segment_active(
+            self.completed.as_us(),
+            self.segment_start.map(MonoTick::as_us),
+            now.as_us(),
+        ) {
+            Through::Time(total) => Ok(Micros::from_us(total)),
+            Through::Backward => Err(CoreError::BackwardTime {
+                admitted: self.segment_start.map_or(0, MonoTick::as_us),
+                arriving: now.as_us(),
+            }),
+            Through::Overflow => Err(CoreError::ArithmeticOverflow {
+                operation: "TimingSegments::active_through",
+            }),
         }
-        Ok(total)
     }
 
     /// Whether a segment is currently open.

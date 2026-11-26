@@ -64,6 +64,15 @@ impl Micros {
         self.0
     }
 
+    /// Whether this active time lies in the half-open phase window
+    /// `[start, deadline)` (A-05): the proved
+    /// `cadence_kernel::time::in_window`. Active time at the exact deadline
+    /// is outside the scored slice.
+    #[must_use]
+    pub fn within_half_open(self, start: Self, deadline: Self) -> bool {
+        cadence_kernel::time::in_window(self.0, start.0, deadline.0)
+    }
+
     /// Checked addition.
     ///
     /// # Errors
@@ -147,14 +156,6 @@ impl MonoTick {
                 operation: "MonoTick::checked_add",
             }),
         }
-    }
-
-    /// Whether this tick is strictly within the half-open interval
-    /// `[start, deadline)` — the phase-boundary admission rule (A-05: keys
-    /// at the exact deadline are outside the scored slice).
-    #[must_use]
-    pub fn within_half_open(self, start: Self, deadline: Self) -> bool {
-        cadence_kernel::time::in_window(self.0, start.0, deadline.0)
     }
 }
 
@@ -267,13 +268,11 @@ mod tests {
 
     #[test]
     fn phase_boundary_is_half_open() {
-        let start = MonoTick::ORIGIN;
-        let deadline = start
-            .checked_add(Micros::from_seconds(60).expect("60s fits"))
-            .expect("fits");
-        assert!(MonoTick::from_us(59_999_999).within_half_open(start, deadline));
+        let start = Micros::ZERO;
+        let deadline = Micros::from_seconds(60).expect("60s fits");
+        assert!(Micros::from_us(59_999_999).within_half_open(start, deadline));
         assert!(!deadline.within_half_open(start, deadline));
-        assert!(!MonoTick::ORIGIN.within_half_open(MonoTick::from_us(1), deadline));
+        assert!(!Micros::ZERO.within_half_open(Micros::from_us(1), deadline));
     }
 
     #[test]

@@ -22,7 +22,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
         "lean:first.settle": "fnv1a64:566c72e13b472466",
@@ -30,7 +30,7 @@
         "mutant:settle-open-always-correct": "fnv1a64:491b075cbd025aae",
         "mutant:settle-overwrites-correct": "fnv1a64:5d6a02c07d3eb06c",
         "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
-        "proof:Proofs/Time.lean": "fnv1a64:26ef06f3d21c8618",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
@@ -101,7 +101,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:first.FirstCounts": "fnv1a64:951749e3ebb35e0b",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -112,7 +112,7 @@
         "mutant:count-open-as-attempted": "fnv1a64:631864c820dbd8bf",
         "mutant:count-skips-last": "fnv1a64:7eee7fd29d89f5ee",
         "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
-        "proof:Proofs/Time.lean": "fnv1a64:26ef06f3d21c8618",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
@@ -177,7 +177,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:first.FirstCounts": "fnv1a64:951749e3ebb35e0b",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -189,7 +189,7 @@
         "mutant:count-open-as-attempted": "fnv1a64:631864c820dbd8bf",
         "mutant:count-skips-last": "fnv1a64:7eee7fd29d89f5ee",
         "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
-        "proof:Proofs/Time.lean": "fnv1a64:26ef06f3d21c8618",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
@@ -253,7 +253,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:counters.matched": "fnv1a64:2ad1792852f58d8d",
         "mutant:matched-ignores-position": "fnv1a64:0529f9d47b522232",
@@ -310,7 +310,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -431,7 +431,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -487,7 +487,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.fraction": "fnv1a64:49e76f9c2e339bbe",
@@ -527,7 +527,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.MICROSECONDS_PER_MINUTE": "fnv1a64:0e6d1d8a66fb2711",
@@ -611,7 +611,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.MICROSECONDS_PER_MINUTE": "fnv1a64:0e6d1d8a66fb2711",
@@ -673,7 +673,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:ratio.BASIS_POINTS_FULL": "fnv1a64:599654242e42c614",
         "lean:ratio.BasisPoints": "fnv1a64:bda07eef227211d5",
@@ -739,229 +739,79 @@
     {
       "crate": "cadence-kernel",
       "file": "crates/kernel/src/time.rs",
-      "function": "time::pause_total_loop",
-      "lean": "cadence_kernel.time.pause_total_loop",
+      "function": "time::segment_active",
+      "lean": "cadence_kernel.time.segment_active",
       "theorems": [
-        "Proofs.Time.pause_total_loop_spec"
+        "Proofs.Time.segment_active_spec",
+        "Proofs.Time.segment_active_closed",
+        "Proofs.Time.segment_active_monotone"
       ],
-      "total": null,
+      "total": "Proofs.Time.segment_active_spec",
       "subsumes": [],
       "mutants": [
-        "pauses-saturate",
-        "pauses-skip-last"
+        "segment-ignores-open",
+        "segment-saturates",
+        "segment-backward-is-zero"
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
-        "lean:time.Total": "fnv1a64:f12ca03c41cfa21e",
-        "lean:time.pause_total_loop": "fnv1a64:e6195923ee13b9a5",
-        "lean:time.pause_total_loop_loop": "fnv1a64:40967be94d1a6d96",
-        "lean:time.pause_total_loop_loop.body": "fnv1a64:f06d24bc14b60c78",
-        "mutant:pauses-saturate": "fnv1a64:e580e314849603a1",
-        "mutant:pauses-skip-last": "fnv1a64:e9d2867b90981a76",
-        "proof:Proofs/Time.lean": "fnv1a64:26ef06f3d21c8618",
+        "lean:time.Through": "fnv1a64:2c7a5df47aa92b14",
+        "lean:time.segment_active": "fnv1a64:2f71d90c8f3e62f6",
+        "mutant:segment-backward-is-zero": "fnv1a64:af05b7bb322b6fcd",
+        "mutant:segment-ignores-open": "fnv1a64:9c7b954d7a14ffc2",
+        "mutant:segment-saturates": "fnv1a64:7c8770f54a497c4c",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
         {
-          "mutant": "pauses-saturate",
+          "mutant": "segment-ignores-open",
           "status": "killed",
           "broken": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec",
-            "Proofs.Time.pause_total_loop_spec",
-            "Proofs.Time.pause_total_spec"
+            "Proofs.Time.segment_active_closed",
+            "Proofs.Time.segment_active_monotone",
+            "Proofs.Time.segment_active_spec"
           ],
           "direct": [
-            "Proofs.Time.pause_total_loop_spec"
+            "Proofs.Time.segment_active_spec"
           ],
           "dependent": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec",
-            "Proofs.Time.pause_total_spec"
+            "Proofs.Time.segment_active_closed",
+            "Proofs.Time.segment_active_monotone"
           ]
         },
         {
-          "mutant": "pauses-skip-last",
+          "mutant": "segment-saturates",
           "status": "killed",
           "broken": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec",
-            "Proofs.Time.pause_total_loop_spec",
-            "Proofs.Time.pause_total_spec"
+            "Proofs.Time.segment_active_closed",
+            "Proofs.Time.segment_active_monotone",
+            "Proofs.Time.segment_active_spec"
           ],
           "direct": [
-            "Proofs.Time.pause_total_loop_spec"
+            "Proofs.Time.segment_active_spec"
           ],
           "dependent": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec",
-            "Proofs.Time.pause_total_spec"
-          ]
-        }
-      ]
-    },
-    {
-      "crate": "cadence-kernel",
-      "file": "crates/kernel/src/time.rs",
-      "function": "time::pause_total",
-      "lean": "cadence_kernel.time.pause_total",
-      "theorems": [
-        "Proofs.Time.pause_total_spec"
-      ],
-      "total": "Proofs.Time.pause_total_spec",
-      "subsumes": [],
-      "mutants": [
-        "pauses-saturate",
-        "pauses-skip-last"
-      ],
-      "outcome": "proved",
-      "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
-      "inputs": {
-        "lean:time.Total": "fnv1a64:f12ca03c41cfa21e",
-        "lean:time.pause_total": "fnv1a64:39b522bc17c39ff0",
-        "lean:time.pause_total_loop": "fnv1a64:e6195923ee13b9a5",
-        "lean:time.pause_total_loop_loop": "fnv1a64:40967be94d1a6d96",
-        "lean:time.pause_total_loop_loop.body": "fnv1a64:f06d24bc14b60c78",
-        "mutant:pauses-saturate": "fnv1a64:e580e314849603a1",
-        "mutant:pauses-skip-last": "fnv1a64:e9d2867b90981a76",
-        "proof:Proofs/Time.lean": "fnv1a64:26ef06f3d21c8618",
-        "toolchain": "fnv1a64:662ec602d0dd70aa"
-      },
-      "mutant_results": [
-        {
-          "mutant": "pauses-saturate",
-          "status": "killed",
-          "broken": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec",
-            "Proofs.Time.pause_total_loop_spec",
-            "Proofs.Time.pause_total_spec"
-          ],
-          "direct": [
-            "Proofs.Time.pause_total_loop_spec"
-          ],
-          "dependent": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec",
-            "Proofs.Time.pause_total_spec"
+            "Proofs.Time.segment_active_closed",
+            "Proofs.Time.segment_active_monotone"
           ]
         },
         {
-          "mutant": "pauses-skip-last",
+          "mutant": "segment-backward-is-zero",
           "status": "killed",
           "broken": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec",
-            "Proofs.Time.pause_total_loop_spec",
-            "Proofs.Time.pause_total_spec"
+            "Proofs.Time.segment_active_closed",
+            "Proofs.Time.segment_active_monotone",
+            "Proofs.Time.segment_active_spec"
           ],
           "direct": [
-            "Proofs.Time.pause_total_loop_spec"
+            "Proofs.Time.segment_active_spec"
           ],
           "dependent": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec",
-            "Proofs.Time.pause_total_spec"
-          ]
-        }
-      ]
-    },
-    {
-      "crate": "cadence-kernel",
-      "file": "crates/kernel/src/time.rs",
-      "function": "time::active_time",
-      "lean": "cadence_kernel.time.active_time",
-      "theorems": [
-        "Proofs.Time.active_time_spec",
-        "Proofs.Time.active_time_le_elapsed",
-        "Proofs.Time.active_time_no_pauses"
-      ],
-      "total": "Proofs.Time.active_time_spec",
-      "subsumes": [],
-      "mutants": [
-        "active-ignores-pauses",
-        "pauses-exceeding-clamp-to-zero",
-        "pauses-saturate"
-      ],
-      "outcome": "proved",
-      "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
-      "inputs": {
-        "lean:time.Active": "fnv1a64:407e4611030cb792",
-        "lean:time.Total": "fnv1a64:f12ca03c41cfa21e",
-        "lean:time.active_time": "fnv1a64:197c994b33e8610e",
-        "lean:time.pause_total": "fnv1a64:39b522bc17c39ff0",
-        "lean:time.pause_total_loop": "fnv1a64:e6195923ee13b9a5",
-        "lean:time.pause_total_loop_loop": "fnv1a64:40967be94d1a6d96",
-        "lean:time.pause_total_loop_loop.body": "fnv1a64:f06d24bc14b60c78",
-        "mutant:active-ignores-pauses": "fnv1a64:6cf7a0fb1126f0c7",
-        "mutant:pauses-exceeding-clamp-to-zero": "fnv1a64:3c3483e3291c804e",
-        "mutant:pauses-saturate": "fnv1a64:e580e314849603a1",
-        "proof:Proofs/Time.lean": "fnv1a64:26ef06f3d21c8618",
-        "toolchain": "fnv1a64:662ec602d0dd70aa"
-      },
-      "mutant_results": [
-        {
-          "mutant": "pauses-saturate",
-          "status": "killed",
-          "broken": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec",
-            "Proofs.Time.pause_total_loop_spec",
-            "Proofs.Time.pause_total_spec"
-          ],
-          "direct": [
-            "Proofs.Time.pause_total_loop_spec"
-          ],
-          "dependent": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec",
-            "Proofs.Time.pause_total_spec"
-          ]
-        },
-        {
-          "mutant": "active-ignores-pauses",
-          "status": "killed",
-          "broken": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec"
-          ],
-          "direct": [
-            "Proofs.Time.active_time_spec"
-          ],
-          "dependent": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses"
-          ]
-        },
-        {
-          "mutant": "pauses-exceeding-clamp-to-zero",
-          "status": "killed",
-          "broken": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses",
-            "Proofs.Time.active_time_spec"
-          ],
-          "direct": [
-            "Proofs.Time.active_time_spec"
-          ],
-          "dependent": [
-            "Proofs.Time.active_time_le_elapsed",
-            "Proofs.Time.active_time_no_pauses"
+            "Proofs.Time.segment_active_closed",
+            "Proofs.Time.segment_active_monotone"
           ]
         }
       ]
@@ -982,12 +832,12 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:time.in_window": "fnv1a64:9d5f256c9926dafd",
         "mutant:window-deadline-inclusive": "fnv1a64:7838167070585533",
         "mutant:window-start-exclusive": "fnv1a64:6ba8ac9cb2f58c30",
-        "proof:Proofs/Time.lean": "fnv1a64:26ef06f3d21c8618",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
@@ -1034,7 +884,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:checkpoint.Admission": "fnv1a64:730283b1519f480c",
         "lean:checkpoint.Receipt": "fnv1a64:7f7df42fddf3f375",
@@ -1123,7 +973,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:progress.COUNTER_MAXIMUM": "fnv1a64:3224be1f2d07a607",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1169,7 +1019,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
         "lean:progress.ordered": "fnv1a64:3488d8720654b667",
@@ -1214,7 +1064,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
         "lean:progress.split_fits": "fnv1a64:d649c86921960f7a",
@@ -1264,7 +1114,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:5d4824b5dff43060",
+      "fingerprint": "fnv1a64:df496ed36ba4e1ba",
       "inputs": {
         "lean:progress.COUNTER_MAXIMUM": "fnv1a64:3224be1f2d07a607",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1353,6 +1203,5 @@
         }
       ]
     }
-  ],
-  "commit": "a7bb2b36b2f71eda5ae8dd60235d7a2fcb200a6f"
+  ]
 }

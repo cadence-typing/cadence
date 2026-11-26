@@ -428,94 +428,36 @@ def ratio.basis_points
         | none => ok ratio.BasisPoints.ZeroDenominator
         | some value => ok (ratio.BasisPoints.Value value)
 
-/-- [cadence_kernel::time::Active]
-    Source: 'crates/kernel/src/time.rs', lines 6:0-13:1
+/-- [cadence_kernel::time::Through]
+    Source: 'crates/kernel/src/time.rs', lines 11:0-18:1
     Visibility: public -/
 @[discriminant isize]
-inductive time.Active where
-| Time : Std.U64 → time.Active
-| PauseOverflow : time.Active
-| PausesExceed : Std.U64 → time.Active
+inductive time.Through where
+| Time : Std.U64 → time.Through
+| Backward : time.Through
+| Overflow : time.Through
 
-/-- [cadence_kernel::time::Total]
-    Source: 'crates/kernel/src/time.rs', lines 17:0-22:1
+/-- [cadence_kernel::time::segment_active]:
+    Source: 'crates/kernel/src/time.rs', lines 23:0-34:1
     Visibility: public -/
-@[discriminant isize]
-inductive time.Total where
-| Sum : Std.U64 → time.Total
-| Overflow : time.Total
-
-/-- [cadence_kernel::time::pause_total_loop]: loop body 0:
-    Source: 'crates/kernel/src/time.rs', lines 29:4-39:1
-    Visibility: public -/
-@[rust_loop_body]
-def time.pause_total_loop_loop.body
-  (pauses : Slice Std.U64) (i : Std.Usize) (total : Std.U64) :
-  Result (ControlFlow (Std.Usize × Std.U64) time.Total)
+def time.segment_active
+  (completed : Std.U64) (open_start : Option Std.U64) (now : Std.U64) :
+  Result time.Through
   := do
-  let i1 := Slice.len pauses
-  if i < i1
-  then
-    let o ←
-      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice Std.U64)
-        pauses i
+  match open_start with
+  | none => ok (time.Through.Time completed)
+  | some start =>
+    let o ← lift (U64.checked_sub now start)
     match o with
-    | none =>
-      let i2 ← lift (core.num.Usize.saturating_add i 1#usize)
-      ok (cont (i2, total))
-    | some pause =>
-      let o1 ← lift (U64.checked_add total pause)
+    | none => ok time.Through.Backward
+    | some «open» =>
+      let o1 ← lift (U64.checked_add completed «open»)
       match o1 with
-      | none => ok (done time.Total.Overflow)
-      | some next =>
-        let i2 ← lift (core.num.Usize.saturating_add i 1#usize)
-        ok (cont (i2, next))
-  else ok (done (time.Total.Sum total))
-
-/-- [cadence_kernel::time::pause_total_loop]: loop 0:
-    Source: 'crates/kernel/src/time.rs', lines 29:4-39:1
-    Visibility: public -/
-@[rust_loop]
-def time.pause_total_loop_loop
-  (pauses : Slice Std.U64) (i : Std.Usize) (total : Std.U64) :
-  Result time.Total
-  := do
-  loop
-    (fun (i1, total1) => time.pause_total_loop_loop.body pauses i1 total1)
-    (i, total)
-
-/-- [cadence_kernel::time::pause_total_loop]:
-    Source: 'crates/kernel/src/time.rs', lines 26:0-39:1
-    Visibility: public -/
-@[reducible]
-def time.pause_total_loop
-  (pauses : Slice Std.U64) (i : Std.Usize) (total : Std.U64) :
-  Result time.Total
-  := do
-  time.pause_total_loop_loop pauses i total
-
-/-- [cadence_kernel::time::pause_total]:
-    Source: 'crates/kernel/src/time.rs', lines 43:0-45:1
-    Visibility: public -/
-def time.pause_total (pauses : Slice Std.U64) : Result time.Total := do
-  time.pause_total_loop pauses 0#usize 0#u64
-
-/-- [cadence_kernel::time::active_time]:
-    Source: 'crates/kernel/src/time.rs', lines 49:0-57:1
-    Visibility: public -/
-def time.active_time
-  (elapsed : Std.U64) (pauses : Slice Std.U64) : Result time.Active := do
-  let t ← time.pause_total pauses
-  match t with
-  | time.Total.Sum total =>
-    let o ← lift (U64.checked_sub elapsed total)
-    match o with
-    | none => ok (time.Active.PausesExceed total)
-    | some active => ok (time.Active.Time active)
-  | time.Total.Overflow => ok time.Active.PauseOverflow
+      | none => ok time.Through.Overflow
+      | some total => ok (time.Through.Time total)
 
 /-- [cadence_kernel::time::in_window]:
-    Source: 'crates/kernel/src/time.rs', lines 62:0-64:1
+    Source: 'crates/kernel/src/time.rs', lines 39:0-41:1
     Visibility: public -/
 def time.in_window
   (tick : Std.U64) (start : Std.U64) (deadline : Std.U64) : Result Bool := do

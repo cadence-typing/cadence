@@ -30,7 +30,10 @@ impl Engine {
         let deadline = self
             .phase_start
             .checked_add(Micros::from_seconds(phase.seconds)?)?;
-        if active.as_us() >= deadline.as_us() {
+        if active < self.phase_start {
+            return Err(invalid("active time precedes the phase start"));
+        }
+        if !active.within_half_open(self.phase_start, deadline) {
             let overshoot = active.checked_sub(deadline)?;
             let boundary = MonoTick::from_us(
                 at.as_us()

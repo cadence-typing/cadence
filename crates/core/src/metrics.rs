@@ -16,7 +16,6 @@ use crate::units::UnitCount;
 use cadence_kernel::ratio::{
     Fraction, Pace, digits_per_minute as kernel_digits_per_minute, fraction, wpm,
 };
-use cadence_kernel::time::{Active, active_time as kernel_active_time};
 
 pub use cadence_kernel::ratio::{MICROSECONDS_PER_MINUTE, WPM_UNITS_PER_WORD};
 
@@ -226,28 +225,6 @@ pub fn numeric_metrics(ledger: &AttemptLedger, active: Micros) -> NumericMetrics
     }
 }
 
-/// Active time for a run: elapsed minus explicit pause intervals, all
-/// checked (L-03). Ordinary hesitation remains in active time; only
-/// explicit pauses are excluded.
-///
-/// # Errors
-/// Returns [`crate::CoreError::ArithmeticOverflow`] when the subtraction
-/// of total pause time would overflow, or
-/// [`crate::CoreError::InvalidSubtraction`] when pauses exceed elapsed.
-pub fn active_time(elapsed: Micros, pauses: &[Micros]) -> Result<Micros, crate::CoreError> {
-    let pauses: Vec<u64> = pauses.iter().map(|pause| pause.as_us()).collect();
-    match kernel_active_time(elapsed.as_us(), &pauses) {
-        Active::Time(active) => Ok(Micros::from_us(active)),
-        Active::PauseOverflow => Err(crate::CoreError::ArithmeticOverflow {
-            operation: "Micros::checked_add",
-        }),
-        Active::PausesExceed(total) => Err(crate::CoreError::InvalidSubtraction {
-            left: elapsed.as_us(),
-            right: total,
-        }),
-    }
-}
-
 /// Ratio of two counts, or `None` when the denominator is zero.
 fn ratio_or_none(numerator: u64, denominator: u64) -> Option<Ratio> {
     fraction(numerator, denominator).map(Ratio::from_fraction)
@@ -294,21 +271,5 @@ mod tests {
         let ratio = digits_per_minute(5, Micros::from_seconds(60).unwrap()).unwrap();
         assert_eq!(ratio.numerator(), 300_000_000);
         assert_eq!(ratio.denominator(), 60_000_000);
-    }
-
-    #[test]
-    fn active_time_excludes_only_pauses() {
-        let elapsed = Micros::from_us(13_000_000);
-        let active = active_time(
-            elapsed,
-            &[
-                Micros::from_us(2_000_000),
-                Micros::from_us(4_000_000),
-                Micros::from_us(4_000_000),
-            ],
-        )
-        .unwrap();
-        assert_eq!(active.as_us(), 3_000_000);
-        assert!(active_time(elapsed, &[Micros::from_us(14_000_000)]).is_err());
     }
 }

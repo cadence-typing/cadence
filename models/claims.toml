@@ -26,7 +26,7 @@ dir = "formal"
 config = "DurableCheckpoint.cfg"
 invariants = ["TypeOK", "AckIsDurable", "NoDoubleCredit"]
 status = "design-probe"
-blocked_on = "#30: the shipped save protocol is modelled by models/CheckpointSave.tla, which carries the production mapping"
+blocked_on = "superseded for production by models/CheckpointSave.tla (#30); kept as the handover's design probe for crash and reopen"
 
 [[model.mutant]]
 config = "DurableCheckpoint-early-ack.cfg"
@@ -63,3 +63,48 @@ blocked_on = "#4: the headless driver and its barriers are not shipped"
 [[model.mutant]]
 config = "CausalBarrier-early-return.cfg"
 violates = "NoEarlyReturn"
+
+# The shipped save protocol (#30). Action-to-Rust mapping is in the module's
+# comments; correspondence is by review plus the runtime tests below (one or
+# more per invariant: AckIsDurable -> fabricating_ack, lost_ack; NoDoubleCredit
+# -> duplicate_counts, stale_sequences; SingleFlight -> single_flight;
+# CleanExitIsDurable -> clean_exit, dirty_tail; FailedTailIsNamed ->
+# second_interrupt).
+[[model]]
+module = "CheckpointSave"
+dir = "models"
+config = "CheckpointSave.cfg"
+invariants = ["TypeOK", "AckIsDurable", "NoDoubleCredit", "SingleFlight", "CleanExitIsDurable", "FailedTailIsNamed"]
+status = "mapped"
+production_symbols = [
+  "cadence_engine::storage::{dispatch_checkpoint, save_result, retry_save, request_exit, watchdog}",
+  "cadence_runtime::writer::SaveWorker",
+  "cadence_data::store::ProgressStore::apply_checkpoint",
+  "cadence_kernel::checkpoint::admit",
+]
+runtime_tests = [
+  "cadence-engine::final_flush_timeout_exits_unsuccessfully_without_fabricating_ack",
+  "cadence-data::tests::checkpoints::lost_ack_retry_after_reopen_returns_exact_original_key",
+  "cadence-engine::repeated_typing_and_checkpoint_ack_do_not_duplicate_counts",
+  "cadence-data::tests::checkpoints::tampering_conflicts_and_unrecorded_stale_sequences_never_regress",
+  "cadence-engine::single_flight_holds_under_a_burst_of_exercise_completions",
+  "cadence-engine::clean_exit_waits_for_the_final_acknowledgement",
+  "cadence-engine::pending_checkpoint_retains_dirty_tail_and_retry_uses_fresh_full_key",
+  "cadence-engine::explicit_second_interrupt_after_failure_is_unsuccessful_exit",
+]
+
+[[model.mutant]]
+config = "CheckpointSave-two-in-flight.cfg"
+violates = "SingleFlight"
+
+[[model.mutant]]
+config = "CheckpointSave-early-ack.cfg"
+violates = "AckIsDurable"
+
+[[model.mutant]]
+config = "CheckpointSave-double-credit.cfg"
+violates = "NoDoubleCredit"
+
+[[model.mutant]]
+config = "CheckpointSave-quit-before-ack.cfg"
+violates = "CleanExitIsDurable"
