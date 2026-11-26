@@ -74,7 +74,7 @@ impl SessionPolicy {
                 kind: "SessionPolicy",
                 reason: "invalid allocation policy",
             })?;
-        crate::allocation::allocate(
+        cadence_core::plan::allocate(
             self.default_budget_seconds,
             &self.phase_minimum_seconds,
             &weights,

@@ -601,3 +601,67 @@ name = "complete-ignores-tail"
 file = "crates/kernel/src/ledger.rs"
 before = "    buffer_len == target_len && correct_visible == target_len\n"
 after = "    buffer_len >= target_len && correct_visible == target_len\n"
+
+# ---- phase allocation (crates/kernel/src/plan.rs, VK-03, #34)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/plan.rs"
+function = "plan::total"
+lean = "cadence_kernel.plan.total"
+theorems = ["Proofs.Plan.total_spec"]
+total = "Proofs.Plan.total_spec"
+mutants = ["total-drops-sum"]
+
+[[mutant]]
+name = "total-drops-sum"
+file = "crates/kernel/src/plan.rs"
+before = "    Sum::Fits(sum)\n"
+after = "    Sum::Fits(0)\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/plan.rs"
+function = "plan::pick"
+lean = "cadence_kernel.plan.pick"
+theorems = ["Proofs.Plan.pick_spec", "Proofs.Plan.allocate_tie_to_lower_index"]
+total = "Proofs.Plan.pick_spec"
+mutants = ["tie-to-higher-index"]
+
+[[mutant]]
+name = "tie-to-higher-index"
+file = "crates/kernel/src/plan.rs"
+before = "        Some(_) => r > best_r,\n"
+after = "        Some(_) => r >= best_r,\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/plan.rs"
+function = "plan::allocate"
+lean = "cadence_kernel.plan.allocate"
+theorems = [
+  "Proofs.Plan.allocate_spec",
+  "Proofs.Plan.allocate_sum_exact",
+  "Proofs.Plan.allocate_keeps_minimums",
+  "Proofs.Plan.allocate_infeasible_exact",
+]
+total = "Proofs.Plan.allocate_spec"
+mutants = ["leftover-dropped", "minimum-not-added", "infeasible-clamped"]
+
+[[mutant]]
+name = "leftover-dropped"
+file = "crates/kernel/src/plan.rs"
+before = "    if hand_out(remainders, seconds, leftover) {\n"
+after = "    if hand_out(remainders, seconds, 0) {\n"
+
+[[mutant]]
+name = "minimum-not-added"
+file = "crates/kernel/src/plan.rs"
+before = "        let share = match minimum.checked_add(floor) {\n"
+after = "        let share = match floor.checked_add(minimum - minimum) {\n"
+
+[[mutant]]
+name = "infeasible-clamped"
+file = "crates/kernel/src/plan.rs"
+before = "        None => return Allocation::Infeasible,\n"
+after = "        None => 0,\n"

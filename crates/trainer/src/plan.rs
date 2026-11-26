@@ -10,7 +10,6 @@
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 
-use crate::allocation::allocate;
 use crate::corpus::{WordPack, digest_of};
 use crate::learner::LearnerModel;
 use crate::numeric::DigitSource;
@@ -18,6 +17,7 @@ use crate::policy::{Lane, Phase, TrainerPolicy};
 use crate::prose::ProseBank;
 use cadence_core::alphabet::TrainingChar;
 use cadence_core::learning::{PlanRecord, SkillKey};
+use cadence_core::plan::allocate;
 use cadence_core::{ContentDigest, CoreError, Micros, PassageId, WordId};
 
 /// The seeded PRNG used for planning (L-05: established, pinned,

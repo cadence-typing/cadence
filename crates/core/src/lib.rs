@@ -17,6 +17,7 @@ pub mod id;
 pub mod learning;
 pub mod ledger;
 pub mod metrics;
+pub mod plan;
 pub mod ports;
 pub mod progress;
 pub mod session;

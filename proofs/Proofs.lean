@@ -10,3 +10,4 @@ import Proofs.Ratio
 import Proofs.Progress
 import Proofs.Session
 import Proofs.Ledger
+import Proofs.Plan

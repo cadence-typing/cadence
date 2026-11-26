@@ -324,6 +324,404 @@ def ledger.complete
   then ok (correct_visible = target_len)
   else ok false
 
+/-- [cadence_kernel::plan::Allocation]
+    Source: 'crates/kernel/src/plan.rs', lines 15:0-27:1
+    Visibility: public -/
+@[discriminant isize]
+inductive plan.Allocation where
+| Done : plan.Allocation
+| Shape : plan.Allocation
+| Infeasible : plan.Allocation
+| NoWeight : plan.Allocation
+| Overflow : plan.Allocation
+
+/-- [cadence_kernel::plan::Sum]
+    Source: 'crates/kernel/src/plan.rs', lines 31:0-36:1
+    Visibility: public -/
+@[discriminant isize]
+inductive plan.Sum where
+| Fits : Std.U64 → plan.Sum
+| Overflow : plan.Sum
+
+/-- [cadence_kernel::plan::total]: loop body 0:
+    Source: 'crates/kernel/src/plan.rs', lines 43:4-53:1
+    Visibility: public -/
+@[rust_loop_body]
+def plan.total_loop.body
+  (values : Slice Std.U64) (i : Std.Usize) (sum : Std.U64) :
+  Result (ControlFlow (Std.Usize × Std.U64) plan.Sum)
+  := do
+  let i1 := Slice.len values
+  if i < i1
+  then
+    let o ←
+      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice Std.U64)
+        values i
+    match o with
+    | none =>
+      let i2 ← lift (core.num.Usize.saturating_add i 1#usize)
+      ok (cont (i2, sum))
+    | some value =>
+      let o1 ← lift (U64.checked_add sum value)
+      match o1 with
+      | none => ok (done plan.Sum.Overflow)
+      | some next =>
+        let i2 ← lift (core.num.Usize.saturating_add i 1#usize)
+        ok (cont (i2, next))
+  else ok (done (plan.Sum.Fits sum))
+
+/-- [cadence_kernel::plan::total]: loop 0:
+    Source: 'crates/kernel/src/plan.rs', lines 43:4-53:1
+    Visibility: public -/
+@[rust_loop]
+def plan.total_loop
+  (values : Slice Std.U64) (i : Std.Usize) (sum : Std.U64) :
+  Result plan.Sum
+  := do
+  loop
+    (fun (i1, sum1) => plan.total_loop.body values i1 sum1)
+    (i, sum)
+
+/-- [cadence_kernel::plan::total]:
+    Source: 'crates/kernel/src/plan.rs', lines 40:0-53:1
+    Visibility: public -/
+@[reducible]
+def plan.total (values : Slice Std.U64) : Result plan.Sum := do
+  plan.total_loop values 0#usize 0#u64
+
+/-- [cadence_kernel::plan::after_pick]:
+    Source: 'crates/kernel/src/plan.rs', lines 58:0-66:1
+    Visibility: public -/
+def plan.after_pick
+  (remainders : Slice Std.U64) (after : Option Std.Usize) (j : Std.Usize)
+  (r : Std.U64) :
+  Result Bool
+  := do
+  match after with
+  | none => ok true
+  | some a =>
+    let o ←
+      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice Std.U64)
+        remainders a
+    match o with
+    | none => ok false
+    | some ra =>
+      if r < ra
+      then ok true
+      else if r = ra
+           then ok (j > a)
+           else ok false
+
+/-- [cadence_kernel::plan::beats]:
+    Source: 'crates/kernel/src/plan.rs', lines 72:0-77:1
+    Visibility: public -/
+def plan.beats
+  (best : Option Std.Usize) (best_r : Std.U64) (r : Std.U64) :
+  Result Bool
+  := do
+  match best with
+  | none => ok true
+  | some _ => ok (r > best_r)
+
+/-- [cadence_kernel::plan::pick]: loop body 0:
+    Source: 'crates/kernel/src/plan.rs', lines 87:4-97:5
+    Visibility: public -/
+@[rust_loop_body]
+def plan.pick_loop.body
+  (remainders : Slice Std.U64) (after : Option Std.Usize) (j : Std.Usize)
+  (best : Option Std.Usize) (best_r : Std.U64) :
+  Result (ControlFlow (Std.Usize × (Option Std.Usize) × Std.U64) (Option
+    Std.Usize))
+  := do
+  let i := Slice.len remainders
+  if j < i
+  then
+    let o ←
+      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice Std.U64)
+        remainders j
+    let (best1, best_r1) ←
+      match o with
+      | none => ok (best, best_r)
+      | some r =>
+        do
+        let b ← plan.after_pick remainders after j r
+        let take ← if b
+                     then plan.beats best best_r r
+                     else ok false
+        if take
+        then ok (some j, r)
+        else ok (best, best_r)
+    let j1 ← lift (core.num.Usize.saturating_add j 1#usize)
+    ok (cont (j1, best1, best_r1))
+  else ok (done best)
+
+/-- [cadence_kernel::plan::pick]: loop 0:
+    Source: 'crates/kernel/src/plan.rs', lines 87:4-97:5
+    Visibility: public -/
+@[rust_loop]
+def plan.pick_loop
+  (remainders : Slice Std.U64) (after : Option Std.Usize) (j : Std.Usize)
+  (best : Option Std.Usize) (best_r : Std.U64) :
+  Result (Option Std.Usize)
+  := do
+  loop
+    (fun (j1, best1, best_r1) => plan.pick_loop.body remainders after j1 best1
+      best_r1)
+    (j, best, best_r)
+
+/-- [cadence_kernel::plan::pick]:
+    Source: 'crates/kernel/src/plan.rs', lines 83:0-99:1
+    Visibility: public -/
+@[reducible]
+def plan.pick
+  (remainders : Slice Std.U64) (after : Option Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  plan.pick_loop remainders after 0#usize none 0#u64
+
+/-- [cadence_kernel::plan::shares]: loop body 0:
+    Source: 'crates/kernel/src/plan.rs', lines 114:4-154:1
+    Visibility: public -/
+@[rust_loop_body]
+def plan.shares_loop.body
+  (remaining : Std.U64) (divisor : Std.U64) (minimums : Slice Std.U64)
+  (weights : Slice Std.U64) (seconds : Slice Std.U64)
+  (remainders : Slice Std.U64) (i : Std.Usize) (allocated : Std.U64) :
+  Result (ControlFlow ((Slice Std.U64) × (Slice Std.U64) × Std.Usize ×
+    Std.U64) (plan.Sum × (Slice Std.U64) × (Slice Std.U64)))
+  := do
+  let i1 := Slice.len minimums
+  if i < i1
+  then
+    let o ←
+      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice Std.U64)
+        minimums i
+    match o with
+    | none => ok (done (plan.Sum.Overflow, seconds, remainders))
+    | some m =>
+      let o1 ←
+        core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice Std.U64)
+          weights i
+      match o1 with
+      | none => ok (done (plan.Sum.Overflow, seconds, remainders))
+      | some w =>
+        let o2 ← lift (U64.checked_mul remaining w)
+        match o2 with
+        | none => ok (done (plan.Sum.Overflow, seconds, remainders))
+        | some s =>
+          let o3 ← lift (U64.checked_div s divisor)
+          match o3 with
+          | none => ok (done (plan.Sum.Overflow, seconds, remainders))
+          | some f =>
+            let o4 ← lift (U64.checked_rem s divisor)
+            match o4 with
+            | none => ok (done (plan.Sum.Overflow, seconds, remainders))
+            | some _ =>
+              let o5 ← lift (U64.checked_add m f)
+              match o5 with
+              | none => ok (done (plan.Sum.Overflow, seconds, remainders))
+              | some _ =>
+                let o6 ← lift (U64.checked_add allocated f)
+                match o6 with
+                | none => ok (done (plan.Sum.Overflow, seconds, remainders))
+                | some a =>
+                  let (o7, get_mut_back) ←
+                    core.slice.Slice.get_mut
+                      (core.slice.index.SliceIndexUsizeSlice Std.U64) seconds i
+                  match o7 with
+                  | none =>
+                    let seconds1 := get_mut_back none
+                    ok (done (plan.Sum.Overflow, seconds1, remainders))
+                  | some _ =>
+                    let (o8, get_mut_back1) ←
+                      core.slice.Slice.get_mut
+                        (core.slice.index.SliceIndexUsizeSlice Std.U64)
+                        remainders i
+                    match o8 with
+                    | none =>
+                      let remainders1 := get_mut_back1 none
+                      let seconds1 := get_mut_back o5
+                      ok (done (plan.Sum.Overflow, seconds1, remainders1))
+                    | some _ =>
+                      let i2 ← lift (core.num.Usize.saturating_add i 1#usize)
+                      let remainders1 := get_mut_back1 o4
+                      let seconds1 := get_mut_back o5
+                      ok (cont (seconds1, remainders1, i2, a))
+  else ok (done (plan.Sum.Fits allocated, seconds, remainders))
+
+/-- [cadence_kernel::plan::shares]: loop 0:
+    Source: 'crates/kernel/src/plan.rs', lines 114:4-154:1
+    Visibility: public -/
+@[rust_loop]
+def plan.shares_loop
+  (remaining : Std.U64) (divisor : Std.U64) (minimums : Slice Std.U64)
+  (weights : Slice Std.U64) (seconds : Slice Std.U64)
+  (remainders : Slice Std.U64) (i : Std.Usize) (allocated : Std.U64) :
+  Result (plan.Sum × (Slice Std.U64) × (Slice Std.U64))
+  := do
+  loop
+    (fun (seconds1, remainders1, i1, allocated1) => plan.shares_loop.body
+      remaining divisor minimums weights seconds1 remainders1 i1 allocated1)
+    (seconds, remainders, i, allocated)
+
+/-- [cadence_kernel::plan::shares]:
+    Source: 'crates/kernel/src/plan.rs', lines 104:0-154:1
+    Visibility: public -/
+@[reducible]
+def plan.shares
+  (remaining : Std.U64) (divisor : Std.U64) (minimums : Slice Std.U64)
+  (weights : Slice Std.U64) (seconds : Slice Std.U64)
+  (remainders : Slice Std.U64) :
+  Result (plan.Sum × (Slice Std.U64) × (Slice Std.U64))
+  := do
+  plan.shares_loop remaining divisor minimums weights seconds remainders
+    0#usize 0#u64
+
+/-- [cadence_kernel::plan::hand_out]: loop body 0:
+    Source: 'crates/kernel/src/plan.rs', lines 162:4-181:1
+    Visibility: public -/
+@[rust_loop_body]
+def plan.hand_out_loop.body
+  (remainders : Slice Std.U64) (leftover : Std.U64) (seconds : Slice Std.U64)
+  (k : Std.U64) (prev : Option Std.Usize) :
+  Result (ControlFlow ((Slice Std.U64) × Std.U64 × (Option Std.Usize)) (Bool
+    × (Slice Std.U64)))
+  := do
+  if k < leftover
+  then
+    let o ← plan.pick remainders prev
+    match o with
+    | none => ok (done (false, seconds))
+    | some n =>
+      let (o1, get_mut_back) ←
+        core.slice.Slice.get_mut (core.slice.index.SliceIndexUsizeSlice
+          Std.U64) seconds n
+      match o1 with
+      | none => let seconds1 := get_mut_back none
+                ok (done (false, seconds1))
+      | some slot =>
+        let o2 ← lift (U64.checked_add slot 1#u64)
+        match o2 with
+        | none => let seconds1 := get_mut_back o1
+                  ok (done (false, seconds1))
+        | some _ =>
+          let o3 ← lift (U64.checked_add k 1#u64)
+          match o3 with
+          | none => let seconds1 := get_mut_back o2
+                    ok (done (false, seconds1))
+          | some v =>
+            let seconds1 := get_mut_back o2
+            ok (cont (seconds1, v, o))
+  else ok (done (true, seconds))
+
+/-- [cadence_kernel::plan::hand_out]: loop 0:
+    Source: 'crates/kernel/src/plan.rs', lines 162:4-181:1
+    Visibility: public -/
+@[rust_loop]
+def plan.hand_out_loop
+  (remainders : Slice Std.U64) (seconds : Slice Std.U64) (leftover : Std.U64)
+  (k : Std.U64) (prev : Option Std.Usize) :
+  Result (Bool × (Slice Std.U64))
+  := do
+  loop
+    (fun (seconds1, k1, prev1) => plan.hand_out_loop.body remainders leftover
+      seconds1 k1 prev1)
+    (seconds, k, prev)
+
+/-- [cadence_kernel::plan::hand_out]:
+    Source: 'crates/kernel/src/plan.rs', lines 159:0-181:1
+    Visibility: public -/
+@[reducible]
+def plan.hand_out
+  (remainders : Slice Std.U64) (seconds : Slice Std.U64) (leftover : Std.U64) :
+  Result (Bool × (Slice Std.U64))
+  := do
+  plan.hand_out_loop remainders seconds leftover 0#u64 none
+
+/-- [cadence_kernel::plan::allocate]:
+    Source: 'crates/kernel/src/plan.rs', lines 187:0-227:1
+    Visibility: public -/
+def plan.allocate
+  (budget : Std.U64) (minimums : Slice Std.U64) (weights : Slice Std.U64)
+  (seconds : Slice Std.U64) (remainders : Slice Std.U64) :
+  Result (plan.Allocation × (Slice Std.U64) × (Slice Std.U64))
+  := do
+  let n := Slice.len minimums
+  if n = 0#usize
+  then ok (plan.Allocation.Shape, seconds, remainders)
+  else
+    let i := Slice.len weights
+    if i != n
+    then ok (plan.Allocation.Shape, seconds, remainders)
+    else
+      let i1 := Slice.len seconds
+      if i1 != n
+      then ok (plan.Allocation.Shape, seconds, remainders)
+      else
+        let i2 := Slice.len remainders
+        if i2 != n
+        then ok (plan.Allocation.Shape, seconds, remainders)
+        else
+          let s ← plan.total minimums
+          match s with
+          | plan.Sum.Fits t =>
+            let o ← lift (U64.checked_sub budget t)
+            match o with
+            | none => ok (plan.Allocation.Infeasible, seconds, remainders)
+            | some r =>
+              let s1 ← plan.total weights
+              match s1 with
+              | plan.Sum.Fits t1 =>
+                if t1 = 0#u64
+                then
+                  if r != 0#u64
+                  then ok (plan.Allocation.NoWeight, seconds, remainders)
+                  else
+                    let divisor ← if t1 = 0#u64
+                                    then ok 1#u64
+                                    else ok t1
+                    let (s2, seconds1, remainders1) ←
+                      plan.shares r divisor minimums weights seconds remainders
+                    match s2 with
+                    | plan.Sum.Fits a =>
+                      let o1 ← lift (U64.checked_sub r a)
+                      match o1 with
+                      | none =>
+                        ok (plan.Allocation.Overflow, seconds1, remainders1)
+                      | some l =>
+                        let (b, seconds2) ←
+                          plan.hand_out remainders1 seconds1 l
+                        if b
+                        then ok (plan.Allocation.Done, seconds2, remainders1)
+                        else
+                          ok (plan.Allocation.Overflow, seconds2, remainders1)
+                    | plan.Sum.Overflow =>
+                      ok (plan.Allocation.Overflow, seconds1, remainders1)
+                else
+                  let divisor ← if t1 = 0#u64
+                                  then ok 1#u64
+                                  else ok t1
+                  let (s2, seconds1, remainders1) ←
+                    plan.shares r divisor minimums weights seconds remainders
+                  match s2 with
+                  | plan.Sum.Fits a =>
+                    let o1 ← lift (U64.checked_sub r a)
+                    match o1 with
+                    | none =>
+                      ok (plan.Allocation.Overflow, seconds1, remainders1)
+                    | some l =>
+                      let (b, seconds2) ←
+                        plan.hand_out remainders1 seconds1 l
+                      if b
+                      then ok (plan.Allocation.Done, seconds2, remainders1)
+                      else ok (plan.Allocation.Overflow, seconds2, remainders1)
+                  | plan.Sum.Overflow =>
+                    ok (plan.Allocation.Overflow, seconds1, remainders1)
+              | plan.Sum.Overflow =>
+                ok (plan.Allocation.Overflow, seconds, remainders)
+          | plan.Sum.Overflow =>
+            ok (plan.Allocation.Overflow, seconds, remainders)
+
 /-- [cadence_kernel::progress::COUNTER_MAXIMUM]
     Source: 'crates/kernel/src/progress.rs', lines 5:0-5:59
     Visibility: public -/

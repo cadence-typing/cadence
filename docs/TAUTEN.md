@@ -92,6 +92,7 @@ function below is called by production code; there is no second copy.
 | `progress::credit_once` | `Engine::record_exercise`: an exercise's ledger is credited only if newer than every credited one, else a typed error |
 | `session::step` | `Engine::transition` (`crates/engine/src/flow.rs`), the only writer of the session state, and `Engine::invalidate`; the engine carries out its clock command and status consequence |
 | `checkpoint::admit` | `Store::apply_checkpoint` (`crates/data/src/store.rs`): apply, replay, conflict or stale |
+| `plan::allocate` (with `total`, `shares`, `pick`, `hand_out`) | `cadence_core::plan::allocate`, called by `trainer::plan::build_session_plan` and `SessionPolicy::default_allocation`: the seconds of every phase (P-02, VK-03) |
 
 `fixtures/scoring.json` (independent, hand-calculated) is replayed through the
 kernel functions by `crates/kernel/tests/scoring_fixtures.rs` and through the
@@ -131,6 +132,9 @@ axioms. The audit admits only `propext`, `Classical.choice` and `Quot.sound`.
 | `time::in_window` | `Time.in_window_spec` | `start <= tick < deadline`; a key at the exact deadline is outside the scored slice. Total. | `window-deadline-inclusive`, `window-start-exclusive` | proved |
 | `checkpoint::admit` | `Checkpoint.admit_spec`, `admit_apply_iff`, `refused_never_applies`, `applications_strictly_increase`, `applied_sequence_never_reapplies` | The full decision table. A checkpoint is applied iff no receipt exists and it is strictly newer than the latest applied one; replay, conflict and stale are never applied; once a sequence is applied (the store then holds it as its latest sequence, written in the same transaction: trusted, tested), offering it again in any receipt state is never applied (no double credit). Total. | `admit-equal-sequence-applies`, `admit-replay-applies`, `admit-conflict-replays` | proved |
 | `progress::in_range`, `ordered`, `split_fits` | `Progress.in_range_spec`, `ordered_spec`, `split_fits_spec` | Exactly which counters are accepted. Total. | `range-skips-active`, `ordered-skips-first-pass`, `split-ignores-overflow-attempts` | proved |
+| `plan::total` | `Plan.total_spec` | The exact sum when it fits `u64`, `Overflow` exactly when it does not. Total. | `total-drops-sum` | proved |
+| `plan::pick` | `Plan.pick_spec`, `allocate_tie_to_lower_index` | The next leftover second goes to the first phase after the previous one in the order largest remainder first, lower index first among equal remainders; `None` only when no phase is left. Total. | `tie-to-higher-index` | proved |
+| `plan::allocate` (with `shares`, `hand_out`) | `Plan.allocate_spec`, `allocate_sum_exact`, `allocate_keeps_minimums`, `allocate_infeasible_exact` | On `Done` the seconds sum exactly to the budget and every phase keeps its minimum; `Infeasible` exactly when the shapes agree and the minimums sum (fitting `u64`) exceeds the budget. Total. | `leftover-dropped`, `minimum-not-added`, `infeasible-clamped` | proved |
 | `progress::track_valid` | `Progress.track_valid_spec`, `valid_accuracy_at_most_full`, `valid_track_accuracy_in_range` | A valid track has `first_correct <= first_attempted <= content`, and its first-pass accuracy basis points are computed, never over-full and at most 10000 (when the scaled numerator fits `u64`). Total. | the three above and `valid-skips-ordering` | proved |
 
 The "proved" badges above are the gate's; if the table and `proofs/claims.json`
@@ -147,7 +151,8 @@ them.
 | The store reads the receipt and latest sequence correctly, the SQL transaction is atomic, the receipt insert and the session update commit together | tested | `crates/data/src/tests/checkpoints.rs` and `disk.rs`. The kernel only decides from facts it is given. |
 | Durable acknowledgement ordering: an acknowledgement is never observed before the commit (`AckIsDurable`), single-flight dispatch, retry after failure, and a clean exit only after the final acknowledgement | model-proved (bounded) | `models/CheckpointSave.tla`, mapped to `engine::storage`, `SaveWorker`, `ProgressStore::apply_checkpoint` and `checkpoint::admit` (see *Protocol models*). Correspondence to the Rust is by review and the named runtime tests, not by proof. The kernel proves the credit decision (`admit`). |
 | Display rounding and formatting (`as_f64`, percent labels), the UI comparison with earlier sessions | tested | f64 is outside the kernel by construction. |
-| VK-03 allocation, VK-04 candidate selection, VK-05 quotas, VK-06 review queue, VL-01 fairness, VP-01/02/04/05 protocols, VR-01 replay equivalence | pending | Unchanged from `STATUS.md`; no Lean claim yet. |
+| That a feasible allocation never ends in `Overflow` (`pick` always finds a phase because the leftover is below the phase count) | tested | `crates/core/src/plan.rs` compares the kernel with the sort-based largest-remainder rule on every small input. |
+| VK-04 candidate selection, VK-05 quotas, VK-06 review queue, VL-01 fairness, VP-01/02/04/05 protocols, VR-01 replay equivalence | pending | Unchanged from `STATUS.md`; no Lean claim yet. |
 | That `cargo tauten check`'s findings are all the bugs there are | not-established | A finding is a departure from a profile, not a defect count (tauten's own benchmark: 0 of 120 sampled findings were reachable defects). |
 
 ### Trust boundary

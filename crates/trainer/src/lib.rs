@@ -8,7 +8,6 @@
 //! naked coefficients in code. Candidate utility arithmetic is bounded
 //! fixed-point (`BasisPoints`).
 
-pub mod allocation;
 pub mod candidate;
 pub mod corpus;
 pub mod lanes;
@@ -25,7 +24,7 @@ mod policy_validation;
 pub mod prose;
 pub mod review;
 
-pub use allocation::allocate;
+pub use cadence_core::plan::allocate;
 pub use candidate::{Candidate, CandidateError, UtilityInputs, scan_select};
 pub use corpus::{CorpusError, WordBand, WordPack};
 pub use lanes::{BlockPlan, LaneSlot, QuotaTracker};

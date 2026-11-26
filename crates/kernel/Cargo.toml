@@ -46,6 +46,13 @@ start_from = [
     "cadence_kernel::progress::track_valid",
     "cadence_kernel::progress::merge",
     "cadence_kernel::progress::credit_once",
+    "cadence_kernel::plan::total",
+    "cadence_kernel::plan::after_pick",
+    "cadence_kernel::plan::beats",
+    "cadence_kernel::plan::pick",
+    "cadence_kernel::plan::shares",
+    "cadence_kernel::plan::hand_out",
+    "cadence_kernel::plan::allocate",
 ]
 
 # Stated locally, not inherited: the proof gate translates this crate in a
