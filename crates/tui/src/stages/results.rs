@@ -55,6 +55,7 @@ pub(super) fn paint(
     let show_active = reserve(&mut remaining, 1);
     let show_focus = reserve(&mut remaining, 1);
     let show_goals = !view.learning.goals.is_empty() && reserve(&mut remaining, 1);
+    let show_probe = view.review.probe.is_some() && reserve(&mut remaining, 1);
     let gap = u16::from(reserve(&mut remaining, SECTION_GAP_ROWS));
     let stride = if show_table && reserve(&mut remaining, table_rows) {
         2
@@ -134,6 +135,11 @@ pub(super) fn paint(
         let line = fitting(learning_line(view), row.width);
         text(buffer, row, line, style(palette, Role::Muted));
     }
+    if show_probe {
+        let row = take(&mut body, 1);
+        let line = fitting(probe_line(view), row.width);
+        text(buffer, row, line, style(palette, Role::Text));
+    }
     if show_goals {
         let row = take(&mut body, 1);
         if let Some(line) = super::goals_line(&view.learning, row.width, true) {
@@ -152,6 +158,56 @@ fn fitting(variants: [String; 2], width: u16) -> String {
     } else {
         short
     }
+}
+
+/// The transfer probe (#65): its accuracy and pace, and the change since
+/// the previous comparable probe, or why there is none. A measurement, not
+/// a claim of improvement.
+fn probe_line(view: &PreparedView) -> [String; 2] {
+    let Some(probe) = &view.review.probe else {
+        return [String::new(), String::new()];
+    };
+    let accuracy = track_accuracy(&probe.report).ok().flatten();
+    let rate = track_rate(&probe.report).filter(|_| view.summary_rate_valid);
+    let mut figures = Vec::new();
+    if let Some(accuracy) = accuracy {
+        figures.push(percent_label(accuracy));
+    }
+    if let Some(rate) = rate {
+        figures.push(format!("{:.1} WPM", rate.as_f64()));
+    }
+    let figures = figures.join(" \u{b7} ");
+    let (long, short) = match (probe.not_comparable, &probe.previous) {
+        (Some(reason), _) => (
+            format!("not comparable: {reason}"),
+            format!("not comparable: {reason}"),
+        ),
+        (None, None) => (
+            "not enough comparable probes yet".to_string(),
+            "first comparable probe".to_string(),
+        ),
+        (None, Some(before)) => {
+            let pace = rate
+                .zip(track_rate(before))
+                .map(|(now, then)| rate_change(now, then));
+            let points = accuracy
+                .zip(track_accuracy(before).ok().flatten())
+                .map(|(now, then)| points_change(now, then));
+            let change = [pace, points]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .join(" \u{b7} ");
+            (
+                format!("{change} since the last comparable probe"),
+                format!("{change} since last"),
+            )
+        }
+    };
+    [
+        format!("Transfer probe: {figures} \u{b7} {long}"),
+        format!("Probe: {figures} \u{b7} {short}"),
+    ]
 }
 
 /// One observation from recorded first attempts (U-05), never a verdict.

@@ -85,13 +85,17 @@ struct Driver {
 
 impl Driver {
     fn new(engine: Engine) -> Result<Self, Error> {
+        Self::with_history(engine, HistorySummary::default())
+    }
+
+    fn with_history(engine: Engine, history: HistorySummary) -> Result<Self, Error> {
         let mut driver = Self { engine, last: None };
         driver.send(
             0,
             EventKind::StorageReady {
                 next_session: SessionId::new(1)?,
                 day: 100,
-                history: HistorySummary::default(),
+                history,
             },
         )?;
         Ok(driver)
@@ -1210,5 +1214,83 @@ fn an_interrupted_probe_is_not_comparable() -> TestResult {
         .and_then(|c| c.learning.as_ref())
         .and_then(|l| l.probe);
     assert_eq!(probe.map(|p| p.reason), Some(ProbeReason::EndedEarly));
+    Ok(())
+}
+
+/// #65: focus loss and a refused paste during the probe are stored and not
+/// comparable, each with its reason.
+#[test]
+fn focus_loss_and_paste_make_a_probe_not_comparable() -> TestResult {
+    use cadence_core::learning::ProbeReason;
+    for (event, reason) in [
+        (EventKind::FocusLost, ProbeReason::Paused),
+        (EventKind::PasteRejected, ProbeReason::Pasted),
+    ] {
+        let mut driver = Driver::new(probe_engine()?)?;
+        driver.key(0, Key::Enter)?;
+        let at = type_text(&mut driver, SECOND, "Probe")?;
+        driver.send(at, event)?;
+        driver.key(at + 100_000, Key::Escape)?;
+        let at = type_text(&mut driver, at + 200_000, " text")?;
+        driver.send(at + 2_000_000, EventKind::Tick)?;
+        let probe = driver
+            .finish(at + 3_000_000)?
+            .probe
+            .ok_or("probe recorded")?;
+        assert!(!probe.comparable);
+        assert_eq!(probe.reason, reason);
+    }
+    Ok(())
+}
+
+/// #65: the results compare a comparable probe with the latest earlier
+/// comparable one, and a non-comparable probe with none.
+#[test]
+fn only_comparable_probes_are_compared() -> TestResult {
+    use cadence_core::progress::TrackProgress;
+    let earlier = TrackProgress {
+        first_correct: 90,
+        first_attempted: 100,
+        correct_attempts: 100,
+        content_attempts: 110,
+        correct_units: 95,
+        active_micros: 60_000_000,
+        ..TrackProgress::empty(Track::Benchmark)
+    };
+    let history = HistorySummary {
+        comparable_probes: 1,
+        last_comparable_probe: Some(earlier.clone()),
+        ..HistorySummary::default()
+    };
+    // Clean: compared with the earlier comparable probe.
+    let mut driver = Driver::with_history(probe_engine()?, history.clone())?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "Probe text")?;
+    driver.send(at + 2_000_000, EventKind::Tick)?;
+    driver.key(at + 3_000_000, Key::Interrupt)?;
+    let review = driver
+        .engine
+        .prepare(MonoTick::from_us(at + 3_000_000))
+        .review;
+    let probe = review.probe.ok_or("probe view")?;
+    assert_eq!(probe.not_comparable, None);
+    assert_eq!(probe.previous, Some(earlier));
+    // Paused: shown, never compared.
+    let mut driver = Driver::with_history(probe_engine()?, history)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "Probe")?;
+    driver.key(at, Key::Escape)?;
+    driver.key(at + 100_000, Key::Escape)?;
+    let at = type_text(&mut driver, at + 200_000, " text")?;
+    driver.send(at + 2_000_000, EventKind::Tick)?;
+    driver.key(at + 3_000_000, Key::Interrupt)?;
+    let probe = driver
+        .engine
+        .prepare(MonoTick::from_us(at + 3_000_000))
+        .review
+        .probe
+        .ok_or("probe view")?;
+    assert_eq!(probe.not_comparable, Some("paused"));
+    assert_eq!(probe.previous, None);
     Ok(())
 }

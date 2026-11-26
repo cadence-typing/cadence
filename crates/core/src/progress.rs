@@ -353,6 +353,11 @@ pub struct HistorySummary {
     /// first, bounded by [`RECENT_SESSION_CAPACITY`]. Used only for display
     /// and like-for-like comparison.
     pub recent: Vec<SessionRecap>,
+    /// Comparable transfer probes recorded so far (#65).
+    pub comparable_probes: u64,
+    /// The latest comparable probe's track totals (#65): the only probe a
+    /// new one is compared with.
+    pub last_comparable_probe: Option<TrackProgress>,
 }
 /// Earlier sessions kept for comparison: enough to find the last
 /// session with the same track set after a few single-track runs.

@@ -136,6 +136,13 @@ impl ProgressStore {
                 probes.shown.insert(probe.passage);
                 if probe.comparable {
                     probes.last_comparable_strata = Some(probe.strata);
+                    history.comparable_probes = history.comparable_probes.saturating_add(1);
+                    history.last_comparable_probe = checkpoint
+                        .progress
+                        .tracks
+                        .iter()
+                        .find(|t| t.track == Track::Benchmark)
+                        .cloned();
                 }
                 probes.completed_with_prose_since = 0;
             } else if checkpoint.progress.status == ProgressStatus::Completed

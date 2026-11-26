@@ -731,3 +731,85 @@ fn the_pace_goal_is_named_on_the_start_screen_and_results() -> Result<(), Box<dy
     }
     Ok(())
 }
+
+fn probe_engine() -> Result<Engine, Box<dyn std::error::Error>> {
+    let units = cadence_core::validate_target(
+        "Probe text for measuring transfer.",
+        LayoutSupportsPound::US,
+    )?;
+    let passage = cadence_core::PassageId::new(77)?;
+    let mut exercise =
+        cadence_trainer::PlannedExercise::plain(units, cadence_trainer::ExerciseKind::Probe);
+    exercise.passage = Some(passage);
+    exercise.caption = Some("Transfer probe · unseen text · not practice".to_string());
+    Ok(Engine::new_plan(cadence_trainer::SessionPlan {
+        budget_seconds: 60,
+        policy_digest: cadence_core::ContentDigest::from_bytes([1; 32]),
+        corpus_digest: cadence_core::ContentDigest::from_bytes([2; 32]),
+        record: cadence_core::learning::PlanRecord {
+            seed: 0,
+            mode: cadence_core::learning::PlannerMode::Adaptive,
+            focus: Vec::new(),
+        },
+        adaptation: cadence_trainer::Adaptation {
+            hesitation_ceiling: cadence_core::Micros::from_us(1_500_000),
+            reinforcement_capacity: 8,
+            reinforcements_per_word: 1,
+            numeric_gap_entries: 0,
+        },
+        probe: cadence_trainer::ProbePlan::Planned(cadence_trainer::PlannedProbe {
+            passage,
+            strata: 1,
+            same_strata: true,
+        }),
+        pace: Vec::new(),
+        phases: vec![cadence_trainer::PlannedPhase {
+            phase: cadence_trainer::Phase::Probe,
+            seconds: 2,
+            exercises: vec![exercise],
+        }],
+    })?)
+}
+
+/// #65: the start screen says today includes a probe; the probe is
+/// captioned; the results name the probe and, with no earlier comparable
+/// probe, say so; whole at 60x18 and 100x32; no efficacy claim.
+#[test]
+fn the_transfer_probe_is_named_and_measured() -> Result<(), Box<dyn std::error::Error>> {
+    for (columns, rows) in [(60, 18), (100, 32)] {
+        let mut engine = probe_engine()?;
+        let start = render(&engine, 0, columns, rows);
+        assert!(
+            start.contains("Transfer probe today: unseen text, not practice"),
+            "{columns}x{rows}:\n{start}"
+        );
+        engine.reduce(envelope(1, 1_000, EventKind::Key(Key::Enter)));
+        let mut at = 1_000;
+        for (seq, c) in "Probe text".chars().enumerate() {
+            at += 100_000;
+            engine.reduce(envelope(u64::try_from(seq)? + 2, at, content(c)));
+        }
+        let practice = render(&engine, at, columns, rows);
+        assert!(
+            practice.contains("Transfer probe · unseen text · not practice"),
+            "{columns}x{rows}:\n{practice}"
+        );
+        engine.reduce(envelope(12, at + 3_000_000, EventKind::Tick));
+        engine.reduce(envelope(13, at + 4_500_000, EventKind::Key(Key::Enter)));
+        let results = render(&engine, at + 4_500_000, columns, rows);
+        if rows >= 24 {
+            assert!(
+                results.contains("not enough comparable probes yet")
+                    || results.contains("first comparable probe"),
+                "{columns}x{rows}:\n{results}"
+            );
+        }
+        for word in ["improve", "better", "faster", "gain"] {
+            assert!(
+                !results.to_lowercase().contains(word),
+                "efficacy wording: {word}"
+            );
+        }
+    }
+    Ok(())
+}

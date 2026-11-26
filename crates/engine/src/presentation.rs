@@ -139,6 +139,7 @@ impl Engine {
             adaptive: evidence.plan.mode == PlannerMode::Adaptive,
             targets: self.target_groups(),
             goals: self.learning.evidence.pace.clone(),
+            probe_today: self.plan.probe.planned().is_some(),
             focus: evidence
                 .plan
                 .focus

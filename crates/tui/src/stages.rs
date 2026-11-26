@@ -84,7 +84,9 @@ fn landing(
     let gap = u16::from(spacious);
     let purpose_rows = if area.height >= 11 { 2 } else { 1 };
     let baseline = u16::from(area.height >= 12);
-    let goals = u16::from(area.height >= 12 && !view.learning.goals.is_empty());
+    let goals = u16::from(
+        area.height >= 12 && (!view.learning.goals.is_empty() || view.learning.probe_today),
+    );
     let height = brand
         .saturating_add(gap.saturating_mul(5))
         .saturating_add(6)
@@ -150,7 +152,24 @@ fn landing(
         text(buffer, row, line, style(palette, Role::Muted));
         if goals != 0 {
             let row = take(&mut body, 1);
-            if let Some(line) = goals_line(&view.learning, row.width, false) {
+            // The probe is named first: it is what changes today (#65).
+            let probe = "Transfer probe today: unseen text, not practice";
+            let line = match (
+                view.learning.probe_today,
+                goals_line(&view.learning, row.width, false),
+            ) {
+                (true, Some(goals)) => {
+                    let both = format!("{probe}   {goals}");
+                    Some(if both.chars().count() <= usize::from(row.width) {
+                        both
+                    } else {
+                        probe.to_string()
+                    })
+                }
+                (true, None) => Some(probe.to_string()),
+                (false, goals) => goals,
+            };
+            if let Some(line) = line {
                 text(buffer, row, line, style(palette, Role::Muted));
             }
         }

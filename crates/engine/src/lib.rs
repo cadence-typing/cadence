@@ -23,7 +23,7 @@ use cadence_trainer::{Phase, SessionPlan};
 pub use events::{EventEnvelope, EventKind, Key};
 use storage::Storage;
 pub use view::{
-    Baseline, LearningView, PauseReason, PreparedView, ReviewContext, ScreenView, Slip,
+    Baseline, LearningView, PauseReason, PreparedView, ProbeView, ReviewContext, ScreenView, Slip,
     StatusFigures, TargetGroup, UnitSpan,
 };
 use view::{MINIMUM_COLUMNS, MINIMUM_ROWS, TextSize, TextSupport};

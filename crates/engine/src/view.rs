@@ -255,6 +255,8 @@ pub struct LearningView {
     pub targets: Vec<TargetGroup>,
     /// Each typing track's pace goal for this session (#62).
     pub goals: Vec<cadence_core::learning::PaceRecord>,
+    /// Today's session includes a transfer probe (#65).
+    pub probe_today: bool,
     /// Focus skills as typed text, strongest first.
     pub focus: Vec<String>,
     /// Due spaced-review words planned this session.
@@ -341,6 +343,19 @@ pub struct ReviewContext {
     pub tracks: Vec<Baseline>,
     /// Most frequent slips, worst first.
     pub slips: Vec<Slip>,
+    /// This session's transfer probe, if it had one (#65).
+    pub probe: Option<ProbeView>,
+}
+
+/// A transfer probe's result line (#65).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProbeView {
+    /// The probe's own totals.
+    pub report: cadence_core::progress::TrackProgress,
+    /// Why it is not comparable, if it is not ("paused", "ended early", …).
+    pub not_comparable: Option<&'static str>,
+    /// The latest earlier comparable probe, when this one is comparable.
+    pub previous: Option<cadence_core::progress::TrackProgress>,
 }
 
 /// Which screen is prepared.

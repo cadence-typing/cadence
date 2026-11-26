@@ -4,9 +4,9 @@ use std::collections::BTreeSet;
 
 use super::{Engine, Screen};
 use crate::summary::{SummaryMetrics, percent_label};
-use crate::view::{Baseline, RateUnit, ReviewContext, Slip};
+use crate::view::{Baseline, ProbeView, RateUnit, ReviewContext, Slip};
 use cadence_core::calendar::days_ago;
-use cadence_core::learning::{KeyLane, Skill};
+use cadence_core::learning::{KeyLane, ProbeReason, Skill};
 use cadence_core::progress::{SessionRecap, Track, TrackProgress};
 
 /// An earlier session's rows without its closing review (#60).
@@ -102,7 +102,35 @@ impl Engine {
             .collect();
         slips.sort_by(|a, b| b.errors.cmp(&a.errors).then(a.attempts.cmp(&b.attempts)));
         slips.truncate(SLIPS_SHOWN);
+        let probe = self.learning.evidence.probe.and_then(|record| {
+            let report = self
+                .tracks
+                .iter()
+                .find(|t| t.track == Track::Benchmark)?
+                .clone();
+            let not_comparable = (!record.comparable).then_some(match record.reason {
+                ProbeReason::Comparable => "comparable",
+                ProbeReason::CutShort => "cut short",
+                ProbeReason::Paused => "paused",
+                ProbeReason::EndedEarly => "ended early",
+                ProbeReason::Pasted => "paste refused",
+                ProbeReason::Synthetic => "synthetic session",
+                ProbeReason::OtherStrata => "different kind of text",
+            });
+            // Only an earlier comparable probe is ever compared with.
+            let previous = if record.comparable {
+                self.history.last_comparable_probe.clone()
+            } else {
+                None
+            };
+            Some(ProbeView {
+                report,
+                not_comparable,
+                previous,
+            })
+        });
         ReviewContext {
+            probe,
             ended_early: self.ended_early,
             session,
             tracks: per_track,
