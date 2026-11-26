@@ -1,0 +1,8 @@
+session 1: words goal Some(NoBaseline) cpm None; probe today: false
+session 2: words goal Some(Steady) cpm Some(300); probe today: false
+session 3: words goal Some(Steady) cpm Some(300); probe today: false
+session 4: words goal Some(Raised) cpm Some(309); probe today: false
+session 5: words goal Some(Raised) cpm Some(319); probe today: false
+session 6: words goal Some(Raised) cpm Some(329); probe today: false
+session 7: words goal Some(Raised) cpm Some(339); probe today: false
+session 8: words goal Some(Lowered) cpm Some(322); probe today: true

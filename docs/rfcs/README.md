@@ -60,7 +60,7 @@ Creation order. New proposals use `—` in the Legacy column.
 | — | [Evidence attribution and repeat-gap decisions in the kernel](2026-11-26-evidence-and-repeat-gap-decisions.md) | accepted | complete | [#54](https://github.com/cadence-typing/cadence/issues/54) |
 | — | [A slow save pauses practice instead of invalidating the session](2026-11-26-slow-save-pauses-practice.md) | accepted | complete | [#51](https://github.com/cadence-typing/cadence/issues/51) |
 | — | [Review days are local-calendar days with a recorded offset](2026-11-26-local-calendar-days.md) | accepted | not-started | [#52](https://github.com/cadence-typing/cadence/issues/52) |
-| — | [Pace targets and benchmark probes](2026-11-26-pace-targets-and-benchmark-probes.md) | accepted | not-started | [#6](https://github.com/cadence-typing/cadence/issues/6) |
+| — | [Pace targets and benchmark probes](2026-11-26-pace-targets-and-benchmark-probes.md) | accepted | complete | [#6](https://github.com/cadence-typing/cadence/issues/6) |
 | — | [Headless driver and replay: proved request admission and barriers](2026-11-26-headless-driver-and-replay.md) | accepted | not-started | [#4](https://github.com/cadence-typing/cadence/issues/4) |
 | — | [Configuration, keyboard layout and the settings surface](2026-11-26-configuration-layout-and-settings.md) | accepted | not-started | [#9](https://github.com/cadence-typing/cadence/issues/9) |
 | — | [Local text imports and Rust/shell practice, kept apart from scores](2026-11-26-local-imports-and-code-practice.md) | accepted | not-started | [#10](https://github.com/cadence-typing/cadence/issues/10) |

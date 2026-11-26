@@ -2,6 +2,12 @@
 
 mod cli;
 mod practice;
+#[cfg(test)]
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "a test driver over small bounded virtual times and counts"
+)]
+mod scripted_sessions;
 
 use std::error::Error;
 use std::process::ExitCode;

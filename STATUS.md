@@ -63,6 +63,32 @@ resume a mid-word exercise or claim an uninterrupted timing trial. Store schema
 measurements or resetting it. Keep that file and use a new explicit profile
 for feedback if such a draft database exists.
 
+## Beta.1 pace goals, transfer probes and a vetted word pack
+
+[RFC: pace targets and benchmark probes](docs/rfcs/2026-11-26-pace-targets-and-benchmark-probes.md),
+[decision 0006: word vetting](docs/decisions/0006-word-vetting.md).
+
+- **Pace goals.** Each typing track has a suggested pace (correct units per
+  minute; digits per minute on the numpad), starting from the median of its
+  qualifying blocks. It rises by at most 3% after enough clean blocks from
+  enough sessions and falls by at most 5% after a block below 95%, by the
+  proved `pace::decide`. A lowered words goal draws half the next session's
+  target words from the most familiar band. Goals show on the start screen
+  and the results; nothing on the practice screen moves.
+- **Transfer probes.** After every seventh completed session with prose, the
+  first 120 s of prose is a probe on a passage this profile has never seen,
+  from 60 purpose-written passages in strata classes. Its result is a
+  separate row, compared only with the previous comparable probe; a paused,
+  early-ended, pasted-into or synthetic probe is stored and marked not
+  comparable. Probes never count toward the headline.
+- **Vetted word pack.** 22,000 dictionary words (SCOWL), without
+  abbreviations, profanity or reviewed slurs; ids of kept words unchanged.
+- **Schema 5**: pace targets, probes and session provenance. Back up before
+  downgrading: alpha.7 refuses a schema-5 profile.
+
+Limits: whether a pace goal or a probe helps anyone improve is an empirical
+question and is not claimed; probe comparisons need several probes.
+
 ## Alpha.7 deliberate practice in every phase
 
 [RFC: deliberate practice in every phase](docs/rfcs/2026-11-26-deliberate-practice-in-every-phase.md).
@@ -257,7 +283,7 @@ this refresh.
 |---|---|---|
 | P0 / A-01, B-02 | in_progress | Pinned Rust image/toolchain, Cargo lock, musl C compiler, architecture feedback check. Proof-tool compatibility, full dependency/security audit and shared CI admission remain unqualified. |
 | P1 / L-02–03, VK-01–02 | implemented, behavior checked | `core/{ledger,metrics,session}`, `engine/{practice,presentation}`; scoring fixtures/properties and live corrected-entry smoke. The scoring decisions now live in `crates/kernel`, which production calls and which carries Lean theorems over its Aeneas translation (first-attempt write-once, counters, pace and accuracy arithmetic, active time, track validity, checkpoint admission); see [docs/TAUTEN.md](docs/TAUTEN.md) for each claim's badge. Ledger plumbing around the kernel stays tested. |
-| P2 / P-02–04, VK-03–06 | in_progress | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Since alpha.7 every phase but prose is adaptive: per-group focus for the number row and numpad (#46, #5), warm-up retention checks (#47), numeric and prose misses in the loop (#59, #48), a typed closing review on its own track excluded from the headline (#49, #60), every repeat labelled (#7) and targets named on screen (#50). Pace hysteresis (`pace.rs`) and benchmark probes remain unwired; retention/benchmark comparisons remain unfinished. The 20k vetted vocabulary bar is met by `words-en-v2` (#8). |
+| P2 / P-02–04, VK-03–06 | in_progress | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Since alpha.7 every phase but prose is adaptive: per-group focus for the number row and numpad (#46, #5), warm-up retention checks (#47), numeric and prose misses in the loop (#59, #48), a typed closing review on its own track excluded from the headline (#49, #60), every repeat labelled (#7) and targets named on screen (#50). Since beta.1 pace hysteresis is a proved kernel decision (`kernel::pace`, #61) whose goals are recorded, shown and applied (#62), transfer probes run on unseen purpose-written text with proved due and comparability decisions (`kernel::benchmark`, #63–#65), and the 20k vetted vocabulary bar is met by `words-en-v2` (#8). Nothing in P2 remains open in this milestone; retention comparisons across probes need more recorded probes to say anything (empirical, not a code gap). |
 | P3 / D-01–02, VP-01–03 | in_progress | `core/{progress,learning}`, `data/{store,schema,records,learning_rows,files,transfer}`, schema 3 with migration/round-trip/regression tests, `engine/storage`, `runtime/writer`. One retained writer/result slot, full-key admission, checkpoints, retry, lock, reopen, backup/export implemented. General job-registry/async planner, immutable observation chunks, full crash/storage campaigns and formal correspondence remain unfinished. |
 | P4 / H-01–04, VP-04–05 | pending | No shipped NDJSON driver, causal/durable barriers or replay. Shared cell/row-rendition capture is rendering evidence, not a completed headless protocol. |
 | P5 / U-01–05 | in_progress | `engine/{view,summary}`, `tui/{paint,stages,stages/results,stages/headlines,modeline,practice,native_text}` share cells plus native row metadata; `runtime/{presenter,text_protocol}` present and negotiate it. Reducer/summary regressions preserve correction history, weighted metrics, timing and resize pause. Full destinations/settings/layout setup, imports and editable themes remain unfinished. |

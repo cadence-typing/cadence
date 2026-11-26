@@ -4,6 +4,15 @@ User-visible changes per release. Design decisions live in the [RFC registry](do
 
 ## [Unreleased]
 
+## [0.1.0-beta.1] — Pace goals, transfer probes and a vetted word pack (2026-11-26)
+
+Design: [RFC: pace targets and benchmark probes](docs/rfcs/2026-11-26-pace-targets-and-benchmark-probes.md), [decision 0006](docs/decisions/0006-word-vetting.md).
+
+- **Store schema 5.** Migration is automatic; it adds pace goals, transfer probes and each session's provenance. alpha.7 cannot open a schema-5 profile (`SchemaTooNew`), so back up before downgrading. [#64](https://github.com/cadence-typing/cadence/issues/64)
+- Each typing track has a pace goal, starting from your own qualifying blocks: "Words goal 52 WPM · raised". It rises at most 3% after clean blocks over several sessions and falls at most 5% after a sloppy block; after a lowering, half the next session's target words are familiar ones. The decision is a proved kernel function. [#61](https://github.com/cadence-typing/cadence/issues/61), [#62](https://github.com/cadence-typing/cadence/issues/62)
+- After every seventh completed session with prose, a 2-minute transfer probe on unseen, purpose-written text ("Transfer probe · unseen text · not practice") measures how your skill carries over; the results compare it only with your previous comparable probe and say when one was paused or ended early. [#63](https://github.com/cadence-typing/cadence/issues/63), [#64](https://github.com/cadence-typing/cadence/issues/64), [#65](https://github.com/cadence-typing/cadence/issues/65)
+- The word pack is vetted: 22,000 dictionary words without abbreviations, profanity or reviewed slurs. Words you have history on keep their identity; a due word that left the pack is named once and dropped. Plans change. [#8](https://github.com/cadence-typing/cadence/issues/8)
+
 ## [0.1.0-alpha.7] — Deliberate practice in every phase (2026-11-26)
 
 Deliberate practice in every phase. Design: [RFC](docs/rfcs/2026-11-26-deliberate-practice-in-every-phase.md).

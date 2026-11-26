@@ -1,0 +1,1 @@
+corpus gate: 22000 words (core 1878, common 6899, tail 13223), digest e9d5e89c99c514374b7a8cd6ce5406d9f3f8d7effb9a1a26c12ab4d92afcc113; prose 2643 passages, 863003 units; 60 transfer probes

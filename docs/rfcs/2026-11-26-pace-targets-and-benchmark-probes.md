@@ -2,7 +2,7 @@
 rfc: "2026-11-26-pace-targets-and-benchmark-probes"
 title: "Pace targets and benchmark probes"
 status: accepted
-implementation: not-started
+implementation: complete
 authors:
   - claude-fable (grooming agent)
 created: 2026-11-26

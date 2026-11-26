@@ -22,7 +22,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
         "lean:first.settle": "fnv1a64:566c72e13b472466",
@@ -102,7 +102,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:first.FirstCounts": "fnv1a64:951749e3ebb35e0b",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -178,7 +178,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:first.FirstCounts": "fnv1a64:951749e3ebb35e0b",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -254,7 +254,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:counters.matched": "fnv1a64:2ad1792852f58d8d",
         "mutant:matched-ignores-position": "fnv1a64:0529f9d47b522232",
@@ -311,7 +311,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -432,7 +432,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -488,7 +488,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.fraction": "fnv1a64:49e76f9c2e339bbe",
@@ -528,7 +528,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.MICROSECONDS_PER_MINUTE": "fnv1a64:0e6d1d8a66fb2711",
@@ -612,7 +612,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.MICROSECONDS_PER_MINUTE": "fnv1a64:0e6d1d8a66fb2711",
@@ -674,7 +674,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:ratio.BASIS_POINTS_FULL": "fnv1a64:599654242e42c614",
         "lean:ratio.BasisPoints": "fnv1a64:bda07eef227211d5",
@@ -756,7 +756,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:time.Through": "fnv1a64:2c7a5df47aa92b14",
         "lean:time.segment_active": "fnv1a64:2f71d90c8f3e62f6",
@@ -833,7 +833,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:time.in_window": "fnv1a64:9d5f256c9926dafd",
         "mutant:window-deadline-inclusive": "fnv1a64:7838167070585533",
@@ -885,7 +885,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:checkpoint.Admission": "fnv1a64:730283b1519f480c",
         "lean:checkpoint.Receipt": "fnv1a64:7f7df42fddf3f375",
@@ -975,7 +975,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:progress.COUNTER_MAXIMUM": "fnv1a64:3224be1f2d07a607",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1021,7 +1021,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
         "lean:progress.ordered": "fnv1a64:3488d8720654b667",
@@ -1066,7 +1066,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
         "lean:progress.split_fits": "fnv1a64:d649c86921960f7a",
@@ -1116,7 +1116,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:progress.COUNTER_MAXIMUM": "fnv1a64:3224be1f2d07a607",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1233,7 +1233,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:session.Clock": "fnv1a64:f0e1666bc976be48",
         "lean:session.Event": "fnv1a64:243e3aea21d0e7fd",
@@ -1345,7 +1345,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:progress.Merge": "fnv1a64:9618b5d2b3688a0a",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1402,7 +1402,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:progress.credit_once": "fnv1a64:31f0ee098efec42e",
         "mutant:credit-allows-equal": "fnv1a64:97d7b603ca0e68dd",
@@ -1440,7 +1440,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -1502,7 +1502,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
         "lean:first.settle": "fnv1a64:566c72e13b472466",
@@ -1542,7 +1542,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_insert": "fnv1a64:f7361bb3530d6e3a",
@@ -1581,7 +1581,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_deletion": "fnv1a64:b3e8154528cdf7a8",
@@ -1620,7 +1620,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_interrupt": "fnv1a64:f351f7f2c614224f",
@@ -1659,7 +1659,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.clean": "fnv1a64:14037ade3f2de508",
@@ -1698,7 +1698,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:ledger.complete": "fnv1a64:710ade383499c619",
         "mutant:complete-ignores-tail": "fnv1a64:045cbb98d4e9de86",
@@ -1736,7 +1736,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:plan.Sum": "fnv1a64:d5ddda56f46bb138",
         "lean:plan.total": "fnv1a64:d4470cfbce1e33e6",
@@ -1790,7 +1790,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:plan.after_pick": "fnv1a64:e406a69939dd8f95",
         "lean:plan.beats": "fnv1a64:94647b5915bbd1af",
@@ -1857,7 +1857,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:plan.Allocation": "fnv1a64:f445157ba4906118",
         "lean:plan.Sum": "fnv1a64:d5ddda56f46bb138",
@@ -1964,7 +1964,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:select.BASIS": "fnv1a64:486c3a7696ffac07",
         "lean:select.Terms": "fnv1a64:d4617d12709bf9d2",
@@ -2063,7 +2063,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:select.BASIS": "fnv1a64:486c3a7696ffac07",
         "lean:select.Candidate": "fnv1a64:b43a8b9c52d9dfb9",
@@ -2194,7 +2194,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:lanes.Admit": "fnv1a64:3f01c5f05f8f71ed",
         "lean:lanes.Facts": "fnv1a64:6cdce9a2adbbd6ae",
@@ -2301,7 +2301,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:lanes.Admit": "fnv1a64:3f01c5f05f8f71ed",
         "lean:lanes.Facts": "fnv1a64:6cdce9a2adbbd6ae",
@@ -2375,7 +2375,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:lanes.complete": "fnv1a64:5a502d324ca354fe",
         "mutant:complete-allows-under": "fnv1a64:d68a99c96f53f42b",
@@ -2422,7 +2422,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:review.FIRST_RUNG": "fnv1a64:1d97894f178b26b5",
         "lean:review.State": "fnv1a64:c16cb4d5d44b818f",
@@ -2642,7 +2642,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:review.is_due": "fnv1a64:12f534ead6bf7151",
         "mutant:due-strictly-after": "fnv1a64:07be8c1bac26d759",
@@ -2684,7 +2684,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:queue.Admit": "fnv1a64:b9993c8cebfe79ac",
         "lean:queue.admit": "fnv1a64:5483f4571dddb3fc",
@@ -2770,7 +2770,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:label.Facts": "fnv1a64:673a83a88df8c890",
         "lean:label.Label": "fnv1a64:a8f209a2f1328d61",
@@ -2831,7 +2831,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:cycle.Advance": "fnv1a64:9a97d15aacc4fae6",
         "lean:cycle.advance": "fnv1a64:22e169fb75e3e53b",
@@ -2873,7 +2873,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:slots.SlotLane": "fnv1a64:0033687e7600967f",
         "lean:slots.substitute": "fnv1a64:8d4897b2a012968e",
@@ -2944,7 +2944,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:focus.WEIGHT_ONE": "fnv1a64:f041aae5636e8f91",
         "lean:focus.decay_weight": "fnv1a64:ffcf647340cf1984",
@@ -3023,7 +3023,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
         "lean:focus.WEIGHT_ONE": "fnv1a64:f041aae5636e8f91",
@@ -3076,7 +3076,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
         "lean:focus.hesitation_bp": "fnv1a64:d4f9b13ad524db46",
@@ -3123,7 +3123,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
         "lean:focus.Candidate": "fnv1a64:d50854a69c29d3fb",
@@ -3138,6 +3138,7 @@
         "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
         "proof:Proofs/Focus.lean": "fnv1a64:fd46ac0df61cce65",
         "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
+        "proof:Proofs/Pace.lean": "fnv1a64:ae042fa1c6206c32",
         "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
         "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
@@ -3213,7 +3214,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
         "lean:focus.Candidate": "fnv1a64:d50854a69c29d3fb",
@@ -3291,7 +3292,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:evidence.pair_first_correct": "fnv1a64:da49bcb3429347e7",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -3332,7 +3333,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:evidence.Interval": "fnv1a64:45e981a88b5a441f",
         "lean:evidence.Mark": "fnv1a64:c4adda42a9844404",
@@ -3433,7 +3434,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:session.overdue": "fnv1a64:2fc58f54c8223027",
         "mutant:overdue-inclusive": "fnv1a64:38807d8e5fe10591",
@@ -3470,7 +3471,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:session.Outcome": "fnv1a64:74b9ab8ff93db5d9",
         "lean:session.Status": "fnv1a64:d2284880f7f82115",
@@ -3507,6 +3508,381 @@
     },
     {
       "crate": "cadence-kernel",
+      "file": "crates/kernel/src/pace.rs",
+      "function": "pace::decide",
+      "lean": "cadence_kernel.pace.decide",
+      "theorems": [
+        "Proofs.Pace.no_baseline_without_target",
+        "Proofs.Pace.raise_bounded",
+        "Proofs.Pace.lower_bounded",
+        "Proofs.Pace.raise_needs_evidence",
+        "Proofs.Pace.low_block_lowers",
+        "Proofs.Pace.between_bands_steady",
+        "Proofs.Pace.decide_total"
+      ],
+      "total": "Proofs.Pace.decide_total",
+      "subsumes": [],
+      "mutants": [
+        "raise-unbounded",
+        "raise-on-one-session",
+        "raise-ignores-floor",
+        "lower-on-equal",
+        "lower-below-one",
+        "degradation-ignored"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
+      "inputs": {
+        "lean:pace.Block": "fnv1a64:2766b6b77e17bfc3",
+        "lean:pace.Decision": "fnv1a64:9cbad356e1211d70",
+        "lean:pace.EMPTY": "fnv1a64:e64f7567e746c8b4",
+        "lean:pace.FULL_BP": "fnv1a64:b85c24db58772a83",
+        "lean:pace.Policy": "fnv1a64:65815521e28feb4e",
+        "lean:pace.ROUND_UP": "fnv1a64:e9abd14ddb749f58",
+        "lean:pace.Tally": "fnv1a64:58bbf0b4999a4c8f",
+        "lean:pace.absorb": "fnv1a64:00756a8c65b204b7",
+        "lean:pace.attempt_worse": "fnv1a64:66d9a9eebcc56d6c",
+        "lean:pace.block_accuracy_below": "fnv1a64:e77e7c5691359f84",
+        "lean:pace.decide": "fnv1a64:8759d8b17676e277",
+        "lean:pace.latest_below": "fnv1a64:0126e546e73bef5b",
+        "lean:pace.lower": "fnv1a64:0d97c1ba1b3322ea",
+        "lean:pace.qualifies": "fnv1a64:d00b1a894270e19a",
+        "lean:pace.raise": "fnv1a64:32c63ec1e3527702",
+        "lean:pace.share": "fnv1a64:8efadd36907aef63",
+        "lean:pace.tally": "fnv1a64:e3dc6357ced7a645",
+        "lean:pace.tally_loop": "fnv1a64:605dcc52f1a15bd2",
+        "lean:pace.tally_loop.body": "fnv1a64:8e8919e95ad9b78b",
+        "mutant:degradation-ignored": "fnv1a64:3510de77f24c5d47",
+        "mutant:lower-below-one": "fnv1a64:6282156239ddfa3b",
+        "mutant:lower-on-equal": "fnv1a64:c75e6cd06f14eadb",
+        "mutant:raise-ignores-floor": "fnv1a64:d82d538ed34ea618",
+        "mutant:raise-on-one-session": "fnv1a64:72d8b499c82f7901",
+        "mutant:raise-unbounded": "fnv1a64:4f8cf5b467512414",
+        "proof:Proofs/Pace.lean": "fnv1a64:ae042fa1c6206c32",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "raise-unbounded",
+          "status": "killed",
+          "broken": [
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence"
+          ],
+          "direct": [
+            "Proofs.Pace.raise_spec"
+          ],
+          "dependent": [
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_cases",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence"
+          ]
+        },
+        {
+          "mutant": "raise-on-one-session",
+          "status": "killed",
+          "broken": [
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence"
+          ],
+          "direct": [
+            "Proofs.Pace.decide_cases"
+          ],
+          "dependent": [
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence"
+          ]
+        },
+        {
+          "mutant": "raise-ignores-floor",
+          "status": "killed",
+          "broken": [
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence"
+          ],
+          "direct": [
+            "Proofs.Pace.qualifies_eq",
+            "Proofs.Pace.qualifies_spec"
+          ],
+          "dependent": [
+            "Proofs.Pace.absorb_spec",
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_cases",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence",
+            "Proofs.Pace.tally_loop_spec",
+            "Proofs.Pace.tally_spec"
+          ]
+        },
+        {
+          "mutant": "lower-on-equal",
+          "status": "killed",
+          "broken": [
+            "Proofs.Pace.below_exact",
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence"
+          ],
+          "direct": [
+            "Proofs.Pace.below_eq",
+            "Proofs.Pace.below_exact"
+          ],
+          "dependent": [
+            "Proofs.Pace.absorb_spec",
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_cases",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.latest_spec",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.qualifies_eq",
+            "Proofs.Pace.qualifies_spec",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence",
+            "Proofs.Pace.tally_loop_spec",
+            "Proofs.Pace.tally_spec"
+          ]
+        },
+        {
+          "mutant": "lower-below-one",
+          "status": "killed",
+          "broken": [
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence"
+          ],
+          "direct": [
+            "Proofs.Pace.lower_spec"
+          ],
+          "dependent": [
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_cases",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence"
+          ]
+        },
+        {
+          "mutant": "degradation-ignored",
+          "status": "killed",
+          "broken": [
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence"
+          ],
+          "direct": [
+            "Proofs.Pace.decide_cases"
+          ],
+          "dependent": [
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/pace.rs",
+      "function": "pace::block_accuracy_below",
+      "lean": "cadence_kernel.pace.block_accuracy_below",
+      "theorems": [
+        "Proofs.Pace.below_exact"
+      ],
+      "total": "Proofs.Pace.below_exact",
+      "subsumes": [],
+      "mutants": [
+        "below-rounds"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
+      "inputs": {
+        "lean:pace.FULL_BP": "fnv1a64:b85c24db58772a83",
+        "lean:pace.block_accuracy_below": "fnv1a64:e77e7c5691359f84",
+        "mutant:below-rounds": "fnv1a64:6b88ab6e540c929b",
+        "proof:Proofs/Pace.lean": "fnv1a64:ae042fa1c6206c32",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "below-rounds",
+          "status": "killed",
+          "broken": [
+            "Proofs.Pace.below_exact",
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence"
+          ],
+          "direct": [
+            "Proofs.Pace.below_eq",
+            "Proofs.Pace.below_exact"
+          ],
+          "dependent": [
+            "Proofs.Pace.absorb_spec",
+            "Proofs.Pace.between_bands_steady",
+            "Proofs.Pace.decide_cases",
+            "Proofs.Pace.decide_total",
+            "Proofs.Pace.latest_spec",
+            "Proofs.Pace.low_block_lowers",
+            "Proofs.Pace.lower_bounded",
+            "Proofs.Pace.qualifies_eq",
+            "Proofs.Pace.qualifies_spec",
+            "Proofs.Pace.raise_bounded",
+            "Proofs.Pace.raise_needs_evidence",
+            "Proofs.Pace.tally_loop_spec",
+            "Proofs.Pace.tally_spec"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/benchmark.rs",
+      "function": "benchmark::due",
+      "lean": "cadence_kernel.benchmark.due",
+      "theorems": [
+        "Proofs.Benchmark.due_exact"
+      ],
+      "total": "Proofs.Benchmark.due_exact",
+      "subsumes": [],
+      "mutants": [
+        "due-off-by-one",
+        "no-passage-hidden"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
+      "inputs": {
+        "lean:benchmark.Due": "fnv1a64:5e0aff1dfe5990b9",
+        "lean:benchmark.due": "fnv1a64:23623c770c0a625f",
+        "mutant:due-off-by-one": "fnv1a64:585fddb66d8777fd",
+        "mutant:no-passage-hidden": "fnv1a64:a9f77da4c0c308a3",
+        "proof:Proofs/Benchmark.lean": "fnv1a64:79ddee1e588148d6",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "due-off-by-one",
+          "status": "killed",
+          "broken": [
+            "Proofs.Benchmark.due_exact"
+          ],
+          "direct": [
+            "Proofs.Benchmark.due_exact"
+          ]
+        },
+        {
+          "mutant": "no-passage-hidden",
+          "status": "killed",
+          "broken": [
+            "Proofs.Benchmark.due_exact"
+          ],
+          "direct": [
+            "Proofs.Benchmark.due_exact"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/benchmark.rs",
+      "function": "benchmark::comparable",
+      "lean": "cadence_kernel.benchmark.comparable",
+      "theorems": [
+        "Proofs.Benchmark.interrupted_never_comparable",
+        "Proofs.Benchmark.synthetic_never_comparable",
+        "Proofs.Benchmark.comparable_iff_all"
+      ],
+      "total": "Proofs.Benchmark.comparable_iff_all",
+      "subsumes": [],
+      "mutants": [
+        "paused-comparable",
+        "synthetic-comparable"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
+      "inputs": {
+        "lean:benchmark.Facts": "fnv1a64:d8f36e62f38a711c",
+        "lean:benchmark.comparable": "fnv1a64:8ac567dc82cded43",
+        "mutant:paused-comparable": "fnv1a64:61eb881a9c73ab05",
+        "mutant:synthetic-comparable": "fnv1a64:da54a3767fb55afa",
+        "proof:Proofs/Benchmark.lean": "fnv1a64:79ddee1e588148d6",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "paused-comparable",
+          "status": "killed",
+          "broken": [
+            "Proofs.Benchmark.comparable_iff_all",
+            "Proofs.Benchmark.interrupted_never_comparable"
+          ],
+          "direct": [
+            "Proofs.Benchmark.comparable_iff_all",
+            "Proofs.Benchmark.interrupted_never_comparable"
+          ]
+        },
+        {
+          "mutant": "synthetic-comparable",
+          "status": "killed",
+          "broken": [
+            "Proofs.Benchmark.comparable_iff_all",
+            "Proofs.Benchmark.synthetic_never_comparable"
+          ],
+          "direct": [
+            "Proofs.Benchmark.comparable_iff_all",
+            "Proofs.Benchmark.synthetic_never_comparable"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
       "file": "crates/kernel/src/calendar.rs",
       "function": "calendar::local_day",
       "lean": "cadence_kernel.calendar.local_day",
@@ -3524,7 +3900,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:calendar.DAY_SECONDS": "fnv1a64:d9609a2113097e44",
         "lean:calendar.Day": "fnv1a64:2f68f89c4a2d896e",
@@ -3602,7 +3978,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:calendar.days_ago": "fnv1a64:475cb9f41df52cfb",
         "mutant:days-ago-wraps": "fnv1a64:f3b67f2147f7a0ea",
@@ -3638,7 +4014,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:531788784c228e9b",
+      "fingerprint": "fnv1a64:bd582e8decc4a7aa",
       "inputs": {
         "lean:lanes.gap_admissible": "fnv1a64:3459b16ae3d3adca",
         "mutant:gap-ignored": "fnv1a64:424917a919999456",
@@ -3670,5 +4046,5 @@
       ]
     }
   ],
-  "commit": "5c30795843bcb3d72264adc842b5dc406291ae0b"
+  "commit": "aaee5447f4835e6105b24ca6703ce15412f9228e"
 }
