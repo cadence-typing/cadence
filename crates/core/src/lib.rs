@@ -28,6 +28,7 @@ pub mod plan;
 pub mod ports;
 pub mod progress;
 pub mod queue;
+pub mod request;
 pub mod review;
 pub mod select;
 pub mod session;

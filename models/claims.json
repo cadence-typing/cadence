@@ -232,6 +232,33 @@
         "FeedbackLoop-admit-duplicate.cfg": "f84459108d41f9484504247f91984025af2db68f28f1c27d6f994a7fb07f2c17",
         "FeedbackLoop-starve-due.cfg": "dc84ecfd7f589529ff0c3608db0c3d8337716b576aa869d7ea10c9c5808bfc83"
       }
+    },
+    {
+      "module": "RequestCache",
+      "status": "design-probe",
+      "invariants": [
+        "AtMostOnceApply",
+        "CacheBounded",
+        "ConflictNeverMutates",
+        "ExpiredNeverMutates",
+        "TypeOK"
+      ],
+      "properties": [],
+      "mutants": [
+        "RequestCache-conflict-applies.cfg violates ConflictNeverMutates",
+        "RequestCache-evicted-reexecutes.cfg violates ExpiredNeverMutates",
+        "RequestCache-replay-reapplies.cfg violates AtMostOnceApply"
+      ],
+      "production_symbols": [],
+      "runtime_tests": [],
+      "constants": "Ids = {1, 2, 3, 4} Digests = {\"d1\", \"d2\"} Capacity = 2 ReplayGuard = TRUE ConflictGuard = TRUE ExpiryGuard = TRUE",
+      "sha256": {
+        "RequestCache.tla": "3df6a3fd3b4040adc5afd7f56214c8194b2458d3b9287b06f23f26792cdfe64a",
+        "RequestCache.cfg": "c21caeeabb26627f7c9ff0df444b00b42dde6c19123d79ed312988c725fa414e",
+        "RequestCache-replay-reapplies.cfg": "fe579b7cb8e0d05fcdb3078414fc14a49cbb2b0448295c45fedbc76d14deb217",
+        "RequestCache-conflict-applies.cfg": "a64af614985abd16e8a4a616f3751f5b2f7adc2d6b1552f4102d6b568246de7b",
+        "RequestCache-evicted-reexecutes.cfg": "4437f536d54871299fa77b78cf85b62b858514d892b572d5a939673299889e69"
+      }
     }
   ]
 }

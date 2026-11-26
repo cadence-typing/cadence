@@ -29,6 +29,7 @@ pub mod plan;
 pub mod progress;
 pub mod queue;
 pub mod ratio;
+pub mod request;
 pub mod review;
 pub mod select;
 pub mod session;

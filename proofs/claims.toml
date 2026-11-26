@@ -1355,6 +1355,70 @@ file = "crates/kernel/src/benchmark.rs"
 before = "        && !facts.synthetic\n"
 after = ""
 
+# ---- headless request admission (crates/kernel/src/request.rs, #67)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/request.rs"
+function = "request::admit"
+lean = "cadence_kernel.request.admit"
+theorems = [
+  "Proofs.Request.new_iff_greater",
+  "Proofs.Request.replay_iff_same",
+  "Proofs.Request.conflict_iff_other",
+  "Proofs.Request.only_new_mutates",
+]
+total = "Proofs.Request.new_iff_greater"
+mutants = ["equal-id-is-new", "conflict-replays", "miss-reexecutes"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/request.rs"
+function = "request::revision_ok"
+lean = "cadence_kernel.request.revision_ok"
+theorems = ["Proofs.Request.stale_refused"]
+total = "Proofs.Request.stale_refused"
+mutants = ["stale-accepted"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/request.rs"
+function = "request::evict"
+lean = "cadence_kernel.request.evict"
+theorems = ["Proofs.Request.cache_bounded"]
+total = "Proofs.Request.cache_bounded"
+mutants = ["cache-capacity-off-by-one"]
+
+[[mutant]]
+name = "equal-id-is-new"
+file = "crates/kernel/src/request.rs"
+before = "        Some(last) => id > last,\n"
+after = "        Some(last) => id >= last,\n"
+
+[[mutant]]
+name = "conflict-replays"
+file = "crates/kernel/src/request.rs"
+before = "        Lookup::OtherDigest => Admit::Conflict,\n"
+after = "        Lookup::OtherDigest => Admit::Replay,\n"
+
+[[mutant]]
+name = "miss-reexecutes"
+file = "crates/kernel/src/request.rs"
+before = "        Lookup::Miss => Admit::Expired,\n"
+after = "        Lookup::Miss => Admit::New,\n"
+
+[[mutant]]
+name = "stale-accepted"
+file = "crates/kernel/src/request.rs"
+before = "    !present || expected == current\n"
+after = "    !present || expected <= current\n"
+
+[[mutant]]
+name = "cache-capacity-off-by-one"
+file = "crates/kernel/src/request.rs"
+before = "    len >= capacity\n"
+after = "    len > capacity\n"
+
 # ---- local-calendar days (crates/kernel/src/calendar.rs, #52)
 
 [[claim]]

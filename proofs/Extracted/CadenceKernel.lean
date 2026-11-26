@@ -2074,6 +2074,59 @@ def ratio.basis_points
         | none => ok ratio.BasisPoints.ZeroDenominator
         | some value => ok (ratio.BasisPoints.Value value)
 
+/-- [cadence_kernel::request::Lookup]
+    Source: 'crates/kernel/src/request.rs', lines 11:0-18:1
+    Visibility: public -/
+@[discriminant isize]
+inductive request.Lookup where
+| Miss : request.Lookup
+| SameDigest : request.Lookup
+| OtherDigest : request.Lookup
+
+/-- [cadence_kernel::request::Admit]
+    Source: 'crates/kernel/src/request.rs', lines 22:0-31:1
+    Visibility: public -/
+@[discriminant isize]
+inductive request.Admit where
+| New : request.Admit
+| Replay : request.Admit
+| Conflict : request.Admit
+| Expired : request.Admit
+
+/-- [cadence_kernel::request::admit]:
+    Source: 'crates/kernel/src/request.rs', lines 36:0-49:1
+    Visibility: public -/
+def request.admit
+  (last_new : Option Std.U64) (id : Std.U64) (lookup : request.Lookup) :
+  Result request.Admit
+  := do
+  let fresh ←
+    match last_new with
+    | none => ok true
+    | some last => ok (id > last)
+  if fresh
+  then ok request.Admit.New
+  else
+    match lookup with
+    | request.Lookup.Miss => ok request.Admit.Expired
+    | request.Lookup.SameDigest => ok request.Admit.Replay
+    | request.Lookup.OtherDigest => ok request.Admit.Conflict
+
+/-- [cadence_kernel::request::revision_ok]:
+    Source: 'crates/kernel/src/request.rs', lines 54:0-56:1
+    Visibility: public -/
+def request.revision_ok
+  (expected : Std.U64) (present : Bool) (current : Std.U64) : Result Bool := do
+  if present
+  then ok (expected = current)
+  else ok true
+
+/-- [cadence_kernel::request::evict]:
+    Source: 'crates/kernel/src/request.rs', lines 61:0-63:1
+    Visibility: public -/
+def request.evict (len : Std.Usize) (capacity : Std.Usize) : Result Bool := do
+  ok (len >= capacity)
+
 /-- [cadence_kernel::review::FIRST_RUNG]
     Source: 'crates/kernel/src/review.rs', lines 12:0-12:28 -/
 @[global_simps, irreducible] def review.FIRST_RUNG : Std.Usize := 0#usize

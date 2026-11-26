@@ -9,4 +9,7 @@
 //! Must not own: an alternative engine or renderer. `TestBackend`
 //! replaces only the terminal output adapter.
 //!
-//! Status: protocol and drivers land with P4.
+//! Status: protocol and drivers land with P4; ordered admission (`stream`,
+//! #67) is the first part.
+
+pub mod stream;
