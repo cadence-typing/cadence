@@ -22,7 +22,7 @@ const WORDS: &str = include_str!("../../../corpus/words-en-v1.tsv");
 const PROSE: &str = include_str!("../../../corpus/prose-en-v2.tsv");
 const PROSE_SOURCES: &str = include_str!("../../../corpus/prose-sources-v2.tsv");
 const PROBES: &str = include_str!("../../../corpus/benchmark-en-v1.tsv");
-const POLICY: &str = include_str!("../../../policies/trainer-v3.toml");
+const POLICY: &str = include_str!("../../../policies/trainer-v4.toml");
 /// Shipped prose lower bound (plan 0003): enough for a long no-repeat window.
 const MINIMUM_PASSAGES: usize = 2_000;
 /// Domain separation for the per-session plan seed.
@@ -164,6 +164,10 @@ fn build_engine(
         probes: Some(cadence_trainer::ProbeInputs {
             bank: &probes,
             history: &bootstrap.probes,
+        }),
+        pace: Some(cadence_trainer::PaceInputs {
+            recent: &bootstrap.history.recent,
+            targets: &bootstrap.pace_targets,
         }),
     };
     let plan = build_session_plan(policy, inputs, seed, &disabled, budget)?;

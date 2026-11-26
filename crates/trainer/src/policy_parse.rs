@@ -138,8 +138,31 @@ pub(super) fn parse_review(document: &toml::Table) -> Result<ReviewPolicy, Polic
         maximum_same_session_reinforcements: integer(t, "maximum_same_session_reinforcements")?,
     })
 }
-pub(super) fn parse_pace(document: &toml::Table) -> Result<PacePolicy, PolicyError> {
+pub(super) fn parse_pace(document: &toml::Table, version: u8) -> Result<PacePolicy, PolicyError> {
     let t = table(document, "pace")?;
+    let familiar = if version >= 4 {
+        let share = t
+            .get("familiar_target_share_when_lowered")
+            .and_then(toml::Value::as_array)
+            .filter(|share| share.len() == 2)
+            .ok_or_else(|| PolicyError::WrongType("familiar_target_share_when_lowered".into()))?;
+        let part = |index: usize| -> Result<u32, PolicyError> {
+            share
+                .get(index)
+                .and_then(toml::Value::as_integer)
+                .and_then(|value| u32::try_from(value).ok())
+                .ok_or_else(|| PolicyError::WrongType("familiar_target_share_when_lowered".into()))
+        };
+        let (taken, of) = (part(0)?, part(1)?);
+        if of == 0 || taken > of || of > 10 {
+            return Err(PolicyError::Inconsistent {
+                what: "familiar_target_share_when_lowered must be a share at most 1, denominator at most 10",
+            });
+        }
+        (taken, of)
+    } else {
+        (0, 1)
+    };
     Ok(PacePolicy {
         desired_first_pass: basis_points(t, "desired_first_pass_basis_points")?,
         slow_down_below: basis_points(t, "slow_down_below_basis_points")?,
@@ -151,6 +174,7 @@ pub(super) fn parse_pace(document: &toml::Table) -> Result<PacePolicy, PolicyErr
         )?,
         maximum_raise: basis_points(t, "maximum_raise_basis_points")?,
         maximum_lower: basis_points(t, "maximum_lower_basis_points")?,
+        familiar_target_share_when_lowered: familiar,
     })
 }
 pub(super) fn parse_benchmark(document: &toml::Table) -> Result<BenchmarkPolicy, PolicyError> {

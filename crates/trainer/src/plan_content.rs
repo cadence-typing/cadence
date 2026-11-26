@@ -13,6 +13,15 @@ use crate::plan_words::WordSelector;
 use crate::policy::{Phase, TrainerPolicy};
 use rand::seq::SliceRandom;
 
+/// Per-session options for building a phase's content.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct PhaseOptions {
+    /// Seed of the prose stream (#48).
+    pub prose_seed: u64,
+    /// Share of word target slots from the core band (#62).
+    pub familiar: (u32, u32),
+}
+
 pub(super) fn exercises(
     policy: &TrainerPolicy,
     inputs: PlanInputs<'_>,
@@ -20,8 +29,12 @@ pub(super) fn exercises(
     phase: Phase,
     seconds: u64,
     served_due: &mut std::collections::HashSet<cadence_core::WordId>,
-    prose_seed: u64,
+    options: PhaseOptions,
 ) -> Result<Vec<PlannedExercise>, PlanError> {
+    let PhaseOptions {
+        prose_seed,
+        familiar,
+    } = options;
     match phase {
         // The closing review (#49): the reducer fills its slots with the
         // session's misses; this is the fallback when none are left —
@@ -58,6 +71,7 @@ pub(super) fn exercises(
         Phase::AdaptiveWords => {
             let mut selector =
                 WordSelector::adaptive(policy, inputs.pack, inputs.learner, rng, served_due);
+            selector.familiar(familiar, rng);
             let exercises = words(policy, &mut selector, rng, seconds, ExerciseKind::Words)?;
             served_due.extend(selector.served_due().iter().copied());
             Ok(exercises)

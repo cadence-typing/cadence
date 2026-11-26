@@ -138,6 +138,7 @@ impl Engine {
         LearningView {
             adaptive: evidence.plan.mode == PlannerMode::Adaptive,
             targets: self.target_groups(),
+            goals: self.learning.evidence.pace.clone(),
             focus: evidence
                 .plan
                 .focus

@@ -84,11 +84,13 @@ fn landing(
     let gap = u16::from(spacious);
     let purpose_rows = if area.height >= 11 { 2 } else { 1 };
     let baseline = u16::from(area.height >= 12);
+    let goals = u16::from(area.height >= 12 && !view.learning.goals.is_empty());
     let height = brand
         .saturating_add(gap.saturating_mul(5))
         .saturating_add(6)
         .saturating_add(purpose_rows)
-        .saturating_add(baseline);
+        .saturating_add(baseline)
+        .saturating_add(goals);
     let mut body = centered_height(area, height);
     wordmark(buffer, take(&mut body, brand), palette, native);
     take(&mut body, gap);
@@ -146,9 +148,61 @@ fn landing(
         let row = take(&mut body, 1);
         let line = targets_line(&view.learning, row.width);
         text(buffer, row, line, style(palette, Role::Muted));
+        if goals != 0 {
+            let row = take(&mut body, 1);
+            if let Some(line) = goals_line(&view.learning, row.width, false) {
+                text(buffer, row, line, style(palette, Role::Muted));
+            }
+        }
     }
     take(&mut body, gap);
     action(buffer, take(&mut body, 1), "Begin session", view, palette);
+}
+
+/// "Words goal 52 WPM · raised   numpad 140 DPM · steady" (#62): each
+/// typing track's pace goal and how it moved; whole goals drop from the
+/// right when the line does not fit. `results` explains a lowering.
+pub(crate) fn goals_line(
+    learning: &cadence_engine::LearningView,
+    width: u16,
+    results: bool,
+) -> Option<String> {
+    use cadence_core::learning::PaceMove;
+    use cadence_core::progress::Track;
+    let parts: Vec<String> = learning
+        .goals
+        .iter()
+        .map(|goal| {
+            let (name, per_minute, unit) = match goal.track {
+                Track::Numpad => ("numpad", 1, "DPM"),
+                Track::NumberRow => ("number row", 5, "WPM"),
+                Track::Prose => ("prose", 5, "WPM"),
+                Track::Words | Track::WarmUp | Track::Review | Track::Benchmark => {
+                    ("Words", 5, "WPM")
+                }
+            };
+            match (goal.target_cpm, goal.moved) {
+                (None, _) | (_, PaceMove::NoBaseline) => {
+                    format!("{name} goal: building your baseline")
+                }
+                (Some(cpm), moved) => {
+                    let value = cpm.checked_div(per_minute).unwrap_or(0);
+                    let how = match moved {
+                        PaceMove::Raised => "raised",
+                        PaceMove::Lowered if results => "lowered: more familiar words next time",
+                        PaceMove::Lowered => "lowered",
+                        PaceMove::Steady | PaceMove::NoBaseline => "steady",
+                    };
+                    format!("{name} goal {value} {unit} \u{b7} {how}")
+                }
+            }
+        })
+        .collect();
+    let width = usize::from(width);
+    (1..=parts.len())
+        .rev()
+        .map(|keep| parts.get(..keep).unwrap_or_default().join("   "))
+        .find(|line| line.chars().count() <= width)
 }
 
 /// "Today targets  th · ou · w   number row 7 · 48   numpad 0. · 55   5 due
@@ -176,7 +230,12 @@ pub(crate) fn targets_line(learning: &cadence_engine::LearningView, width: u16) 
     if groups.is_empty()
         || (!learning.adaptive && learning.targets.iter().all(|g| g.skills.is_empty()))
     {
-        return "No per-key history yet: this session teaches Cadence your slips.".to_string();
+        let long = "No per-key history yet: this session teaches Cadence your slips.";
+        return if long.chars().count() <= usize::from(width) {
+            long.to_string()
+        } else {
+            "No per-key history yet.".to_string()
+        };
     }
     let width = usize::from(width);
     let compose = |shown: &[String], hidden: usize| {

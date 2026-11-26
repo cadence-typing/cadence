@@ -199,6 +199,9 @@ pub struct PacePolicy {
     pub maximum_raise: BasisPoints,
     /// Maximum lower per adjustment (500bp).
     pub maximum_lower: BasisPoints,
+    /// Share of the words phase's target slots drawn from the core band
+    /// when the words pace is lowered (policy v4, #62); `(0, 1)` before.
+    pub familiar_target_share_when_lowered: (u32, u32),
 }
 
 /// Validated benchmark policy (from `[benchmark]`).
@@ -295,6 +298,7 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
     let version = match document.get("policy_id").and_then(toml::Value::as_str) {
         Some("trainer-v2") => 2,
         Some("trainer-v3") => 3,
+        Some("trainer-v4") => 4,
         _ => 0,
     };
     if version == 0
@@ -313,7 +317,7 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
     let statistics = parse_statistics(&document)?;
     let weights = parse_weights(&document)?;
     let review = parse_review(&document)?;
-    let pace = parse_pace(&document)?;
+    let pace = parse_pace(&document, version)?;
     let benchmark = parse_benchmark(&document)?;
     let learning = crate::learning_policy::parse_learning(&document, version)?;
 

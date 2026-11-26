@@ -71,6 +71,13 @@ pub(super) struct WordSelector<'a> {
     exercise: u32,
     /// Due words this selector planned (a word is due in one phase only).
     served_due: Vec<WordId>,
+    /// Share of target slots drawn from the core band (#62); `(0, 1)` off.
+    familiar_share: (u32, u32),
+    /// Core-band focus streams and target stream for familiar slots.
+    familiar_focus: Vec<(SkillKey, Stream)>,
+    familiar_targets: Stream,
+    /// Target slots chosen so far, for the familiar share.
+    target_turn: u32,
     focus_turn: usize,
 }
 
@@ -115,6 +122,10 @@ impl<'a> WordSelector<'a> {
             last_target: HashMap::new(),
             exercise: 0,
             served_due: Vec::new(),
+            familiar_share: (0, 1),
+            familiar_focus: Vec::new(),
+            familiar_targets: Stream::ordered(Vec::new()),
+            target_turn: 0,
             focus_turn: 0,
         }
     }
@@ -146,8 +157,32 @@ impl<'a> WordSelector<'a> {
             last_target: HashMap::new(),
             exercise: 0,
             served_due: Vec::new(),
+            familiar_share: (0, 1),
+            familiar_focus: Vec::new(),
+            familiar_targets: Stream::ordered(Vec::new()),
+            target_turn: 0,
             focus_turn: 0,
         }
+    }
+
+    /// After a lowered words pace (#62): `share` of target slots come from
+    /// the core band. Builds its streams only when on, so plans without it
+    /// draw exactly as before.
+    pub(super) fn familiar(&mut self, share: (u32, u32), rng: &mut PlanRng) {
+        if share.0 == 0 {
+            return;
+        }
+        let core = [WordBand::Core];
+        self.familiar_focus = self
+            .focus
+            .iter()
+            .filter_map(|(key, _)| {
+                let ids = words_in(self.pack, &core, |units| contains(units, key.skill));
+                (!ids.is_empty()).then(|| (*key, Stream::new(ids, rng)))
+            })
+            .collect();
+        self.familiar_targets = Stream::new(words_in(self.pack, &core, |_| true), rng);
+        self.familiar_share = share;
     }
 
     /// Selects one block of words in lane order.
@@ -156,10 +191,26 @@ impl<'a> WordSelector<'a> {
         let mut words = Vec::with_capacity(self.policy.selection.block_slots);
         for lane in &self.policy.selection.lane_order {
             let chosen = match lane {
-                Lane::Target => match self.focused(&tracker, rng)? {
-                    Some(word) => Some(word),
-                    None => self.sampled(&tracker, Lane::Target)?,
-                },
+                Lane::Target => {
+                    let (taken, of) = self.familiar_share;
+                    let familiar =
+                        taken > 0 && self.target_turn.checked_rem(of).unwrap_or(0) < taken;
+                    self.target_turn = self.target_turn.wrapping_add(1);
+                    if familiar {
+                        std::mem::swap(&mut self.focus, &mut self.familiar_focus);
+                        std::mem::swap(&mut self.targets, &mut self.familiar_targets);
+                    }
+                    let word = match self.focused(&tracker, rng) {
+                        Ok(Some(word)) => Ok(Some(word)),
+                        Ok(None) => self.sampled(&tracker, Lane::Target),
+                        Err(error) => Err(error),
+                    };
+                    if familiar {
+                        std::mem::swap(&mut self.focus, &mut self.familiar_focus);
+                        std::mem::swap(&mut self.targets, &mut self.familiar_targets);
+                    }
+                    word?
+                }
                 Lane::Review => match self.due_review(&tracker) {
                     Some(word) => Some(word),
                     None => self.sampled(&tracker, Lane::Review)?,

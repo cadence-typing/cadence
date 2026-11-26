@@ -3,8 +3,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cadence_core::learning::{
-    KeyLane, PlanRecord, PlannerMode, ProbeReason, ProbeRecord, SessionLearning, Skill, SkillKey,
-    SkillTally, WordTally,
+    KeyLane, PaceMove, PaceRecord, PlanRecord, PlannerMode, ProbeReason, ProbeRecord,
+    SessionLearning, Skill, SkillKey, SkillTally, WordTally,
 };
 use cadence_core::{PassageId, WordId};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
@@ -12,7 +12,8 @@ use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use crate::StoreError;
 use crate::error::{read_integer, sql_integer};
 
-const TABLES: [&str; 6] = [
+const TABLES: [&str; 7] = [
+    "pace_targets",
     "benchmark_probes",
     "plan_focus",
     "skill_observations",
@@ -85,6 +86,21 @@ pub(crate) fn save(
         tx.prepare_cached("INSERT INTO prose_seen(session_id,passage_id) VALUES (?1,?2)")?;
     for passage in &learning.passages {
         passages.execute(params![session, hex(passage.get())])?;
+    }
+    let mut pace = tx.prepare_cached(
+        "INSERT INTO pace_targets(session_id,track,target_cpm,decision) VALUES (?1,?2,?3,?4)",
+    )?;
+    for record in &learning.pace {
+        let target = record
+            .target_cpm
+            .map(|cpm| sql_integer(cpm, "pace target"))
+            .transpose()?;
+        pace.execute(params![
+            session,
+            crate::records::track_name(record.track),
+            target,
+            record.moved.key()
+        ])?;
     }
     if let Some(probe) = learning.probe {
         tx.prepare_cached(
@@ -197,6 +213,22 @@ pub(crate) fn load(
             })
         })
         .transpose()?;
+    let mut pace = Vec::new();
+    let mut statement = connection.prepare_cached(
+        "SELECT track,target_cpm,decision FROM pace_targets WHERE session_id=?1 ORDER BY rowid",
+    )?;
+    let mut rows = statement.query([session])?;
+    while let Some(row) = rows.next()? {
+        let target: Option<i64> = row.get(1)?;
+        pace.push(PaceRecord {
+            track: crate::records::parse_track(&row.get::<_, String>(0)?)?,
+            target_cpm: target
+                .map(|cpm| read_integer(cpm, "pace target"))
+                .transpose()?,
+            moved: PaceMove::parse(&row.get::<_, String>(2)?)
+                .ok_or_else(|| corrupt("pace decision"))?,
+        });
+    }
     let learning = SessionLearning {
         plan: PlanRecord {
             seed: unhex(&seed)?,
@@ -208,6 +240,7 @@ pub(crate) fn load(
         passages,
         reinforced: read_integer(reinforced, "reinforced")?,
         probe,
+        pace,
     };
     learning
         .validate()

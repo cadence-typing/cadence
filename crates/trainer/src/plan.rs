@@ -190,6 +190,15 @@ pub struct ProbeInputs<'a> {
     pub history: &'a cadence_core::learning::ProbeHistory,
 }
 
+/// Pace evidence for the planner (#62).
+#[derive(Debug, Clone, Copy)]
+pub struct PaceInputs<'a> {
+    /// Recent sessions, newest first, as stored.
+    pub recent: &'a [cadence_core::progress::SessionRecap],
+    /// The latest suggested pace per typing track.
+    pub targets: &'a [(cadence_core::progress::Track, u64)],
+}
+
 /// Separates the prose stream from the other phases' (#48).
 const PROSE_STREAM: u64 = 0x5052_4f53_455f_5631;
 
@@ -204,6 +213,8 @@ pub struct PlanInputs<'a> {
     pub learner: &'a LearnerModel,
     /// Transfer probes; `None` disables them (tests, synthetic plans).
     pub probes: Option<ProbeInputs<'a>>,
+    /// Pace evidence; `None` disables pace goals (tests, synthetic plans).
+    pub pace: Option<PaceInputs<'a>>,
 }
 
 /// One planned phase with its exact seconds and exercise queue.
@@ -234,6 +245,8 @@ pub struct SessionPlan {
     pub phases: Vec<PlannedPhase>,
     /// The transfer probe decision for this session (#64).
     pub probe: ProbePlan,
+    /// Each typing track's suggested pace and how it moved (#62).
+    pub pace: Vec<cadence_core::learning::PaceRecord>,
 }
 
 /// Plan construction failures.
@@ -314,6 +327,21 @@ pub fn build_session_plan(
     let weights: Vec<_> = enabled.iter().map(|(_, weight)| *weight).collect();
     let allocation = allocate(budget_seconds, &minimums, &weights)
         .map_err(|reason| PlanError::Infeasible { reason })?;
+    let pace = pace_goals(
+        policy,
+        inputs,
+        &enabled.iter().map(|((p, _), _)| *p).collect::<Vec<_>>(),
+    )?;
+    // A lowered words pace draws a share of target slots from the most
+    // familiar band next session (#62); otherwise none.
+    let familiar = if pace.iter().any(|record| {
+        record.track == cadence_core::progress::Track::Words
+            && record.moved == cadence_core::learning::PaceMove::Lowered
+    }) {
+        policy.pace.familiar_target_share_when_lowered
+    } else {
+        (0, 1)
+    };
     let mut rng = PlanRng::seed_from_u64(seed);
     let mut phases = Vec::with_capacity(enabled.len());
     // A due word is planned in one phase only (#47): warm-up first.
@@ -326,7 +354,10 @@ pub fn build_session_plan(
             phase,
             seconds,
             &mut served_due,
-            seed ^ PROSE_STREAM,
+            crate::plan_content::PhaseOptions {
+                prose_seed: seed ^ PROSE_STREAM,
+                familiar,
+            },
         )?;
         phases.push(PlannedPhase {
             phase,
@@ -355,7 +386,93 @@ pub fn build_session_plan(
         },
         phases,
         probe,
+        pace,
     })
+}
+
+/// Correct units per minute of one stored block (digits on the numpad).
+fn block_cpm(track: &cadence_core::progress::TrackProgress) -> Option<u64> {
+    let units = if track.track == cadence_core::progress::Track::Numpad {
+        track.correct_digits
+    } else {
+        track.correct_units
+    };
+    units
+        .checked_mul(60_000_000)
+        .and_then(|scaled| scaled.checked_div(track.active_micros))
+        .filter(|cpm| *cpm > 0)
+}
+
+/// A track's baseline (#62): the lower median pace of its qualifying blocks
+/// (the position floor, at or above the desired accuracy) in the history
+/// window; `None` until one exists.
+#[must_use]
+pub fn pace_baseline(
+    policy: &crate::policy::PacePolicy,
+    track: cadence_core::progress::Track,
+    recent: &[cadence_core::progress::SessionRecap],
+) -> Option<u64> {
+    let mut paces: Vec<u64> = recent
+        .iter()
+        .flat_map(|recap| recap.tracks.iter())
+        .filter(|t| {
+            t.track == track
+                && t.first_attempted >= policy.minimum_first_attempt_positions_per_block
+                && !cadence_core::pace::block_accuracy_below(
+                    t.first_correct,
+                    t.first_attempted,
+                    u64::from(policy.desired_first_pass.get()),
+                )
+        })
+        .filter_map(block_cpm)
+        .collect();
+    paces.sort_unstable();
+    let middle = paces.len().checked_sub(1)?.checked_div(2)?;
+    paces.get(middle).copied()
+}
+
+/// Each enabled typing track's goal for this session (#62): the stored
+/// target, else the baseline, moved by the proved `pace::decide`.
+fn pace_goals(
+    policy: &TrainerPolicy,
+    inputs: PlanInputs<'_>,
+    enabled: &[Phase],
+) -> Result<Vec<cadence_core::learning::PaceRecord>, PlanError> {
+    use cadence_core::learning::{PaceMove, PaceRecord};
+    use cadence_core::pace::Decision;
+    use cadence_core::progress::Track;
+    let Some(pace) = inputs.pace else {
+        return Ok(Vec::new());
+    };
+    let mut goals = Vec::new();
+    for (phase, track) in [
+        (Phase::AdaptiveWords, Track::Words),
+        (Phase::NumberRow, Track::NumberRow),
+        (Phase::Numpad, Track::Numpad),
+        (Phase::Prose, Track::Prose),
+    ] {
+        if !enabled.contains(&phase) {
+            continue;
+        }
+        let previous = pace
+            .targets
+            .iter()
+            .find(|(stored, _)| *stored == track)
+            .map(|(_, cpm)| *cpm)
+            .or_else(|| pace_baseline(&policy.pace, track, pace.recent));
+        let (target_cpm, moved) = match pace_decision(&policy.pace, track, previous, pace.recent)? {
+            Decision::NoBaseline => (None, PaceMove::NoBaseline),
+            Decision::Steady => (previous, PaceMove::Steady),
+            Decision::Raise(raised) => (Some(raised), PaceMove::Raised),
+            Decision::Lower(lowered) => (Some(lowered), PaceMove::Lowered),
+        };
+        goals.push(PaceRecord {
+            track,
+            target_cpm,
+            moved,
+        });
+    }
+    Ok(goals)
 }
 
 /// On a due probe (`benchmark::due`), the prose phase becomes a probe phase

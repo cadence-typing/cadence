@@ -230,6 +230,64 @@ pub struct SessionLearning {
     pub reinforced: u64,
     /// The transfer probe shown this session, if any (schema 5, #64).
     pub probe: Option<ProbeRecord>,
+    /// Each typing track's suggested pace for this session and how it
+    /// moved (#62), from the plan; empty before schema 5.
+    pub pace: Vec<PaceRecord>,
+}
+
+/// How a track's suggested pace moved for a session (L-06, #62).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PaceMove {
+    /// No baseline yet.
+    NoBaseline,
+    /// Kept.
+    Steady,
+    /// Raised.
+    Raised,
+    /// Lowered: more familiar words next time.
+    Lowered,
+}
+
+impl PaceMove {
+    /// Stable persisted key.
+    #[must_use]
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::NoBaseline => "no_baseline",
+            Self::Steady => "steady",
+            Self::Raised => "raise",
+            Self::Lowered => "lower",
+        }
+    }
+
+    /// Parses a persisted key.
+    #[must_use]
+    pub fn parse(key: &str) -> Option<Self> {
+        [Self::NoBaseline, Self::Steady, Self::Raised, Self::Lowered]
+            .into_iter()
+            .find(|m| m.key() == key)
+    }
+
+    const fn digest_tag(self) -> u8 {
+        match self {
+            Self::NoBaseline => 0,
+            Self::Steady => 1,
+            Self::Raised => 2,
+            Self::Lowered => 3,
+        }
+    }
+}
+
+/// One track's pace goal for a session (#62).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PaceRecord {
+    /// The typing track.
+    pub track: crate::progress::Track,
+    /// The suggested pace in correct units per minute (digits per minute
+    /// on the numpad); `None` until a baseline exists.
+    pub target_cpm: Option<u64>,
+    /// How it moved.
+    pub moved: PaceMove,
 }
 
 /// Why a probe result is or is not comparable (#64, #65).
@@ -323,6 +381,7 @@ impl SessionLearning {
             passages: BTreeSet::new(),
             reinforced: 0,
             probe: None,
+            pace: Vec::new(),
         }
     }
 
@@ -415,6 +474,13 @@ impl SessionLearning {
             || self.words.len() > MAXIMUM_SESSION_WORDS
             || self.passages.len() > MAXIMUM_SESSION_PASSAGES
             || self.plan.focus.len() > MAXIMUM_FOCUS_SKILLS
+            || self.pace.len() > 8
+            || self.pace.iter().any(|record| {
+                record.target_cpm == Some(0)
+                    || record
+                        .target_cpm
+                        .is_some_and(|cpm| cpm > i64::MAX.unsigned_abs())
+            })
             || self.probe.is_some_and(|probe| {
                 probe.strata > 0x0F || probe.comparable != (probe.reason == ProbeReason::Comparable)
             })
@@ -437,6 +503,7 @@ impl SessionLearning {
             && self.reinforced >= old.reinforced
             && old.passages.is_subset(&self.passages)
             && (old.probe.is_none() || old.probe == self.probe)
+            && old.pace == self.pace
             && old.skills.iter().all(|(key, tally)| {
                 self.skills
                     .get(key)
@@ -491,6 +558,14 @@ impl SessionLearning {
                 probe.reason.digest_tag(),
             ]);
         }
+        if !self.pace.is_empty() {
+            hash.update([0xFC]);
+            hash.update(length(self.pace.len()));
+            for record in &self.pace {
+                hash.update([record.track.digest_tag(), record.moved.digest_tag()]);
+                hash.update(record.target_cpm.unwrap_or(0).to_le_bytes());
+            }
+        }
     }
 }
 
@@ -505,6 +580,9 @@ pub struct ProbeHistory {
     /// Completed sessions that typed prose since the last probe.
     pub completed_with_prose_since: u64,
 }
+
+/// The latest suggested pace per typing track (#62), read at startup.
+pub type PaceTargets = Vec<(crate::progress::Track, u64)>;
 
 /// One past session's evidence, as read back at startup.
 #[derive(Debug, Clone, PartialEq, Eq)]

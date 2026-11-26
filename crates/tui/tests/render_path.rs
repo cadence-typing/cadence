@@ -50,6 +50,7 @@ fn words_engine(
             numeric_gap_entries: 0,
         },
         probe: cadence_trainer::ProbePlan::NotDue,
+        pace: Vec::new(),
         phases: vec![cadence_trainer::PlannedPhase {
             phase: cadence_trainer::Phase::AdaptiveWords,
             seconds: 60,
@@ -552,6 +553,7 @@ fn targeted_engine(
             numeric_gap_entries: 0,
         },
         probe: cadence_trainer::ProbePlan::NotDue,
+        pace: Vec::new(),
         phases: planned,
     })?)
 }
@@ -650,6 +652,82 @@ fn a_numpad_only_session_reports_numpad_slips() -> Result<(), Box<dyn std::error
                 "{columns}x{rows}:\n{screen}"
             );
         }
+    }
+    Ok(())
+}
+
+fn goal_engine(
+    moved: cadence_core::learning::PaceMove,
+    target_cpm: Option<u64>,
+) -> Result<Engine, Box<dyn std::error::Error>> {
+    let units = cadence_core::validate_target("the theme then", LayoutSupportsPound::US)?;
+    Ok(Engine::new_plan(cadence_trainer::SessionPlan {
+        budget_seconds: 60,
+        policy_digest: cadence_core::ContentDigest::from_bytes([1; 32]),
+        corpus_digest: cadence_core::ContentDigest::from_bytes([2; 32]),
+        record: cadence_core::learning::PlanRecord {
+            seed: 0,
+            mode: cadence_core::learning::PlannerMode::Adaptive,
+            focus: Vec::new(),
+        },
+        adaptation: cadence_trainer::Adaptation {
+            hesitation_ceiling: cadence_core::Micros::from_us(1_500_000),
+            reinforcement_capacity: 8,
+            reinforcements_per_word: 1,
+            numeric_gap_entries: 0,
+        },
+        probe: cadence_trainer::ProbePlan::NotDue,
+        pace: vec![cadence_core::learning::PaceRecord {
+            track: cadence_core::progress::Track::Words,
+            target_cpm,
+            moved,
+        }],
+        phases: vec![cadence_trainer::PlannedPhase {
+            phase: cadence_trainer::Phase::AdaptiveWords,
+            seconds: 60,
+            exercises: vec![cadence_trainer::PlannedExercise::plain(
+                units,
+                cadence_trainer::ExerciseKind::Words,
+            )],
+        }],
+    })?)
+}
+
+/// #62: the start screen and the results name the words goal and how it
+/// moved, whole at 60x18 and 100x32; a lowering explains itself in the
+/// results; with no baseline the goal says so.
+#[test]
+fn the_pace_goal_is_named_on_the_start_screen_and_results() -> Result<(), Box<dyn std::error::Error>>
+{
+    use cadence_core::learning::PaceMove;
+    for (columns, rows) in [(60, 18), (100, 32)] {
+        let raised = render(&goal_engine(PaceMove::Raised, Some(260))?, 0, columns, rows);
+        assert!(
+            raised.contains("Words goal 52 WPM · raised"),
+            "{columns}x{rows}:\n{raised}"
+        );
+        let none = render(&goal_engine(PaceMove::NoBaseline, None)?, 0, columns, rows);
+        assert!(
+            none.contains("Words goal: building your baseline"),
+            "{columns}x{rows}:\n{none}"
+        );
+        let mut engine = goal_engine(PaceMove::Lowered, Some(190))?;
+        let start = render(&engine, 0, columns, rows);
+        assert!(
+            start.contains("Words goal 38 WPM · lowered"),
+            "{columns}x{rows}:\n{start}"
+        );
+        engine.reduce(envelope(1, 1_000, EventKind::Key(Key::Enter)));
+        engine.reduce(envelope(2, 200_000, content('t')));
+        engine.reduce(envelope(3, 400_000, EventKind::Key(Key::Interrupt)));
+        let results = render(&engine, 400_000, columns, rows);
+        if rows >= 24 {
+            assert!(
+                results.contains("Words goal 38 WPM · lowered: more familiar words next time"),
+                "{columns}x{rows}:\n{results}"
+            );
+        }
+        assert!(!results.contains("Words goal 38 WPM · lowered: more familiar wor\n"));
     }
     Ok(())
 }

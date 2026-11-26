@@ -8,7 +8,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use cadence_core::SessionId;
-use cadence_core::learning::{HistoricSession, LearnerHistory, ProbeHistory};
+use cadence_core::learning::{HistoricSession, LearnerHistory, PaceTargets, ProbeHistory};
 use cadence_core::progress::{
     Checkpoint, HistorySummary, ProgressStatus, RECENT_SESSION_CAPACITY, SaveKey, SessionRecap,
     Track,
@@ -35,6 +35,8 @@ pub struct StoreBootstrap {
     pub learner: LearnerHistory,
     /// Shown probes, the last comparable strata and sessions since a probe.
     pub probes: ProbeHistory,
+    /// The latest suggested pace per typing track (#62).
+    pub pace_targets: PaceTargets,
 }
 
 /// Receipt returned only after the transaction has committed durably.
@@ -121,8 +123,15 @@ impl ProgressStore {
         let mut history = HistorySummary::default();
         let mut maximum = 0_u64;
         let mut probes = ProbeHistory::default();
+        let mut pace_targets: PaceTargets = Vec::new();
         for session in &sessions {
             let checkpoint = &session.checkpoint;
+            for record in checkpoint.learning.iter().flat_map(|l| l.pace.iter()) {
+                if let Some(cpm) = record.target_cpm {
+                    pace_targets.retain(|(track, _)| *track != record.track);
+                    pace_targets.push((record.track, cpm));
+                }
+            }
             if let Some(probe) = checkpoint.learning.as_ref().and_then(|l| l.probe) {
                 probes.shown.insert(probe.passage);
                 if probe.comparable {
@@ -200,6 +209,7 @@ impl ProgressStore {
             history,
             learner: LearnerHistory { sessions: learner },
             probes,
+            pace_targets,
         })
     }
 

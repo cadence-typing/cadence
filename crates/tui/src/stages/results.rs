@@ -54,6 +54,7 @@ pub(super) fn paint(
     };
     let show_active = reserve(&mut remaining, 1);
     let show_focus = reserve(&mut remaining, 1);
+    let show_goals = !view.learning.goals.is_empty() && reserve(&mut remaining, 1);
     let gap = u16::from(reserve(&mut remaining, SECTION_GAP_ROWS));
     let stride = if show_table && reserve(&mut remaining, table_rows) {
         2
@@ -132,6 +133,12 @@ pub(super) fn paint(
         let row = take(&mut body, 1);
         let line = fitting(learning_line(view), row.width);
         text(buffer, row, line, style(palette, Role::Muted));
+    }
+    if show_goals {
+        let row = take(&mut body, 1);
+        if let Some(line) = super::goals_line(&view.learning, row.width, true) {
+            text(buffer, row, line, style(palette, Role::Muted));
+        }
     }
     take(&mut body, gap);
     action(buffer, take(&mut body, 1), "Save & exit", view, palette);

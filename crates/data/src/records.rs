@@ -43,7 +43,7 @@ pub(crate) fn track_name(track: Track) -> &'static str {
     }
 }
 
-fn parse_track(track: &str) -> Result<Track, StoreError> {
+pub(crate) fn parse_track(track: &str) -> Result<Track, StoreError> {
     match track {
         "warm_up" => Ok(Track::WarmUp),
         "words" => Ok(Track::Words),

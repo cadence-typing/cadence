@@ -67,6 +67,7 @@ fn build(
         prose: bank,
         learner,
         probes: None,
+        pace: None,
     };
     build_session_plan(&policy(), inputs, seed, disabled, budget)
 }
@@ -372,6 +373,7 @@ fn target_words_keep_their_repeat_gap() {
                 prose: &bank,
                 learner: &learner,
                 probes: None,
+                pace: None,
             },
             seed,
             &[],
@@ -401,6 +403,7 @@ fn target_words_keep_their_repeat_gap() {
                     prose: &bank,
                     learner: &learner,
                     probes: None,
+                    pace: None,
                 },
                 seed,
                 &[],
@@ -470,6 +473,7 @@ fn numeric_entries_follow_their_own_groups_focus() {
                 prose: &bank,
                 learner,
                 probes: None,
+                pace: None,
             },
             9,
             &[],
@@ -698,6 +702,7 @@ fn the_seventh_completed_session_gets_a_probe() {
                     bank: &probes,
                     history,
                 }),
+                pace: None,
             },
             5,
             &[],
@@ -752,4 +757,134 @@ fn the_seventh_completed_session_gets_a_probe() {
     });
     assert_eq!(exhausted.probe, ProbePlan::NoPassage);
     assert!(exhausted.phases.iter().all(|p| p.phase != Phase::Probe));
+}
+
+fn policy_v4() -> TrainerPolicy {
+    crate::policy::parse_policy(
+        std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../policies/trainer-v4.toml"
+        ))
+        .unwrap()
+        .as_slice(),
+    )
+    .unwrap()
+}
+
+/// One stored session that typed words: `positions` first attempts with
+/// `correct` right, 200 correct units a minute.
+fn words_session(positions: u64, correct: u64) -> cadence_core::progress::SessionRecap {
+    use cadence_core::progress::{SessionRecap, Track, TrackProgress};
+    SessionRecap {
+        day: 1,
+        completed: true,
+        tracks: vec![TrackProgress {
+            first_attempted: positions,
+            first_correct: correct,
+            content_attempts: 300,
+            correct_attempts: 250,
+            correct_units: 200,
+            active_micros: 60_000_000,
+            ..TrackProgress::empty(Track::Words)
+        }],
+    }
+}
+
+fn goal_plan(
+    recent: &[cadence_core::progress::SessionRecap],
+    targets: &[(cadence_core::progress::Track, u64)],
+) -> SessionPlan {
+    let (words, bank) = (pack(3_000), prose(50));
+    let learner = weak_on("qa", &[], 10);
+    build_session_plan(
+        &policy_v4(),
+        PlanInputs {
+            pack: &words,
+            prose: &bank,
+            learner: &learner,
+            probes: None,
+            pace: Some(PaceInputs { recent, targets }),
+        },
+        4,
+        &[],
+        900,
+    )
+    .unwrap()
+}
+
+fn words_goal(plan: &SessionPlan) -> cadence_core::learning::PaceRecord {
+    *plan
+        .pace
+        .iter()
+        .find(|r| r.track == cadence_core::progress::Track::Words)
+        .unwrap()
+}
+
+/// #62: three qualifying blocks over three sessions raise the stored
+/// target by ceil(3%); no evidence shows no goal; a baseline is the lower
+/// median of qualifying blocks.
+#[test]
+fn pace_goals_raise_hold_and_wait_for_a_baseline() {
+    use cadence_core::learning::PaceMove;
+    use cadence_core::progress::Track;
+    let strong = [
+        words_session(120, 120),
+        words_session(110, 110),
+        words_session(105, 105),
+    ];
+    let raised = words_goal(&goal_plan(&strong, &[(Track::Words, 200)]));
+    assert_eq!(
+        (raised.target_cpm, raised.moved),
+        (Some(206), PaceMove::Raised)
+    );
+    let none = words_goal(&goal_plan(&[], &[]));
+    assert_eq!((none.target_cpm, none.moved), (None, PaceMove::NoBaseline));
+    // No stored target: the baseline (200 cpm) is the starting point.
+    let first = words_goal(&goal_plan(&strong[..1], &[]));
+    assert_eq!(
+        (first.target_cpm, first.moved),
+        (Some(200), PaceMove::Steady)
+    );
+    assert_eq!(
+        pace_baseline(&policy_v4().pace, Track::Words, &strong),
+        Some(200)
+    );
+}
+
+/// #62: a block under 95% lowers the target, the plan says so, and the
+/// words phase draws at least the configured share (1/2) of its target
+/// slots from the core band; scores are not touched.
+#[test]
+fn a_lowered_pace_brings_familiar_target_words() {
+    use cadence_core::learning::PaceMove;
+    use cadence_core::progress::Track;
+    let weak = [words_session(150, 135)];
+    let lowered_plan = goal_plan(&weak, &[(Track::Words, 200)]);
+    let lowered = words_goal(&lowered_plan);
+    assert_eq!(
+        (lowered.target_cpm, lowered.moved),
+        (Some(190), PaceMove::Lowered)
+    );
+    let words = pack(3_000);
+    let targets: Vec<_> = phase(&lowered_plan, Phase::AdaptiveWords)
+        .exercises
+        .iter()
+        .flat_map(|e| e.words.iter())
+        .filter(|w| w.lane == Lane::Target)
+        .collect();
+    let core = targets
+        .iter()
+        .filter(|w| words.word(w.id).is_some_and(|e| e.band == WordBand::Core))
+        .count();
+    assert!(
+        core * 2 >= targets.len(),
+        "{core} of {} target slots are core",
+        targets.len()
+    );
+    // Without a lowering the plan draws as before (same seed, same goals off).
+    let steady_plan = goal_plan(&[], &[]);
+    assert_ne!(
+        phase(&steady_plan, Phase::AdaptiveWords),
+        phase(&lowered_plan, Phase::AdaptiveWords)
+    );
 }

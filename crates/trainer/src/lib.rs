@@ -32,9 +32,9 @@ pub use learner::{FocusGroup, LearnerModel, SkillScore, group_of};
 pub use learning_policy::LearningPolicy;
 pub use numeric::{DigitSource, NumericError, number_row_exercise, numpad_exercise};
 pub use plan::{
-    Adaptation, ExerciseKind, PlanError, PlanInputs, PlanRng, PlannedExercise, PlannedPhase,
-    PlannedProbe, PlannedWord, ProbeInputs, ProbePlan, SessionPlan, WordSpan, build_session_plan,
-    completed_with_prose, pace_decision, probe_due,
+    Adaptation, ExerciseKind, PaceInputs, PlanError, PlanInputs, PlanRng, PlannedExercise,
+    PlannedPhase, PlannedProbe, PlannedWord, ProbeInputs, ProbePlan, SessionPlan, WordSpan,
+    build_session_plan, completed_with_prose, pace_baseline, pace_decision, probe_due,
 };
 pub use policy::{
     Lane, PacePolicy, Phase, PolicyError, ReviewPolicy, SelectionPolicy, SessionPolicy,

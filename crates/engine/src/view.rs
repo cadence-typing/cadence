@@ -253,6 +253,8 @@ pub struct LearningView {
     /// Targets per focus group whose phase is in the plan (#50), in
     /// letters, number row, numpad order.
     pub targets: Vec<TargetGroup>,
+    /// Each typing track's pace goal for this session (#62).
+    pub goals: Vec<cadence_core::learning::PaceRecord>,
     /// Focus skills as typed text, strongest first.
     pub focus: Vec<String>,
     /// Due spaced-review words planned this session.

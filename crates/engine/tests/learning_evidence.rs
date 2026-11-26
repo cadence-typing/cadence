@@ -61,6 +61,7 @@ fn engine(phases: Vec<PlannedPhase>) -> Result<Engine, Error> {
             numeric_gap_entries: 0,
         },
         probe: cadence_trainer::ProbePlan::NotDue,
+        pace: Vec::new(),
         phases,
     })?)
 }
@@ -364,6 +365,7 @@ fn engine_with(capacity: usize, per_word: u32, phases: Vec<PlannedPhase>) -> Res
             numeric_gap_entries: 0,
         },
         probe: cadence_trainer::ProbePlan::NotDue,
+        pace: Vec::new(),
         phases,
     })?)
 }
@@ -617,6 +619,7 @@ fn numeric_engine(gap: u32, phases: Vec<PlannedPhase>) -> Result<Engine, Error> 
             numeric_gap_entries: gap,
         },
         probe: cadence_trainer::ProbePlan::NotDue,
+        pace: Vec::new(),
         phases,
     })?)
 }
@@ -1141,6 +1144,7 @@ fn probe_engine() -> Result<Engine, Error> {
             strata: 0b0101,
             same_strata: true,
         }),
+        pace: Vec::new(),
     })?)
 }
 

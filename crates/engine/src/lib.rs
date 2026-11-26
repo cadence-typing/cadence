@@ -192,7 +192,13 @@ impl Engine {
             }
         }
         let learning = learning::Learning::new(
-            cadence_core::learning::SessionLearning::new(plan.record.clone()),
+            {
+                // The plan's pace goals are part of the session's record (#62).
+                let mut evidence =
+                    cadence_core::learning::SessionLearning::new(plan.record.clone());
+                evidence.pace.clone_from(&plan.pace);
+                evidence
+            },
             plan.adaptation,
         );
         let notice = (plan.probe == cadence_trainer::ProbePlan::NoPassage).then(|| {
