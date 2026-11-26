@@ -89,10 +89,20 @@ theorem stale_refused (expected : U64) (present : Bool) (current : U64) :
   cases present <;> by_cases h : expected = current <;> simp [h, WP.spec_ok]
 
 /-- Evicting when full keeps a cache of positive capacity bounded: after
-inserting one more, the length is at most the capacity. Total. -/
+inserting one more, the length is at most the capacity. -/
 theorem cache_bounded (len cap : Usize) (h : len.val ≤ cap.val) (hc : 0 < cap.val) :
     request.evict len cap ⦃ e =>
       (if e then len.val - 1 + 1 else len.val + 1) ≤ cap.val ⦄ := by
+  unfold request.evict
+  by_cases hl : len ≥ cap
+  · have : cap.val ≤ len.val := by scalar_tac
+    simp [hl, WP.spec_ok]; omega
+  · have : len.val < cap.val := by scalar_tac
+    simp [hl, WP.spec_ok]; omega
+
+/-- Evicts exactly when the cache is full: at or past its capacity. Total. -/
+theorem evict_iff_full (len cap : Usize) :
+    request.evict len cap ⦃ e => (e = true ↔ cap.val ≤ len.val) ⦄ := by
   unfold request.evict
   by_cases hl : len ≥ cap
   · have : cap.val ≤ len.val := by scalar_tac

@@ -1385,8 +1385,8 @@ crate = "cadence-kernel"
 file = "crates/kernel/src/request.rs"
 function = "request::evict"
 lean = "cadence_kernel.request.evict"
-theorems = ["Proofs.Request.cache_bounded"]
-total = "Proofs.Request.cache_bounded"
+theorems = ["Proofs.Request.cache_bounded", "Proofs.Request.evict_iff_full"]
+total = "Proofs.Request.evict_iff_full"
 mutants = ["cache-capacity-off-by-one"]
 
 [[mutant]]
