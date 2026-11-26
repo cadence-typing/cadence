@@ -54,6 +54,15 @@ pub(super) struct Learning {
     prose_spans: Vec<WordSpan>,
     /// A queued miss was placed into the open exercise.
     pub(super) substituted: bool,
+    /// Times each word was served this session (#7), bounded by the
+    /// session's planned and returned words.
+    seen_words: BTreeMap<WordId, u32>,
+    /// Times each numeric entry was served this session (#7).
+    seen_numeric: BTreeMap<Vec<TrainingChar>, u32>,
+    /// Earlier servings of each slot of the open word exercise.
+    pub(super) served_before: Vec<u32>,
+    /// Earlier servings of the open numeric entry.
+    pub(super) numeric_served_before: u32,
 }
 
 /// A missed numeric entry and the entry index it returns at.
@@ -90,6 +99,10 @@ impl Learning {
             numeric_again: false,
             prose_spans: Vec::new(),
             substituted: false,
+            seen_words: BTreeMap::new(),
+            seen_numeric: BTreeMap::new(),
+            served_before: Vec::new(),
+            numeric_served_before: 0,
         }
     }
 
@@ -184,6 +197,18 @@ impl Learning {
         &mut self,
         exercise: &PlannedExercise,
     ) -> Result<Vec<TrainingChar>, CoreError> {
+        let units = self.open_slots(exercise)?;
+        // Count servings after substitution: what the learner sees (#7).
+        self.served_before.clear();
+        for slot in &self.words {
+            let seen = self.seen_words.entry(slot.id).or_insert(0);
+            self.served_before.push(*seen);
+            *seen = seen.saturating_add(1);
+        }
+        Ok(units)
+    }
+
+    fn open_slots(&mut self, exercise: &PlannedExercise) -> Result<Vec<TrainingChar>, CoreError> {
         self.mark = None;
         self.substituted = false;
         self.words.clone_from(&exercise.words);
@@ -273,6 +298,9 @@ impl Learning {
                 exercise.units.clone()
             }
         };
+        let seen = self.seen_numeric.entry(units.clone()).or_insert(0);
+        self.numeric_served_before = *seen;
+        *seen = seen.saturating_add(1);
         self.numeric_current = Some(units.clone());
         units
     }

@@ -968,3 +968,106 @@ fn the_closing_review_serves_the_sessions_misses() -> TestResult {
     );
     Ok(())
 }
+
+fn one_phase(exercises: Vec<PlannedExercise>, phase: Phase) -> Vec<PlannedPhase> {
+    vec![PlannedPhase {
+        phase,
+        seconds: 60,
+        exercises,
+    }]
+}
+
+/// #7: a wrapped words list says so ("repeat · list restarted").
+#[test]
+fn a_wrapped_words_list_is_labelled() -> TestResult {
+    let phases = one_phase(
+        vec![words_exercise(&[
+            ("sun", 3, Lane::Target),
+            ("hat", 4, Lane::Broad),
+        ])?],
+        Phase::AdaptiveWords,
+    );
+    let mut driver = Driver::new(engine(phases)?)?;
+    driver.key(0, Key::Enter)?;
+    assert_eq!(context_line(&mut driver, SECOND), None, "fresh");
+    let at = type_text(&mut driver, SECOND, "sun hat")? + 100_000;
+    assert_eq!(practice_text(&mut driver, at)?, "sun hat");
+    assert_eq!(
+        context_line(&mut driver, at).as_deref(),
+        Some("repeat · list restarted")
+    );
+    Ok(())
+}
+
+/// #7: a wrapped numeric list says so; a numeric entry served earlier in
+/// the session reads "repeat".
+#[test]
+fn a_wrapped_numeric_list_is_labelled() -> TestResult {
+    let phases = vec![numeric_phase(
+        ExerciseKind::Numpad,
+        Phase::Numpad,
+        60,
+        &["12", "34", "12"],
+    )?];
+    let mut driver = Driver::new(numeric_engine(0, phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let mut at = SECOND;
+    let mut seen = Vec::new();
+    for _ in 0..4 {
+        let text = practice_text(&mut driver, at)?;
+        seen.push((text.clone(), context_line(&mut driver, at)));
+        at = type_text(&mut driver, at, &text)?;
+        driver.key(at, Key::Enter)?;
+        at += 100_000;
+    }
+    let captions: Vec<Option<&str>> = seen.iter().map(|(_, c)| c.as_deref()).collect();
+    assert_eq!(
+        captions,
+        [None, None, Some("repeat"), Some("repeat · list restarted")]
+    );
+    Ok(())
+}
+
+/// #7: a word planned twice in one session is named on its second serving.
+#[test]
+fn a_word_served_twice_is_a_named_repeat() -> TestResult {
+    let phases = one_phase(
+        vec![
+            words_exercise(&[("sun", 3, Lane::Target), ("hat", 4, Lane::Broad)])?,
+            words_exercise(&[("map", 5, Lane::Target), ("sun", 3, Lane::Broad)])?,
+        ],
+        Phase::AdaptiveWords,
+    );
+    let mut driver = Driver::new(engine(phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "sun hat")? + 100_000;
+    assert_eq!(practice_text(&mut driver, at)?, "map sun");
+    assert_eq!(
+        context_line(&mut driver, at).as_deref(),
+        Some("repeat: sun")
+    );
+    Ok(())
+}
+
+/// #7: a reinforcement of a word that is also due later reads "again".
+#[test]
+fn a_reinforcement_that_is_also_due_reads_again() -> TestResult {
+    let mut due = words_exercise(&[("map", 5, Lane::Target), ("cat", 1, Lane::Review)])?;
+    if let Some(slot) = due.words.get_mut(1) {
+        slot.due_review = true;
+    }
+    let phases = one_phase(
+        vec![
+            words_exercise(&[("cat", 1, Lane::Target), ("dog", 2, Lane::Broad)])?,
+            words_exercise(&[("sun", 3, Lane::Target), ("hat", 4, Lane::Review)])?,
+            due,
+        ],
+        Phase::AdaptiveWords,
+    );
+    let mut driver = Driver::new(engine(phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "c#at dog")? + 100_000;
+    assert_eq!(practice_text(&mut driver, at)?, "sun cat");
+    assert_eq!(context_line(&mut driver, at).as_deref(), Some("again: cat"));
+    Ok(())
+}

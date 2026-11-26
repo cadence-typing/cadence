@@ -20,6 +20,20 @@ use ratatui::layout::Rect;
 
 fn planned_engine(text: &str) -> Result<Engine, Box<dyn std::error::Error>> {
     let units = cadence_core::validate_target(text, LayoutSupportsPound::US)?;
+    words_engine(vec![cadence_trainer::PlannedExercise {
+        units,
+        kind: cadence_trainer::ExerciseKind::Words,
+        words: Vec::new(),
+        passage: None,
+        caption: None,
+        target: None,
+        spans: Vec::new(),
+    }])
+}
+
+fn words_engine(
+    exercises: Vec<cadence_trainer::PlannedExercise>,
+) -> Result<Engine, Box<dyn std::error::Error>> {
     Ok(Engine::new_plan(cadence_trainer::SessionPlan {
         budget_seconds: 60,
         policy_digest: cadence_core::ContentDigest::from_bytes([1; 32]),
@@ -38,15 +52,7 @@ fn planned_engine(text: &str) -> Result<Engine, Box<dyn std::error::Error>> {
         phases: vec![cadence_trainer::PlannedPhase {
             phase: cadence_trainer::Phase::AdaptiveWords,
             seconds: 60,
-            exercises: vec![cadence_trainer::PlannedExercise {
-                units,
-                kind: cadence_trainer::ExerciseKind::Words,
-                words: Vec::new(),
-                passage: None,
-                caption: None,
-                target: None,
-                spans: Vec::new(),
-            }],
+            exercises,
         }],
     })?)
 }
@@ -404,5 +410,76 @@ fn the_closing_review_row_is_not_in_the_headline() -> Result<(), Box<dyn std::er
         };
         assert_eq!(head(&without), head(&screen), "{columns}x{rows}");
     }
+    Ok(())
+}
+
+fn slotted(
+    slots: &[(&str, u64, cadence_trainer::Lane)],
+) -> Result<cadence_trainer::PlannedExercise, Box<dyn std::error::Error>> {
+    let text: Vec<&str> = slots.iter().map(|(word, _, _)| *word).collect();
+    Ok(cadence_trainer::PlannedExercise {
+        units: cadence_core::validate_target(&text.join(" "), LayoutSupportsPound::US)?,
+        kind: cadence_trainer::ExerciseKind::Words,
+        words: slots
+            .iter()
+            .map(|(_, id, lane)| {
+                Ok(cadence_trainer::PlannedWord {
+                    id: cadence_core::WordId::new(*id)?,
+                    lane: *lane,
+                    focus: None,
+                    due_review: false,
+                })
+            })
+            .collect::<Result<_, cadence_core::CoreError>>()?,
+        passage: None,
+        caption: None,
+        target: None,
+        spans: Vec::new(),
+    })
+}
+
+/// #7: each label ("again: cat", "repeat: dog", "repeat · list
+/// restarted") shows whole at 60x18.
+#[test]
+fn repeat_labels_show_whole_at_the_smallest_size() -> Result<(), Box<dyn std::error::Error>> {
+    use cadence_trainer::Lane::{Broad, Review, Target};
+    let mut engine = words_engine(vec![
+        slotted(&[("cat", 1, Target), ("dog", 2, Broad)])?,
+        slotted(&[("sun", 3, Target), ("hat", 4, Review)])?,
+        slotted(&[("map", 5, Target), ("dog", 2, Broad)])?,
+    ])?;
+    let mut seq = 0;
+    let mut at = 1_000;
+    let mut send = |engine: &mut Engine, kind: EventKind| -> u64 {
+        seq += 1;
+        at += 100_000;
+        engine.reduce(envelope(seq, at, kind));
+        at
+    };
+    send(&mut engine, EventKind::Key(Key::Enter));
+    let mut keys = |engine: &mut Engine, text: &str| -> u64 {
+        let mut last = 0;
+        for c in text.chars() {
+            last = if c == '#' {
+                send(engine, content('z'));
+                send(engine, EventKind::Key(Key::Backspace))
+            } else {
+                send(engine, content(c))
+            };
+        }
+        last
+    };
+    let mut captions = Vec::new();
+    for (typed, wanted) in [
+        ("c#at dog", "again: cat"),
+        ("sun cat", "repeat: dog"),
+        ("map dog", "repeat · list restarted"),
+    ] {
+        let now = keys(&mut engine, typed);
+        let screen = render(&engine, now, 60, 18);
+        assert!(screen.contains(wanted), "60x18 lacks {wanted:?}:\n{screen}");
+        captions.push(wanted);
+    }
+    assert_eq!(captions.len(), 3);
     Ok(())
 }

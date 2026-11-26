@@ -7,7 +7,7 @@ use cadence_core::ledger::AttemptLedger;
 use cadence_core::progress::Track;
 use cadence_core::session::SessionState;
 use cadence_core::{Micros, MonoTick, label};
-use cadence_trainer::{Lane, Phase};
+use cadence_trainer::{ExerciseKind, Lane, Phase};
 impl Engine {
     /// Builds a view without I/O, state mutation or advancing the clock.
     /// An invalid view timestamp is visibly rejected, never converted to zero time.
@@ -112,25 +112,39 @@ impl Engine {
     fn exercise_context(&self) -> Option<String> {
         let phase = self.plan.phases.get(self.phase_index)?;
         let exercise = phase.exercises.get(self.exercise_index)?;
+        // Every label is the proved `cadence_kernel::label::of` (#7):
+        // `again` (reinforcement), `due review`, `repeat` (served before in
+        // this session, or the list restarted), otherwise nothing.
+        let wrapped = self.list_wrapped;
+        const RESTARTED: &str = "repeat \u{b7} list restarted";
         if let Some(caption) = &exercise.caption {
-            return Some(caption.clone());
+            return Some(if wrapped {
+                format!("{caption} \u{b7} list restarted")
+            } else {
+                caption.clone()
+            });
+        }
+        if matches!(
+            exercise.kind,
+            ExerciseKind::NumberRow | ExerciseKind::Numpad
+        ) {
+            return match label::of(label::Facts {
+                served_before: self.learning.numeric_served_before,
+                reinforcement: self.learning.numeric_again,
+                due_review: false,
+                wrapped,
+                recent_passage: false,
+            }) {
+                label::Label::Again => Some("again".to_string()),
+                label::Label::Repeat if wrapped => Some(RESTARTED.to_string()),
+                label::Label::Repeat => Some("repeat".to_string()),
+                label::Label::DueReview | label::Label::Fresh => None,
+            };
         }
         // The closing review (#49) serves the session's misses; once none
         // are left it is extra words, and says so.
         if phase.phase == Phase::Review && !self.learning.substituted {
             return Some("no misses left \u{b7} extra words".to_string());
-        }
-        // A returned numeric miss (#59) is labelled by the proved label::of.
-        if self.learning.numeric_again
-            && label::of(label::Facts {
-                served_before: 1,
-                reinforcement: true,
-                due_review: false,
-                wrapped: false,
-                recent_passage: false,
-            }) == label::Label::Again
-        {
-            return Some("again".to_string());
         }
         let words = &self.learning.words;
         let mut parts = Vec::new();
@@ -146,18 +160,28 @@ impl Engine {
         if !focus.is_empty() {
             parts.push(format!("Targeting {}", focus.join(" \u{b7} ")));
         }
-        // Each slot's label is the proved `cadence_kernel::label::of`: a
-        // review-lane slot whose word differs from the planned one is a
-        // reinforcement (`Again`), a planned due review is `DueReview`.
+        // A review-lane slot whose word differs from the planned one is a
+        // reinforcement; a word planned as a due review anywhere in the
+        // plan stays a reinforcement here (`again` wins).
+        let due_in_plan = |id| {
+            self.plan
+                .phases
+                .iter()
+                .flat_map(|p| p.exercises.iter())
+                .flat_map(|e| e.words.iter())
+                .any(|w| w.id == id && w.due_review)
+        };
         let labels: Vec<label::Label> = words
             .iter()
             .zip(exercise.words.iter().map(|w| w.id))
-            .map(|(word, planned)| {
+            .zip(self.learning.served_before.iter().copied())
+            .map(|((word, planned), served_before)| {
+                let reinforcement = word.lane == Lane::Review && word.id != planned;
                 label::of(label::Facts {
-                    served_before: 0,
-                    reinforcement: word.lane == Lane::Review && word.id != planned,
-                    due_review: word.due_review,
-                    wrapped: false,
+                    served_before,
+                    reinforcement,
+                    due_review: word.due_review || (reinforcement && due_in_plan(word.id)),
+                    wrapped,
                     recent_passage: false,
                 })
             })
@@ -165,22 +189,32 @@ impl Engine {
         if labels.contains(&label::Label::DueReview) {
             parts.push("due review".to_string());
         }
-        // Name the re-served words exactly as they appear in the target.
-        let again: Vec<String> = self
-            .ledger
-            .as_ref()
-            .map(|ledger| {
-                ledger
-                    .target()
-                    .split(|unit| unit.get() == ' ')
-                    .zip(labels.iter())
-                    .filter(|(_, label)| **label == label::Label::Again)
-                    .map(|(units, _)| units.iter().map(|unit| unit.get()).collect())
-                    .collect()
-            })
-            .unwrap_or_default();
+        // Name re-served words exactly as they appear in the target.
+        let named = |wanted: label::Label| -> Vec<String> {
+            self.ledger
+                .as_ref()
+                .map(|ledger| {
+                    ledger
+                        .target()
+                        .split(|unit| unit.get() == ' ')
+                        .zip(labels.iter())
+                        .filter(|(_, label)| **label == wanted)
+                        .map(|(units, _)| units.iter().map(|unit| unit.get()).collect())
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        let again = named(label::Label::Again);
         if !again.is_empty() {
             parts.push(format!("again: {}", again.join(", ")));
+        }
+        if wrapped {
+            parts.push(RESTARTED.to_string());
+        } else {
+            let repeat = named(label::Label::Repeat);
+            if !repeat.is_empty() {
+                parts.push(format!("repeat: {}", repeat.join(", ")));
+            }
         }
         (!parts.is_empty()).then(|| parts.join(" \u{b7} "))
     }
