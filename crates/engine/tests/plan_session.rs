@@ -1,6 +1,7 @@
 //! Behavioral regressions for exact clocks, scoring and durable quit.
 use cadence_core::progress::SaveResult;
 use cadence_core::{ContentDigest, EventSeq, MonoTick};
+use cadence_engine::view::PauseReason;
 use cadence_engine::{
     DomainOutcome, EventEnvelope, EventKind, InputOwner, Key, ScreenView, UnitSpan,
 };
@@ -313,17 +314,121 @@ fn explicit_second_interrupt_after_failure_is_unsuccessful_exit() -> TestResult 
     assert!(exit.quit && exit.exit_failed);
     Ok(())
 }
+/// #51 (contract change): an acknowledgement overdue past the 2 s bound
+/// stalls practice instead of invalidating the session. Before #51 this
+/// test expected `MeasurementInvalid`.
 #[test]
-fn overdue_acknowledgement_invalidates_instead_of_invisibly_scoring() -> TestResult {
+fn overdue_acknowledgement_stalls_practice_instead_of_scoring() -> TestResult {
     let mut e = words()?;
     ready(&mut e)?;
     key(&mut e, 0, Key::Enter)?;
     content(&mut e, 1, 'c')?;
-    assert!(matches!(
-        send(&mut e, 2_000_001, EventKind::Tick)?.outcome,
+    let stalled = send(&mut e, 2_000_001, EventKind::Tick)?;
+    assert!(!matches!(
+        stalled.outcome,
         DomainOutcome::MeasurementInvalid { .. }
     ));
     assert_eq!(e.input_owner(), InputOwner::Navigation);
+    let view = e.prepare(MonoTick::from_us(2_000_001));
+    assert_eq!(view.pause_reason, Some(PauseReason::SavingSlow));
+    let active = view.active;
+    // Keys during the stall are not scored and the clock is stopped.
+    content(&mut e, 2_500_000, 'a')?;
+    key(&mut e, 2_600_000, Key::Escape)?;
+    let later = e.prepare(MonoTick::from_us(2_900_000));
+    assert_eq!(later.active, active);
+    assert_eq!(later.pause_reason, Some(PauseReason::SavingSlow));
+    Ok(())
+}
+
+/// #51: a stall that ends in a failed acknowledgement takes the save-failed
+/// path (`r` retries).
+#[test]
+fn a_stall_followed_by_a_failed_save_reaches_save_failed() -> TestResult {
+    let mut e = words()?;
+    ready(&mut e)?;
+    let first = checkpoint(key(&mut e, 0, Key::Enter)?)?;
+    content(&mut e, 1, 'c')?;
+    send(&mut e, 2_000_001, EventKind::Tick)?;
+    send(
+        &mut e,
+        3_000_000,
+        EventKind::SaveResult(SaveResult {
+            key: first.key,
+            result: Err("disk full".to_string()),
+        }),
+    )?;
+    let view = e.prepare(MonoTick::from_us(3_000_000));
+    assert!(
+        view.notice
+            .as_deref()
+            .is_some_and(|n| n.starts_with("Save failed"))
+    );
+    assert_eq!(e.input_owner(), InputOwner::Navigation);
+    key(&mut e, 3_100_000, Key::Escape)?;
+    assert_eq!(
+        e.input_owner(),
+        InputOwner::Navigation,
+        "no resume before r"
+    );
+    Ok(())
+}
+
+/// #51: a pause the learner made is not ended by a late acknowledgement.
+#[test]
+fn an_esc_pause_is_not_resumed_by_a_late_acknowledgement() -> TestResult {
+    let mut e = words()?;
+    ready(&mut e)?;
+    let first = checkpoint(key(&mut e, 0, Key::Enter)?)?;
+    content(&mut e, 1, 'c')?;
+    key(&mut e, 1_000_000, Key::Escape)?;
+    send(&mut e, 2_500_000, EventKind::Tick)?;
+    ack(&mut e, 3_000_000, &first)?;
+    let view = e.prepare(MonoTick::from_us(3_000_000));
+    assert_eq!(view.pause_reason, Some(PauseReason::Requested));
+    assert_eq!(e.input_owner(), InputOwner::Navigation);
+    Ok(())
+}
+
+/// #51: focus loss during the stall takes over its reason; the late
+/// acknowledgement does not resume, Esc does.
+#[test]
+fn focus_loss_during_a_stall_keeps_its_pause() -> TestResult {
+    let mut e = words()?;
+    ready(&mut e)?;
+    let first = checkpoint(key(&mut e, 0, Key::Enter)?)?;
+    content(&mut e, 1, 'c')?;
+    send(&mut e, 2_000_001, EventKind::Tick)?;
+    send(&mut e, 2_100_000, EventKind::FocusLost)?;
+    ack(&mut e, 3_000_000, &first)?;
+    assert_eq!(
+        e.prepare(MonoTick::from_us(3_000_000)).pause_reason,
+        Some(PauseReason::FocusLost)
+    );
+    key(&mut e, 3_100_000, Key::Escape)?;
+    assert_eq!(e.input_owner(), InputOwner::Practice);
+    Ok(())
+}
+
+/// #51: `e` during a stall ends the session early, saved as unfinished.
+#[test]
+fn ending_early_during_a_stall_saves_as_unfinished() -> TestResult {
+    let mut e = words()?;
+    ready(&mut e)?;
+    let first = checkpoint(key(&mut e, 0, Key::Enter)?)?;
+    content(&mut e, 1, 'c')?;
+    send(&mut e, 2_000_001, EventKind::Tick)?;
+    content(&mut e, 2_100_000, 'e')?;
+    assert!(matches!(
+        e.prepare(MonoTick::from_us(2_100_000)).screen,
+        ScreenView::Summary
+    ));
+    let next = ack(&mut e, 3_000_000, &first)?;
+    let saved = checkpoint(next)?;
+    assert_eq!(
+        saved.progress.status,
+        cadence_core::progress::ProgressStatus::Abandoned
+    );
     Ok(())
 }
 
@@ -376,20 +481,31 @@ fn storage_ready_and_resize_do_not_start_or_invent_a_session() -> TestResult {
     Ok(())
 }
 
+/// #51 (contract change): the stalled checkpoint's late success resumes
+/// practice; no active time accrues during the stall. Before #51 this test
+/// expected the late acknowledgement to arrive after an invalidation.
 #[test]
-fn late_success_ack_is_consumed_even_when_watchdog_invalidates() -> TestResult {
+fn late_success_ack_resumes_a_stalled_session() -> TestResult {
     let mut e = words()?;
     ready(&mut e)?;
     let first = checkpoint(key(&mut e, 0, Key::Enter)?)?;
     content(&mut e, 1, 'c')?;
+    send(&mut e, 2_000_001, EventKind::Tick)?;
+    let stalled_active = e.prepare(MonoTick::from_us(2_000_001)).active;
     let late = ack(&mut e, 3_000_000, &first)?;
-    assert!(matches!(
+    assert!(!matches!(
         late.outcome,
         DomainOutcome::MeasurementInvalid { .. }
     ));
-    let replacement = checkpoint(late)?;
-    assert_ne!(replacement.key, first.key);
-    ack(&mut e, 3_000_001, &replacement)?;
+    assert_eq!(e.input_owner(), InputOwner::Practice);
+    assert_eq!(
+        e.prepare(MonoTick::from_us(3_000_000)).active,
+        stalled_active
+    );
+    assert_eq!(e.prepare(MonoTick::from_us(3_000_000)).pause_reason, None);
+    if let Some(next) = late.checkpoint {
+        ack(&mut e, 3_000_001, &next)?;
+    }
     let final_save = checkpoint(send(&mut e, 3_000_002, EventKind::Terminate)?)?;
     assert!(ack(&mut e, 3_000_003, &final_save)?.quit);
     Ok(())

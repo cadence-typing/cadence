@@ -77,7 +77,9 @@
         "CleanExitIsDurable",
         "FailedTailIsNamed",
         "NoDoubleCredit",
+        "NoScoreWhileOverdue",
         "SingleFlight",
+        "StallLosesNothing",
         "TypeOK"
       ],
       "properties": [],
@@ -85,38 +87,47 @@
         "CheckpointSave-double-credit.cfg violates NoDoubleCredit",
         "CheckpointSave-early-ack.cfg violates AckIsDurable",
         "CheckpointSave-quit-before-ack.cfg violates CleanExitIsDurable",
+        "CheckpointSave-score-while-overdue.cfg violates NoScoreWhileOverdue",
+        "CheckpointSave-stall-drops-tail.cfg violates StallLosesNothing",
         "CheckpointSave-two-in-flight.cfg violates SingleFlight"
       ],
       "production_symbols": [
         "cadence_data::store::ProgressStore::apply_checkpoint",
         "cadence_engine::storage::{dispatch_checkpoint, save_result, retry_save, request_exit, watchdog}",
         "cadence_kernel::checkpoint::admit",
+        "cadence_kernel::session::overdue",
         "cadence_runtime::writer::SaveWorker"
       ],
       "runtime_tests": [
         "cadence-data::tests::checkpoints::lost_ack_retry_after_reopen_returns_exact_original_key",
         "cadence-data::tests::checkpoints::tampering_conflicts_and_unrecorded_stale_sequences_never_regress",
+        "cadence-engine::a_stall_followed_by_a_failed_save_reaches_save_failed",
         "cadence-engine::clean_exit_waits_for_the_final_acknowledgement",
         "cadence-engine::explicit_second_interrupt_after_failure_is_unsuccessful_exit",
         "cadence-engine::final_flush_timeout_exits_unsuccessfully_without_fabricating_ack",
+        "cadence-engine::late_success_ack_resumes_a_stalled_session",
+        "cadence-engine::overdue_acknowledgement_stalls_practice_instead_of_scoring",
         "cadence-engine::pending_checkpoint_retains_dirty_tail_and_retry_uses_fresh_full_key",
         "cadence-engine::repeated_typing_and_checkpoint_ack_do_not_duplicate_counts",
         "cadence-engine::single_flight_holds_under_a_burst_of_exercise_completions"
       ],
-      "constants": "MaxSeq = 3 SingleFlightGuard = TRUE AckAfterCommit = TRUE Idempotent = TRUE QuitWaitsForAck = TRUE",
+      "constants": "MaxSeq = 3 SingleFlightGuard = TRUE AckAfterCommit = TRUE Idempotent = TRUE QuitWaitsForAck = TRUE OverdueStopsScore = TRUE StallKeepsPending = TRUE",
       "sha256": {
-        "CheckpointSave.tla": "760a992cab79f28b88dee323523d033dd83318b1036d2f7afb90468ffd703e7a",
-        "CheckpointSave.cfg": "58153a2386024308cd6396de3a468f5aedcb66d746a3eef63d82d86f18142edb",
-        "CheckpointSave-two-in-flight.cfg": "4471af68fde1437e6936430471437f2b571c8a0dc70a204a8fb7028b15f3dee4",
-        "CheckpointSave-early-ack.cfg": "26d0e748ab6a8c2b8b2048734ef9336745c2c40d7ffcee19074b1d52e7f0dad6",
-        "CheckpointSave-double-credit.cfg": "236f2dd37009a412b406955bb7374fa9752d70408ae8c63e09b9db57d12454a6",
-        "CheckpointSave-quit-before-ack.cfg": "a175b526eed7fb415ff6114afe1b2bc65b1a4104f50a73875f5134755a22cf15"
+        "CheckpointSave.tla": "3c149734db07da6e3727e08b93ed40aa97e799a6d702e835f0bc04533279e79a",
+        "CheckpointSave.cfg": "9cbbd45c28f59e9e446a45d05c372ef49e327d021b6f4586b70ab887002d1eb9",
+        "CheckpointSave-two-in-flight.cfg": "e7f5b890f7edbbb716658ae0fde0f64c553d0b40b64d78c3bfa104962c8889e0",
+        "CheckpointSave-early-ack.cfg": "de266ddb5465b81628ff232268bb6bb94ea5e8dd45821750449538046a207736",
+        "CheckpointSave-double-credit.cfg": "44bfd7945edbdcd6a622d43949ef275161e379380669ee0b2c495456e4ff7f6f",
+        "CheckpointSave-quit-before-ack.cfg": "3b29358f2d088529c33132309c042ebde4b6b144bf56749d584b205e19c69e68",
+        "CheckpointSave-score-while-overdue.cfg": "a8ce529f89a360b7cd22c539faee95c52970212defc109b1826b443910490777",
+        "CheckpointSave-stall-drops-tail.cfg": "7cb500171ca1253de8c232a741be5f63b82d67e657af18a86884c792cb9077e5"
       }
     },
     {
       "module": "SessionFlow",
       "status": "mapped",
       "invariants": [
+        "CatchUpKeepsOtherPauses",
         "ClockStoppedUnlessRunning",
         "EndEarlyIsUnfinished",
         "InterludeGrace",
@@ -126,6 +137,7 @@
       ],
       "properties": [],
       "mutants": [
+        "SessionFlow-ack-resumes-any-pause.cfg violates CatchUpKeepsOtherPauses",
         "SessionFlow-deadline-inclusive.cfg violates NoScoreOutsidePhase",
         "SessionFlow-early-end-completed.cfg violates EndEarlyIsUnfinished",
         "SessionFlow-enter-skips-interlude.cfg violates InterludeGrace",
@@ -138,20 +150,23 @@
         "cadence_kernel::time::in_window"
       ],
       "runtime_tests": [
+        "cadence-engine::an_esc_pause_is_not_resumed_by_a_late_acknowledgement",
         "cadence-engine::an_in_flight_key_cannot_skip_the_phase_complete_screen",
         "cadence-engine::ending_early_opens_the_review_and_saves_as_unfinished",
         "cadence-engine::exact_boundary_key_is_not_scored",
+        "cadence-engine::focus_loss_during_a_stall_keeps_its_pause",
         "cadence-engine::paste_and_focus_loss_pause_without_invalidating",
         "cadence-engine::pause_before_first_input_and_paused_controls_do_not_score"
       ],
-      "constants": "Phases = 2 Budget = 2 Grace = 1 MaxTime = 6 PauseStopsClock = TRUE DeadlineExclusive = TRUE GraceGuard = TRUE EndEarlyAbandons = TRUE",
+      "constants": "Phases = 2 Budget = 2 Grace = 1 MaxTime = 6 PauseStopsClock = TRUE DeadlineExclusive = TRUE GraceGuard = TRUE EndEarlyAbandons = TRUE CatchUpGuard = TRUE",
       "sha256": {
-        "SessionFlow.tla": "198f3ba460e19230cee559b819cce2a5eb197dcc56ee49cf5530c126f25e61fb",
-        "SessionFlow.cfg": "ca08ff6d19aaae2094f870983512665baf69075d6c1fe785f28c0bbffdfdd79c",
-        "SessionFlow-score-while-paused.cfg": "6a7f05179d923543f646c90412e23afb6790881067b3630625abcce9f7bf27a4",
-        "SessionFlow-deadline-inclusive.cfg": "12af029c3d1f50d64023104d994920028c7829322ec71d46d9176d78d29bcabd",
-        "SessionFlow-enter-skips-interlude.cfg": "6d6d1242d27fc9a832bb9e9401767d2569eafabae754f4e989de9c5eaab3676e",
-        "SessionFlow-early-end-completed.cfg": "bf77ba9a4479b04f3eb5f970376ac45689d2732ef28e52137330d2be73462cf4"
+        "SessionFlow.tla": "51842faea88b9688fba4c9c1453562c4f98b1a22fb8dfa8ecafaf7a3ff071470",
+        "SessionFlow.cfg": "a12400472f686451625459db5455552001e54e72b8129fd95f779710c9ff04b6",
+        "SessionFlow-score-while-paused.cfg": "afdcd2a35f4fe058c7054e870cf5756fa896b9d0b56f3800fabb03cff525d8d2",
+        "SessionFlow-deadline-inclusive.cfg": "5b263de83c92a17c42963bd6eea754063209d0a9360eabc0616df10d802551cd",
+        "SessionFlow-enter-skips-interlude.cfg": "13d6874df7f1e47ac10c925b49645b469316af1227f66630bb8120ef15d183b3",
+        "SessionFlow-early-end-completed.cfg": "638a86ade3f56377fdbbf2e3fea9867c2c16925c1fc62d7163de262e0aea98ce",
+        "SessionFlow-ack-resumes-any-pause.cfg": "145723039af6b0021258b2a68e598b223aec3177cae21b47bf6f4e5bf9c8741f"
       }
     },
     {

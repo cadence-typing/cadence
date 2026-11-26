@@ -50,6 +50,11 @@ pub enum Event {
     Finish,
     /// The final checkpoint was acknowledged.
     FinalSaved,
+    /// A checkpoint acknowledgement passed its bound while practice runs
+    /// (#51): practice pauses, nothing changes but the clock.
+    SaveStalled,
+    /// The stalled checkpoint was acknowledged: the stall's pause ends.
+    SaveCaughtUp,
 }
 
 /// What the engine does with the active clock.
@@ -281,5 +286,38 @@ pub fn step(state: State, event: Event) -> Step {
                 outcome: Outcome::Unchanged,
             },
         },
+        Event::SaveStalled => match state {
+            State::Ready
+            | State::Paused
+            | State::PhaseComplete
+            | State::Review
+            | State::Finishing
+            | State::Saved => Step::Refused,
+            State::Running => Step::Move {
+                next: State::Paused,
+                clock: Clock::Stop,
+                outcome: Outcome::Unchanged,
+            },
+        },
+        Event::SaveCaughtUp => match state {
+            State::Ready
+            | State::Running
+            | State::PhaseComplete
+            | State::Review
+            | State::Finishing
+            | State::Saved => Step::Refused,
+            State::Paused => Step::Move {
+                next: State::Running,
+                clock: Clock::Resume,
+                outcome: Outcome::Unchanged,
+            },
+        },
     }
+}
+
+/// Whether a checkpoint acknowledgement outstanding for `elapsed_us` is
+/// overdue under the bound `bound_us`.
+#[must_use]
+pub fn overdue(elapsed_us: u64, bound_us: u64) -> bool {
+    elapsed_us > bound_us
 }

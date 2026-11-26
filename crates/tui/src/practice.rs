@@ -208,6 +208,7 @@ fn paused_controls(buffer: &mut Buffer, area: Rect, view: &PreparedView, palette
         Some(PauseReason::FocusLost) => "The terminal lost focus; the clock stopped.",
         Some(PauseReason::PasteRejected) => "Paste ignored; nothing was inserted.",
         Some(PauseReason::TooSmall) => "The terminal was too small; the clock stopped.",
+        Some(PauseReason::SavingSlow) => "Saving is slow; the clock is stopped.",
         Some(PauseReason::Requested) | None => "The clock is stopped; your line is kept.",
     };
     let keys = bindings(ViewMode::Paused, false);

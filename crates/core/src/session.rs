@@ -22,7 +22,7 @@ pub use cadence_kernel::session::State as SessionState;
 /// The proved session table and its vocabulary, for the engine's adapter.
 pub use cadence_kernel::session::{
     Clock as SessionClock, Event as SessionEvent, Outcome as SessionOutcome, Step as SessionStep,
-    step as session_step,
+    overdue as save_overdue, step as session_step,
 };
 
 /// Active-time accounting for one exercise: contiguous timing segments

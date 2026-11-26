@@ -74,13 +74,14 @@ violates = "NoEarlyReturn"
 module = "CheckpointSave"
 dir = "models"
 config = "CheckpointSave.cfg"
-invariants = ["TypeOK", "AckIsDurable", "NoDoubleCredit", "SingleFlight", "CleanExitIsDurable", "FailedTailIsNamed"]
+invariants = ["TypeOK", "AckIsDurable", "NoDoubleCredit", "SingleFlight", "CleanExitIsDurable", "FailedTailIsNamed", "NoScoreWhileOverdue", "StallLosesNothing"]
 status = "mapped"
 production_symbols = [
   "cadence_engine::storage::{dispatch_checkpoint, save_result, retry_save, request_exit, watchdog}",
   "cadence_runtime::writer::SaveWorker",
   "cadence_data::store::ProgressStore::apply_checkpoint",
   "cadence_kernel::checkpoint::admit",
+  "cadence_kernel::session::overdue",
 ]
 runtime_tests = [
   "cadence-engine::final_flush_timeout_exits_unsuccessfully_without_fabricating_ack",
@@ -91,6 +92,9 @@ runtime_tests = [
   "cadence-engine::clean_exit_waits_for_the_final_acknowledgement",
   "cadence-engine::pending_checkpoint_retains_dirty_tail_and_retry_uses_fresh_full_key",
   "cadence-engine::explicit_second_interrupt_after_failure_is_unsuccessful_exit",
+  "cadence-engine::overdue_acknowledgement_stalls_practice_instead_of_scoring",
+  "cadence-engine::late_success_ack_resumes_a_stalled_session",
+  "cadence-engine::a_stall_followed_by_a_failed_save_reaches_save_failed",
 ]
 
 [[model.mutant]]
@@ -109,6 +113,14 @@ violates = "NoDoubleCredit"
 config = "CheckpointSave-quit-before-ack.cfg"
 violates = "CleanExitIsDurable"
 
+[[model.mutant]]
+config = "CheckpointSave-score-while-overdue.cfg"
+violates = "NoScoreWhileOverdue"
+
+[[model.mutant]]
+config = "CheckpointSave-stall-drops-tail.cfg"
+violates = "StallLosesNothing"
+
 # The session flow (#31). State changes follow the proved
 # cadence_kernel::session::step; the model adds the clock, the phase window,
 # the interlude grace and the guards the engine keeps around the table.
@@ -119,7 +131,7 @@ violates = "CleanExitIsDurable"
 module = "SessionFlow"
 dir = "models"
 config = "SessionFlow.cfg"
-invariants = ["TypeOK", "ClockStoppedUnlessRunning", "NoScoreOutsidePhase", "InterludeGrace", "EndEarlyIsUnfinished", "PauseKeepsReason"]
+invariants = ["TypeOK", "ClockStoppedUnlessRunning", "NoScoreOutsidePhase", "InterludeGrace", "EndEarlyIsUnfinished", "PauseKeepsReason", "CatchUpKeepsOtherPauses"]
 status = "mapped"
 production_symbols = [
   "cadence_kernel::session::step",
@@ -133,6 +145,8 @@ runtime_tests = [
   "cadence-engine::an_in_flight_key_cannot_skip_the_phase_complete_screen",
   "cadence-engine::ending_early_opens_the_review_and_saves_as_unfinished",
   "cadence-engine::paste_and_focus_loss_pause_without_invalidating",
+  "cadence-engine::an_esc_pause_is_not_resumed_by_a_late_acknowledgement",
+  "cadence-engine::focus_loss_during_a_stall_keeps_its_pause",
 ]
 
 [[model.mutant]]
@@ -150,6 +164,10 @@ violates = "InterludeGrace"
 [[model.mutant]]
 config = "SessionFlow-early-end-completed.cfg"
 violates = "EndEarlyIsUnfinished"
+
+[[model.mutant]]
+config = "SessionFlow-ack-resumes-any-pause.cfg"
+violates = "CatchUpKeepsOtherPauses"
 
 # The cross-session feedback loop (#40): observe, checkpoint, finish or kill,
 # replay the durable rows through the review ladder, plan the due words,

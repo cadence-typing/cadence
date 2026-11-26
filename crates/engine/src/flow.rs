@@ -56,6 +56,14 @@ impl Engine {
 
     /// Pauses running practice for `reason`; an existing pause keeps its reason.
     pub(super) fn pause_for(&mut self, at: MonoTick, reason: PauseReason) -> Result<(), CoreError> {
+        // Focus loss or a paste during a stall takes over its reason, so
+        // the late acknowledgement does not resume this pause (#51).
+        if self.session_state == SessionState::Paused
+            && self.pause_reason == Some(PauseReason::SavingSlow)
+        {
+            self.pause_reason = Some(reason);
+            return Ok(());
+        }
         if self.screen != Screen::Practice || self.session_state != SessionState::Running {
             return Ok(());
         }
@@ -70,6 +78,7 @@ impl Engine {
         if !self.invalid
             && self.viewport == super::ViewportState::Usable
             && !self.storage.as_ref().is_some_and(|s| s.failed.is_some())
+            && self.pause_reason != Some(PauseReason::SavingSlow)
         {
             self.transition(Some(at), SessionEvent::Resume)?;
             self.pause_reason = None;

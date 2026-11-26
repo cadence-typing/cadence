@@ -13,6 +13,13 @@ tier = "edge"
 [lints]
 workspace = true
 
+[features]
+# Test-only fault port (#51): CADENCE_FAULT_SLOW_SAVE="SEQ:MS" makes the
+# writer wait MS milliseconds before applying checkpoint sequence SEQ, so a
+# PTY run can show a slow save pausing and resuming practice. Never enabled
+# in release builds.
+test-faults = []
+
 [dependencies]
 cadence-core.workspace = true
 cadence-engine.workspace = true

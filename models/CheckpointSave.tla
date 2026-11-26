@@ -14,10 +14,15 @@
 (* request after a failure or the 10 s final-flush watchdog exits          *)
 (* unsuccessfully.                                                         *)
 (*                                                                         *)
+(* While practice runs, an acknowledgement overdue past the 2 s bound       *)
+(* stalls practice (#51): the clock stops and nothing is scored until the  *)
+(* stalled checkpoint is answered; success resumes, failure takes the      *)
+(* save-failed path.                                                       *)
+(*                                                                         *)
 (* Abstracted away: the checkpoint contents (a sequence stands for its     *)
 (* cumulative snapshot), the 2 s cadence (any time a checkpoint may become *)
-(* due), the running-phase watchdog invalidation (#51) and process crash   *)
-(* (the frozen formal/DurableCheckpoint.tla covers reopen).                *)
+(* due or overdue) and process crash (the frozen                           *)
+(* formal/DurableCheckpoint.tla covers reopen).                            *)
 (*                                                                         *)
 (* Fault switches, each TRUE in the positive configuration and FALSE in    *)
 (* exactly one mutant configuration:                                       *)
@@ -25,10 +30,13 @@
 (*   AckAfterCommit:    the worker replies success only after commit.      *)
 (*   Idempotent:        a replayed sequence is not credited again (admit). *)
 (*   QuitWaitsForAck:   a clean exit needs the final acknowledgement.      *)
+(*   OverdueStopsScore: no content is scored while a save is overdue.      *)
+(*   StallKeepsPending: a stall keeps waiting for the stalled checkpoint.  *)
 (***************************************************************************)
 EXTENDS Naturals, Sequences, FiniteSets
 
-CONSTANTS MaxSeq, SingleFlightGuard, AckAfterCommit, Idempotent, QuitWaitsForAck
+CONSTANTS MaxSeq, SingleFlightGuard, AckAfterCommit, Idempotent, QuitWaitsForAck,
+          OverdueStopsScore, StallKeepsPending
 
 Seqs == 1..MaxSeq
 None == 0
@@ -49,10 +57,12 @@ VARIABLES
     replies,      \* set of [s, ok] replies not yet consumed
     durable,      \* latest committed sequence (sessions row) or None
     credits,      \* times each sequence's snapshot was credited
-    early         \* sequences acknowledged before commit (AckAfterCommit = FALSE)
+    early,        \* sequences acknowledged before commit (AckAfterCommit = FALSE)
+    overdue,      \* practice is stalled on an overdue acknowledgement (#51)
+    scoredOverdue \* history: content was scored while overdue
 
 vars == <<seq, pending, failed, lastAck, due, finishing, finals, exited,
-          answered, queue, replies, durable, credits, early>>
+          answered, queue, replies, durable, credits, early, overdue, scoredOverdue>>
 
 TypeOK ==
     /\ seq \in 0..MaxSeq
@@ -69,6 +79,7 @@ TypeOK ==
     /\ durable \in {None} \cup Seqs
     /\ credits \in [Seqs -> 0..2]
     /\ early \subseteq Seqs
+    /\ overdue \in BOOLEAN /\ scoredOverdue \in BOOLEAN
 
 Init ==
     /\ seq = 0
@@ -85,6 +96,7 @@ Init ==
     /\ durable = None
     /\ credits = [s \in Seqs |-> 0]
     /\ early = {}
+    /\ overdue = FALSE /\ scoredOverdue = FALSE
 
 Running == exited = "no"
 
@@ -94,7 +106,7 @@ BecomeDue ==
     /\ Running /\ ~finishing /\ ~due
     /\ due' = TRUE
     /\ UNCHANGED <<seq, pending, failed, lastAck, finishing, finals, exited,
-                   answered, queue, replies, durable, credits, early>>
+                   answered, queue, replies, durable, credits, early, overdue, scoredOverdue>>
 
 \* Engine::dispatch_checkpoint: single-flight, never while a failure waits.
 Dispatch ==
@@ -106,7 +118,7 @@ Dispatch ==
     /\ finals' = IF finishing THEN finals \cup {seq + 1} ELSE finals
     /\ queue' = Append(queue, seq + 1)
     /\ UNCHANGED <<failed, lastAck, finishing, exited, answered, replies,
-                   durable, credits, early>>
+                   durable, credits, early, overdue, scoredOverdue>>
 
 \* ProgressStore::apply_checkpoint with checkpoint::admit: a newer sequence
 \* is applied and credited once; an equal one is a read-only replay.
@@ -124,7 +136,7 @@ WorkerCommit ==
         /\ replies' = IF s \in early THEN replies ELSE replies \cup {[s |-> s, ok |-> TRUE]}
         /\ early' = early \ {s}
     /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals,
-                   exited, answered>>
+                   exited, answered, overdue, scoredOverdue>>
 
 \* The transaction fails (disk full, I/O error): nothing is committed.
 WorkerFail ==
@@ -134,7 +146,7 @@ WorkerFail ==
         /\ queue' = Tail(queue)
         /\ replies' = replies \cup {[s |-> s, ok |-> FALSE]}
     /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals,
-                   exited, answered, durable, credits, early>>
+                   exited, answered, durable, credits, early, overdue, scoredOverdue>>
 
 \* A committed request processed again (the same checkpoint retried after a
 \* lost reply): admit must make it a replay.
@@ -145,7 +157,7 @@ WorkerReplay ==
         /\ credits[s] < 2
         /\ Commit(s)
     /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals,
-                   exited, answered, queue, replies, early>>
+                   exited, answered, queue, replies, early, overdue, scoredOverdue>>
 
 \* Mutant only: reply success before the transaction commits.
 WorkerAckEarly ==
@@ -155,7 +167,7 @@ WorkerAckEarly ==
     /\ early' = early \cup {Head(queue)}
     /\ replies' = replies \cup {[s |-> Head(queue), ok |-> TRUE]}
     /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals,
-                   exited, answered, queue, durable, credits>>
+                   exited, answered, queue, durable, credits, overdue, scoredOverdue>>
 
 \* Engine::save_result: only the outstanding key's reply counts; a success
 \* moves the watermark and, when finishing with nothing due and the
@@ -166,6 +178,9 @@ Receive ==
         /\ answered' = answered \cup {r.s}
         /\ IF Running /\ pending = r.s
            THEN /\ pending' = None
+                \* the answer ends a stall: success resumes, failure pauses
+                \* on the save-failed path
+                /\ overdue' = FALSE
                 /\ IF r.ok
                    THEN /\ lastAck' = r.s
                         /\ failed' = FALSE
@@ -173,8 +188,8 @@ Receive ==
                                      THEN "ok" ELSE exited
                    ELSE /\ failed' = TRUE
                         /\ UNCHANGED <<lastAck, exited>>
-           ELSE UNCHANGED <<pending, lastAck, failed, exited>>
-    /\ UNCHANGED <<seq, due, finishing, finals, queue, durable, credits, early>>
+           ELSE UNCHANGED <<pending, lastAck, failed, exited, overdue>>
+    /\ UNCHANGED <<seq, due, finishing, finals, queue, durable, credits, early, scoredOverdue>>
 
 \* Engine::retry_save (`r`): the next dispatch rebuilds the cumulative
 \* snapshot under a fresh sequence.
@@ -183,7 +198,7 @@ Retry ==
     /\ failed' = FALSE
     /\ due' = TRUE
     /\ UNCHANGED <<seq, pending, lastAck, finishing, finals, exited, answered,
-                   queue, replies, durable, credits, early>>
+                   queue, replies, durable, credits, early, overdue, scoredOverdue>>
 
 \* Engine::request_exit: the first request finishes and makes the final
 \* checkpoint due; after a failure a second request exits unsuccessfully.
@@ -200,17 +215,34 @@ RequestExit ==
           /\ exited' = "ok"
           /\ UNCHANGED <<finishing, due>>
     /\ UNCHANGED <<seq, pending, failed, lastAck, finals, answered, queue,
-                   replies, durable, credits, early>>
+                   replies, durable, credits, early, overdue, scoredOverdue>>
 
 \* Engine::watchdog: the final flush gives up after 10 s, unsuccessfully.
 FinalTimeout ==
     /\ Running /\ finishing /\ pending # None
     /\ exited' = "failed"
     /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals,
-                   answered, queue, replies, durable, credits, early>>
+                   answered, queue, replies, durable, credits, early, overdue, scoredOverdue>>
+
+\* Engine::watchdog while practice runs: the outstanding checkpoint passed
+\* the 2 s bound: practice pauses ("Saving is slow"), SaveStalled.
+Stall ==
+    /\ Running /\ ~finishing /\ ~overdue /\ pending # None
+    /\ overdue' = TRUE
+    /\ pending' = IF StallKeepsPending THEN pending ELSE None
+    /\ UNCHANGED <<seq, failed, lastAck, due, finishing, finals, exited, answered,
+                   queue, replies, durable, credits, early, scoredOverdue>>
+
+\* A scored content key (Engine::practice_key while Running).
+Score ==
+    /\ Running /\ ~finishing /\ ~failed
+    /\ OverdueStopsScore => ~overdue
+    /\ scoredOverdue' = (scoredOverdue \/ overdue)
+    /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals, exited,
+                   answered, queue, replies, durable, credits, early, overdue>>
 
 Next ==
-    \/ BecomeDue \/ Dispatch \/ WorkerCommit \/ WorkerFail \/ WorkerReplay
+    \/ Stall \/ Score \/ BecomeDue \/ Dispatch \/ WorkerCommit \/ WorkerFail \/ WorkerReplay
     \/ WorkerAckEarly \/ Receive \/ Retry \/ RequestExit \/ FinalTimeout
 
 Spec == Init /\ [][Next]_vars
@@ -237,4 +269,11 @@ CleanExitIsDurable ==
 FailedTailIsNamed ==
     failed => /\ pending = None
               /\ (lastAck # None => lastAck <= durable)
+
+\* No content is scored while an acknowledgement is overdue.
+NoScoreWhileOverdue == ~scoredOverdue
+
+\* A stall loses nothing: it keeps waiting for the stalled checkpoint, so
+\* its answer still moves the watermark (or takes the save-failed path).
+StallLosesNothing == overdue => pending # None
 =============================================================================

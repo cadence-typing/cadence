@@ -53,11 +53,13 @@ theorem completed_only_after_last_phase (s : session.State) (e : session.Event) 
         e = session.Event.LastDeadline ∨ e = session.Event.PlanDone ⦄ := by
   cases s <;> cases e <;> simp [session.step, WP.spec_ok]
 
-/-- Typing starts or continues only by `Start`, `Resume` or `NextPhase`. -/
+/-- Typing starts or continues only by `Start`, `Resume`, `NextPhase` or a
+stalled save catching up (#51). -/
 theorem running_only_by_start_resume_or_next (s : session.State) (e : session.Event) :
     session.step s e
       ⦃ r => ∀ c o, r = session.Step.Move session.State.Running c o →
-        e = session.Event.Start ∨ e = session.Event.Resume ∨ e = session.Event.NextPhase ⦄ := by
+        e = session.Event.Start ∨ e = session.Event.Resume ∨ e = session.Event.NextPhase ∨
+        e = session.Event.SaveCaughtUp ⦄ := by
   cases s <;> cases e <;> simp [session.step, WP.spec_ok]
 
 /-- An invalid measurement is admitted in every state, so the engine's
@@ -65,5 +67,33 @@ theorem running_only_by_start_resume_or_next (s : session.State) (e : session.Ev
 theorem invalidate_admitted (s : session.State) :
     session.step s session.Event.Invalidate ⦃ r => r ≠ session.Step.Refused ⦄ := by
   cases s <;> simp [session.step, WP.spec_ok]
+
+/-- A stalled save stops the clock: it is admitted only while running and
+moves to `Paused` with `Clock::Stop` (#51). -/
+theorem stall_stops_clock (s : session.State) :
+    session.step s session.Event.SaveStalled
+      ⦃ r => ∀ n c o, r = session.Step.Move n c o →
+        s = session.State.Running ∧ n = session.State.Paused ∧ c = session.Clock.Stop ⦄ := by
+  cases s <;> simp [session.step, WP.spec_ok]
+
+/-- A stall changes nothing about the session's outcome. -/
+theorem stall_changes_no_outcome (s : session.State) :
+    session.step s session.Event.SaveStalled
+      ⦃ r => ∀ n c o, r = session.Step.Move n c o → o = session.Outcome.Unchanged ⦄ := by
+  cases s <;> simp [session.step, WP.spec_ok]
+
+/-- A save catching up resumes typing only from a pause, never from the
+review or anything after it. -/
+theorem caught_up_only_from_paused (s : session.State) :
+    session.step s session.Event.SaveCaughtUp
+      ⦃ r => ∀ n c o, r = session.Step.Move n c o →
+        s = session.State.Paused ∧ n = session.State.Running ∧ o = session.Outcome.Unchanged ⦄ := by
+  cases s <;> simp [session.step, WP.spec_ok]
+
+/-- Overdue exactly when strictly past the bound. Total. -/
+theorem overdue_spec (elapsed bound : U64) :
+    session.overdue elapsed bound ⦃ r => (r = true ↔ bound.val < elapsed.val) ⦄ := by
+  unfold session.overdue
+  simp [WP.spec_ok]
 
 end Proofs.Session

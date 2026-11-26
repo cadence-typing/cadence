@@ -137,6 +137,17 @@ impl SaveWorker {
     }
 }
 
+/// The test-only slow-save fault: `CADENCE_FAULT_SLOW_SAVE="SEQ:MS"`.
+#[cfg(feature = "test-faults")]
+fn slow_save_fault() -> Option<(u64, std::time::Duration)> {
+    let value = std::env::var("CADENCE_FAULT_SLOW_SAVE").ok()?;
+    let (sequence, millis) = value.split_once(':')?;
+    Some((
+        sequence.parse().ok()?,
+        std::time::Duration::from_millis(millis.parse().ok()?),
+    ))
+}
+
 fn writer_loop(
     profile: Option<PathBuf>,
     learner_window: usize,
@@ -162,8 +173,16 @@ fn writer_loop(
             return;
         }
     };
+    #[cfg(feature = "test-faults")]
+    let slow = slow_save_fault();
     while let Ok(checkpoint) = requests.recv() {
         let key = checkpoint.key;
+        #[cfg(feature = "test-faults")]
+        if let Some((sequence, delay)) = slow
+            && key.sequence.get() == sequence
+        {
+            thread::sleep(delay);
+        }
         let outcome = store
             .apply_checkpoint(&checkpoint)
             .map(|_| ())

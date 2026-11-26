@@ -1,11 +1,11 @@
 //! Single-flight checkpoint state; runtime alone performs durable I/O.
 use super::practice::merge_track;
 use super::{DomainOutcome, Engine, Screen, Transition, invalid};
-use crate::view::Durability;
+use crate::view::{Durability, PauseReason};
 use cadence_core::progress::{
     Checkpoint, HistorySummary, ProgressStatus, SaveKey, SaveResult, SessionProgress,
 };
-use cadence_core::session::{SessionEvent, SessionState};
+use cadence_core::session::{SessionEvent, SessionState, save_overdue};
 use cadence_core::{CommitSeq, CoreError, MonoTick, SessionId};
 
 /// Maximum running checkpoint interval and acknowledgement watchdog.
@@ -79,6 +79,16 @@ impl Engine {
                     // acknowledgement must not keep a diagnostic banner open.
                     self.notice = None;
                 }
+                // #51: the stalled save caught up: its pause ends (only a
+                // pause whose reason is still the stall).
+                if self.session_state == SessionState::Paused
+                    && self.pause_reason == Some(PauseReason::SavingSlow)
+                    && !self.invalid
+                {
+                    let at = self.last_at;
+                    self.transition(at, SessionEvent::SaveCaughtUp)?;
+                    self.pause_reason = None;
+                }
                 if self.finishing
                     && !self.checkpoint_due
                     && checkpoint.progress.status == self.status
@@ -103,6 +113,10 @@ impl Engine {
                 );
                 let at = self.last_at;
                 self.transition(at, SessionEvent::SaveFailed)?;
+                if self.pause_reason == Some(PauseReason::SavingSlow) {
+                    // The failure takes over: `r` retries, then Esc resumes.
+                    self.pause_reason = None;
+                }
                 self.notice = Some(format!(
                     "Save failed: {bounded}; {durable}. Paused; r retries. Ctrl-C twice requests an unsuccessful exit; the unacknowledged tail may be lost."
                 ));
@@ -170,11 +184,14 @@ impl Engine {
         }
         if self.session_state == SessionState::Running {
             if let Some(sent) = storage.sent_at
-                && at.elapsed_since(sent)?.as_us() > CHECKPOINT_CADENCE_US
+                && save_overdue(at.elapsed_since(sent)?.as_us(), CHECKPOINT_CADENCE_US)
             {
-                return Err(invalid(
-                    "checkpoint acknowledgement exceeded the 2-second watchdog",
-                ));
+                // #51: a slow save stalls practice (the clock stops, nothing
+                // is scored) until the acknowledgement arrives, instead of
+                // invalidating the session.
+                self.transition(Some(at), SessionEvent::SaveStalled)?;
+                self.pause_reason = Some(PauseReason::SavingSlow);
+                return Ok(());
             }
             if storage.last_dispatch.is_none()
                 || storage.last_dispatch.is_some_and(|last| {

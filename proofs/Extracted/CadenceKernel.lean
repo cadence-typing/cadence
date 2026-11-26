@@ -1982,7 +1982,7 @@ inductive session.State where
 | Saved : session.State
 
 /-- [cadence_kernel::session::Event]
-    Source: 'crates/kernel/src/session.rs', lines 28:0-53:1
+    Source: 'crates/kernel/src/session.rs', lines 28:0-58:1
     Visibility: public -/
 @[discriminant isize]
 inductive session.Event where
@@ -1998,9 +1998,11 @@ inductive session.Event where
 | EndEarly : session.Event
 | Finish : session.Event
 | FinalSaved : session.Event
+| SaveStalled : session.Event
+| SaveCaughtUp : session.Event
 
 /-- [cadence_kernel::session::Clock]
-    Source: 'crates/kernel/src/session.rs', lines 57:0-64:1
+    Source: 'crates/kernel/src/session.rs', lines 62:0-69:1
     Visibility: public -/
 @[discriminant isize]
 inductive session.Clock where
@@ -2009,7 +2011,7 @@ inductive session.Clock where
 | Resume : session.Clock
 
 /-- [cadence_kernel::session::Outcome]
-    Source: 'crates/kernel/src/session.rs', lines 68:0-76:1
+    Source: 'crates/kernel/src/session.rs', lines 73:0-81:1
     Visibility: public -/
 @[discriminant isize]
 inductive session.Outcome where
@@ -2018,7 +2020,7 @@ inductive session.Outcome where
 | Unfinished : session.Outcome
 
 /-- [cadence_kernel::session::Step]
-    Source: 'crates/kernel/src/session.rs', lines 80:0-92:1
+    Source: 'crates/kernel/src/session.rs', lines 85:0-97:1
     Visibility: public -/
 @[discriminant isize]
 inductive session.Step where
@@ -2026,7 +2028,7 @@ inductive session.Step where
 | Refused : session.Step
 
 /-- [cadence_kernel::session::step]:
-    Source: 'crates/kernel/src/session.rs', lines 97:0-285:1
+    Source: 'crates/kernel/src/session.rs', lines 102:0-316:1
     Visibility: public -/
 def session.step
   (state : session.State) (event : session.Event) : Result session.Step := do
@@ -2201,6 +2203,35 @@ def session.step
       ok (session.Step.Move session.State.Saved session.Clock.Keep
         session.Outcome.Unchanged)
     | session.State.Saved => ok session.Step.Refused
+  | session.Event.SaveStalled =>
+    match state with
+    | session.State.Ready => ok session.Step.Refused
+    | session.State.Running =>
+      ok (session.Step.Move session.State.Paused session.Clock.Stop
+        session.Outcome.Unchanged)
+    | session.State.Paused => ok session.Step.Refused
+    | session.State.PhaseComplete => ok session.Step.Refused
+    | session.State.Review => ok session.Step.Refused
+    | session.State.Finishing => ok session.Step.Refused
+    | session.State.Saved => ok session.Step.Refused
+  | session.Event.SaveCaughtUp =>
+    match state with
+    | session.State.Ready => ok session.Step.Refused
+    | session.State.Running => ok session.Step.Refused
+    | session.State.Paused =>
+      ok (session.Step.Move session.State.Running session.Clock.Resume
+        session.Outcome.Unchanged)
+    | session.State.PhaseComplete => ok session.Step.Refused
+    | session.State.Review => ok session.Step.Refused
+    | session.State.Finishing => ok session.Step.Refused
+    | session.State.Saved => ok session.Step.Refused
+
+/-- [cadence_kernel::session::overdue]:
+    Source: 'crates/kernel/src/session.rs', lines 321:0-323:1
+    Visibility: public -/
+def session.overdue
+  (elapsed_us : Std.U64) (bound_us : Std.U64) : Result Bool := do
+  ok (elapsed_us > bound_us)
 
 /-- [cadence_kernel::slots::SlotLane]
     Source: 'crates/kernel/src/slots.rs', lines 10:0-17:1

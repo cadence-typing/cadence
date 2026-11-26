@@ -272,6 +272,9 @@ pub enum PauseReason {
     PasteRejected,
     /// The terminal became smaller than the practice minimum.
     TooSmall,
+    /// A checkpoint acknowledgement is overdue (#51): the clock is stopped
+    /// until the save catches up.
+    SavingSlow,
 }
 
 /// An earlier session (or one of its tracks) used for comparison.
