@@ -76,7 +76,7 @@ pub fn check() -> Result<(), String> {
 
     // Offline lane capacity for the default block configuration.
     let policy = cadence_trainer::parse_policy(
-        &std::fs::read(root.join("policies/trainer-v2.toml"))
+        &std::fs::read(root.join("policies/trainer-v3.toml"))
             .map_err(|error| format!("cannot read policy: {error}"))?,
     )
     .map_err(|error| format!("policy invalid: {error}"))?;

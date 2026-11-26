@@ -28,7 +28,7 @@ pub use cadence_core::plan::allocate;
 pub use candidate::{Candidate, CandidateError, UtilityInputs, scan_select};
 pub use corpus::{CorpusError, WordBand, WordPack};
 pub use lanes::{BlockPlan, LaneSlot, QuotaTracker};
-pub use learner::{LearnerModel, SkillScore};
+pub use learner::{FocusGroup, LearnerModel, SkillScore, group_of};
 pub use learning_policy::LearningPolicy;
 pub use numeric::{DigitSource, NumericError, number_row_exercise, numpad_exercise};
 pub use pace::{PaceDecision, pace_decision};

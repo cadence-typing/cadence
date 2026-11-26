@@ -21,7 +21,7 @@ use cadence_trainer::{
 const WORDS: &str = include_str!("../../../corpus/words-en-v1.tsv");
 const PROSE: &str = include_str!("../../../corpus/prose-en-v2.tsv");
 const PROSE_SOURCES: &str = include_str!("../../../corpus/prose-sources-v2.tsv");
-const POLICY: &str = include_str!("../../../policies/trainer-v2.toml");
+const POLICY: &str = include_str!("../../../policies/trainer-v3.toml");
 /// Shipped prose lower bound (plan 0003): enough for a long no-repeat window.
 const MINIMUM_PASSAGES: usize = 2_000;
 /// Domain separation for the per-session plan seed.

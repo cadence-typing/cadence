@@ -298,3 +298,125 @@ fn an_offset_change_between_sessions_keeps_replay_order() {
     let model = LearnerModel::from_history(&history, &policy(), day(12));
     assert!(model.is_ok(), "{model:?}");
 }
+
+fn policy_v3() -> TrainerPolicy {
+    crate::policy::parse_policy(include_bytes!("../../../policies/trainer-v3.toml")).unwrap()
+}
+
+fn key(lane: KeyLane, text: &str) -> SkillKey {
+    let units: Vec<TrainingChar> = text.chars().map(unit).collect();
+    SkillKey {
+        lane,
+        skill: match units.as_slice() {
+            [one] => Skill::Unit(*one),
+            [first, second] => Skill::Bigram(*first, *second),
+            _ => panic!("one or two units"),
+        },
+    }
+}
+
+fn session_with(id: u64, skills: &[(SkillKey, SkillTally)]) -> HistoricSession {
+    let mut s = session(id, 10, &[]);
+    for (k, value) in skills {
+        s.learning.skills.insert(*k, *value);
+    }
+    s
+}
+
+fn letters_history() -> Vec<(SkillKey, SkillTally)> {
+    vec![
+        (bigram("th"), tally(40, 12, 0, 0)),
+        (bigram("er"), tally(40, 1, 0, 0)),
+        (bigram("an"), tally(400, 0, 0, 0)),
+    ]
+}
+
+/// #46: a history weak on numpad `7` and `48` yields them as the numpad
+/// focus and leaves the letters focus unchanged; row digits stay out of
+/// the numpad group and vice versa (L-01).
+#[test]
+fn numpad_weakness_is_a_numpad_focus_and_letters_are_unchanged() {
+    let numpad = KeyLane::Numpad;
+    let main = KeyLane::Main;
+    let mut skills = letters_history();
+    skills.extend([
+        (key(numpad, "7"), tally(60, 18, 0, 0)),
+        (key(numpad, "48"), tally(60, 15, 0, 0)),
+        (key(numpad, "5"), tally(600, 0, 0, 0)),
+        (key(numpad, "56"), tally(600, 0, 0, 0)),
+        (key(main, "3"), tally(60, 20, 0, 0)),
+        (key(main, "1"), tally(600, 0, 0, 0)),
+    ]);
+    let policy = policy_v3();
+    let model = |skills: &[(SkillKey, SkillTally)]| {
+        LearnerModel::from_history(
+            &LearnerHistory {
+                sessions: vec![session_with(1, skills)],
+            },
+            &policy,
+            day(10),
+        )
+        .unwrap()
+    };
+    let with = model(&skills);
+    let letters_only = model(&letters_history());
+    let numpad_focus = with.focus_in(FocusGroup::Numpad);
+    assert!(numpad_focus.contains(&key(numpad, "7")), "{numpad_focus:?}");
+    assert!(
+        numpad_focus.contains(&key(numpad, "48")),
+        "{numpad_focus:?}"
+    );
+    assert!(numpad_focus.iter().all(|k| k.lane == numpad));
+    let row_focus = with.focus_in(FocusGroup::Row);
+    assert_eq!(row_focus, &[key(main, "3")]);
+    assert_eq!(
+        with.focus_in(FocusGroup::Letters),
+        letters_only.focus_in(FocusGroup::Letters)
+    );
+    assert_eq!(
+        with.focus().len(),
+        with.focus_in(FocusGroup::Letters).len() + 3
+    );
+    assert_eq!(with.mode(), PlannerMode::Adaptive);
+}
+
+/// #46: sparse digit evidence yields no focus; policy v2 keeps the digit
+/// groups off.
+#[test]
+fn sparse_digits_and_policy_v2_give_no_digit_focus() {
+    let sparse = [(key(KeyLane::Numpad, "7"), tally(3, 3, 0, 0))];
+    let history = LearnerHistory {
+        sessions: vec![session_with(1, &sparse)],
+    };
+    let model = LearnerModel::from_history(&history, &policy_v3(), day(10)).unwrap();
+    assert!(model.focus_in(FocusGroup::Numpad).is_empty());
+    let strong = [
+        (key(KeyLane::Numpad, "7"), tally(60, 30, 0, 0)),
+        (key(KeyLane::Numpad, "5"), tally(600, 0, 0, 0)),
+    ];
+    let history = LearnerHistory {
+        sessions: vec![session_with(1, &strong)],
+    };
+    let v2 = LearnerModel::from_history(&history, &policy(), day(10)).unwrap();
+    assert!(v2.focus_in(FocusGroup::Numpad).is_empty());
+}
+
+/// #46: group membership: letters, row digits and numpad keys.
+#[test]
+fn groups_keep_the_number_row_and_numpad_apart() {
+    assert_eq!(
+        group_of(key(KeyLane::Main, "th")),
+        Some(FocusGroup::Letters)
+    );
+    assert_eq!(group_of(key(KeyLane::Main, "48")), Some(FocusGroup::Row));
+    assert_eq!(
+        group_of(key(KeyLane::Numpad, "48")),
+        Some(FocusGroup::Numpad)
+    );
+    assert_eq!(
+        group_of(key(KeyLane::Numpad, "4.")),
+        Some(FocusGroup::Numpad)
+    );
+    assert_eq!(group_of(key(KeyLane::Main, "4.")), None);
+    assert_eq!(group_of(key(KeyLane::Main, "t4")), None);
+}

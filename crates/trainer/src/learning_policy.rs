@@ -42,6 +42,16 @@ pub struct LearningPolicy {
     pub prose_units_per_second: u64,
     /// Allocated seconds per prepared word exercise.
     pub seconds_per_word_exercise: u64,
+    /// Number-row digit focus skills per plan (v3; 0 in v2).
+    pub row_focus_skill_count: usize,
+    /// Numpad focus skills per plan (v3; 0 in v2).
+    pub numpad_focus_skill_count: usize,
+    /// Targeted numeric entries out of each cycle (v3: 2 of 3; 0 of 1 in v2).
+    pub numeric_target_share: (u32, u32),
+    /// Exercises between two uses of one target word (v3; 0 in v2).
+    pub minimum_exercises_between_word_repeats: u32,
+    /// Entries before a missed numeric entry returns (v3; 0 in v2).
+    pub numeric_reinforcement_gap_entries: u32,
 }
 
 /// Upper bounds keeping startup work and payloads bounded.
@@ -82,7 +92,10 @@ fn basis_points(table: &toml::Table, key: &str) -> Result<BasisPoints, PolicyErr
 ///
 /// # Errors
 /// Missing, mistyped or out-of-range values.
-pub(crate) fn parse_learning(document: &toml::Table) -> Result<LearningPolicy, PolicyError> {
+pub(crate) fn parse_learning(
+    document: &toml::Table,
+    version: u8,
+) -> Result<LearningPolicy, PolicyError> {
     let t = document
         .get("learning")
         .and_then(toml::Value::as_table)
@@ -125,6 +138,41 @@ pub(crate) fn parse_learning(document: &toml::Table) -> Result<LearningPolicy, P
         prose_exercise_units: integer(t, "prose_exercise_units")?,
         prose_units_per_second: integer(t, "prose_units_per_second")?,
         seconds_per_word_exercise: integer(t, "seconds_per_word_exercise")?,
+        row_focus_skill_count: 0,
+        numpad_focus_skill_count: 0,
+        numeric_target_share: (0, 1),
+        minimum_exercises_between_word_repeats: 0,
+        numeric_reinforcement_gap_entries: 0,
+    };
+    // Policy v3 (#46) adds the deliberate-practice fields; v2 keeps them off.
+    let policy = if version >= 3 {
+        let share = t
+            .get("numeric_target_share")
+            .and_then(toml::Value::as_array)
+            .ok_or_else(|| PolicyError::WrongType("numeric_target_share".into()))?;
+        let part = |index: usize| -> Result<u32, PolicyError> {
+            share
+                .get(index)
+                .and_then(toml::Value::as_integer)
+                .and_then(|value| u32::try_from(value).ok())
+                .ok_or_else(|| PolicyError::WrongType("numeric_target_share".into()))
+        };
+        if share.len() != 2 {
+            return Err(PolicyError::WrongType("numeric_target_share".into()));
+        }
+        LearningPolicy {
+            row_focus_skill_count: integer(t, "row_focus_skill_count")?,
+            numpad_focus_skill_count: integer(t, "numpad_focus_skill_count")?,
+            numeric_target_share: (part(0)?, part(1)?),
+            minimum_exercises_between_word_repeats: integer(
+                t,
+                "minimum_exercises_between_word_repeats",
+            )?,
+            numeric_reinforcement_gap_entries: integer(t, "numeric_reinforcement_gap_entries")?,
+            ..policy
+        }
+    } else {
+        policy
     };
     let checks = [
         (
@@ -174,6 +222,28 @@ pub(crate) fn parse_learning(document: &toml::Table) -> Result<LearningPolicy, P
         (
             (1..=600).contains(&policy.seconds_per_word_exercise),
             "seconds_per_word_exercise must be 1..=600",
+        ),
+        (
+            policy
+                .focus_skill_count
+                .checked_add(policy.row_focus_skill_count)
+                .and_then(|n| n.checked_add(policy.numpad_focus_skill_count))
+                .is_some_and(|n| n <= MAXIMUM_FOCUS_SKILLS),
+            "all focus groups together must fit the persisted focus bound",
+        ),
+        (
+            policy.numeric_target_share.1 > 0
+                && policy.numeric_target_share.0 <= policy.numeric_target_share.1
+                && policy.numeric_target_share.1 <= 10,
+            "numeric_target_share must be a fraction of at most 10 entries",
+        ),
+        (
+            policy.minimum_exercises_between_word_repeats <= 100,
+            "minimum_exercises_between_word_repeats must be 0..=100",
+        ),
+        (
+            policy.numeric_reinforcement_gap_entries <= 100,
+            "numeric_reinforcement_gap_entries must be 0..=100",
         ),
     ];
     for (ok, what) in checks {

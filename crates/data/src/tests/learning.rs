@@ -193,3 +193,51 @@ fn recent_history_is_newest_first_with_status_and_skips_untyped_sessions() -> Te
     );
     Ok(())
 }
+
+/// #46: a focus list with all three groups (letters, number-row digits,
+/// numpad keys) round-trips through `plan_focus` in rank order.
+#[test]
+fn a_mixed_focus_list_round_trips() -> TestResult {
+    let unit = |c| TrainingChar::new(c, LayoutSupportsPound::US);
+    let focus = vec![
+        SkillKey {
+            lane: KeyLane::Main,
+            skill: Skill::Bigram(unit('t')?, unit('h')?),
+        },
+        SkillKey {
+            lane: KeyLane::Main,
+            skill: Skill::Unit(unit('3')?),
+        },
+        SkillKey {
+            lane: KeyLane::Numpad,
+            skill: Skill::Bigram(unit('4')?, unit('8')?),
+        },
+        SkillKey {
+            lane: KeyLane::Numpad,
+            skill: Skill::Unit(unit('.')?),
+        },
+    ];
+    let mut evidence = learning(1, 10)?;
+    evidence.plan.focus.clone_from(&focus);
+    let directory = tempfile::tempdir()?;
+    {
+        let mut store = ProgressStore::open_in(directory.path())?;
+        let base = checkpoint(1, 1, ProgressStatus::Completed)?;
+        let saved = cadence_core::progress::Checkpoint::new(
+            base.key.session,
+            base.key.sequence,
+            base.progress,
+            Some(evidence.clone()),
+        )?;
+        store.apply_checkpoint(&saved)?;
+    }
+    let store = ProgressStore::open_in(directory.path())?;
+    let bootstrap = store.bootstrap(5)?;
+    let loaded = bootstrap
+        .learner
+        .sessions
+        .first()
+        .map(|s| s.learning.plan.focus.clone());
+    assert_eq!(loaded, Some(focus));
+    Ok(())
+}

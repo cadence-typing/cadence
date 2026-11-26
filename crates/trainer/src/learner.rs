@@ -59,6 +59,41 @@ fn bp(value: u64) -> BasisPoints {
         .unwrap_or(BasisPoints::MAX)
 }
 
+/// A focus group (#46): each has its own error-rate and interval baseline
+/// and its own focus list; L-01 keeps the number row and the numpad apart.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum FocusGroup {
+    /// Letter keys and transitions (the words phase).
+    Letters,
+    /// Number-row digits and digit pairs (lane `main`).
+    Row,
+    /// Numpad digits, the decimal point and their pairs (lane `numpad`).
+    Numpad,
+}
+
+impl FocusGroup {
+    /// Every group, in focus-list order.
+    pub const ALL: [Self; 3] = [Self::Letters, Self::Row, Self::Numpad];
+}
+
+/// The group a skill belongs to, if any (other keys are recorded but never
+/// a focus).
+#[must_use]
+pub fn group_of(key: SkillKey) -> Option<FocusGroup> {
+    let digit = |unit: TrainingChar| unit.get().is_ascii_digit();
+    let numpad = |unit: TrainingChar| unit.get().is_ascii_digit() || unit.get() == '.';
+    let all = |test: &dyn Fn(TrainingChar) -> bool| match key.skill {
+        Skill::Unit(unit) => test(unit),
+        Skill::Bigram(first, second) => test(first) && test(second),
+    };
+    match key.lane {
+        KeyLane::Main if is_word_skill(key.skill) => Some(FocusGroup::Letters),
+        KeyLane::Main if all(&digit) => Some(FocusGroup::Row),
+        KeyLane::Numpad if all(&numpad) => Some(FocusGroup::Numpad),
+        KeyLane::Main | KeyLane::Numpad => None,
+    }
+}
+
 /// Utility inputs derived for one skill.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SkillScore {
@@ -75,13 +110,15 @@ pub struct SkillScore {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LearnerModel {
     skills: HashMap<SkillKey, Evidence>,
-    /// Per lane: weighted timed samples and their weighted microseconds.
-    lane_timing: HashMap<KeyLane, (u64, u64)>,
-    /// Per lane: observed first-attempt error rate (basis points).
-    lane_error_rate: HashMap<KeyLane, u64>,
+    /// Per focus group: weighted timed samples and weighted microseconds.
+    group_timing: HashMap<FocusGroup, (u64, u64)>,
+    /// Per focus group: observed first-attempt error rate (basis points).
+    group_error_rate: HashMap<FocusGroup, u64>,
     prior_alpha: u64,
     prior_beta: u64,
     focus: Vec<SkillKey>,
+    /// The focus split by group (letters, then row, then numpad).
+    focus_groups: Vec<(FocusGroup, Vec<SkillKey>)>,
     due_words: Vec<WordId>,
     passage_age: HashMap<PassageId, usize>,
 }
@@ -92,11 +129,12 @@ impl LearnerModel {
     pub fn cold(policy: &TrainerPolicy) -> Self {
         Self {
             skills: HashMap::new(),
-            lane_timing: HashMap::new(),
-            lane_error_rate: HashMap::new(),
+            group_timing: HashMap::new(),
+            group_error_rate: HashMap::new(),
             prior_alpha: policy.statistics.error_prior_alpha,
             prior_beta: policy.statistics.error_prior_beta,
             focus: Vec::new(),
+            focus_groups: Vec::new(),
             due_words: Vec::new(),
             passage_age: HashMap::new(),
         }
@@ -115,7 +153,7 @@ impl LearnerModel {
         let learning = &policy.learning;
         let count = history.sessions.len();
         let half_life = u64::from(learning.half_life_sessions);
-        let mut lane_totals: HashMap<KeyLane, Evidence> = HashMap::new();
+        let mut group_totals: HashMap<FocusGroup, Evidence> = HashMap::new();
         for (index, session) in history.sessions.iter().enumerate() {
             let age = count.saturating_sub(index).saturating_sub(1);
             if age < learning.prose_no_repeat_sessions {
@@ -133,24 +171,35 @@ impl LearnerModel {
             let weight = focus::decay_weight(u64::try_from(age).unwrap_or(u64::MAX), half_life);
             for (key, tally) in &session.learning.skills {
                 model.skills.entry(*key).or_default().add(weight, *tally);
-                lane_totals.entry(key.lane).or_default().add(weight, *tally);
+                if let Some(group) = group_of(*key) {
+                    group_totals.entry(group).or_default().add(weight, *tally);
+                }
             }
         }
-        for (lane, total) in &lane_totals {
+        for (group, total) in &group_totals {
             if total.timed > 0 {
                 model
-                    .lane_timing
-                    .insert(*lane, (total.timed, total.timed_micros));
+                    .group_timing
+                    .insert(*group, (total.timed, total.timed_micros));
             }
             if let Some(rate) = total
                 .errors
                 .checked_mul(focus::BASIS)
                 .and_then(|scaled| scaled.checked_div(total.attempts))
             {
-                model.lane_error_rate.insert(*lane, rate);
+                model.group_error_rate.insert(*group, rate);
             }
         }
-        model.focus = model.choose_focus(policy);
+        let learning = &policy.learning;
+        for (group, count) in [
+            (FocusGroup::Letters, learning.focus_skill_count),
+            (FocusGroup::Row, learning.row_focus_skill_count),
+            (FocusGroup::Numpad, learning.numpad_focus_skill_count),
+        ] {
+            let chosen = model.choose_focus(policy, group, count);
+            model.focus.extend(chosen.iter().copied());
+            model.focus_groups.push((group, chosen));
+        }
         model.due_words = due_words(&history.sessions, policy, today)?;
         Ok(model)
     }
@@ -171,6 +220,15 @@ impl LearnerModel {
         &self.focus
     }
 
+    /// One group's focus skills, strongest first (#46).
+    #[must_use]
+    pub fn focus_in(&self, group: FocusGroup) -> &[SkillKey] {
+        self.focus_groups
+            .iter()
+            .find(|(g, _)| *g == group)
+            .map_or(&[], |(_, keys)| keys.as_slice())
+    }
+
     /// Words due for spaced review, FIFO by due day.
     #[must_use]
     pub fn due_words(&self) -> &[WordId] {
@@ -187,18 +245,17 @@ impl LearnerModel {
     #[must_use]
     pub fn score(&self, key: SkillKey) -> SkillScore {
         let evidence = self.skills.get(&key).copied().unwrap_or_default();
-        let hesitation =
-            self.lane_timing
-                .get(&key.lane)
-                .map_or(0, |(group_timed, group_micros)| {
-                    focus::hesitation_bp(
-                        evidence.timed,
-                        evidence.timed_micros,
-                        *group_timed,
-                        *group_micros,
-                        MINIMUM_TIMED_SAMPLES.saturating_mul(WEIGHT_ONE),
-                    )
-                });
+        let hesitation = group_of(key)
+            .and_then(|group| self.group_timing.get(&group))
+            .map_or(0, |(group_timed, group_micros)| {
+                focus::hesitation_bp(
+                    evidence.timed,
+                    evidence.timed_micros,
+                    *group_timed,
+                    *group_micros,
+                    MINIMUM_TIMED_SAMPLES.saturating_mul(WEIGHT_ONE),
+                )
+            });
         SkillScore {
             error: bp(focus::posterior_bp(
                 evidence.errors,
@@ -250,7 +307,12 @@ impl LearnerModel {
     /// never becomes a focus (the proved `focus::pick`, candidates in key
     /// order so map iteration order cannot matter). A key already explained
     /// by a chosen transition into it is skipped in favour of another skill.
-    fn choose_focus(&self, policy: &TrainerPolicy) -> Vec<SkillKey> {
+    fn choose_focus(
+        &self,
+        policy: &TrainerPolicy,
+        group: FocusGroup,
+        count: usize,
+    ) -> Vec<SkillKey> {
         let learning = &policy.learning;
         let thresholds = focus::Thresholds {
             attempts: u64::from(learning.minimum_focus_attempts).saturating_mul(WEIGHT_ONE),
@@ -262,7 +324,7 @@ impl LearnerModel {
         let mut keys: Vec<SkillKey> = self
             .skills
             .keys()
-            .filter(|key| key.lane == KeyLane::Main && is_word_skill(key.skill))
+            .filter(|key| group_of(**key) == Some(group))
             .copied()
             .collect();
         keys.sort();
@@ -275,14 +337,14 @@ impl LearnerModel {
                     attempts: evidence.attempts,
                     errors: evidence.errors,
                     posterior: u64::from(score.error.get()),
-                    group_rate: self.lane_error_rate.get(&key.lane).copied().unwrap_or(0),
+                    group_rate: self.group_error_rate.get(&group).copied().unwrap_or(0),
                     hesitation: u64::from(score.hesitation.get()),
                 }
             })
             .collect();
         let mut taken = vec![false; candidates.len()];
-        let mut chosen: Vec<SkillKey> = Vec::with_capacity(learning.focus_skill_count);
-        while chosen.len() < learning.focus_skill_count {
+        let mut chosen: Vec<SkillKey> = Vec::with_capacity(count);
+        while chosen.len() < count {
             let Some(index) = focus::pick(&candidates, &taken, thresholds) else {
                 break;
             };

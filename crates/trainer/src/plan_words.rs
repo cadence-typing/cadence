@@ -76,8 +76,9 @@ impl<'a> WordSelector<'a> {
         rng: &mut PlanRng,
     ) -> Self {
         let target_bands = target_bands(policy);
+        // The words phase targets the letters group (#46).
         let focus = learner
-            .focus()
+            .focus_in(crate::learner::FocusGroup::Letters)
             .iter()
             .filter_map(|key| {
                 let ids = words_in(pack, target_bands, |units| contains(units, key.skill));

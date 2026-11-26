@@ -275,7 +275,8 @@ impl std::fmt::Display for PolicyError {
 impl std::error::Error for PolicyError {}
 
 /// Parses and validates the policy TOML (bytes as shipped in
-/// `policies/trainer-v2.toml`).
+/// `policies/trainer-v3.toml`; `trainer-v2` still parses, with the fields
+/// v3 added switched off).
 ///
 /// # Errors
 /// Returns [`PolicyError`] for any missing, mistyped or out-of-range
@@ -287,7 +288,12 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
             .map_err(|_not_utf8| PolicyError::WrongType("document".to_string()))?,
     )
     .map_err(|_source| PolicyError::WrongType("document".to_string()))?;
-    if document.get("policy_id").and_then(toml::Value::as_str) != Some("trainer-v2")
+    let version = match document.get("policy_id").and_then(toml::Value::as_str) {
+        Some("trainer-v2") => 2,
+        Some("trainer-v3") => 3,
+        _ => 0,
+    };
+    if version == 0
         || document
             .get("scoring_version")
             .and_then(toml::Value::as_integer)
@@ -305,7 +311,7 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
     let review = parse_review(&document)?;
     let pace = parse_pace(&document)?;
     let benchmark = parse_benchmark(&document)?;
-    let learning = crate::learning_policy::parse_learning(&document)?;
+    let learning = crate::learning_policy::parse_learning(&document, version)?;
 
     let policy = TrainerPolicy {
         session,
