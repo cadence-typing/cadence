@@ -108,6 +108,46 @@
         "CheckpointSave-double-credit.cfg": "236f2dd37009a412b406955bb7374fa9752d70408ae8c63e09b9db57d12454a6",
         "CheckpointSave-quit-before-ack.cfg": "a175b526eed7fb415ff6114afe1b2bc65b1a4104f50a73875f5134755a22cf15"
       }
+    },
+    {
+      "module": "SessionFlow",
+      "status": "mapped",
+      "invariants": [
+        "ClockStoppedUnlessRunning",
+        "EndEarlyIsUnfinished",
+        "InterludeGrace",
+        "NoScoreOutsidePhase",
+        "PauseKeepsReason",
+        "TypeOK"
+      ],
+      "mutants": [
+        "SessionFlow-deadline-inclusive.cfg violates NoScoreOutsidePhase",
+        "SessionFlow-early-end-completed.cfg violates EndEarlyIsUnfinished",
+        "SessionFlow-enter-skips-interlude.cfg violates InterludeGrace",
+        "SessionFlow-score-while-paused.cfg violates ClockStoppedUnlessRunning"
+      ],
+      "production_symbols": [
+        "cadence_engine::flow::{transition, pause_for, resume, end_early, interlude_settled}",
+        "cadence_engine::practice::{advance_clock, advance_phase}",
+        "cadence_kernel::session::step",
+        "cadence_kernel::time::in_window"
+      ],
+      "runtime_tests": [
+        "cadence-engine::an_in_flight_key_cannot_skip_the_phase_complete_screen",
+        "cadence-engine::ending_early_opens_the_review_and_saves_as_unfinished",
+        "cadence-engine::exact_boundary_key_is_not_scored",
+        "cadence-engine::paste_and_focus_loss_pause_without_invalidating",
+        "cadence-engine::pause_before_first_input_and_paused_controls_do_not_score"
+      ],
+      "constants": "Phases = 2 Budget = 2 Grace = 1 MaxTime = 6 PauseStopsClock = TRUE DeadlineExclusive = TRUE GraceGuard = TRUE EndEarlyAbandons = TRUE",
+      "sha256": {
+        "SessionFlow.tla": "198f3ba460e19230cee559b819cce2a5eb197dcc56ee49cf5530c126f25e61fb",
+        "SessionFlow.cfg": "ca08ff6d19aaae2094f870983512665baf69075d6c1fe785f28c0bbffdfdd79c",
+        "SessionFlow-score-while-paused.cfg": "6a7f05179d923543f646c90412e23afb6790881067b3630625abcce9f7bf27a4",
+        "SessionFlow-deadline-inclusive.cfg": "12af029c3d1f50d64023104d994920028c7829322ec71d46d9176d78d29bcabd",
+        "SessionFlow-enter-skips-interlude.cfg": "6d6d1242d27fc9a832bb9e9401767d2569eafabae754f4e989de9c5eaab3676e",
+        "SessionFlow-early-end-completed.cfg": "bf77ba9a4479b04f3eb5f970376ac45689d2732ef28e52137330d2be73462cf4"
+      }
     }
   ]
 }

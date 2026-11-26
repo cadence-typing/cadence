@@ -31,6 +31,7 @@ start_from = [
     "cadence_kernel::ratio::basis_points",
     "cadence_kernel::time::segment_active",
     "cadence_kernel::time::in_window",
+    "cadence_kernel::session::step",
     "cadence_kernel::checkpoint::admit",
     "cadence_kernel::progress::in_range",
     "cadence_kernel::progress::ordered",

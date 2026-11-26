@@ -5,7 +5,7 @@ use crate::view::Durability;
 use cadence_core::progress::{
     Checkpoint, HistorySummary, ProgressStatus, SaveKey, SaveResult, SessionProgress,
 };
-use cadence_core::session::SessionState;
+use cadence_core::session::{SessionEvent, SessionState};
 use cadence_core::{CommitSeq, CoreError, MonoTick, SessionId};
 
 /// Maximum running checkpoint interval and acknowledgement watchdog.
@@ -83,17 +83,13 @@ impl Engine {
                     && !self.checkpoint_due
                     && checkpoint.progress.status == self.status
                 {
-                    self.session_state = SessionState::Saved;
+                    self.transition(None, SessionEvent::FinalSaved)?;
                     t.quit = true;
                     t.exit_failed = false;
                 }
             }
             Err(message) => {
                 storage.failed = Some(checkpoint);
-                if let Some(at) = self.last_at {
-                    self.timing.pause(at)?;
-                }
-                self.session_state = SessionState::Paused;
                 let bounded: String = message.chars().take(256).collect();
                 let durable = storage.last_ack.map_or_else(
                     || "no checkpoint acknowledged".to_string(),
@@ -105,6 +101,8 @@ impl Engine {
                         )
                     },
                 );
+                let at = self.last_at;
+                self.transition(at, SessionEvent::SaveFailed)?;
                 self.notice = Some(format!(
                     "Save failed: {bounded}; {durable}. Paused; r retries. Ctrl-C twice requests an unsuccessful exit; the unacknowledged tail may be lost."
                 ));
@@ -139,17 +137,15 @@ impl Engine {
             t.quit = true;
             return Ok(());
         }
-        self.timing.pause(at)?;
         if self.status != ProgressStatus::Completed {
-            self.status = ProgressStatus::Abandoned;
             t.outcome = DomainOutcome::SessionAbandoned;
         }
+        self.transition(Some(at), SessionEvent::Finish)?;
         if let Some(ledger) = self.ledger.as_mut() {
             ledger.mark_interrupted();
         }
         self.record_exercise()?;
         self.finishing = true;
-        self.session_state = SessionState::Finishing;
         self.checkpoint_due = true;
         if self.storage.is_none() {
             t.quit = true;

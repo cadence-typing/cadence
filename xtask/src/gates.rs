@@ -62,7 +62,7 @@ pub const GATES: &[Gate] = &[
         id: "model",
         description: "full TLA+ model inventory, stated bounds, named fault kills",
         state: GateState::Feedback(
-            "models/claims.toml runs with mutants; the save protocol is mapped, the session flow is not yet (#31)",
+            "the save protocol and session flow are mapped; the handover's admission and barrier models are design probes until #4",
         ),
     },
     Gate {

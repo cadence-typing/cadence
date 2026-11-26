@@ -412,3 +412,44 @@ name = "valid-skips-ordering"
 file = "crates/kernel/src/progress.rs"
 before = "    in_range(t) && ordered(t) && split_fits(t)\n"
 after = "    in_range(t) && split_fits(t)\n"
+
+# ---- the session lifecycle (crates/kernel/src/session.rs, #31)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/session.rs"
+function = "session::step"
+lean = "cadence_kernel.session.step"
+theorems = [
+  "Proofs.Session.clock_runs_only_running",
+  "Proofs.Session.review_is_terminal_for_typing",
+  "Proofs.Session.completed_only_after_last_phase",
+  "Proofs.Session.running_only_by_start_resume_or_next",
+  "Proofs.Session.invalidate_admitted",
+]
+total = "Proofs.Session.clock_runs_only_running"
+mutants = ["pause-keeps-clock", "review-resumes", "early-end-completes", "invalidate-refused-when-saved"]
+
+[[mutant]]
+name = "pause-keeps-clock"
+file = "crates/kernel/src/session.rs"
+before = "            | State::Saved => Step::Refused,\n            State::Running => Step::Move {\n                next: State::Paused,\n                clock: Clock::Stop,\n"
+after = "            | State::Saved => Step::Refused,\n            State::Running => Step::Move {\n                next: State::Paused,\n                clock: Clock::Keep,\n"
+
+[[mutant]]
+name = "review-resumes"
+file = "crates/kernel/src/session.rs"
+before = "            | State::Review\n            | State::Finishing\n            | State::Saved => Step::Refused,\n            State::Paused => Step::Move {\n                next: State::Running,\n"
+after = "            | State::Finishing\n            | State::Saved => Step::Refused,\n            State::Paused | State::Review => Step::Move {\n                next: State::Running,\n"
+
+[[mutant]]
+name = "early-end-completes"
+file = "crates/kernel/src/session.rs"
+before = "                next: State::Review,\n                clock: Clock::Stop,\n                outcome: Outcome::Unfinished,\n"
+after = "                next: State::Review,\n                clock: Clock::Stop,\n                outcome: Outcome::Completed,\n"
+
+[[mutant]]
+name = "invalidate-refused-when-saved"
+file = "crates/kernel/src/session.rs"
+before = "            State::Saved => Step::Move {\n                next: State::Saved,\n                clock: Clock::Keep,\n                outcome: Outcome::Unchanged,\n            },\n        },\n        Event::Resume"
+after = "            State::Saved => Step::Refused,\n        },\n        Event::Resume"

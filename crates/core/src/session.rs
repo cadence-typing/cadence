@@ -1,7 +1,7 @@
 //! Session state machine and timing segments (A-05, L-03).
 //!
 //! States: `Ready`, `Running`, `Paused`, `PhaseComplete`, `Review`,
-//! `Finishing`, `Saved`, `SaveFailed`, `Aborted`. Start freezes the plan
+//! `Finishing`, `Saved`, decided by `cadence_kernel::session::step`. Start freezes the plan
 //! and policy identity. The first content input starts the phase's
 //! active clock. Pause records a clock boundary before changing state;
 //! resume uses a fresh contiguous timing segment. Phase timeouts admit
@@ -15,95 +15,15 @@ use crate::CoreError;
 use crate::tick::{Micros, MonoTick};
 use cadence_kernel::time::{Through, segment_active};
 
-/// Session lifecycle states (A-05).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SessionState {
-    /// Initial state: no active session.
-    Ready,
-    /// An exercise is accepting input and accumulating active time.
-    Running,
-    /// Explicitly paused; no active-time accumulation.
-    Paused,
-    /// The allocated phase budget was consumed; the partial exercise is
-    /// retained.
-    PhaseComplete,
-    /// Post-practice reflection screen.
-    Review,
-    /// A final durable checkpoint has been requested and is pending.
-    Finishing,
-    /// The final checkpoint was acknowledged.
-    Saved,
-    /// The final checkpoint failed; the last acknowledged state is
-    /// retained and the error is visible and retryable.
-    SaveFailed,
-    /// The user abandoned the session.
-    Aborted,
-}
-
-/// Legal state transitions (A-05). Illegal transitions are refused with
-/// a typed error rather than ignored.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SessionTransition {
-    /// Start a drill/session.
-    Start,
-    /// The first valid content input begins the active clock.
-    FirstContent,
-    /// Explicit pause (Esc).
-    Pause,
-    /// Resume from pause.
-    Resume,
-    /// Phase budget exhausted.
-    PhaseDeadline,
-    /// Move to the next phase.
-    NextPhase,
-    /// Enter review.
-    EnterReview,
-    /// Request the final durable checkpoint.
-    Finish,
-    /// The final checkpoint was acknowledged.
-    SaveAcknowledged,
-    /// The final checkpoint failed.
-    SaveFailed,
-    /// Retry the final checkpoint.
-    RetrySave,
-    /// Abandon the session.
-    Abort,
-}
-
-/// Applies a transition, returning the next state.
-///
-/// # Errors
-/// Returns [`CoreError::InvalidIdentity`] naming the illegal transition
-/// so callers surface it instead of silently no-oping.
-pub fn next_state(
-    current: SessionState,
-    transition: SessionTransition,
-) -> Result<SessionState, CoreError> {
-    use SessionState as S;
-    use SessionTransition as T;
-    let legal = match (current, transition) {
-        (S::Ready, T::Start) => Some(S::Running),
-        (S::Running, T::FirstContent) => Some(S::Running),
-        (S::Running, T::Pause) => Some(S::Paused),
-        (S::Paused, T::Resume) => Some(S::Running),
-        (S::Running, T::PhaseDeadline) => Some(S::PhaseComplete),
-        (S::PhaseComplete, T::NextPhase) => Some(S::Running),
-        (S::PhaseComplete | S::Running, T::EnterReview) => Some(S::Review),
-        (S::Review | S::Running | S::Paused | S::PhaseComplete, T::Finish) => Some(S::Finishing),
-        (S::Finishing, T::SaveAcknowledged) => Some(S::Saved),
-        (S::Finishing, T::SaveFailed) => Some(S::SaveFailed),
-        (S::SaveFailed, T::RetrySave) => Some(S::Finishing),
-        (
-            S::Ready | S::Running | S::Paused | S::PhaseComplete | S::Review | S::SaveFailed,
-            T::Abort,
-        ) => Some(S::Aborted),
-        _ => None,
-    };
-    legal.ok_or(CoreError::InvalidIdentity {
-        kind: "SessionTransition",
-        reason: "illegal session state transition",
-    })
-}
+/// Session lifecycle states (A-05): the kernel's [`cadence_kernel::session::State`].
+/// Every change of state goes through the proved
+/// [`cadence_kernel::session::step`] table.
+pub use cadence_kernel::session::State as SessionState;
+/// The proved session table and its vocabulary, for the engine's adapter.
+pub use cadence_kernel::session::{
+    Clock as SessionClock, Event as SessionEvent, Outcome as SessionOutcome, Step as SessionStep,
+    step as session_step,
+};
 
 /// Active-time accounting for one exercise: contiguous timing segments
 /// separated by explicit pause boundaries (L-03). On crash/restart a
@@ -247,41 +167,6 @@ mod tests {
     // workspace denies them in production code only.
 
     use super::*;
-
-    #[test]
-    fn legal_transitions_cover_the_documented_lifecycle() {
-        assert_eq!(
-            next_state(SessionState::Ready, SessionTransition::Start).unwrap(),
-            SessionState::Running
-        );
-        assert_eq!(
-            next_state(SessionState::Running, SessionTransition::Pause).unwrap(),
-            SessionState::Paused
-        );
-        assert_eq!(
-            next_state(SessionState::Paused, SessionTransition::Resume).unwrap(),
-            SessionState::Running
-        );
-        assert_eq!(
-            next_state(SessionState::Finishing, SessionTransition::SaveAcknowledged).unwrap(),
-            SessionState::Saved
-        );
-        assert_eq!(
-            next_state(SessionState::Finishing, SessionTransition::SaveFailed).unwrap(),
-            SessionState::SaveFailed
-        );
-        assert_eq!(
-            next_state(SessionState::SaveFailed, SessionTransition::RetrySave).unwrap(),
-            SessionState::Finishing
-        );
-    }
-
-    #[test]
-    fn illegal_transitions_are_typed_errors() {
-        assert!(next_state(SessionState::Saved, SessionTransition::Start).is_err());
-        assert!(next_state(SessionState::Ready, SessionTransition::Pause).is_err());
-        assert!(next_state(SessionState::Aborted, SessionTransition::Resume).is_err());
-    }
 
     #[test]
     fn pause_resume_segment_arithmetic() {

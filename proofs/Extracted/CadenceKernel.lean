@@ -428,6 +428,240 @@ def ratio.basis_points
         | none => ok ratio.BasisPoints.ZeroDenominator
         | some value => ok (ratio.BasisPoints.Value value)
 
+/-- [cadence_kernel::session::State]
+    Source: 'crates/kernel/src/session.rs', lines 8:0-24:1
+    Visibility: public -/
+@[discriminant isize]
+inductive session.State where
+| Ready : session.State
+| Running : session.State
+| Paused : session.State
+| PhaseComplete : session.State
+| Review : session.State
+| Finishing : session.State
+| Saved : session.State
+
+/-- [cadence_kernel::session::Event]
+    Source: 'crates/kernel/src/session.rs', lines 28:0-53:1
+    Visibility: public -/
+@[discriminant isize]
+inductive session.Event where
+| Start : session.Event
+| Pause : session.Event
+| SaveFailed : session.Event
+| Invalidate : session.Event
+| Resume : session.Event
+| Deadline : session.Event
+| LastDeadline : session.Event
+| NextPhase : session.Event
+| PlanDone : session.Event
+| EndEarly : session.Event
+| Finish : session.Event
+| FinalSaved : session.Event
+
+/-- [cadence_kernel::session::Clock]
+    Source: 'crates/kernel/src/session.rs', lines 57:0-64:1
+    Visibility: public -/
+@[discriminant isize]
+inductive session.Clock where
+| Keep : session.Clock
+| Stop : session.Clock
+| Resume : session.Clock
+
+/-- [cadence_kernel::session::Outcome]
+    Source: 'crates/kernel/src/session.rs', lines 68:0-76:1
+    Visibility: public -/
+@[discriminant isize]
+inductive session.Outcome where
+| Unchanged : session.Outcome
+| Completed : session.Outcome
+| Unfinished : session.Outcome
+
+/-- [cadence_kernel::session::Step]
+    Source: 'crates/kernel/src/session.rs', lines 80:0-92:1
+    Visibility: public -/
+@[discriminant isize]
+inductive session.Step where
+| Move : session.State → session.Clock → session.Outcome → session.Step
+| Refused : session.Step
+
+/-- [cadence_kernel::session::step]:
+    Source: 'crates/kernel/src/session.rs', lines 97:0-285:1
+    Visibility: public -/
+def session.step
+  (state : session.State) (event : session.Event) : Result session.Step := do
+  match event with
+  | session.Event.Start =>
+    match state with
+    | session.State.Ready =>
+      ok (session.Step.Move session.State.Running session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.Running => ok session.Step.Refused
+    | session.State.Paused => ok session.Step.Refused
+    | session.State.PhaseComplete => ok session.Step.Refused
+    | session.State.Review => ok session.Step.Refused
+    | session.State.Finishing => ok session.Step.Refused
+    | session.State.Saved => ok session.Step.Refused
+  | session.Event.Pause =>
+    match state with
+    | session.State.Ready => ok session.Step.Refused
+    | session.State.Running =>
+      ok (session.Step.Move session.State.Paused session.Clock.Stop
+        session.Outcome.Unchanged)
+    | session.State.Paused => ok session.Step.Refused
+    | session.State.PhaseComplete => ok session.Step.Refused
+    | session.State.Review => ok session.Step.Refused
+    | session.State.Finishing => ok session.Step.Refused
+    | session.State.Saved => ok session.Step.Refused
+  | session.Event.SaveFailed =>
+    match state with
+    | session.State.Ready =>
+      ok (session.Step.Move session.State.Ready session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.Running =>
+      ok (session.Step.Move session.State.Paused session.Clock.Stop
+        session.Outcome.Unchanged)
+    | session.State.Paused =>
+      ok (session.Step.Move session.State.Paused session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.PhaseComplete =>
+      ok (session.Step.Move session.State.PhaseComplete session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.Review =>
+      ok (session.Step.Move session.State.Review session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.Finishing =>
+      ok (session.Step.Move session.State.Finishing session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.Saved =>
+      ok (session.Step.Move session.State.Saved session.Clock.Keep
+        session.Outcome.Unchanged)
+  | session.Event.Invalidate =>
+    match state with
+    | session.State.Ready =>
+      ok (session.Step.Move session.State.Paused session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.Running =>
+      ok (session.Step.Move session.State.Paused session.Clock.Stop
+        session.Outcome.Unchanged)
+    | session.State.Paused =>
+      ok (session.Step.Move session.State.Paused session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.PhaseComplete =>
+      ok (session.Step.Move session.State.Paused session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.Review =>
+      ok (session.Step.Move session.State.Review session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.Finishing =>
+      ok (session.Step.Move session.State.Finishing session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.Saved =>
+      ok (session.Step.Move session.State.Saved session.Clock.Keep
+        session.Outcome.Unchanged)
+  | session.Event.Resume =>
+    match state with
+    | session.State.Ready => ok session.Step.Refused
+    | session.State.Running => ok session.Step.Refused
+    | session.State.Paused =>
+      ok (session.Step.Move session.State.Running session.Clock.Resume
+        session.Outcome.Unchanged)
+    | session.State.PhaseComplete => ok session.Step.Refused
+    | session.State.Review => ok session.Step.Refused
+    | session.State.Finishing => ok session.Step.Refused
+    | session.State.Saved => ok session.Step.Refused
+  | session.Event.Deadline =>
+    match state with
+    | session.State.Ready => ok session.Step.Refused
+    | session.State.Running =>
+      ok (session.Step.Move session.State.PhaseComplete session.Clock.Stop
+        session.Outcome.Unchanged)
+    | session.State.Paused => ok session.Step.Refused
+    | session.State.PhaseComplete => ok session.Step.Refused
+    | session.State.Review => ok session.Step.Refused
+    | session.State.Finishing => ok session.Step.Refused
+    | session.State.Saved => ok session.Step.Refused
+  | session.Event.LastDeadline =>
+    match state with
+    | session.State.Ready => ok session.Step.Refused
+    | session.State.Running =>
+      ok (session.Step.Move session.State.PhaseComplete session.Clock.Stop
+        session.Outcome.Completed)
+    | session.State.Paused => ok session.Step.Refused
+    | session.State.PhaseComplete => ok session.Step.Refused
+    | session.State.Review => ok session.Step.Refused
+    | session.State.Finishing => ok session.Step.Refused
+    | session.State.Saved => ok session.Step.Refused
+  | session.Event.NextPhase =>
+    match state with
+    | session.State.Ready => ok session.Step.Refused
+    | session.State.Running => ok session.Step.Refused
+    | session.State.Paused => ok session.Step.Refused
+    | session.State.PhaseComplete =>
+      ok (session.Step.Move session.State.Running session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.Review => ok session.Step.Refused
+    | session.State.Finishing => ok session.Step.Refused
+    | session.State.Saved => ok session.Step.Refused
+  | session.Event.PlanDone =>
+    match state with
+    | session.State.Ready => ok session.Step.Refused
+    | session.State.Running =>
+      ok (session.Step.Move session.State.Review session.Clock.Stop
+        session.Outcome.Completed)
+    | session.State.Paused => ok session.Step.Refused
+    | session.State.PhaseComplete =>
+      ok (session.Step.Move session.State.Review session.Clock.Stop
+        session.Outcome.Completed)
+    | session.State.Review => ok session.Step.Refused
+    | session.State.Finishing => ok session.Step.Refused
+    | session.State.Saved => ok session.Step.Refused
+  | session.Event.EndEarly =>
+    match state with
+    | session.State.Ready => ok session.Step.Refused
+    | session.State.Running =>
+      ok (session.Step.Move session.State.Review session.Clock.Stop
+        session.Outcome.Unfinished)
+    | session.State.Paused =>
+      ok (session.Step.Move session.State.Review session.Clock.Stop
+        session.Outcome.Unfinished)
+    | session.State.PhaseComplete =>
+      ok (session.Step.Move session.State.Review session.Clock.Stop
+        session.Outcome.Unfinished)
+    | session.State.Review => ok session.Step.Refused
+    | session.State.Finishing => ok session.Step.Refused
+    | session.State.Saved => ok session.Step.Refused
+  | session.Event.Finish =>
+    match state with
+    | session.State.Ready =>
+      ok (session.Step.Move session.State.Finishing session.Clock.Stop
+        session.Outcome.Unfinished)
+    | session.State.Running =>
+      ok (session.Step.Move session.State.Finishing session.Clock.Stop
+        session.Outcome.Unfinished)
+    | session.State.Paused =>
+      ok (session.Step.Move session.State.Finishing session.Clock.Stop
+        session.Outcome.Unfinished)
+    | session.State.PhaseComplete =>
+      ok (session.Step.Move session.State.Finishing session.Clock.Stop
+        session.Outcome.Unfinished)
+    | session.State.Review =>
+      ok (session.Step.Move session.State.Finishing session.Clock.Stop
+        session.Outcome.Unfinished)
+    | session.State.Finishing => ok session.Step.Refused
+    | session.State.Saved => ok session.Step.Refused
+  | session.Event.FinalSaved =>
+    match state with
+    | session.State.Ready => ok session.Step.Refused
+    | session.State.Running => ok session.Step.Refused
+    | session.State.Paused => ok session.Step.Refused
+    | session.State.PhaseComplete => ok session.Step.Refused
+    | session.State.Review => ok session.Step.Refused
+    | session.State.Finishing =>
+      ok (session.Step.Move session.State.Saved session.Clock.Keep
+        session.Outcome.Unchanged)
+    | session.State.Saved => ok session.Step.Refused
+
 /-- [cadence_kernel::time::Through]
     Source: 'crates/kernel/src/time.rs', lines 11:0-18:1
     Visibility: public -/

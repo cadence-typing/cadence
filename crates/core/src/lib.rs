@@ -39,6 +39,6 @@ pub use metrics::{
     numeric_metrics,
 };
 pub use ports::{Calendar, Clock};
-pub use session::{SessionState, SessionTransition, TimingSegments, next_state};
+pub use session::{SessionState, TimingSegments};
 pub use tick::{Micros, MonoTick, UtcDay};
 pub use units::{CellColumn, TerminalColumns, TerminalRows, TextUnitIndex, UnitCount};

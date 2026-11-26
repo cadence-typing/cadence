@@ -18,4 +18,5 @@ pub mod counters;
 pub mod first;
 pub mod progress;
 pub mod ratio;
+pub mod session;
 pub mod time;

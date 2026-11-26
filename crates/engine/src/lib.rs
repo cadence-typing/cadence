@@ -15,7 +15,9 @@ pub mod summary;
 pub mod view;
 use cadence_core::ledger::AttemptLedger;
 use cadence_core::progress::{Checkpoint, HistorySummary, ProgressStatus, TrackProgress};
-use cadence_core::session::{SessionState, TimingSegments};
+use cadence_core::session::{
+    SessionEvent, SessionState, SessionStep, TimingSegments, session_step,
+};
 use cadence_core::{CoreError, EventSeq, ExerciseId, FrameRevision, Micros, MonoTick};
 use cadence_trainer::{Phase, SessionPlan};
 pub use events::{EventEnvelope, EventKind, Key};
@@ -284,7 +286,9 @@ impl Engine {
                 self.pause_for(at, PauseReason::FocusLost)?;
             }
             EventKind::Key(Key::Content(c))
-                if self.session_state == SessionState::Paused && c.get() == 'r' =>
+                if c.get() == 'r'
+                    && (self.session_state == SessionState::Paused
+                        || self.storage.as_ref().is_some_and(|s| s.failed.is_some())) =>
             {
                 self.retry_save()
             }
@@ -316,7 +320,13 @@ impl Engine {
             l.mark_interrupted();
         }
         self.invalid = true;
-        self.session_state = SessionState::Paused;
+        // The table admits Invalidate in every state (Lean:
+        // `Session.invalidate_admitted`); the clock was stopped above.
+        if let SessionStep::Move { next, .. } =
+            session_step(self.session_state, SessionEvent::Invalidate)
+        {
+            self.session_state = next;
+        }
         self.notice = Some(format!(
             "Measurement stopped: {}. Ctrl-C keeps the partial evidence; no qualified score.",
             flow::describe(&reason)
@@ -330,14 +340,14 @@ impl Engine {
                 if self.viewport == ViewportState::Usable =>
             {
                 self.screen = Screen::Practice;
-                self.session_state = SessionState::Running;
-                self.open_exercise()?;
+                self.transition(Some(at), SessionEvent::Start)?;
+                self.open_exercise(at)?;
                 Ok(DomainOutcome::SessionStarted)
             }
             (Screen::PhaseComplete { .. }, EventKind::Key(Key::Enter | Key::Escape))
                 if self.viewport == ViewportState::Usable && self.interlude_settled(at)? =>
             {
-                self.advance_phase()
+                self.advance_phase(at)
             }
             (Screen::Practice, EventKind::Key(key)) => self.practice_key(at, key),
             _ => Ok(DomainOutcome::None),
@@ -354,8 +364,7 @@ impl Engine {
             && self.screen == Screen::Practice
             && self.session_state == SessionState::Running
         {
-            self.timing.pause(at)?;
-            self.session_state = SessionState::Paused;
+            self.transition(Some(at), SessionEvent::Pause)?;
             self.pause_reason = Some(PauseReason::TooSmall);
             self.checkpoint_due = true;
         }

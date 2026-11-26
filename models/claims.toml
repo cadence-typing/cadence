@@ -108,3 +108,45 @@ violates = "NoDoubleCredit"
 [[model.mutant]]
 config = "CheckpointSave-quit-before-ack.cfg"
 violates = "CleanExitIsDurable"
+
+# The session flow (#31). State changes follow the proved
+# cadence_kernel::session::step; the model adds the clock, the phase window,
+# the interlude grace and the guards the engine keeps around the table.
+# Runtime tests per invariant: ClockStoppedUnlessRunning -> paused_controls;
+# NoScoreOutsidePhase -> exact_boundary; InterludeGrace -> in_flight_key;
+# EndEarlyIsUnfinished -> ending_early; PauseKeepsReason -> paste_and_focus.
+[[model]]
+module = "SessionFlow"
+dir = "models"
+config = "SessionFlow.cfg"
+invariants = ["TypeOK", "ClockStoppedUnlessRunning", "NoScoreOutsidePhase", "InterludeGrace", "EndEarlyIsUnfinished", "PauseKeepsReason"]
+status = "mapped"
+production_symbols = [
+  "cadence_kernel::session::step",
+  "cadence_kernel::time::in_window",
+  "cadence_engine::flow::{transition, pause_for, resume, end_early, interlude_settled}",
+  "cadence_engine::practice::{advance_clock, advance_phase}",
+]
+runtime_tests = [
+  "cadence-engine::pause_before_first_input_and_paused_controls_do_not_score",
+  "cadence-engine::exact_boundary_key_is_not_scored",
+  "cadence-engine::an_in_flight_key_cannot_skip_the_phase_complete_screen",
+  "cadence-engine::ending_early_opens_the_review_and_saves_as_unfinished",
+  "cadence-engine::paste_and_focus_loss_pause_without_invalidating",
+]
+
+[[model.mutant]]
+config = "SessionFlow-score-while-paused.cfg"
+violates = "ClockStoppedUnlessRunning"
+
+[[model.mutant]]
+config = "SessionFlow-deadline-inclusive.cfg"
+violates = "NoScoreOutsidePhase"
+
+[[model.mutant]]
+config = "SessionFlow-enter-skips-interlude.cfg"
+violates = "InterludeGrace"
+
+[[model.mutant]]
+config = "SessionFlow-early-end-completed.cfg"
+violates = "EndEarlyIsUnfinished"

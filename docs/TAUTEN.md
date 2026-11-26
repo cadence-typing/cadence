@@ -85,6 +85,7 @@ function below is called by production code; there is no second copy.
 | `time::segment_active` | `TimingSegments::active_through` (`crates/core/src/session.rs`), hence `pause`, `end_phase` and the engine's phase clock |
 | `time::in_window` | `Micros::within_half_open`, called by `Engine::advance_clock` to decide whether active time is still inside the phase (A-05) |
 | `progress::track_valid` (with `in_range`, `ordered`, `split_fits`) | `SessionProgress::validate`, before a checkpoint is built or a stored one decoded |
+| `session::step` | `Engine::transition` (`crates/engine/src/flow.rs`), the only writer of the session state, and `Engine::invalidate`; the engine carries out its clock command and status consequence |
 | `checkpoint::admit` | `Store::apply_checkpoint` (`crates/data/src/store.rs`): apply, replay, conflict or stale |
 
 `fixtures/scoring.json` (independent, hand-calculated) is replayed through the
@@ -114,6 +115,7 @@ axioms. The audit admits only `propext`, `Classical.choice` and `Quot.sound`.
 | `ratio::digits_per_minute` | `Ratio.digits_per_minute_spec` | Same for the numpad rate. Total. | `digits-minute-is-ten-seconds`, `digits-denominator-off-by-one` | proved |
 | `ratio::basis_points` | `Ratio.basis_points_spec`, `accuracy_in_range`, `accuracy_computed` | `floor(num*10000/den)`; a ratio of a count to a count at least as large is never over 100% and never `OverFull`; computed whenever `num*10000` fits `u64`. Total. | `basis-allows-over-full`, `basis-remainder-not-quotient`, `basis-full-is-9999` | proved |
 | `time::segment_active` | `Time.segment_active_spec`, `segment_active_closed`, `segment_active_monotone` | Completed active time plus the open segment's `now - start`, exactly, in unbounded arithmetic; `Backward` exactly when `now` precedes the open segment, `Overflow` exactly when the sum exceeds `u64::MAX`; with no open segment (paused) it is the completed total; a later clock reading never gives less active time. Total. | `segment-ignores-open`, `segment-saturates`, `segment-backward-is-zero` | proved |
+| `session::step` | `Session.clock_runs_only_running`, `review_is_terminal_for_typing`, `completed_only_after_last_phase`, `running_only_by_start_resume_or_next`, `invalidate_admitted` | Over every state and event: leaving `Running` stops the clock and only entering `Running` resumes it; from the review, finishing or saved no event leads back to typing; only the last typing deadline or reaching the review completes a session (ending early or exiting never does); typing starts only by start, resume or the next phase; an invalid measurement is admitted everywhere. Total. | `pause-keeps-clock`, `review-resumes`, `early-end-completes`, `invalidate-refused-when-saved` | proved |
 | `time::in_window` | `Time.in_window_spec` | `start <= tick < deadline`; a key at the exact deadline is outside the scored slice. Total. | `window-deadline-inclusive`, `window-start-exclusive` | proved |
 | `checkpoint::admit` | `Checkpoint.admit_spec`, `admit_apply_iff`, `refused_never_applies`, `applications_strictly_increase`, `applied_sequence_never_reapplies` | The full decision table. A checkpoint is applied iff no receipt exists and it is strictly newer than the latest applied one; replay, conflict and stale are never applied; once a sequence is applied (the store then holds it as its latest sequence, written in the same transaction: trusted, tested), offering it again in any receipt state is never applied (no double credit). Total. | `admit-equal-sequence-applies`, `admit-replay-applies`, `admit-conflict-replays` | proved |
 | `progress::in_range`, `ordered`, `split_fits` | `Progress.in_range_spec`, `ordered_spec`, `split_fits_spec` | Exactly which counters are accepted. Total. | `range-skips-active`, `ordered-skips-first-pass`, `split-ignores-overflow-attempts` | proved |
@@ -169,6 +171,7 @@ tests, not by proof. The table is generated from the registry.
 | `formal/AsyncAdmission.tla` | TypeOK, AcceptedFresh, AtMostOnce | `AsyncAdmission-no-epoch.cfg` → `AcceptedFresh`<br>`AsyncAdmission-no-pending.cfg` → `AtMostOnce` | none; blocked on #4: no job registry with epoch/request tickets is shipped | design-probe (not mapped) |
 | `formal/CausalBarrier.tla` | TypeOK, NoEarlyReturn | `CausalBarrier-early-return.cfg` → `NoEarlyReturn` | none; blocked on #4: the headless driver and its barriers are not shipped | design-probe (not mapped) |
 | `models/CheckpointSave.tla` | TypeOK, AckIsDurable, NoDoubleCredit, SingleFlight, CleanExitIsDurable, FailedTailIsNamed | `CheckpointSave-two-in-flight.cfg` → `SingleFlight`<br>`CheckpointSave-early-ack.cfg` → `AckIsDurable`<br>`CheckpointSave-double-credit.cfg` → `NoDoubleCredit`<br>`CheckpointSave-quit-before-ack.cfg` → `CleanExitIsDurable` | `cadence_engine::storage::{dispatch_checkpoint, save_result, retry_save, request_exit, watchdog}`<br>`cadence_runtime::writer::SaveWorker`<br>`cadence_data::store::ProgressStore::apply_checkpoint`<br>`cadence_kernel::checkpoint::admit` | model-proved (bounded) |
+| `models/SessionFlow.tla` | TypeOK, ClockStoppedUnlessRunning, NoScoreOutsidePhase, InterludeGrace, EndEarlyIsUnfinished, PauseKeepsReason | `SessionFlow-score-while-paused.cfg` → `ClockStoppedUnlessRunning`<br>`SessionFlow-deadline-inclusive.cfg` → `NoScoreOutsidePhase`<br>`SessionFlow-enter-skips-interlude.cfg` → `InterludeGrace`<br>`SessionFlow-early-end-completed.cfg` → `EndEarlyIsUnfinished` | `cadence_kernel::session::step`<br>`cadence_kernel::time::in_window`<br>`cadence_engine::flow::{transition, pause_for, resume, end_early, interlude_settled}`<br>`cadence_engine::practice::{advance_clock, advance_phase}` | model-proved (bounded) |
 <!-- models:end -->
 
 ## Result of the last gate run
@@ -178,15 +181,15 @@ summary line, the per-claim outcomes and the mutant results are copied below
 from that run (see the commit that adds `proofs/claims.json`).
 
 Command: `cargo +1.98.0 tauten proofs --live` (full level, every mutant),
-gating the working tree of the commit that records this run (#29), with the
-temporary `[[amend]]` entries for the retired time claims still present; exit 0:
+gating the working tree of the commit that records this run (#31); exit 0:
 
 ```text
-tauten: 17 of 17 claim(s) proved (recorded in proofs/claims.json)
+tauten: 18 of 18 claim(s) proved (recorded in proofs/claims.json)
 ```
 
-All 33 mutants were `killed`. The amendments were dropped after this record,
-as tauten requires. The description of the earlier run follows.
+All 37 mutants were `killed`, each by the theorem it targets. The previous
+run (#29, 17 of 17 with 33 mutants) carried temporary `[[amend]]` entries for
+the retired time claims, dropped after that record as tauten requires. The description of the earlier run follows.
 
 Stages: tools ok, extract ok, drift ok (committed `proofs/Extracted/` equals a
 fresh translation), `lake build` ok, axiom and coverage audit ok (only

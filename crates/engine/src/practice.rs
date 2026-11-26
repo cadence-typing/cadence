@@ -3,8 +3,8 @@ use super::{DomainOutcome, Engine, Key, Screen, invalid};
 use cadence_core::learning::KeyLane;
 use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent, Slot};
 use cadence_core::metrics::{correct_digits, first_pass_accuracy};
-use cadence_core::progress::{ProgressStatus, Track, TrackProgress};
-use cadence_core::session::SessionState;
+use cadence_core::progress::{Track, TrackProgress};
+use cadence_core::session::{SessionEvent, SessionState};
 use cadence_core::{CoreError, ExerciseId, Micros, MonoTick};
 use cadence_trainer::{ExerciseKind, Phase};
 
@@ -41,6 +41,15 @@ impl Engine {
                     .ok_or_else(|| invalid("invalid phase boundary"))?,
             );
             let phase = phase.phase;
+            let next = self
+                .phase_index
+                .checked_add(1)
+                .ok_or_else(|| invalid("phase index exhausted"))?;
+            let last = self
+                .plan
+                .phases
+                .get(next..)
+                .is_some_and(|remaining| remaining.iter().all(|p| p.phase == Phase::Review));
             let partial = self
                 .ledger
                 .as_ref()
@@ -49,27 +58,22 @@ impl Engine {
             self.active = deadline;
             self.record_exercise()?;
             self.screen = Screen::PhaseComplete { partial };
-            self.session_state = SessionState::PhaseComplete;
+            self.transition(
+                Some(at),
+                if last {
+                    SessionEvent::LastDeadline
+                } else {
+                    SessionEvent::Deadline
+                },
+            )?;
             self.interlude_opened = Some(at);
-            let next = self
-                .phase_index
-                .checked_add(1)
-                .ok_or_else(|| invalid("phase index exhausted"))?;
-            if self
-                .plan
-                .phases
-                .get(next..)
-                .is_some_and(|remaining| remaining.iter().all(|p| p.phase == Phase::Review))
-            {
-                self.status = ProgressStatus::Completed;
-            }
             self.checkpoint_due = true;
             return Ok(Some(DomainOutcome::PhaseDeadline { phase, partial }));
         }
         self.active = active;
         Ok(None)
     }
-    pub(super) fn open_exercise(&mut self) -> Result<(), CoreError> {
+    pub(super) fn open_exercise(&mut self, at: MonoTick) -> Result<(), CoreError> {
         let phase = self
             .plan
             .phases
@@ -77,8 +81,7 @@ impl Engine {
             .ok_or_else(|| invalid("missing phase"))?;
         if phase.phase == Phase::Review {
             self.screen = Screen::Summary;
-            self.session_state = SessionState::Review;
-            self.status = ProgressStatus::Completed;
+            self.transition(Some(at), SessionEvent::PlanDone)?;
             self.checkpoint_due = true;
             return Ok(());
         }
@@ -135,7 +138,7 @@ impl Engine {
         }
         Ok(())
     }
-    pub(super) fn advance_phase(&mut self) -> Result<DomainOutcome, CoreError> {
+    pub(super) fn advance_phase(&mut self, at: MonoTick) -> Result<DomainOutcome, CoreError> {
         self.phase_index = self
             .phase_index
             .checked_add(1)
@@ -145,15 +148,14 @@ impl Engine {
         self.interlude_opened = None;
         let Some(phase) = self.plan.phases.get(self.phase_index) else {
             self.screen = Screen::Summary;
-            self.session_state = SessionState::Review;
-            self.status = ProgressStatus::Completed;
+            self.transition(Some(at), SessionEvent::PlanDone)?;
             self.checkpoint_due = true;
             return Ok(DomainOutcome::SessionSummary);
         };
         let phase = phase.phase;
         self.screen = Screen::Practice;
-        self.session_state = SessionState::Running;
-        self.open_exercise()?;
+        self.transition(Some(at), SessionEvent::NextPhase)?;
+        self.open_exercise(at)?;
         if self.screen == Screen::Summary {
             Ok(DomainOutcome::SessionSummary)
         } else {
@@ -239,19 +241,19 @@ impl Engine {
                     | Applied::RejectedOverBound => self.learning.break_timing(),
                 }
                 if complete && !numpad {
-                    return self.finish_exercise();
+                    return self.finish_exercise(at);
                 }
             }
             Key::Backspace => {
                 ledger.apply(LedgerEvent::Backspace)?;
                 self.learning.break_timing();
             }
-            Key::Enter if numpad && ledger.is_complete() => return self.finish_exercise(),
+            Key::Enter if numpad && ledger.is_complete() => return self.finish_exercise(at),
             Key::Enter | Key::Escape | Key::Interrupt | Key::ToggleTextSize | Key::Other => {}
         }
         Ok(DomainOutcome::None)
     }
-    fn finish_exercise(&mut self) -> Result<DomainOutcome, CoreError> {
+    fn finish_exercise(&mut self, at: MonoTick) -> Result<DomainOutcome, CoreError> {
         let exercise = ExerciseId::new(self.next_exercise)?;
         let next = self
             .next_exercise
@@ -276,7 +278,7 @@ impl Engine {
             .checked_add(1)
             .ok_or_else(|| invalid("exercise index exhausted"))?;
         self.exercise_index = if next_index == count { 0 } else { next_index };
-        self.open_exercise()?;
+        self.open_exercise(at)?;
         self.checkpoint_due = true;
         Ok(DomainOutcome::ExerciseCompleted {
             exercise,
