@@ -455,13 +455,39 @@ fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Pa
         } else {
             ""
         };
+        let fitted = fit_whole(instruction, usize::from(area.width));
         centered(
             buffer,
             Rect::new(area.x, y, area.width, 1),
-            instruction,
+            &fitted,
             style(palette, Role::Muted),
         );
     }
+}
+
+/// Fits a context line to `width` without cutting a token (#7, #50):
+/// whole " · " parts drop from the right; when the first part alone is too
+/// wide, whole list items drop from its end, marked with "…".
+pub(crate) fn fit_whole(text: &str, width: usize) -> String {
+    if text.chars().count() <= width {
+        return text.to_string();
+    }
+    let parts: Vec<&str> = text.split(" \u{b7} ").collect();
+    for keep in (1..parts.len()).rev() {
+        let line = parts.get(..keep).unwrap_or_default().join(" \u{b7} ");
+        if line.chars().count() <= width {
+            return line;
+        }
+    }
+    let first = parts.first().copied().unwrap_or_default();
+    let items: Vec<&str> = first.split(", ").collect();
+    for keep in (1..items.len()).rev() {
+        let line = format!("{}, \u{2026}", items.get(..keep).unwrap_or_default().join(", "));
+        if line.chars().count() <= width {
+            return line;
+        }
+    }
+    String::new()
 }
 
 fn centered(buffer: &mut Buffer, area: Rect, text: &str, style: Style) {
@@ -490,4 +516,23 @@ fn style(palette: Palette, role: Role) -> Style {
     Style::default()
         .fg(palette.color(role))
         .bg(palette.color(Role::Background))
+}
+
+#[cfg(test)]
+mod fit_tests {
+    use super::fit_whole;
+
+    #[test]
+    fn context_lines_never_cut_a_token() {
+        let line = "Targeting n' \u{b7} om \u{b7} ne \u{b7} la \u{b7} de \u{b7} ad \u{b7} due review \u{b7} again: truly, really, nearly";
+        for width in [10, 20, 30, 40, 58, 60, 100] {
+            let fitted = fit_whole(line, width);
+            assert!(fitted.chars().count() <= width, "{width}: {fitted}");
+            for token in fitted.split([' ', ',']) {
+                let token = token.trim_end_matches('\u{2026}');
+                assert!(token.is_empty() || line.contains(token), "{width}: cut token {token:?}");
+            }
+        }
+        assert_eq!(fit_whole("again: truly, really, nearly", 22), "again: truly, \u{2026}");
+    }
 }
