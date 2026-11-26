@@ -276,3 +276,150 @@ fn numpad_keys_form_a_separate_lane() -> TestResult {
     );
     Ok(())
 }
+
+fn engine_with(capacity: usize, per_word: u32, phases: Vec<PlannedPhase>) -> Result<Engine, Error> {
+    Ok(Engine::new_plan(SessionPlan {
+        budget_seconds: 120,
+        policy_digest: ContentDigest::from_bytes([1; 32]),
+        corpus_digest: ContentDigest::from_bytes([2; 32]),
+        record: PlanRecord {
+            seed: 9,
+            mode: PlannerMode::Adaptive,
+            focus: Vec::new(),
+        },
+        adaptation: Adaptation {
+            hesitation_ceiling: Micros::from_us(1_500_000),
+            reinforcement_capacity: capacity,
+            reinforcements_per_word: per_word,
+        },
+        phases,
+    })?)
+}
+
+/// Types `text`; a `#` makes the next character a first-attempt error
+/// (a wrong key, Backspace, then the right key).
+fn type_text(driver: &mut Driver, mut at: u64, text: &str) -> Result<u64, Error> {
+    let mut miss = false;
+    for c in text.chars() {
+        if c == '#' {
+            miss = true;
+            continue;
+        }
+        if miss {
+            driver.typed(at, if c == 'z' { 'y' } else { 'z' })?;
+            at = at.checked_add(100_000).ok_or("clock overflow")?;
+            driver.key(at, Key::Backspace)?;
+            at = at.checked_add(100_000).ok_or("clock overflow")?;
+            miss = false;
+        }
+        driver.typed(at, c)?;
+        at = at.checked_add(100_000).ok_or("clock overflow")?;
+    }
+    Ok(at)
+}
+
+fn practice_text(driver: &mut Driver, at: u64) -> Result<String, Error> {
+    let ScreenView::Practice { spans, .. } = driver.engine.prepare(MonoTick::from_us(at)).screen
+    else {
+        return Err("practice screen expected".into());
+    };
+    Ok(spans.iter().map(|span| span.cell_char()).collect())
+}
+
+/// #55: a full queue refuses the repetition; the miss is still recorded.
+#[test]
+fn a_full_reinforcement_queue_only_forgoes_the_repetition() -> TestResult {
+    let phases = vec![PlannedPhase {
+        phase: Phase::AdaptiveWords,
+        seconds: 60,
+        exercises: vec![
+            words_exercise(&[("cat", 1, Lane::Target), ("dog", 2, Lane::Broad)])?,
+            words_exercise(&[("sun", 3, Lane::Target), ("hat", 4, Lane::Review)])?,
+        ],
+    }];
+    let mut driver = Driver::new(engine_with(0, 1, phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "c#at dog")?;
+    assert_eq!(practice_text(&mut driver, at)?, "sun hat", "nothing queued");
+    let at = type_text(&mut driver, at, "sun hat")?;
+    let learning = driver.finish(at)?;
+    assert_eq!(learning.reinforced, 0);
+    assert_eq!(
+        learning.words.get(&WordId::new(1)?),
+        Some(&WordTally {
+            attempts: 1,
+            errors: 1
+        })
+    );
+    Ok(())
+}
+
+/// #55: a word that used its per-session repetitions is not queued again.
+#[test]
+fn an_exhausted_word_is_not_queued_again() -> TestResult {
+    let phases = vec![PlannedPhase {
+        phase: Phase::AdaptiveWords,
+        seconds: 60,
+        exercises: vec![
+            words_exercise(&[("cat", 1, Lane::Target), ("dog", 2, Lane::Broad)])?,
+            words_exercise(&[("sun", 3, Lane::Target), ("hat", 4, Lane::Review)])?,
+            words_exercise(&[("map", 5, Lane::Target), ("pen", 6, Lane::Review)])?,
+        ],
+    }];
+    let mut driver = Driver::new(engine_with(8, 1, phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "c#at dog")?;
+    assert_eq!(practice_text(&mut driver, at)?, "sun cat");
+    let at = type_text(&mut driver, at, "sun c#at")?;
+    assert_eq!(practice_text(&mut driver, at)?, "map pen", "not re-served");
+    let at = type_text(&mut driver, at, "map pen")?;
+    let learning = driver.finish(at)?;
+    assert_eq!(learning.reinforced, 1);
+    assert_eq!(
+        learning.words.get(&WordId::new(1)?),
+        Some(&WordTally {
+            attempts: 2,
+            errors: 2
+        })
+    );
+    Ok(())
+}
+
+/// #55: a word already waiting in the queue is not queued twice.
+#[test]
+fn a_queued_word_is_not_queued_twice() -> TestResult {
+    let phases = vec![PlannedPhase {
+        phase: Phase::AdaptiveWords,
+        seconds: 60,
+        exercises: vec![
+            words_exercise(&[
+                ("cat", 1, Lane::Target),
+                ("dog", 2, Lane::Broad),
+                ("cat", 1, Lane::Target),
+            ])?,
+            words_exercise(&[("sun", 3, Lane::Target), ("hat", 4, Lane::Review)])?,
+            words_exercise(&[("map", 5, Lane::Target), ("pen", 6, Lane::Review)])?,
+        ],
+    }];
+    let mut driver = Driver::new(engine_with(8, 2, phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "c#at dog c#at")?;
+    assert_eq!(practice_text(&mut driver, at)?, "sun cat");
+    let at = type_text(&mut driver, at, "sun cat")?;
+    assert_eq!(
+        practice_text(&mut driver, at)?,
+        "map pen",
+        "served once only"
+    );
+    let at = type_text(&mut driver, at, "map pen")?;
+    let learning = driver.finish(at)?;
+    assert_eq!(learning.reinforced, 1);
+    assert_eq!(
+        learning.words.get(&WordId::new(1)?),
+        Some(&WordTally {
+            attempts: 3,
+            errors: 2
+        })
+    );
+    Ok(())
+}

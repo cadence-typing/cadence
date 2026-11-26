@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, VecDeque};
 use cadence_core::alphabet::TrainingChar;
 use cadence_core::learning::{KeyLane, SessionLearning, Skill, SkillKey};
 use cadence_core::ledger::Slot;
-use cadence_core::{CoreError, Micros, WordId};
+use cadence_core::{CoreError, Micros, WordId, queue};
 use cadence_trainer::{Adaptation, ExerciseKind, Lane, PlannedExercise, PlannedWord};
 
 use super::invalid;
@@ -200,11 +200,19 @@ impl Learning {
         let served = self.served.get(&word).copied().unwrap_or(0);
         // A full queue or an exhausted per-word allowance only forgoes an
         // optional extra repetition; the miss itself is already recorded.
-        if served >= self.adaptation.reinforcements_per_word
-            || self.queue.len() >= self.adaptation.reinforcement_capacity
-            || self.queue.iter().any(|queued| queued.word == word)
-        {
-            return Ok(());
+        // The proved kernel decides (no duplicate, within capacity, within
+        // the per-word limit).
+        match queue::admit(
+            self.queue.iter().any(|queued| queued.word == word),
+            self.queue.len(),
+            self.adaptation.reinforcement_capacity,
+            served,
+            self.adaptation.reinforcements_per_word,
+        ) {
+            queue::Admit::Admitted => {}
+            queue::Admit::Duplicate | queue::Admit::Full | queue::Admit::Exhausted => {
+                return Ok(());
+            }
         }
         let start = end
             .checked_sub(1)

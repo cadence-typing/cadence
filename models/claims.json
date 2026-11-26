@@ -11,6 +11,7 @@
         "NoDoubleCredit",
         "TypeOK"
       ],
+      "properties": [],
       "mutants": [
         "DurableCheckpoint-double-credit.cfg violates NoDoubleCredit",
         "DurableCheckpoint-early-ack.cfg violates AckIsDurable"
@@ -33,6 +34,7 @@
         "AtMostOnce",
         "TypeOK"
       ],
+      "properties": [],
       "mutants": [
         "AsyncAdmission-no-epoch.cfg violates AcceptedFresh",
         "AsyncAdmission-no-pending.cfg violates AtMostOnce"
@@ -54,6 +56,7 @@
         "NoEarlyReturn",
         "TypeOK"
       ],
+      "properties": [],
       "mutants": [
         "CausalBarrier-early-return.cfg violates NoEarlyReturn"
       ],
@@ -77,6 +80,7 @@
         "SingleFlight",
         "TypeOK"
       ],
+      "properties": [],
       "mutants": [
         "CheckpointSave-double-credit.cfg violates NoDoubleCredit",
         "CheckpointSave-early-ack.cfg violates AckIsDurable",
@@ -120,6 +124,7 @@
         "PauseKeepsReason",
         "TypeOK"
       ],
+      "properties": [],
       "mutants": [
         "SessionFlow-deadline-inclusive.cfg violates NoScoreOutsidePhase",
         "SessionFlow-early-end-completed.cfg violates EndEarlyIsUnfinished",
@@ -147,6 +152,63 @@
         "SessionFlow-deadline-inclusive.cfg": "12af029c3d1f50d64023104d994920028c7829322ec71d46d9176d78d29bcabd",
         "SessionFlow-enter-skips-interlude.cfg": "6d6d1242d27fc9a832bb9e9401767d2569eafabae754f4e989de9c5eaab3676e",
         "SessionFlow-early-end-completed.cfg": "bf77ba9a4479b04f3eb5f970376ac45689d2732ef28e52137330d2be73462cf4"
+      }
+    },
+    {
+      "module": "FeedbackLoop",
+      "status": "mapped",
+      "invariants": [
+        "DueNotDisplaced",
+        "EvidenceCountedOnce",
+        "NoFalsePromotion",
+        "NoLostMiss",
+        "QueueBounded",
+        "SameSessionNeverPromotes",
+        "TypeOK"
+      ],
+      "properties": [
+        "DueEventuallyServed"
+      ],
+      "mutants": [
+        "FeedbackLoop-admit-duplicate.cfg violates QueueBounded",
+        "FeedbackLoop-append-checkpoints.cfg violates EvidenceCountedOnce",
+        "FeedbackLoop-closing-review-promotes.cfg violates SameSessionNeverPromotes",
+        "FeedbackLoop-drop-refused-miss.cfg violates NoLostMiss",
+        "FeedbackLoop-promote-same-day.cfg violates NoFalsePromotion",
+        "FeedbackLoop-reinforce-any-review-slot.cfg violates DueNotDisplaced",
+        "FeedbackLoop-starve-due.cfg violates DueEventuallyServed"
+      ],
+      "production_symbols": [
+        "cadence_data::learning_rows::save",
+        "cadence_data::store::bootstrap",
+        "cadence_engine::learning::{open, close, enqueue}",
+        "cadence_kernel::queue::admit",
+        "cadence_kernel::review::ladder_step",
+        "cadence_trainer::learner::due_words"
+      ],
+      "runtime_tests": [
+        "cadence-data::tests::checkpoints::lost_ack_retry_after_reopen_returns_exact_original_key",
+        "cadence-data::tests::learning::learning_round_trips_and_history_returns_the_newest_window",
+        "cadence-engine::a_full_reinforcement_queue_only_forgoes_the_repetition",
+        "cadence-engine::a_missed_word_returns_once_in_a_later_review_slot",
+        "cadence-engine::a_queued_word_is_not_queued_twice",
+        "cadence-engine::an_exhausted_word_is_not_queued_again",
+        "cadence-trainer::plan::tests::due_missed_words_fill_review_slots_first",
+        "cadence-trainer::review::tests::clean_before_due_is_practice",
+        "cadence-trainer::review::tests::same_day_clean_does_not_promote",
+        "cadence-trainer::review::tests::two_clean_days_promote_once"
+      ],
+      "constants": "Words = {a, b} Days = 3 SessionsPerDay = 2 QueueCap = 2 RepsPerWord = 2 RecordRefusedMiss = TRUE DistinctDays = TRUE RetypeIsPractice = TRUE ReplaceSnapshot = TRUE FreeSlotOnly = TRUE CheckDuplicate = TRUE PlanDue = TRUE",
+      "sha256": {
+        "FeedbackLoop.tla": "fac4ba92f3f13b9fdec101ca9e5bf477a60bec1bad5b0bcffd4f8a74147da0fe",
+        "FeedbackLoop.cfg": "da85e786cd2adca2153ea21bdf2ff76886b1e89c82b35e74b98b6a02ea65ed58",
+        "FeedbackLoop-drop-refused-miss.cfg": "758893a258f3f401a88f864324b01f8476759de5bd60a00cb5547c8fe4b1498f",
+        "FeedbackLoop-promote-same-day.cfg": "e4142664c5856ecbe411dcd82fb70ea9f983de67dfd1c5e33ded054447e65494",
+        "FeedbackLoop-closing-review-promotes.cfg": "7269b1eb16228bdd71c32b3abd648b8fd09321da73d35c0506a5678a0a7985a8",
+        "FeedbackLoop-append-checkpoints.cfg": "7c36946f84989973df8afd3ce8a247ed346172ba16542555ba90825e70de0262",
+        "FeedbackLoop-reinforce-any-review-slot.cfg": "582d7e235cf69d4e7cacde921fe3f2c68ee0a49408227bb3ee23ac9bca69a4d7",
+        "FeedbackLoop-admit-duplicate.cfg": "f84459108d41f9484504247f91984025af2db68f28f1c27d6f994a7fb07f2c17",
+        "FeedbackLoop-starve-due.cfg": "dc84ecfd7f589529ff0c3608db0c3d8337716b576aa869d7ea10c9c5808bfc83"
       }
     }
   ]

@@ -49,6 +49,8 @@ TOOL_SHA256 = "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
 # states in about two seconds; a minute leaves room for JVM start-up on a
 # loaded CI runner while still catching a model whose state space exploded.
 MODEL_TIMEOUT_SECONDS = 60
+# A model may ask for more (`timeout_seconds`), never more than this.
+MAX_MODEL_TIMEOUT_SECONDS = 600
 STATUSES = ("mapped", "design-probe")
 
 
@@ -62,7 +64,7 @@ class Outcome:
     log: str
 
 
-Runner = Callable[[Path, str, str], Outcome]
+Runner = Callable[[Path, str, str, int], Outcome]
 
 
 def sha256(path: Path) -> str:
@@ -89,6 +91,9 @@ def load_registry(root: Path) -> dict:
         for key in ("dir", "config", "invariants", "status"):
             if not model.get(key):
                 raise GateError(f"{name}: missing `{key}`")
+        timeout = model.get("timeout_seconds", MODEL_TIMEOUT_SECONDS)
+        if not isinstance(timeout, int) or not 1 <= timeout <= MAX_MODEL_TIMEOUT_SECONDS:
+            raise GateError(f"{name}: timeout_seconds must be 1..{MAX_MODEL_TIMEOUT_SECONDS}")
         if model["status"] not in STATUSES:
             raise GateError(f"{name}: status must be one of {STATUSES}")
         if model["status"] == "mapped":
@@ -98,8 +103,8 @@ def load_registry(root: Path) -> dict:
         elif not model.get("blocked_on"):
             raise GateError(f"{name}: a `design-probe` model names what it is `blocked_on`")
         for mutant in model.get("mutant", []):
-            if mutant.get("violates") not in model["invariants"]:
-                raise GateError(f"{name}: mutant {mutant.get('config')!r} must violate a registered invariant")
+            if mutant.get("violates") not in model["invariants"] + model.get("properties", []):
+                raise GateError(f"{name}: mutant {mutant.get('config')!r} must violate a registered invariant or property")
     for amend in data.get("amend", []):
         if not amend.get("module") or not str(amend.get("reason", "")).strip():
             raise GateError(f"{REGISTRY}: every [[amend]] names a module and a reason")
@@ -118,13 +123,27 @@ def config_invariants(text: str) -> set[str]:
     return found
 
 
+def config_properties(text: str) -> set[str]:
+    found = set()
+    for match in re.finditer(r"^PROPERT(?:Y|IES)\s+(.*?)(?=^\w|\Z)", text, re.M | re.S):
+        found.update(match[1].split())
+    return found
+
+
+def config_checks(text: str) -> set[str]:
+    return config_invariants(text) | config_properties(text)
+
+
 def check_configs(model: dict, directory: Path) -> None:
-    """A registered invariant must be one the configuration checks."""
-    missing = set(model["invariants"]) - config_invariants(read(directory / model["config"]))
+    """A registered invariant or temporal property must be one the
+    configuration checks."""
+    positive = read(directory / model["config"])
+    missing = set(model["invariants"]) - config_invariants(positive)
+    missing |= set(model.get("properties", [])) - config_properties(positive)
     if missing:
         raise GateError(f"{model['module']}: {model['config']} does not check {sorted(missing)}")
     for mutant in model.get("mutant", []):
-        if mutant["violates"] not in config_invariants(read(directory / mutant["config"])):
+        if mutant["violates"] not in config_checks(read(directory / mutant["config"])):
             raise GateError(f"{model['module']}: {mutant['config']} does not check {mutant['violates']}")
 
 
@@ -139,6 +158,7 @@ def record(data: dict, root: Path) -> dict:
             "module": model["module"],
             "status": model["status"],
             "invariants": sorted(model["invariants"]),
+            "properties": sorted(model.get("properties", [])),
             "mutants": sorted(f"{m['config']} violates {m['violates']}" for m in model.get("mutant", [])),
             "production_symbols": sorted(model.get("production_symbols", [])),
             "runtime_tests": sorted(model.get("runtime_tests", [])),
@@ -162,8 +182,8 @@ def weakenings(old: dict, new: dict, amended: set[str]) -> list[str]:
         if after is None:
             found.append(f"{name}: removed")
             continue
-        for key in ("invariants", "mutants", "production_symbols", "runtime_tests"):
-            lost = set(before[key]) - set(after[key])
+        for key in ("invariants", "properties", "mutants", "production_symbols", "runtime_tests"):
+            lost = set(before.get(key, [])) - set(after.get(key, []))
             if lost:
                 found.append(f"{name}: {key} lost {sorted(lost)}")
         if before["status"] == "mapped" and after["status"] != "mapped":
@@ -190,7 +210,8 @@ def docs_table(data: dict) -> str:
     for model in data["model"]:
         mutants = "<br>".join(f"`{m['config']}` → `{m['violates']}`" for m in model.get("mutant", [])) or "—"
         symbols = "<br>".join(f"`{s}`" for s in model.get("production_symbols", [])) or f"none; blocked on {model.get('blocked_on')}"
-        rows.append(f"| `{model['dir']}/{model['module']}.tla` | {', '.join(model['invariants'])} "
+        checked = ", ".join(model["invariants"] + [f"{p} (temporal)" for p in model.get("properties", [])])
+        rows.append(f"| `{model['dir']}/{model['module']}.tla` | {checked} "
                     f"| {mutants} | {symbols} | {badge(model)} |")
     return "\n".join([DOCS_BEGIN, *rows, DOCS_END])
 
@@ -286,7 +307,7 @@ def check_mapping(data: dict, root: Path, crates: dict[str, Path] | None = None,
 # ------------------------------------------------------------------- TLC
 
 def tlc_runner(jar: Path) -> Runner:
-    def run(directory: Path, module: str, config: str) -> Outcome:
+    def run(directory: Path, module: str, config: str, timeout: int = MODEL_TIMEOUT_SECONDS) -> Outcome:
         with tempfile.TemporaryDirectory(prefix="cadence-tlc-") as scratch:
             work = Path(scratch) / "model"
             shutil.copytree(directory, work)
@@ -294,9 +315,9 @@ def tlc_runner(jar: Path) -> Runner:
                        "-workers", "1", "-config", config, "-metadir", str(Path(scratch) / "meta"), module]
             try:
                 done = subprocess.run(command, cwd=work, text=True, stdout=subprocess.PIPE,
-                                      stderr=subprocess.STDOUT, timeout=MODEL_TIMEOUT_SECONDS, check=False)
+                                      stderr=subprocess.STDOUT, timeout=timeout, check=False)
             except subprocess.TimeoutExpired as error:
-                raise GateError(f"{config}: timed out after {MODEL_TIMEOUT_SECONDS}s; a timeout is not a result") from error
+                raise GateError(f"{config}: timed out after {timeout}s; a timeout is not a result") from error
             except OSError as error:
                 raise GateError(f"cannot run java: {error}") from error
             return Outcome(done.returncode, done.stdout)
@@ -307,6 +328,12 @@ def judge(model: dict, config: str, expected: str | None, outcome: Outcome) -> d
     counts = re.search(r"(\d+) states generated, (\d+) distinct states found", outcome.log)
     if expected is None:
         passed = outcome.returncode == 0 and "Model checking completed. No error has been found." in outcome.log
+    elif expected in model.get("properties", []):
+        # TLC does not name the temporal property it refutes, so a mutant
+        # configuration that expects one checks that property alone.
+        violated = re.findall(r"Invariant (\w+) is violated", outcome.log)
+        passed = (outcome.returncode != 0 and not violated and "State 1:" in outcome.log
+                  and "Temporal properties were violated" in outcome.log)
     else:
         violated = re.findall(r"Invariant (\w+) is violated", outcome.log)
         passed = outcome.returncode != 0 and violated == [expected] and "State 1:" in outcome.log
@@ -322,7 +349,8 @@ def run_models(data: dict, root: Path, runner: Runner) -> list[dict]:
         directory = root / model["dir"]
         cases = [(model["config"], None)] + [(m["config"], m["violates"]) for m in model.get("mutant", [])]
         for config, expected in cases:
-            results.append(judge(model, config, expected, runner(directory, model["module"], config)))
+            timeout = model.get("timeout_seconds", MODEL_TIMEOUT_SECONDS)
+            results.append(judge(model, config, expected, runner(directory, model["module"], config, timeout)))
     return results
 
 

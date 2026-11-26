@@ -16,9 +16,13 @@
 pub mod checkpoint;
 pub mod counters;
 pub mod first;
+pub mod lanes;
 pub mod ledger;
 pub mod plan;
 pub mod progress;
+pub mod queue;
 pub mod ratio;
+pub mod review;
+pub mod select;
 pub mod session;
 pub mod time;

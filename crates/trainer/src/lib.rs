@@ -41,4 +41,4 @@ pub use policy::{
     StatisticsPolicy, TrainerPolicy, UtilityWeights, parse_policy,
 };
 pub use prose::{ProseBank, ProseError, ProsePassage, ProseSource, chunk_passage};
-pub use review::{DueQueue, QueueEntry, ReviewOutcome};
+pub use review::{DueQueue, QueueEntry, ReviewState, is_due, ladder_step};

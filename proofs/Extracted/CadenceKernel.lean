@@ -220,6 +220,108 @@ def first.count_first
   (slots : Slice first.Slot) : Result first.FirstCounts := do
   first.count_first_loop slots 0#usize 0#usize 0#usize
 
+/-- [cadence_kernel::lanes::Facts]
+    Source: 'crates/kernel/src/lanes.rs', lines 12:0-33:1
+    Visibility: public -/
+structure lanes.Facts where
+  served : Std.U32
+  quota : Std.U32
+  occurrences : Std.U32
+  word_cap : Std.U32
+  same_word : Bool
+  run : Std.U32
+  run_cap : Std.U32
+  focused : Bool
+  owned : Std.U32
+  focus_cap : Std.U32
+
+/-- [cadence_kernel::lanes::Admit]
+    Source: 'crates/kernel/src/lanes.rs', lines 37:0-48:1
+    Visibility: public -/
+@[discriminant isize]
+inductive lanes.Admit where
+| Admit : lanes.Admit
+| Quota : lanes.Admit
+| WordCap : lanes.Admit
+| Consecutive : lanes.Admit
+| FocusCap : lanes.Admit
+
+/-- [cadence_kernel::lanes::Record]
+    Source: 'crates/kernel/src/lanes.rs', lines 52:0-66:1
+    Visibility: public -/
+@[discriminant isize]
+inductive lanes.Record where
+| Recorded : Std.U32 → Std.U32 → Std.U32 → Std.U32 → lanes.Record
+| Refused : lanes.Admit → lanes.Record
+
+/-- [cadence_kernel::lanes::admissible]:
+    Source: 'crates/kernel/src/lanes.rs', lines 71:0-81:1
+    Visibility: public -/
+def lanes.admissible (f : lanes.Facts) : Result lanes.Admit := do
+  if f.occurrences >= f.word_cap
+  then ok lanes.Admit.WordCap
+  else
+    if f.same_word
+    then
+      if f.run >= f.run_cap
+      then ok lanes.Admit.Consecutive
+      else
+        if f.focused
+        then
+          if f.owned >= f.focus_cap
+          then ok lanes.Admit.FocusCap
+          else ok lanes.Admit.Admit
+        else ok lanes.Admit.Admit
+    else
+      if f.focused
+      then
+        if f.owned >= f.focus_cap
+        then ok lanes.Admit.FocusCap
+        else ok lanes.Admit.Admit
+      else ok lanes.Admit.Admit
+
+/-- [cadence_kernel::lanes::record]:
+    Source: 'crates/kernel/src/lanes.rs', lines 87:0-118:1
+    Visibility: public -/
+def lanes.record (f : lanes.Facts) : Result lanes.Record := do
+  if f.served >= f.quota
+  then ok (lanes.Record.Refused lanes.Admit.Quota)
+  else
+    let a ← lanes.admissible f
+    match a with
+    | lanes.Admit.Admit =>
+      let served ← lift (core.num.U32.saturating_add f.served 1#u32)
+      let occurrences ←
+        lift (core.num.U32.saturating_add f.occurrences 1#u32)
+      let run ←
+        if f.same_word
+        then ok (core.num.U32.saturating_add f.run 1#u32)
+        else ok 1#u32
+      if f.focused
+      then
+        let owned ← lift (core.num.U32.saturating_add f.owned 1#u32)
+        ok (lanes.Record.Recorded served occurrences run owned)
+      else ok (lanes.Record.Recorded served occurrences run f.owned)
+    | lanes.Admit.Quota => ok (lanes.Record.Refused lanes.Admit.Quota)
+    | lanes.Admit.WordCap => ok (lanes.Record.Refused lanes.Admit.WordCap)
+    | lanes.Admit.Consecutive =>
+      ok (lanes.Record.Refused lanes.Admit.Consecutive)
+    | lanes.Admit.FocusCap => ok (lanes.Record.Refused lanes.Admit.FocusCap)
+
+/-- [cadence_kernel::lanes::complete]:
+    Source: 'crates/kernel/src/lanes.rs', lines 122:0-131:1
+    Visibility: public -/
+def lanes.complete
+  (target : Std.U32) (target_quota : Std.U32) (review : Std.U32)
+  (review_quota : Std.U32) (broad : Std.U32) (broad_quota : Std.U32) :
+  Result Bool
+  := do
+  if target = target_quota
+  then if review = review_quota
+       then ok (broad = broad_quota)
+       else ok false
+  else ok false
+
 /-- [cadence_kernel::ledger::Insert]
     Source: 'crates/kernel/src/ledger.rs', lines 12:0-28:1
     Visibility: public -/
@@ -901,6 +1003,34 @@ def progress.credit_once
   | none => ok true
   | some last => ok (closing > last)
 
+/-- [cadence_kernel::queue::Admit]
+    Source: 'crates/kernel/src/queue.rs', lines 10:0-19:1
+    Visibility: public -/
+@[discriminant isize]
+inductive queue.Admit where
+| Admitted : queue.Admit
+| Duplicate : queue.Admit
+| Full : queue.Admit
+| Exhausted : queue.Admit
+
+/-- [cadence_kernel::queue::admit]:
+    Source: 'crates/kernel/src/queue.rs', lines 23:0-39:1
+    Visibility: public -/
+def queue.admit
+  (already_queued : Bool) (queue_len : Std.Usize) (capacity : Std.Usize)
+  (served_for_word : Std.U32) (per_word_limit : Std.U32) :
+  Result queue.Admit
+  := do
+  if served_for_word >= per_word_limit
+  then ok queue.Admit.Exhausted
+  else
+    if queue_len >= capacity
+    then ok queue.Admit.Full
+    else
+      if already_queued
+      then ok queue.Admit.Duplicate
+      else ok queue.Admit.Admitted
+
 /-- [cadence_kernel::ratio::WPM_UNITS_PER_WORD]
     Source: 'crates/kernel/src/ratio.rs', lines 6:0-6:39
     Visibility: public -/
@@ -1014,6 +1144,384 @@ def ratio.basis_points
         match o1 with
         | none => ok ratio.BasisPoints.ZeroDenominator
         | some value => ok (ratio.BasisPoints.Value value)
+
+/-- [cadence_kernel::review::FIRST_RUNG]
+    Source: 'crates/kernel/src/review.rs', lines 12:0-12:28 -/
+@[global_simps, irreducible] def review.FIRST_RUNG : Std.Usize := 0#usize
+
+/-- [cadence_kernel::review::Streak]
+    Source: 'crates/kernel/src/review.rs', lines 16:0-21:1
+    Visibility: public -/
+structure review.Streak where
+  count : Std.U32
+  day : Std.I64
+
+/-- [cadence_kernel::review::State]
+    Source: 'crates/kernel/src/review.rs', lines 25:0-32:1
+    Visibility: public -/
+structure review.State where
+  rung : Std.Usize
+  streak : Option review.Streak
+  due : Option Std.I64
+
+/-- [cadence_kernel::review::Step]
+    Source: 'crates/kernel/src/review.rs', lines 36:0-48:1
+    Visibility: public -/
+@[discriminant isize]
+inductive review.Step where
+| Next : review.State → review.Step
+| Practice : review.Step
+| Invalid : review.Step
+| Rollback : review.Step
+| Overflow : review.Step
+
+/-- [cadence_kernel::review::valid_ladder]: loop body 0:
+    Source: 'crates/kernel/src/review.rs', lines 63:4-76:1
+    Visibility: public -/
+@[rust_loop_body]
+def review.valid_ladder_loop.body
+  (intervals : Slice Std.I64) (previous : Std.I64) (i : Std.Usize) :
+  Result (ControlFlow (Std.I64 × Std.Usize) Bool)
+  := do
+  let i1 := Slice.len intervals
+  if i < i1
+  then
+    let o ←
+      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice Std.I64)
+        intervals i
+    match o with
+    | none => ok (done false)
+    | some current =>
+      if current <= previous
+      then ok (done false)
+      else
+        let i2 ← lift (core.num.Usize.saturating_add i 1#usize)
+        ok (cont (current, i2))
+  else ok (done true)
+
+/-- [cadence_kernel::review::valid_ladder]: loop 0:
+    Source: 'crates/kernel/src/review.rs', lines 63:4-76:1
+    Visibility: public -/
+@[rust_loop]
+def review.valid_ladder_loop
+  (intervals : Slice Std.I64) (previous : Std.I64) (i : Std.Usize) :
+  Result Bool
+  := do
+  loop
+    (fun (previous1, i1) => review.valid_ladder_loop.body intervals previous1
+      i1)
+    (previous, i)
+
+/-- [cadence_kernel::review::valid_ladder]:
+    Source: 'crates/kernel/src/review.rs', lines 52:0-76:1
+    Visibility: public -/
+def review.valid_ladder (intervals : Slice Std.I64) : Result Bool := do
+  let o ←
+    core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice Std.I64)
+      intervals review.FIRST_RUNG
+  match o with
+  | none => ok false
+  | some first =>
+    if first != 1#i64
+    then ok false
+    else review.valid_ladder_loop intervals 1#i64 1#usize
+
+/-- [cadence_kernel::review::rolled_back]:
+    Source: 'crates/kernel/src/review.rs', lines 80:0-85:1
+    Visibility: public -/
+def review.rolled_back
+  (streak : Option review.Streak) (day : Std.I64) : Result Bool := do
+  match streak with
+  | none => ok false
+  | some s => ok (day < s.day)
+
+/-- [cadence_kernel::review::next_streak]:
+    Source: 'crates/kernel/src/review.rs', lines 90:0-104:1
+    Visibility: public -/
+def review.next_streak
+  (streak : Option review.Streak) (day : Std.I64) : Result review.Streak := do
+  match streak with
+  | none => ok { count := 1#u32, day }
+  | some s =>
+    if day > s.day
+    then
+      let i ← lift (core.num.U32.saturating_add s.count 1#u32)
+      ok { count := i, day }
+    else ok s
+
+/-- [cadence_kernel::review::promotes]:
+    Source: 'crates/kernel/src/review.rs', lines 110:0-115:1
+    Visibility: public -/
+def review.promotes
+  (streak : Option review.Streak) (day : Std.I64) : Result Bool := do
+  match streak with
+  | none => ok false
+  | some s => if day > s.day
+              then ok (s.count >= 1#u32)
+              else ok false
+
+/-- [cadence_kernel::review::next_rung]:
+    Source: 'crates/kernel/src/review.rs', lines 120:0-126:1
+    Visibility: public -/
+def review.next_rung
+  (rung : Std.Usize) (promote : Bool) (len : Std.Usize) :
+  Result Std.Usize
+  := do
+  if promote
+  then
+    let i ← lift (core.num.Usize.saturating_add rung 1#usize)
+    if i < len
+    then ok (core.num.Usize.saturating_add rung 1#usize)
+    else ok rung
+  else ok rung
+
+/-- [cadence_kernel::review::ladder_step]:
+    Source: 'crates/kernel/src/review.rs', lines 130:0-176:1
+    Visibility: public -/
+def review.ladder_step
+  (state : review.State) (error : Bool) (day : Std.I64)
+  (intervals : Slice Std.I64) :
+  Result review.Step
+  := do
+  let b ← review.valid_ladder intervals
+  if b
+  then
+    let i := Slice.len intervals
+    if state.rung >= i
+    then ok review.Step.Invalid
+    else
+      let b1 ← review.rolled_back state.streak day
+      if b1
+      then ok review.Step.Rollback
+      else
+        if error
+        then
+          let o ←
+            core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice
+              Std.I64) intervals review.FIRST_RUNG
+          match o with
+          | none => ok review.Step.Invalid
+          | some f =>
+            let o1 ← lift (I64.checked_add day f)
+            match o1 with
+            | none => ok review.Step.Overflow
+            | some _ =>
+              ok (review.Step.Next
+                { rung := 0#usize, streak := none, due := o1 })
+        else
+          match state.due with
+          | none => ok review.Step.Practice
+          | some d =>
+            if day < d
+            then ok review.Step.Practice
+            else
+              let promote ← review.promotes state.streak day
+              let i1 := Slice.len intervals
+              let rung ← review.next_rung state.rung promote i1
+              let o ←
+                core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice
+                  Std.I64) intervals rung
+              match o with
+              | none => ok review.Step.Invalid
+              | some i2 =>
+                let o1 ← lift (I64.checked_add day i2)
+                match o1 with
+                | none => ok review.Step.Overflow
+                | some _ =>
+                  if promote
+                  then
+                    ok (review.Step.Next { rung, streak := none, due := o1 })
+                  else
+                    let s ← review.next_streak state.streak day
+                    ok (review.Step.Next
+                      { rung, streak := (some s), due := o1 })
+  else ok review.Step.Invalid
+
+/-- [cadence_kernel::review::is_due]:
+    Source: 'crates/kernel/src/review.rs', lines 180:0-185:1
+    Visibility: public -/
+def review.is_due (due : Option Std.I64) (today : Std.I64) : Result Bool := do
+  match due with
+  | none => ok false
+  | some d => ok (d <= today)
+
+/-- [cadence_kernel::select::BASIS]
+    Source: 'crates/kernel/src/select.rs', lines 12:0-12:30
+    Visibility: public -/
+@[global_simps, irreducible] def select.BASIS : Std.U64 := 10000#u64
+
+/-- [cadence_kernel::select::Terms]
+    Source: 'crates/kernel/src/select.rs', lines 16:0-25:1
+    Visibility: public -/
+structure select.Terms where
+  error : Std.U64
+  hesitation : Std.U64
+  relevance : Std.U64
+  uncertainty : Std.U64
+
+/-- [cadence_kernel::select::Candidate]
+    Source: 'crates/kernel/src/select.rs', lines 29:0-38:1
+    Visibility: public -/
+structure select.Candidate where
+  id : Std.U64
+  eligible : Bool
+  inputs : select.Terms
+  tie_break : Std.U64
+
+/-- [cadence_kernel::select::Scan]
+    Source: 'crates/kernel/src/select.rs', lines 42:0-49:1
+    Visibility: public -/
+@[discriminant isize]
+inductive select.Scan where
+| TooLarge : select.Scan
+| Empty : select.Scan
+| Best : Std.Usize → select.Scan
+
+/-- [cadence_kernel::select::cap]:
+    Source: 'crates/kernel/src/select.rs', lines 54:0-56:1
+    Visibility: public -/
+def select.cap (v : Std.U64) : Result Std.U64 := do
+  if v > select.BASIS
+  then ok select.BASIS
+  else ok v
+
+/-- [cadence_kernel::select::mul]:
+    Source: 'crates/kernel/src/select.rs', lines 60:0-62:1
+    Visibility: public -/
+def select.mul (a : Std.U64) (b : Std.U64) : Result Std.U64 := do
+  let o ← lift (U64.checked_mul a b)
+  ok (core.option.Option.unwrap_or o 0#u64)
+
+/-- [cadence_kernel::select::add]:
+    Source: 'crates/kernel/src/select.rs', lines 66:0-68:1
+    Visibility: public -/
+def select.add (a : Std.U64) (b : Std.U64) : Result Std.U64 := do
+  let o ← lift (U64.checked_add a b)
+  ok (core.option.Option.unwrap_or o 0#u64)
+
+/-- [cadence_kernel::select::utility]:
+    Source: 'crates/kernel/src/select.rs', lines 73:0-85:1
+    Visibility: public -/
+def select.utility
+  (inputs : select.Terms) (weights : select.Terms) : Result Std.U64 := do
+  let we ← select.cap weights.error
+  let wh ← select.cap weights.hesitation
+  let wr ← select.cap weights.relevance
+  let wu ← select.cap weights.uncertainty
+  let i ← select.cap inputs.error
+  let e ← select.mul we i
+  let i1 ← select.cap inputs.hesitation
+  let h ← select.mul wh i1
+  let i2 ← select.cap inputs.relevance
+  let r ← select.mul wr i2
+  let i3 ← select.cap inputs.uncertainty
+  let u ← select.mul wu i3
+  let i4 ← select.add e h
+  let i5 ← select.add i4 r
+  let numerator ← select.add i5 u
+  let i6 ← select.add we wh
+  let i7 ← select.add i6 wr
+  let total ← select.add i7 wu
+  let o ← lift (U64.checked_div numerator total)
+  ok (core.option.Option.unwrap_or o 0#u64)
+
+/-- [cadence_kernel::select::greater]:
+    Source: 'crates/kernel/src/select.rs', lines 90:0-92:1
+    Visibility: public -/
+def select.greater
+  (u : Std.U64) (t : Std.U64) (id : Std.U64) (bu : Std.U64) (bt : Std.U64)
+  (bid : Std.U64) :
+  Result Bool
+  := do
+  if u > bu
+  then ok true
+  else
+    if u = bu
+    then if t > bt
+         then ok true
+         else if t = bt
+              then ok (id > bid)
+              else ok false
+    else ok false
+
+/-- [cadence_kernel::select::beats]:
+    Source: 'crates/kernel/src/select.rs', lines 98:0-103:1
+    Visibility: public -/
+def select.beats
+  (best : Option Std.Usize) (u : Std.U64) (t : Std.U64) (id : Std.U64)
+  (bu : Std.U64) (bt : Std.U64) (bid : Std.U64) :
+  Result Bool
+  := do
+  match best with
+  | none => ok true
+  | some _ => select.greater u t id bu bt bid
+
+/-- [cadence_kernel::select::scan]: loop body 0:
+    Source: 'crates/kernel/src/select.rs', lines 116:4-128:5
+    Visibility: public -/
+@[rust_loop_body]
+def select.scan_loop.body
+  (candidates : Slice select.Candidate) (weights : select.Terms)
+  (i : Std.Usize) (best : Option Std.Usize) (bu : Std.U64) (bt : Std.U64)
+  (bid : Std.U64) :
+  Result (ControlFlow (Std.Usize × (Option Std.Usize) × Std.U64 × Std.U64 ×
+    Std.U64) (Option Std.Usize))
+  := do
+  let i1 := Slice.len candidates
+  if i < i1
+  then
+    let o ←
+      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice
+        select.Candidate) candidates i
+    let (best1, bu1, bt1, bid1) ←
+      match o with
+      | none => ok (best, bu, bt, bid)
+      | some c =>
+        do
+        let u ← select.utility c.inputs weights
+        let take ←
+          if c.eligible
+          then select.beats best u c.tie_break c.id bu bt bid
+          else ok false
+        if take
+        then ok (some i, u, c.tie_break, c.id)
+        else ok (best, bu, bt, bid)
+    let i2 ← lift (core.num.Usize.saturating_add i 1#usize)
+    ok (cont (i2, best1, bu1, bt1, bid1))
+  else ok (done best)
+
+/-- [cadence_kernel::select::scan]: loop 0:
+    Source: 'crates/kernel/src/select.rs', lines 116:4-128:5
+    Visibility: public -/
+@[rust_loop]
+def select.scan_loop
+  (candidates : Slice select.Candidate) (weights : select.Terms)
+  (i : Std.Usize) (best : Option Std.Usize) (bu : Std.U64) (bt : Std.U64)
+  (bid : Std.U64) :
+  Result (Option Std.Usize)
+  := do
+  loop
+    (fun (i1, best1, bu1, bt1, bid1) => select.scan_loop.body candidates
+      weights i1 best1 bu1 bt1 bid1)
+    (i, best, bu, bt, bid)
+
+/-- [cadence_kernel::select::scan]:
+    Source: 'crates/kernel/src/select.rs', lines 107:0-133:1
+    Visibility: public -/
+def select.scan
+  (candidates : Slice select.Candidate) (weights : select.Terms)
+  (bound : Std.Usize) :
+  Result select.Scan
+  := do
+  let i := Slice.len candidates
+  if i > bound
+  then ok select.Scan.TooLarge
+  else
+    let best ←
+      select.scan_loop candidates weights 0#usize none 0#u64 0#u64 0#u64
+    match best with
+    | none => ok select.Scan.Empty
+    | some b => ok (select.Scan.Best b)
 
 /-- [cadence_kernel::session::State]
     Source: 'crates/kernel/src/session.rs', lines 8:0-24:1

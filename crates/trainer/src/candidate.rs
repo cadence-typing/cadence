@@ -7,9 +7,11 @@
 //! the current best, if any, is eligible and at least as good as every
 //! previously visited eligible candidate; the loop index strictly
 //! advances and is bounded. Proves optimality only within the
-//! materialized vector, not across all vocabulary.
+//! materialized vector, not across all vocabulary. The decisions are the
+//! proved `cadence_kernel::select` (VK-04, #35); this module adapts the
+//! typed candidates.
 
-use cadence_core::{BasisPoints, WordId};
+use cadence_core::{BasisPoints, WordId, select};
 
 /// Per-candidate utility inputs, all in basis points 0..=10_000.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,27 +63,34 @@ impl std::fmt::Display for CandidateError {
 
 impl std::error::Error for CandidateError {}
 
-/// Computes the weighted utility in basis points. Bounded fixed-point:
-/// each term ≤ 10_000 and the weight sum is the denominator, so the
-/// result is in 0..=10_000 with no float and no overflow (terms are
-/// widened to u64 before multiplication).
-#[must_use]
-pub fn utility(candidate: &Candidate, weights: &crate::policy::UtilityWeights) -> u64 {
-    let denominator = weights.total().max(1);
-    let term = |weight: BasisPoints, value: BasisPoints| -> u64 {
-        u64::from(weight.get()).saturating_mul(u64::from(value.get()))
-    };
-    let numerator = term(weights.error, candidate.inputs.error)
-        .saturating_add(term(weights.hesitation, candidate.inputs.hesitation))
-        .saturating_add(term(weights.relevance, candidate.inputs.relevance))
-        .saturating_add(term(weights.uncertainty, candidate.inputs.uncertainty));
-    // denominator ≤ 40_000 and numerator ≤ 40_000 × 10_000 fits u64.
-    numerator.checked_div(denominator).unwrap_or_default()
+fn terms(t: UtilityInputs) -> select::Terms {
+    select::Terms {
+        error: u64::from(t.error.get()),
+        hesitation: u64::from(t.hesitation.get()),
+        relevance: u64::from(t.relevance.get()),
+        uncertainty: u64::from(t.uncertainty.get()),
+    }
 }
 
-/// Selects the best eligible candidate from the bounded vector, or
-/// `None` when no candidate is eligible (caller follows the documented
-/// fallback order).
+fn weight_terms(w: &crate::policy::UtilityWeights) -> select::Terms {
+    terms(UtilityInputs {
+        error: w.error,
+        hesitation: w.hesitation,
+        relevance: w.relevance,
+        uncertainty: w.uncertainty,
+    })
+}
+
+/// The weighted utility in basis points: the proved
+/// `cadence_kernel::select::utility`, within `0..=10_000`.
+#[must_use]
+pub fn utility(candidate: &Candidate, weights: &crate::policy::UtilityWeights) -> u64 {
+    select::utility(terms(candidate.inputs), weight_terms(weights))
+}
+
+/// Selects the best eligible candidate from the bounded vector with the
+/// proved `cadence_kernel::select::scan`, or `None` when no candidate is
+/// eligible (caller follows the documented fallback order).
 ///
 /// # Errors
 /// Returns [`CandidateError::VectorTooLarge`] when the caller violated
@@ -91,34 +100,23 @@ pub fn scan_select(
     weights: &crate::policy::UtilityWeights,
     bound: usize,
 ) -> Result<Option<WordId>, CandidateError> {
-    if candidates.len() > bound {
-        return Err(CandidateError::VectorTooLarge {
+    let kernel: Vec<select::Candidate> = candidates
+        .iter()
+        .map(|c| select::Candidate {
+            id: c.id.get(),
+            eligible: c.eligible,
+            inputs: terms(c.inputs),
+            tie_break: c.tie_break,
+        })
+        .collect();
+    match select::scan(&kernel, weight_terms(weights), bound) {
+        select::Scan::TooLarge => Err(CandidateError::VectorTooLarge {
             len: candidates.len(),
             bound,
-        });
+        }),
+        select::Scan::Empty => Ok(None),
+        select::Scan::Best(index) => Ok(candidates.get(index).map(|c| c.id)),
     }
-    let mut best: Option<(u64, u64, u64)> = None;
-    // Loop invariant: `best`, if some, holds an eligible candidate at
-    // least as good as every previously visited eligible candidate
-    // under (utility, tie_break, id).
-    for candidate in candidates {
-        if !candidate.eligible {
-            continue;
-        }
-        let utility_value = utility(candidate, weights);
-        let key = (utility_value, candidate.tie_break, candidate.id.get());
-        match best {
-            None => best = Some(key),
-            Some(current) if key > current => best = Some(key),
-            Some(_) => {}
-        }
-    }
-    // WordId::new only fails for 0, and candidate ids are validated at
-    // construction; reconstruct via checked new without panics.
-    Ok(match best {
-        Some((_, _, id)) => WordId::new(id).ok(),
-        None => None,
-    })
 }
 
 #[cfg(test)]
@@ -208,5 +206,65 @@ mod tests {
     #[test]
     fn empty_vector_is_no_candidate() {
         assert!(scan_select(&[], &weights(), 256).unwrap().is_none());
+    }
+    /// The kernel scan agrees with the pre-#35 trainer implementation
+    /// (saturating weighted sum, max over `(utility, tie_break, id)`, first
+    /// among equals) on a pseudo-random sweep.
+    #[test]
+    fn kernel_scan_matches_the_previous_rule() {
+        fn reference(candidates: &[Candidate], w: &UtilityWeights) -> Option<u64> {
+            let term = |a: BasisPoints, b: BasisPoints| u64::from(a.get()) * u64::from(b.get());
+            let mut best: Option<(u64, u64, u64)> = None;
+            for c in candidates.iter().filter(|c| c.eligible) {
+                let num = term(w.error, c.inputs.error)
+                    + term(w.hesitation, c.inputs.hesitation)
+                    + term(w.relevance, c.inputs.relevance)
+                    + term(w.uncertainty, c.inputs.uncertainty);
+                let key = (
+                    num.checked_div(w.total().max(1)).unwrap(),
+                    c.tie_break,
+                    c.id.get(),
+                );
+                if best.is_none_or(|b| key > b) {
+                    best = Some(key);
+                }
+            }
+            best.map(|(_, _, id)| id)
+        }
+        let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+        let mut next = |m: u64| {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1);
+            (state >> 33) % m
+        };
+        for round in 0..2_000 {
+            let bp = |v: u64| BasisPoints::new(u16::try_from(v).unwrap()).unwrap();
+            let w = UtilityWeights {
+                error: bp(next(10_001)),
+                hesitation: bp(next(10_001)),
+                relevance: bp(next(3) * 5_000),
+                uncertainty: bp(if round % 7 == 0 { 0 } else { next(10_001) }),
+            };
+            let n = next(12);
+            let candidates: Vec<Candidate> = (0..n)
+                .map(|i| Candidate {
+                    id: WordId::new(1 + next(5)).unwrap(),
+                    eligible: next(4) != 0,
+                    inputs: UtilityInputs {
+                        error: bp(next(3) * 5_000),
+                        hesitation: bp(next(10_001)),
+                        relevance: bp(next(2) * 10_000),
+                        uncertainty: bp(i % 2 * 5_000),
+                    },
+                    tie_break: next(3),
+                })
+                .collect();
+            assert_eq!(
+                scan_select(&candidates, &w, 16).unwrap().map(WordId::get),
+                reference(&candidates, &w),
+                "round {round}"
+            );
+        }
     }
 }

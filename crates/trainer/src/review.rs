@@ -12,7 +12,7 @@
 use std::collections::HashSet;
 use std::collections::VecDeque;
 
-use cadence_core::{CoreError, UtcDay};
+use cadence_core::{CoreError, UtcDay, review};
 
 /// A queued due item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,28 +21,6 @@ pub struct QueueEntry {
     pub word: cadence_core::WordId,
     /// The day the item became due (admission basis).
     pub due_since: UtcDay,
-}
-
-/// Outcome of a served review attempt.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ReviewOutcome {
-    /// Clean completion on a session/day distinct from the previous
-    /// clean completion: promotes toward the next interval.
-    Clean {
-        /// The day the clean completion happened.
-        on: UtcDay,
-    },
-    /// Clean completion within the same session/day as the previous
-    /// one: practice, not an independent retention check.
-    SameDayClean {
-        /// The day it happened.
-        on: UtcDay,
-    },
-    /// An error: return to the 1-day level.
-    Error {
-        /// The day it happened.
-        on: UtcDay,
-    },
 }
 
 /// Per-item review state kept by the learner model.
@@ -138,138 +116,64 @@ impl DueQueue {
         self.members.remove(&entry.word.get());
         Some(entry)
     }
+}
 
-    /// Applies a review outcome and computes the next state (L-06).
-    /// Checked calendar arithmetic; wall-clock rollback (an `on` day
-    /// before the recorded clean day) cannot grant promotion.
-    ///
-    /// # Errors
-    /// Returns [`CoreError::BackwardTime`] on calendar rollback, or
-    /// [`CoreError::CapacityExhausted`] when the interval ladder is
-    /// exhausted (the item stays at the top level rather than
-    /// wrapping).
-    pub fn next_state(
-        &self,
-        current: ReviewState,
-        outcome: ReviewOutcome,
-        intervals: &[i64],
-        today: UtcDay,
-    ) -> Result<ReviewState, CoreError> {
-        if intervals.first() != Some(&1)
-            || intervals.iter().any(|day| *day <= 0)
-            || intervals
-                .windows(2)
-                .any(|pair| matches!(pair, [left, right] if left >= right))
-            || current.interval_index >= intervals.len()
-        {
-            return Err(CoreError::InvalidIdentity {
-                kind: "ReviewState",
-                reason: "invalid review ladder or current interval",
-            });
-        }
-        let on = match outcome {
-            ReviewOutcome::Clean { on }
-            | ReviewOutcome::SameDayClean { on }
-            | ReviewOutcome::Error { on } => on,
-        };
-        if let Some((_, previous)) = current.clean_streak
-            && on < previous
-        {
-            return Err(CoreError::InvalidIdentity {
-                kind: "ReviewState",
-                reason: "completion predates recorded evidence",
-            });
-        }
-        match outcome {
-            ReviewOutcome::Error { on }
-            | ReviewOutcome::Clean { on }
-            | ReviewOutcome::SameDayClean { on }
-                if days_between(today, on)? < 0 =>
-            {
-                // The completion day is in the future relative to the
-                // injected calendar: rollback/forgery guard.
-                Err(CoreError::BackwardTime {
-                    admitted: u64::try_from(on.days_since_epoch()).unwrap_or(0),
-                    arriving: u64::try_from(today.days_since_epoch()).unwrap_or(0),
-                })
-            }
-            ReviewOutcome::Error { .. } => {
-                let interval = intervals
-                    .first()
-                    .copied()
-                    .ok_or(CoreError::CapacityExhausted {
-                        limit: "review interval ladder",
-                    })?;
-                let due = today.checked_add_days(interval)?;
-                Ok(ReviewState {
-                    interval_index: 0,
-                    clean_streak: None,
-                    due: Some(due),
-                })
-            }
-            ReviewOutcome::SameDayClean { .. } => {
-                // Practice, not an independent retention check: keep the
-                // ladder position, reschedule at the same interval.
-                let interval = intervals.get(current.interval_index).copied().ok_or(
-                    CoreError::CapacityExhausted {
-                        limit: "review interval ladder",
-                    },
-                )?;
-                let due = today.checked_add_days(interval)?;
-                Ok(ReviewState {
-                    interval_index: current.interval_index,
-                    clean_streak: current.clean_streak,
-                    due: Some(due),
-                })
-            }
-            ReviewOutcome::Clean { on } => {
-                let streak = match current.clean_streak {
-                    // A second clean on a distinct day completes the pair.
-                    Some((count, previous_day)) if days_between(on, previous_day)? > 0 => {
-                        Some((count.saturating_add(1), on))
-                    }
-                    Some((count, previous_day)) if days_between(on, previous_day)? == 0 => {
-                        // Same-day repetition degrades to same-day clean.
-                        Some((count, previous_day))
-                    }
-                    Some((_count, previous_day)) => {
-                        return Err(CoreError::BackwardTime {
-                            admitted: u64::try_from(previous_day.days_since_epoch()).unwrap_or(0),
-                            arriving: u64::try_from(on.days_since_epoch()).unwrap_or(0),
-                        });
-                    }
-                    None => Some((1, on)),
-                };
-                let promote = matches!(streak, Some((count, _)) if count >= 2);
-                // Promotion clamps at the ladder top: an exhausted item
-                // stays at the longest interval rather than erroring or
-                // wrapping (L-06).
-                let ladder_top = intervals.len().saturating_sub(1);
-                let next_index = if promote {
-                    current.interval_index.saturating_add(1).min(ladder_top)
-                } else {
-                    current.interval_index
-                };
-                let interval =
-                    intervals
-                        .get(next_index)
-                        .copied()
-                        .ok_or(CoreError::CapacityExhausted {
-                            limit: "review interval ladder",
-                        })?;
-                let due = today.checked_add_days(interval)?;
-                Ok(ReviewState {
-                    interval_index: next_index,
-                    clean_streak: if promote { None } else { streak },
-                    due: Some(due),
-                })
-            }
-        }
+/// The next ladder state after a recorded outcome on `day` (L-06): the
+/// proved `cadence_kernel::review::ladder_step`. `Ok(None)` is clean typing
+/// before the word is due: practice, the state is kept.
+///
+/// # Errors
+/// Returns [`CoreError::InvalidIdentity`] for an invalid ladder or rung,
+/// [`CoreError::BackwardTime`] when the completion predates the recorded
+/// clean day, and [`CoreError::ArithmeticOverflow`] when a day overflows.
+pub fn ladder_step(
+    current: ReviewState,
+    error: bool,
+    day: UtcDay,
+    intervals: &[i64],
+) -> Result<Option<ReviewState>, CoreError> {
+    let state = review::State {
+        rung: current.interval_index,
+        streak: current.clean_streak.map(|(count, on)| review::Streak {
+            count,
+            day: on.days_since_epoch(),
+        }),
+        due: current.due.map(UtcDay::days_since_epoch),
+    };
+    match review::ladder_step(state, error, day.days_since_epoch(), intervals) {
+        review::Step::Practice => Ok(None),
+        review::Step::Invalid => Err(CoreError::InvalidIdentity {
+            kind: "ReviewState",
+            reason: "invalid review ladder or current interval",
+        }),
+        review::Step::Rollback => Err(CoreError::BackwardTime {
+            admitted: current.clean_streak.map_or(0, |(_, on)| {
+                u64::try_from(on.days_since_epoch()).unwrap_or(0)
+            }),
+            arriving: u64::try_from(day.days_since_epoch()).unwrap_or(0),
+        }),
+        review::Step::Overflow => Err(CoreError::ArithmeticOverflow {
+            operation: "review due day",
+        }),
+        review::Step::Next(next) => Ok(Some(ReviewState {
+            interval_index: next.rung,
+            clean_streak: match next.streak {
+                None => None,
+                Some(streak) => Some((streak.count, UtcDay::from_days_since_epoch(streak.day)?)),
+            },
+            due: next.due.map(UtcDay::from_days_since_epoch).transpose()?,
+        })),
     }
 }
 
-fn days_between(later: UtcDay, earlier: UtcDay) -> Result<i64, CoreError> {
-    later.days_since(earlier)
+/// Whether a scheduled word is due on `today`: the proved
+/// `cadence_kernel::review::is_due`.
+#[must_use]
+pub fn is_due(state: ReviewState, today: UtcDay) -> bool {
+    review::is_due(
+        state.due.map(UtcDay::days_since_epoch),
+        today.days_since_epoch(),
+    )
 }
 
 #[cfg(test)]
@@ -299,121 +203,113 @@ mod tests {
         assert!(queue.admit(word(1), day(1)).is_ok());
     }
 
+    fn due_at(rung: usize, due: i64) -> ReviewState {
+        ReviewState {
+            interval_index: rung,
+            clean_streak: None,
+            due: Some(day(due)),
+        }
+    }
+
+    const LADDER: [i64; 5] = [1, 3, 7, 14, 30];
+
     #[test]
     fn error_returns_to_one_day_level() {
-        let queue = DueQueue::new();
         let state = ReviewState {
             interval_index: 3,
             clean_streak: Some((1, day(0))),
             due: Some(day(7)),
         };
-        let next = queue
-            .next_state(
-                state,
-                ReviewOutcome::Error { on: day(2) },
-                &[1, 3, 7, 14, 30],
-                day(2),
-            )
-            .unwrap();
+        let next = ladder_step(state, true, day(2), &LADDER).unwrap().unwrap();
         assert_eq!(next.interval_index, 0);
         assert_eq!(next.due, Some(day(3)));
         assert!(next.clean_streak.is_none());
     }
 
     #[test]
+    fn clean_before_due_is_practice() {
+        assert_eq!(
+            ladder_step(ReviewState::fresh(), false, day(0), &LADDER),
+            Ok(None)
+        );
+        assert_eq!(ladder_step(due_at(0, 5), false, day(4), &LADDER), Ok(None));
+    }
+
+    #[test]
     fn two_clean_days_promote_once() {
-        let queue = DueQueue::new();
-        let intervals = [1i64, 3, 7, 14, 30];
-        let first = queue
-            .next_state(
-                ReviewState::fresh(),
-                ReviewOutcome::Clean { on: day(0) },
-                &intervals,
-                day(0),
-            )
+        let first = ladder_step(due_at(0, 0), false, day(0), &LADDER)
+            .unwrap()
             .unwrap();
         assert_eq!(first.interval_index, 0, "one clean alone does not promote");
-        let second = queue
-            .next_state(
-                first,
-                ReviewOutcome::Clean { on: day(1) },
-                &intervals,
-                day(1),
-            )
-            .unwrap();
+        assert_eq!(first.due, Some(day(1)));
+        let second = ladder_step(first, false, day(1), &LADDER).unwrap().unwrap();
         assert_eq!(second.interval_index, 1, "two distinct-day cleans promote");
         assert_eq!(second.due, Some(day(4)), "3-day interval after promotion");
+        assert!(second.clean_streak.is_none());
     }
 
     #[test]
     fn same_day_clean_does_not_promote() {
-        let queue = DueQueue::new();
-        let intervals = [1i64, 3, 7];
-        let first = queue
-            .next_state(
-                ReviewState::fresh(),
-                ReviewOutcome::Clean { on: day(0) },
-                &intervals,
-                day(0),
-            )
-            .unwrap();
-        let same_day = queue
-            .next_state(
-                first,
-                ReviewOutcome::SameDayClean { on: day(0) },
-                &intervals,
-                day(0),
-            )
-            .unwrap();
+        // A second clean on the day of the counted one does not complete
+        // the pair, even when the word is due again that day.
+        let state = ReviewState {
+            interval_index: 0,
+            clean_streak: Some((1, day(2))),
+            due: Some(day(2)),
+        };
+        let same_day = ladder_step(state, false, day(2), &LADDER).unwrap().unwrap();
         assert_eq!(same_day.interval_index, 0);
-        // A later distinct-day clean can still complete the pair.
-        let second = queue
-            .next_state(
-                same_day,
-                ReviewOutcome::Clean { on: day(2) },
-                &intervals,
-                day(2),
-            )
+        assert_eq!(same_day.clean_streak, Some((1, day(2))));
+        let second = ladder_step(same_day, false, day(3), &LADDER)
+            .unwrap()
             .unwrap();
         assert_eq!(second.interval_index, 1);
     }
 
     #[test]
     fn rollback_cannot_grant_future_success() {
-        let queue = DueQueue::new();
-        let intervals = [1i64, 3];
-        let error = queue.next_state(
-            ReviewState::fresh(),
-            ReviewOutcome::Clean { on: day(5) },
-            &intervals,
-            day(1),
-        );
-        assert!(matches!(error, Err(CoreError::BackwardTime { .. })));
+        let state = ReviewState {
+            interval_index: 0,
+            clean_streak: Some((1, day(5))),
+            due: Some(day(1)),
+        };
+        assert!(matches!(
+            ladder_step(state, false, day(4), &LADDER),
+            Err(CoreError::BackwardTime { .. })
+        ));
     }
 
     #[test]
     fn exhausted_ladder_stays_at_top() {
-        let queue = DueQueue::new();
-        let intervals = [1i64];
         let top = ReviewState {
-            interval_index: 0,
-            clean_streak: None,
-            due: None,
+            interval_index: 4,
+            clean_streak: Some((1, day(0))),
+            due: Some(day(1)),
         };
-        let promoted = queue
-            .next_state(top, ReviewOutcome::Clean { on: day(1) }, &intervals, day(2))
+        let again = ladder_step(top, false, day(2), &LADDER).unwrap().unwrap();
+        assert_eq!(again.interval_index, 4);
+        assert_eq!(again.due, Some(day(32)));
+        let single = ladder_step(due_at(0, 1), false, day(1), &[1])
+            .unwrap()
             .unwrap();
-        let _ = promoted;
-        // With a single-level ladder, promotion is infeasible: the next
-        // clean either errors or stays at level 0.
-        let again = queue
-            .next_state(
-                promoted,
-                ReviewOutcome::Clean { on: day(4) },
-                &intervals,
-                day(5),
-            )
-            .unwrap();
-        assert_eq!(again.interval_index, 0);
+        assert_eq!(single.interval_index, 0);
+    }
+
+    #[test]
+    fn invalid_ladder_is_refused() {
+        for ladder in [&[][..], &[2, 3], &[1, 1], &[1, 3, 2]] {
+            assert!(matches!(
+                ladder_step(due_at(0, 0), false, day(0), ladder),
+                Err(CoreError::InvalidIdentity { .. })
+            ));
+        }
+        assert!(ladder_step(due_at(5, 0), false, day(0), &LADDER).is_err());
+    }
+
+    #[test]
+    fn due_is_on_or_before_today() {
+        assert!(is_due(due_at(0, 3), day(3)));
+        assert!(!is_due(due_at(0, 4), day(3)));
+        assert!(!is_due(ReviewState::fresh(), day(3)));
     }
 }

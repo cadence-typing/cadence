@@ -14,12 +14,16 @@
 pub mod alphabet;
 pub mod error;
 pub mod id;
+pub mod lanes;
 pub mod learning;
 pub mod ledger;
 pub mod metrics;
 pub mod plan;
 pub mod ports;
 pub mod progress;
+pub mod queue;
+pub mod review;
+pub mod select;
 pub mod session;
 pub mod tick;
 pub mod units;

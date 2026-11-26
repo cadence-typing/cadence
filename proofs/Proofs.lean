@@ -11,3 +11,7 @@ import Proofs.Progress
 import Proofs.Session
 import Proofs.Ledger
 import Proofs.Plan
+import Proofs.Select
+import Proofs.Lanes
+import Proofs.Review
+import Proofs.Queue

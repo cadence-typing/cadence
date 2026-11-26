@@ -37,7 +37,7 @@ def violation(name: str) -> g.Outcome:
 
 
 def fake(results: dict[str, g.Outcome]) -> g.Runner:
-    return lambda _directory, _module, config: results[config]
+    return lambda _directory, _module, config, *_timeout: results[config]
 
 
 GOOD = fake({"M.cfg": OK, "M-bad.cfg": violation("Safe")})
@@ -121,6 +121,41 @@ class GateTests(Fixture):
     def test_mapped_model_needs_symbols_and_tests(self) -> None:
         with self.assertRaises(g.GateError):
             self.write(REGISTRY.replace('status = "design-probe"', 'status = "mapped"'))
+
+
+TEMPORAL = (REGISTRY + """
+[[model.mutant]]
+config = "M-starve.cfg"
+violates = "Live"
+""").replace('invariants = ["TypeOK", "Safe"]', 'invariants = ["TypeOK", "Safe"]\nproperties = ["Live"]')
+LIVE_CFG = CFG + "PROPERTY Live\n"
+TEMPORAL_VIOLATION = g.Outcome(13, "Error: Temporal properties were violated.\nState 1: <Initial predicate>")
+
+
+class PropertyTests(Fixture):
+    def setUp(self) -> None:
+        super().setUp()
+        for name in ("M.cfg", "M-bad.cfg", "M-starve.cfg"):
+            (self.root / "models" / name).write_text(LIVE_CFG)
+        self.write(TEMPORAL)
+
+    def runner(self, starve: g.Outcome) -> g.Runner:
+        return fake({"M.cfg": OK, "M-bad.cfg": violation("Safe"), "M-starve.cfg": starve})
+
+    def test_temporal_mutant_must_violate_a_property(self) -> None:
+        report = self.run_gate(self.runner(TEMPORAL_VIOLATION))
+        self.assertTrue(report["passed"], report["errors"])
+
+    def test_temporal_mutant_that_passes_fails(self) -> None:
+        self.assertFalse(self.run_gate(self.runner(OK))["passed"])
+
+    def test_temporal_mutant_failing_an_invariant_instead_fails(self) -> None:
+        self.assertFalse(self.run_gate(self.runner(violation("Safe")))["passed"])
+
+    def test_property_must_be_checked_by_the_config(self) -> None:
+        (self.root / "models/M.cfg").write_text(CFG)
+        with self.assertRaises(g.GateError):
+            self.run_gate(self.runner(TEMPORAL_VIOLATION))
 
 
 class RatchetTests(Fixture):

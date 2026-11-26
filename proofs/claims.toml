@@ -665,3 +665,255 @@ name = "infeasible-clamped"
 file = "crates/kernel/src/plan.rs"
 before = "        None => return Allocation::Infeasible,\n"
 after = "        None => 0,\n"
+
+# ---- candidate selection (crates/kernel/src/select.rs, VK-04, #35)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/select.rs"
+function = "select::utility"
+lean = "cadence_kernel.select.utility"
+theorems = ["Proofs.Select.utility_spec", "Proofs.Select.utility_in_range", "Proofs.Select.utility_monotone"]
+total = "Proofs.Select.utility_spec"
+mutants = ["utility-unnormalized", "utility-subtracts-hesitation"]
+
+[[mutant]]
+name = "utility-unnormalized"
+file = "crates/kernel/src/select.rs"
+before = "    numerator.checked_div(total).unwrap_or(0)\n"
+after = "    numerator.checked_div(1).unwrap_or(total - total)\n"
+
+[[mutant]]
+name = "utility-subtracts-hesitation"
+file = "crates/kernel/src/select.rs"
+before = "    let numerator = add(add(add(e, h), r), u);\n"
+after = "    let numerator = add(add(e, r), u).saturating_sub(h);\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/select.rs"
+function = "select::scan"
+lean = "cadence_kernel.select.scan"
+theorems = [
+  "Proofs.Select.scan_spec",
+  "Proofs.Select.scan_only_eligible",
+  "Proofs.Select.scan_optimal",
+  "Proofs.Select.scan_none_iff_no_eligible",
+  "Proofs.Select.scan_bounded",
+]
+total = "Proofs.Select.scan_spec"
+mutants = ["scan-ignores-eligibility", "scan-keeps-first", "scan-drops-best", "scan-bound-off-by-one"]
+
+[[mutant]]
+name = "scan-ignores-eligibility"
+file = "crates/kernel/src/select.rs"
+before = "            let take = c.eligible && beats(best, u, c.tie_break, c.id, bu, bt, bid);\n"
+after = "            let take = c.eligible || beats(best, u, c.tie_break, c.id, bu, bt, bid);\n"
+
+[[mutant]]
+name = "scan-keeps-first"
+file = "crates/kernel/src/select.rs"
+before = "        Some(_) => greater(u, t, id, bu, bt, bid),\n"
+after = "        Some(_) => greater(bu, bt, bid, u, t, id),\n"
+
+[[mutant]]
+name = "scan-drops-best"
+file = "crates/kernel/src/select.rs"
+before = "        Some(b) => Scan::Best(b),\n"
+after = "        Some(_) => Scan::Empty,\n"
+
+[[mutant]]
+name = "scan-bound-off-by-one"
+file = "crates/kernel/src/select.rs"
+before = "    if candidates.len() > bound {\n"
+after = "    if candidates.len() >= bound {\n"
+
+# ---- block quotas and caps (crates/kernel/src/lanes.rs, VK-05, #36)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/lanes.rs"
+function = "lanes::admissible"
+lean = "cadence_kernel.lanes.admissible"
+theorems = ["Proofs.Lanes.admissible_spec"]
+total = "Proofs.Lanes.admissible_spec"
+mutants = ["word-cap-ignored", "focus-cap-ignored", "consecutive-cap-ignored"]
+
+[[mutant]]
+name = "word-cap-ignored"
+file = "crates/kernel/src/lanes.rs"
+before = "    if f.occurrences >= f.word_cap {\n"
+after = "    if f.occurrences > f.word_cap {\n"
+
+[[mutant]]
+name = "focus-cap-ignored"
+file = "crates/kernel/src/lanes.rs"
+before = "    } else if f.focused && f.owned >= f.focus_cap {\n"
+after = "    } else if f.focused && f.owned > f.focus_cap {\n"
+
+[[mutant]]
+name = "consecutive-cap-ignored"
+file = "crates/kernel/src/lanes.rs"
+before = "    } else if f.same_word && f.run >= f.run_cap {\n"
+after = "    } else if f.same_word && f.run > f.run_cap {\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/lanes.rs"
+function = "lanes::record"
+lean = "cadence_kernel.lanes.record"
+theorems = [
+  "Proofs.Lanes.record_spec",
+  "Proofs.Lanes.never_overrun",
+  "Proofs.Lanes.word_cap",
+  "Proofs.Lanes.focus_cap",
+  "Proofs.Lanes.consecutive_cap",
+  "Proofs.Lanes.record_refuses_inadmissible",
+]
+total = "Proofs.Lanes.record_spec"
+mutants = ["quota-off-by-one", "record-always-ok"]
+
+[[mutant]]
+name = "quota-off-by-one"
+file = "crates/kernel/src/lanes.rs"
+before = "    if f.served >= f.quota {\n"
+after = "    if f.served > f.quota {\n"
+
+[[mutant]]
+name = "record-always-ok"
+file = "crates/kernel/src/lanes.rs"
+before = "        Admit::WordCap => return Record::Refused(Admit::WordCap),\n"
+after = "        Admit::WordCap => {}\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/lanes.rs"
+function = "lanes::complete"
+lean = "cadence_kernel.lanes.complete"
+theorems = ["Proofs.Lanes.complete_block_exact"]
+total = "Proofs.Lanes.complete_block_exact"
+mutants = ["complete-allows-under"]
+
+[[mutant]]
+name = "complete-allows-under"
+file = "crates/kernel/src/lanes.rs"
+before = "    target == target_quota && review == review_quota && broad == broad_quota\n"
+after = "    target <= target_quota && review == review_quota && broad == broad_quota\n"
+
+# ---- the review ladder (crates/kernel/src/review.rs, VK-06, #37)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/review.rs"
+function = "review::ladder_step"
+lean = "cadence_kernel.review.ladder_step"
+theorems = [
+  "Proofs.Review.ladder_step_spec",
+  "Proofs.Review.error_resets",
+  "Proofs.Review.due_is_future",
+  "Proofs.Review.early_clean_is_practice",
+  "Proofs.Review.promotion_needs_two_days",
+  "Proofs.Review.rung_bounded",
+  "Proofs.Review.rollback_refused",
+]
+total = "Proofs.Review.ladder_step_spec"
+mutants = [
+  "error-keeps-rung",
+  "due-today",
+  "early-clean-counts",
+  "same-day-promotes",
+  "first-clean-promotes",
+  "rung-wraps",
+  "rollback-accepted",
+]
+
+[[mutant]]
+name = "error-keeps-rung"
+file = "crates/kernel/src/review.rs"
+before = "                rung: 0,\n"
+after = "                rung: state.rung,\n"
+
+[[mutant]]
+name = "due-today"
+file = "crates/kernel/src/review.rs"
+before = "        return match day.checked_add(first) {\n"
+after = "        return match day.checked_add(first - first) {\n"
+
+[[mutant]]
+name = "early-clean-counts"
+file = "crates/kernel/src/review.rs"
+before = "    if day < due {\n"
+after = "    if day < due && error {\n"
+
+[[mutant]]
+name = "same-day-promotes"
+file = "crates/kernel/src/review.rs"
+before = "        Some(s) => day > s.day && s.count >= 1,\n"
+after = "        Some(s) => day >= s.day && s.count >= 1,\n"
+
+[[mutant]]
+name = "first-clean-promotes"
+file = "crates/kernel/src/review.rs"
+before = "    match streak {\n        None => false,\n        Some(s) => day > s.day && s.count >= 1,\n"
+after = "    match streak {\n        None => true,\n        Some(s) => day > s.day && s.count >= 1,\n"
+
+[[mutant]]
+name = "rung-wraps"
+file = "crates/kernel/src/review.rs"
+before = "    if promote && rung.saturating_add(1) < len {\n"
+after = "    if promote && rung.saturating_add(1) <= len {\n"
+
+[[mutant]]
+name = "rollback-accepted"
+file = "crates/kernel/src/review.rs"
+before = "        Some(s) => day < s.day,\n"
+after = "        Some(s) => day < s.day && s.count == u32::MAX,\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/review.rs"
+function = "review::is_due"
+lean = "cadence_kernel.review.is_due"
+theorems = ["Proofs.Review.is_due_spec"]
+total = "Proofs.Review.is_due_spec"
+mutants = ["due-strictly-after"]
+
+[[mutant]]
+name = "due-strictly-after"
+file = "crates/kernel/src/review.rs"
+before = "        Some(d) => d <= today,\n"
+after = "        Some(d) => d < today,\n"
+
+# ---- reinforcement queue admission (crates/kernel/src/queue.rs, VK-06, #55)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/queue.rs"
+function = "queue::admit"
+lean = "cadence_kernel.queue.admit"
+theorems = [
+  "Proofs.Queue.admit_spec",
+  "Proofs.Queue.admit_no_duplicate",
+  "Proofs.Queue.admit_bounded",
+  "Proofs.Queue.per_word_bound",
+]
+total = "Proofs.Queue.admit_spec"
+mutants = ["admit-duplicate", "capacity-off-by-one", "per-word-ignored"]
+
+[[mutant]]
+name = "admit-duplicate"
+file = "crates/kernel/src/queue.rs"
+before = "    } else if already_queued {\n"
+after = "    } else if already_queued && queue_len == usize::MAX {\n"
+
+[[mutant]]
+name = "capacity-off-by-one"
+file = "crates/kernel/src/queue.rs"
+before = "    } else if queue_len >= capacity {\n"
+after = "    } else if queue_len > capacity {\n"
+
+[[mutant]]
+name = "per-word-ignored"
+file = "crates/kernel/src/queue.rs"
+before = "    if served_for_word >= per_word_limit {\n"
+after = "    if served_for_word > per_word_limit {\n"

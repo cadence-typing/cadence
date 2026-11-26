@@ -17,7 +17,7 @@ use cadence_core::learning::{
 use cadence_core::{BasisPoints, CoreError, PassageId, TrainingChar, UtcDay, WordId};
 
 use crate::policy::TrainerPolicy;
-use crate::review::{DueQueue, ReviewOutcome, ReviewState};
+use crate::review::{DueQueue, ReviewState, is_due, ladder_step};
 
 /// Timed samples a skill needs before its hesitation is compared.
 const MINIMUM_TIMED_SAMPLES: f64 = 3.0;
@@ -285,33 +285,23 @@ fn due_words(
     policy: &TrainerPolicy,
     today: UtcDay,
 ) -> Result<Vec<WordId>, CoreError> {
-    let queue = DueQueue::new();
     let ladder = &policy.review.interval_days;
     let mut states: BTreeMap<WordId, ReviewState> = BTreeMap::new();
     for session in sessions {
         let day = UtcDay::from_days_since_epoch(session.day)?;
         for (word, tally) in &session.learning.words {
-            let state = states.get(word).copied();
-            let outcome = if tally.errors > 0 {
-                ReviewOutcome::Error { on: day }
-            } else {
-                match state.and_then(|state| state.due) {
-                    Some(due) if day >= due => ReviewOutcome::Clean { on: day },
-                    _ => continue,
-                }
-            };
-            let next = queue.next_state(
-                state.unwrap_or_else(ReviewState::fresh),
-                outcome,
-                ladder,
-                day,
-            )?;
-            states.insert(*word, next);
+            let state = states.get(word).copied().unwrap_or_else(ReviewState::fresh);
+            // The kernel decides: an error resets, clean typing before the
+            // due day is practice (None), a due clean counts.
+            if let Some(next) = ladder_step(state, tally.errors > 0, day, ladder)? {
+                states.insert(*word, next);
+            }
         }
     }
     let mut due: Vec<(UtcDay, WordId)> = states
         .into_iter()
-        .filter_map(|(word, state)| state.due.filter(|due| *due <= today).map(|due| (due, word)))
+        .filter(|(_, state)| is_due(*state, today))
+        .filter_map(|(word, state)| state.due.map(|due| (due, word)))
         .collect();
     due.sort();
     let mut fifo = DueQueue::new();

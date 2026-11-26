@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 
 use crate::policy::{Lane, SelectionPolicy};
-use cadence_core::{CoreError, WordId};
+use cadence_core::{CoreError, WordId, lanes};
 
 /// One scheduled slot in a block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,32 +76,35 @@ impl QuotaTracker {
         self.served.get(&lane).copied().unwrap_or(0) < self.quota_for(lane)
     }
 
+    fn facts(&self, lane: Lane, word: WordId, focus_id: Option<u64>) -> lanes::Facts {
+        let focused = lane == Lane::Target && focus_id.is_some();
+        lanes::Facts {
+            served: self.served.get(&lane).copied().unwrap_or(0),
+            quota: self.quota_for(lane),
+            occurrences: self.word_occurrences.get(&word.get()).copied().unwrap_or(0),
+            word_cap: self.policy.maximum_word_occurrences_per_block,
+            same_word: self.consecutive == Some(word.get()),
+            run: self.consecutive_run,
+            run_cap: self.policy.maximum_consecutive_word_occurrences,
+            focused,
+            owned: focus_id
+                .and_then(|focus| self.focus_owned.get(&focus).copied())
+                .unwrap_or(0),
+            focus_cap: self.policy.maximum_focus_owned_target_slots,
+        }
+    }
+
     /// Whether `word` is admissible: occurrence cap, consecutive cap
-    /// and (for the target lane) focus ownership cap.
+    /// and (for the target lane) focus ownership cap. The decision is the
+    /// proved `cadence_kernel::lanes::admissible`.
     #[must_use]
     pub fn word_admissible(&self, word: WordId, lane: Lane, focus_id: Option<u64>) -> bool {
-        let occurrences = self.word_occurrences.get(&word.get()).copied().unwrap_or(0);
-        if occurrences >= self.policy.maximum_word_occurrences_per_block {
-            return false;
-        }
-        if self.consecutive == Some(word.get())
-            && self.consecutive_run >= self.policy.maximum_consecutive_word_occurrences
-        {
-            return false;
-        }
-        if lane == Lane::Target
-            && let Some(focus) = focus_id
-        {
-            let owned = self.focus_owned.get(&focus).copied().unwrap_or(0);
-            if owned >= self.policy.maximum_focus_owned_target_slots {
-                return false;
-            }
-        }
-        true
+        lanes::admissible(self.facts(lane, word, focus_id)) == lanes::Admit::Admit
     }
 
     /// Records a served slot; rejects quota overruns with a typed
-    /// error (counters never overrun).
+    /// error (counters never overrun). The decision and the next counts
+    /// are the proved `cadence_kernel::lanes::record`.
     ///
     /// # Errors
     /// Returns [`CoreError::CapacityExhausted`] when the lane quota or
@@ -112,54 +115,48 @@ impl QuotaTracker {
         word: WordId,
         focus_id: Option<u64>,
     ) -> Result<(), CoreError> {
-        let served = self.served.get(&lane).copied().unwrap_or(0);
-        if served >= self.quota_for(lane) {
-            return Err(CoreError::CapacityExhausted {
-                limit: "lane quota for this block",
-            });
-        }
-        let occurrences = self.word_occurrences.get(&word.get()).copied().unwrap_or(0);
-        if occurrences >= self.policy.maximum_word_occurrences_per_block {
-            return Err(CoreError::CapacityExhausted {
-                limit: "word occurrence cap per block",
-            });
-        }
-        if self.consecutive == Some(word.get())
-            && self.consecutive_run >= self.policy.maximum_consecutive_word_occurrences
-        {
-            return Err(CoreError::CapacityExhausted {
-                limit: "consecutive word cap",
-            });
-        }
-        if lane == Lane::Target
-            && let Some(focus) = focus_id
-        {
-            let owned = self.focus_owned.get(&focus).copied().unwrap_or(0);
-            if owned >= self.policy.maximum_focus_owned_target_slots {
-                return Err(CoreError::CapacityExhausted {
-                    limit: "focus-owned target slots per block",
-                });
+        match lanes::record(self.facts(lane, word, focus_id)) {
+            lanes::Record::Refused(reason) => Err(CoreError::CapacityExhausted {
+                limit: match reason {
+                    lanes::Admit::Quota | lanes::Admit::Admit => "lane quota for this block",
+                    lanes::Admit::WordCap => "word occurrence cap per block",
+                    lanes::Admit::Consecutive => "consecutive word cap",
+                    lanes::Admit::FocusCap => "focus-owned target slots per block",
+                },
+            }),
+            lanes::Record::Recorded {
+                served,
+                occurrences,
+                run,
+                owned,
+            } => {
+                if lane == Lane::Target
+                    && let Some(focus) = focus_id
+                {
+                    self.focus_owned.insert(focus, owned);
+                }
+                self.consecutive = Some(word.get());
+                self.consecutive_run = run;
+                self.word_occurrences.insert(word.get(), occurrences);
+                self.served.insert(lane, served);
+                Ok(())
             }
-            self.focus_owned.insert(focus, owned.saturating_add(1));
         }
-        if self.consecutive == Some(word.get()) {
-            self.consecutive_run = self.consecutive_run.saturating_add(1);
-        } else {
-            self.consecutive = Some(word.get());
-            self.consecutive_run = 1;
-        }
-        self.word_occurrences
-            .insert(word.get(), occurrences.saturating_add(1));
-        self.served.insert(lane, served.saturating_add(1));
-        Ok(())
     }
 
-    /// Whether all quotas are exactly met (complete feasible block).
+    /// Whether all quotas are exactly met (complete feasible block), by
+    /// the proved `cadence_kernel::lanes::complete`.
     #[must_use]
     pub fn quotas_exactly_met(&self) -> bool {
-        self.served.get(&Lane::Target).copied().unwrap_or(0) == self.policy.target_slots
-            && self.served.get(&Lane::Review).copied().unwrap_or(0) == self.policy.review_slots
-            && self.served.get(&Lane::Broad).copied().unwrap_or(0) == self.policy.broad_slots
+        let served = |lane| self.served.get(&lane).copied().unwrap_or(0);
+        lanes::complete(
+            served(Lane::Target),
+            self.policy.target_slots,
+            served(Lane::Review),
+            self.policy.review_slots,
+            served(Lane::Broad),
+            self.policy.broad_slots,
+        )
     }
 
     /// The validated policy this tracker enforces.
