@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "note": "Fixture scenarios added for the headless golden frames (#70); fixtures/scenarios.json stays the pinned handover registry.",
+  "scenarios": [
+    {
+      "id": "numpad-small",
+      "description": "Synthetic numpad drill with a leading zero and a decimal: 0123, 4.56",
+      "rng_seed": "3",
+      "clock": "virtual",
+      "profile_kind": "synthetic",
+      "auto_deliver_services": true
+    },
+    {
+      "id": "save-error",
+      "description": "The scoring-cat drill with a save service that refuses every save (fixture fault)",
+      "target": "cat",
+      "rng_seed": "1",
+      "clock": "virtual",
+      "profile_kind": "synthetic",
+      "auto_deliver_services": true
+    }
+  ]
+}

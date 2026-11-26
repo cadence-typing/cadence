@@ -1,0 +1,37 @@
+00 normal |  ● words                                    <version>  
+   2×#7c868e/#0a0d10/ 7×#85d0b4/#0a0d10/bold 29×#d6dce0/#0a0d10/ 22×#7c868e/#0a0d10/
+01 normal |────────────────────────────────────────────────────────────
+   38×#3a424a/#0a0d10/ 22×#7c868e/#0a0d10/
+02 normal |                                                            
+   60×#d6dce0/#0a0d10/
+03 normal |                                                            
+   60×#d6dce0/#0a0d10/
+04 normal |                                                            
+   60×#d6dce0/#0a0d10/
+05 normal |                                                            
+   60×#d6dce0/#0a0d10/
+06 normal |                            cat                             
+   28×#d6dce0/#0a0d10/ 1×#85d0b4/#0a0d10/bold+reverse 2×#7c868e/#0a0d10/ 29×#d6dce0/#0a0d10/
+07 normal |                                                            
+   60×#d6dce0/#0a0d10/
+08 normal |                                                            
+   60×#d6dce0/#0a0d10/
+09 normal |                                                            
+   60×#d6dce0/#0a0d10/
+10 normal |          Normal text · native scaling unavailable          
+   2×#d6dce0/#0a0d10/ 56×#e0b26a/#0a0d10/ 2×#d6dce0/#0a0d10/
+11 normal |                                                            
+   2×#d6dce0/#0a0d10/ 56×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
+12 normal |                                                            
+   60×#d6dce0/#0a0d10/
+13 normal |  Save failed: fixture fault: the save service refuses; no  
+   2×#d6dce0/#0a0d10/ 56×#ed8780/#0a0d10/ 2×#d6dce0/#0a0d10/
+14 normal |  checkpoint acknowledged. Paused; r retries. Ctrl-C twice  
+   2×#d6dce0/#0a0d10/ 56×#ed8780/#0a0d10/ 2×#d6dce0/#0a0d10/
+15 normal |  requests an unsuccessful exit; the unacknowledged tail    
+   2×#d6dce0/#0a0d10/ 56×#ed8780/#0a0d10/ 2×#d6dce0/#0a0d10/
+16 normal | ERROR  words    │ -- WPM │ acc -- │ 1:00 left │ SAVE ERROR 
+   7×#ed8780/#101418/bold+reverse 10×#d6dce0/#101418/ 1×#3a424a/#101418/ 8×#85d0b4/#101418/ 1×#3a424a/#101418/ 8×#d6dce0/#101418/ 1×#3a424a/#101418/ 11×#d6dce0/#101418/ 1×#3a424a/#101418/bold 12×#ed8780/#28343a/bold
+17 normal | r retry save  Ctrl-C x2 exit (tail at risk)                
+   1×#7c868e/#0a0d10/ 12×#d6dce0/#0a0d10/ 47×#7c868e/#0a0d10/
+cursor visible=false column=0 row=0

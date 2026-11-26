@@ -1,0 +1,37 @@
+00 normal |  cadence                                    <version>  
+   38×#85d0b4/#0a0d10/bold 22×#7c868e/#0a0d10/
+01 normal |────────────────────────────────────────────────────────────
+   38×#85d0b4/#0a0d10/bold 22×#7c868e/#0a0d10/
+02 normal |                                                            
+   60×#d6dce0/#0a0d10/
+03 normal |                       Session review                       
+   2×#d6dce0/#0a0d10/ 56×#85d0b4/#0a0d10/bold 2×#d6dce0/#0a0d10/
+04 normal |       0:00 active · ended early, saved as unfinished       
+   2×#d6dce0/#0a0d10/ 56×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
+05 normal |  ──────CORRECT SPEED───────    ───FIRST-PASS ACCURACY────  
+   2×#d6dce0/#0a0d10/ 6×#3a424a/#101418/ 13×#7c868e/#101418/ 7×#3a424a/#101418/ 4×#d6dce0/#0a0d10/ 3×#3a424a/#101418/ 19×#7c868e/#101418/ 4×#3a424a/#101418/ 2×#d6dce0/#0a0d10/
+06 normal |             60.0                         100.0%            
+   2×#d6dce0/#0a0d10/ 11×#d6dce0/#101418/ 4×#85d0b4/#101418/bold 11×#d6dce0/#101418/ 4×#d6dce0/#0a0d10/ 10×#d6dce0/#101418/ 6×#85d0b4/#101418/bold 10×#d6dce0/#101418/ 2×#d6dce0/#0a0d10/
+07 normal |                                                            
+   2×#d6dce0/#0a0d10/ 26×#d6dce0/#101418/ 4×#d6dce0/#0a0d10/ 26×#d6dce0/#101418/ 2×#d6dce0/#0a0d10/
+08 normal |      WPM · typing tracks          Mistakes stay counted    
+   2×#d6dce0/#0a0d10/ 26×#7c868e/#101418/ 4×#d6dce0/#0a0d10/ 26×#7c868e/#101418/ 2×#d6dce0/#0a0d10/
+09 normal |  ──────────────────────────    ──────────────────────────  
+   2×#d6dce0/#0a0d10/ 26×#3a424a/#101418/ 4×#d6dce0/#0a0d10/ 26×#3a424a/#101418/ 2×#d6dce0/#0a0d10/
+10 normal |  Track      Acc     Pace        Fixes vs last time         
+   2×#d6dce0/#0a0d10/ 10×#7c868e/#0a0d10/ 1×#d6dce0/#0a0d10/ 7×#7c868e/#0a0d10/ 1×#d6dce0/#0a0d10/ 11×#7c868e/#0a0d10/ 1×#d6dce0/#0a0d10/ 5×#7c868e/#0a0d10/ 1×#d6dce0/#0a0d10/ 19×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
+11 normal |  words      100.0%  60.0 WPM    0     first time           
+   2×#d6dce0/#0a0d10/ 10×#85d0b4/#0a0d10/ 21×#d6dce0/#0a0d10/ 5×#7c868e/#0a0d10/ 1×#d6dce0/#0a0d10/ 19×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
+12 normal |             No slips on key pairs this session.            
+   60×#d6dce0/#0a0d10/
+13 normal |    3 keys recorded · 0 missed words scheduled for review   
+   2×#d6dce0/#0a0d10/ 56×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
+14 normal |                     Enter  Save & exit                     
+   19×#d6dce0/#0a0d10/ 22×#85d0b4/#28343a/bold 19×#d6dce0/#0a0d10/
+15 normal |                                                            
+   60×#d6dce0/#0a0d10/
+16 normal | REVIEW  session review               │ 0:00 active │ saved 
+   8×#85d0b4/#101418/bold+reverse 30×#d6dce0/#101418/ 1×#3a424a/#101418/ 13×#d6dce0/#101418/ 1×#3a424a/#101418/ 7×#7c868e/#101418/
+17 normal | Enter save & exit                                          
+   1×#7c868e/#0a0d10/ 17×#d6dce0/#0a0d10/ 42×#7c868e/#0a0d10/
+cursor visible=false column=0 row=0

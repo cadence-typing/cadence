@@ -1,0 +1,65 @@
+00 normal |  ● words                                                                            <version>  
+   2×#7c868e/#0a0d10/ 7×#85d0b4/#0a0d10/bold 69×#d6dce0/#0a0d10/ 22×#7c868e/#0a0d10/
+01 normal |────────────────────────────────────────────────────────────────────────────────────────────────────
+   78×#3a424a/#0a0d10/ 22×#7c868e/#0a0d10/
+02 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+03 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+04 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+05 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+06 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+07 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+08 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+09 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+10 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+11 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+12 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+13 normal |                                                cat                                                 
+   48×#d6dce0/#0a0d10/ 1×#85d0b4/#0a0d10/bold+reverse 2×#7c868e/#0a0d10/ 49×#d6dce0/#0a0d10/
+14 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+15 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+16 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+17 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+18 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+19 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+20 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+21 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+22 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+23 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+24 normal |                              Normal text · native scaling unavailable                              
+   2×#d6dce0/#0a0d10/ 96×#e0b26a/#0a0d10/ 2×#d6dce0/#0a0d10/
+25 normal |                                                                                                    
+   2×#d6dce0/#0a0d10/ 96×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
+26 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+27 normal |  Save failed: fixture fault: the save service refuses; no checkpoint acknowledged. Paused; r       
+   2×#d6dce0/#0a0d10/ 96×#ed8780/#0a0d10/ 2×#d6dce0/#0a0d10/
+28 normal |  retries. Ctrl-C twice requests an unsuccessful exit; the unacknowledged tail may be lost.         
+   2×#d6dce0/#0a0d10/ 96×#ed8780/#0a0d10/ 2×#d6dce0/#0a0d10/
+29 normal |                                                                                                    
+   2×#d6dce0/#0a0d10/ 96×#ed8780/#0a0d10/ 2×#d6dce0/#0a0d10/
+30 normal | ERROR  words                        │ phase 1/1 │ fix 0 │ -- WPM │ acc -- │ 1:00 left │ SAVE ERROR 
+   7×#ed8780/#101418/bold+reverse 30×#d6dce0/#101418/ 1×#3a424a/#101418/ 11×#7c868e/#101418/ 1×#3a424a/#101418/ 7×#7c868e/#101418/ 1×#3a424a/#101418/ 8×#85d0b4/#101418/ 1×#3a424a/#101418/ 8×#d6dce0/#101418/ 1×#3a424a/#101418/ 11×#d6dce0/#101418/ 1×#3a424a/#101418/bold 12×#ed8780/#28343a/bold
+31 normal | r retry save  Ctrl-C x2 exit (tail at risk)                                                        
+   1×#7c868e/#0a0d10/ 12×#d6dce0/#0a0d10/ 87×#7c868e/#0a0d10/
+cursor visible=false column=0 row=0

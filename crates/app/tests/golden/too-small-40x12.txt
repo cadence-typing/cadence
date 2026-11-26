@@ -1,0 +1,25 @@
+00 normal |Terminal too small — practice paused.   
+   40×#e0b26a/#0a0d10/
+01 normal |Resize to at least 60 × 18, then Esc to 
+   40×#e0b26a/#0a0d10/
+02 normal |resume.                                 
+   40×#e0b26a/#0a0d10/
+03 normal |                                        
+   40×#e0b26a/#0a0d10/
+04 normal |                                        
+   40×#e0b26a/#0a0d10/
+05 normal |                                        
+   40×#e0b26a/#0a0d10/
+06 normal |                                        
+   40×#e0b26a/#0a0d10/
+07 normal |                                        
+   40×#e0b26a/#0a0d10/
+08 normal |                                        
+   40×#e0b26a/#0a0d10/
+09 normal |                                        
+   40×#e0b26a/#0a0d10/
+10 normal |                                        
+   40×#e0b26a/#0a0d10/
+11 normal |                                        
+   40×#e0b26a/#0a0d10/
+cursor visible=false column=0 row=0

@@ -1,0 +1,37 @@
+00 normal |  DAILY PRACTICE                             <version>  
+   38×#85d0b4/#0a0d10/bold 22×#7c868e/#0a0d10/
+01 normal |────────────────────────────────────────────────────────────
+   38×#85d0b4/#0a0d10/bold 22×#7c868e/#0a0d10/
+02 normal |                                                            
+   60×#d6dce0/#0a0d10/
+03 normal |                                                            
+   60×#d6dce0/#0a0d10/
+04 normal |                          cadence                           
+   26×#d6dce0/#0a0d10/ 7×#85d0b4/#0a0d10/bold 27×#d6dce0/#0a0d10/
+05 normal |              Make room for a little practice.              
+   2×#d6dce0/#0a0d10/ 56×#85d0b4/#0a0d10/bold 2×#d6dce0/#0a0d10/
+06 normal |           1:00 allocated · practice at your pace           
+   2×#d6dce0/#0a0d10/ 56×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
+07 normal |                           ○ words                          
+   2×#d6dce0/#0a0d10/ 56×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
+08 normal |                                                            
+   60×#d6dce0/#0a0d10/
+09 normal |                      UP FIRST · words                      
+   2×#d6dce0/#0a0d10/ 56×#85d0b4/#0a0d10/ 2×#d6dce0/#0a0d10/
+10 normal |     Broad vocabulary while Cadence records your slips.     
+   60×#d6dce0/#0a0d10/
+11 normal |         Local history · 0 completed · 0 unfinished         
+   2×#d6dce0/#0a0d10/ 56×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
+12 normal |                   No per-key history yet.                  
+   2×#d6dce0/#0a0d10/ 56×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
+13 normal |                    Enter  Begin session                    
+   18×#d6dce0/#0a0d10/ 24×#85d0b4/#28343a/bold 18×#d6dce0/#0a0d10/
+14 normal |                                                            
+   60×#d6dce0/#0a0d10/
+15 normal |                                                            
+   60×#d6dce0/#0a0d10/
+16 normal | READY  today / baseline                │ 1:00 plan │ local 
+   7×#85d0b4/#101418/bold+reverse 33×#d6dce0/#101418/ 1×#3a424a/#101418/ 11×#d6dce0/#101418/ 1×#3a424a/#101418/ 7×#7c868e/#101418/
+17 normal | Enter begin  q quit  F2 text size (AUTO)                   
+   1×#7c868e/#0a0d10/ 11×#d6dce0/#0a0d10/ 48×#7c868e/#0a0d10/
+cursor visible=false column=0 row=0

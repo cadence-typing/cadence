@@ -1,0 +1,65 @@
+00 normal |  DAILY PRACTICE                                                                     <version>  
+   78×#85d0b4/#0a0d10/bold 22×#7c868e/#0a0d10/
+01 normal |────────────────────────────────────────────────────────────────────────────────────────────────────
+   78×#85d0b4/#0a0d10/bold 22×#7c868e/#0a0d10/
+02 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+03 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+04 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+05 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+06 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+07 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+08 normal |                                              cadence                                               
+   46×#d6dce0/#0a0d10/ 7×#85d0b4/#0a0d10/bold 47×#d6dce0/#0a0d10/
+09 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+10 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+11 normal |                                  Make room for a little practice.                                  
+   4×#d6dce0/#0a0d10/ 92×#85d0b4/#0a0d10/bold 4×#d6dce0/#0a0d10/
+12 normal |                               1:00 allocated · practice at your pace                               
+   4×#d6dce0/#0a0d10/ 92×#7c868e/#0a0d10/ 4×#d6dce0/#0a0d10/
+13 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+14 normal |                                               ○ words                                              
+   4×#d6dce0/#0a0d10/ 92×#7c868e/#0a0d10/ 4×#d6dce0/#0a0d10/
+15 normal |                                                1:00                                                
+   4×#d6dce0/#0a0d10/ 92×#7c868e/#0a0d10/ 4×#d6dce0/#0a0d10/
+16 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+17 normal |                                          UP FIRST · words                                          
+   4×#d6dce0/#0a0d10/ 92×#85d0b4/#0a0d10/ 4×#d6dce0/#0a0d10/
+18 normal |                         Broad vocabulary while Cadence records your slips.                         
+   100×#d6dce0/#0a0d10/
+19 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+20 normal |                             Local history · 0 completed · 0 unfinished                             
+   4×#d6dce0/#0a0d10/ 92×#7c868e/#0a0d10/ 4×#d6dce0/#0a0d10/
+21 normal |                  No per-key history yet: this session teaches Cadence your slips.                  
+   4×#d6dce0/#0a0d10/ 92×#7c868e/#0a0d10/ 4×#d6dce0/#0a0d10/
+22 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+23 normal |                                        Enter  Begin session                                        
+   38×#d6dce0/#0a0d10/ 24×#85d0b4/#28343a/bold 38×#d6dce0/#0a0d10/
+24 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+25 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+26 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+27 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+28 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+29 normal |                                                                                                    
+   100×#d6dce0/#0a0d10/
+30 normal | READY  today / baseline                                                        │ 1:00 plan │ local 
+   7×#85d0b4/#101418/bold+reverse 73×#d6dce0/#101418/ 1×#3a424a/#101418/ 11×#d6dce0/#101418/ 1×#3a424a/#101418/ 7×#7c868e/#101418/
+31 normal | Enter begin  q quit  F2 text size (AUTO)                                                           
+   1×#7c868e/#0a0d10/ 11×#d6dce0/#0a0d10/ 88×#7c868e/#0a0d10/
+cursor visible=false column=0 row=0

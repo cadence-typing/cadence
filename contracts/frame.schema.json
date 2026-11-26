@@ -95,6 +95,17 @@
         "row"
       ],
       "additionalProperties": false
+    },
+    "row_renditions": {
+      "type": "array",
+      "maxItems": 80,
+      "items": {
+        "enum": [
+          "normal",
+          "double_height_top",
+          "double_height_bottom"
+        ]
+      }
     }
   },
   "required": [

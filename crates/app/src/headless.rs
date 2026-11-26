@@ -45,7 +45,8 @@ const DAILY_SMALL: &[&str] = &[
 
 fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
     let (seed, seconds, targets): (u64, u64, Vec<String>) = match name {
-        "scoring-cat" => (1, 60, vec!["cat".to_string()]),
+        "scoring-cat" | "save-error" => (1, 60, vec!["cat".to_string()]),
+        "numpad-small" => (3, 60, vec!["0123".to_string(), "4.56".to_string()]),
         "daily-small" => (
             42,
             120,
@@ -53,11 +54,16 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
         ),
         other => return Err(format!("unknown scenario {other}")),
     };
+    let (kind, phase) = if name == "numpad-small" {
+        (ExerciseKind::Numpad, Phase::Numpad)
+    } else {
+        (ExerciseKind::Words, Phase::AdaptiveWords)
+    };
     let exercises = targets
         .iter()
         .map(|text| {
             cadence_core::validate_target(text, LayoutSupportsPound::US)
-                .map(|units| PlannedExercise::plain(units, ExerciseKind::Words))
+                .map(|units| PlannedExercise::plain(units, kind))
                 .map_err(|error| error.to_string())
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -80,7 +86,7 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
         pace: Vec::new(),
         retired_due: 0,
         phases: vec![PlannedPhase {
-            phase: Phase::AdaptiveWords,
+            phase,
             seconds,
             exercises,
         }],
@@ -91,10 +97,13 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
 struct StoreServices {
     store: ProgressStore,
     day: i64,
+    /// The `save-error` scenario: every save fails (a fixture fault).
+    failing: bool,
 }
 
 impl Services for StoreServices {
     fn engine(&mut self, scenario: Option<&str>) -> Result<Engine, String> {
+        self.failing = scenario == Some("save-error");
         match scenario {
             Some(name) => Engine::new_plan(scenario_plan(name)?).map_err(|error| error.to_string()),
             None => {
@@ -117,6 +126,9 @@ impl Services for StoreServices {
     }
 
     fn save(&mut self, checkpoint: &Checkpoint) -> Result<(), String> {
+        if self.failing {
+            return Err("fixture fault: the save service refuses".to_string());
+        }
         self.store
             .apply_checkpoint(checkpoint)
             .map_err(|error| error.to_string())?;
@@ -175,6 +187,7 @@ fn serve(directory: &Path, script: Option<&Path>) -> Result<(), Box<dyn Error>> 
     let mut host = Headless::new(StoreServices {
         store,
         day: utc_day()?,
+        failing: false,
     });
     let mut protocol = Protocol::new();
     let input: Box<dyn BufRead> = match script {
