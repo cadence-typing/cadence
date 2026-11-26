@@ -232,3 +232,52 @@ fn a_review_track_round_trips() -> TestResult {
     );
     Ok(())
 }
+
+/// #49: after the last scored deadline a completed session still types its
+/// closing review: a later checkpoint that only advances the review track
+/// (and active time) is accepted; changing a scored track or the status is
+/// refused.
+#[test]
+fn a_completed_session_advances_only_its_review() -> TestResult {
+    use cadence_core::progress::{Track, TrackProgress};
+    let directory = tempfile::tempdir()?;
+    let mut store = ProgressStore::open_in(directory.path())?;
+    let base = checkpoint(1, 1, ProgressStatus::Completed)?;
+    store.apply_checkpoint(&base)?;
+    let review = |first: u64| TrackProgress {
+        track: Track::Review,
+        first_correct: first,
+        first_attempted: first,
+        correct_attempts: first,
+        content_attempts: first,
+        correct_units: first,
+        active_micros: 500_000,
+        ..TrackProgress::empty(Track::Review)
+    };
+    let mut progress = base.progress.clone();
+    progress.active_micros = progress.active_micros.saturating_add(500_000);
+    progress.tracks.push(review(5));
+    let next = super::rekey(&base, 2, progress.clone())?;
+    store.apply_checkpoint(&next)?;
+    progress.tracks.pop();
+    progress.tracks.push(review(9));
+    store.apply_checkpoint(&super::rekey(&base, 3, progress.clone())?)?;
+    // A scored track changing after completion is refused.
+    let mut scored = progress.clone();
+    if let Some(track) = scored.tracks.first_mut() {
+        track.first_attempted = track.first_attempted.saturating_add(1);
+        track.content_attempts = track.content_attempts.saturating_add(1);
+    }
+    assert!(matches!(
+        store.apply_checkpoint(&super::rekey(&base, 4, scored)?),
+        Err(StoreError::Regression(_))
+    ));
+    // So is leaving the completed status.
+    let mut reopened = progress;
+    reopened.status = ProgressStatus::Abandoned;
+    assert!(matches!(
+        store.apply_checkpoint(&super::rekey(&base, 4, reopened)?),
+        Err(StoreError::Regression(_))
+    ));
+    Ok(())
+}

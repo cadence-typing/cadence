@@ -215,8 +215,31 @@ fn validate_progress_advance(
     {
         return Err(StoreError::Regression("session identity changed".into()));
     }
-    if old.status != ProgressStatus::Running && old != new {
-        return Err(StoreError::Regression("terminal session changed".into()));
+    match old.status {
+        ProgressStatus::Running => {}
+        ProgressStatus::Abandoned if old != new => {
+            return Err(StoreError::Regression("terminal session changed".into()));
+        }
+        ProgressStatus::Abandoned => {}
+        // A completed session may still type its closing review (#49):
+        // it stays completed, and only the review track and active time
+        // advance; every scored track is frozen.
+        ProgressStatus::Completed => {
+            let scored = |progress: &SessionProgress| -> Vec<_> {
+                progress
+                    .tracks
+                    .iter()
+                    .filter(|track| track.track != Track::Review)
+                    .cloned()
+                    .collect()
+            };
+            if new.status != ProgressStatus::Completed
+                || scored(old) != scored(new)
+                || old.utc_offset_minutes != new.utc_offset_minutes
+            {
+                return Err(StoreError::Regression("terminal session changed".into()));
+            }
+        }
     }
     if new.active_micros < old.active_micros {
         return Err(StoreError::Regression("active time decreased".into()));

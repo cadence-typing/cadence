@@ -308,7 +308,8 @@ impl Engine {
             .phases
             .iter()
             .enumerate()
-            .filter(|(_, p)| p.phase != Phase::Review)
+            // Every typed phase counts, the closing review included (#49).
+            .filter(|(_, p)| !p.exercises.is_empty())
             .map(|(index, _)| index)
             .collect();
         let phase_position = typing
