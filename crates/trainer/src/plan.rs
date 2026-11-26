@@ -352,6 +352,40 @@ pub fn pace_decision(
     ))
 }
 
+/// Completed sessions that included prose since the last probe, newest
+/// first as stored. Until probes are stored (#64) every such session in the
+/// history counts.
+#[must_use]
+pub fn completed_with_prose(recent: &[cadence_core::progress::SessionRecap]) -> u64 {
+    let count = recent
+        .iter()
+        .filter(|recap| {
+            recap.completed
+                && recap
+                    .tracks
+                    .iter()
+                    .any(|t| t.track == cadence_core::progress::Track::Prose)
+        })
+        .count();
+    u64::try_from(count).unwrap_or(u64::MAX)
+}
+
+/// Whether this session carries a transfer probe (P-03, #63): the proved
+/// `cadence_kernel::benchmark::due` (#64 splits the prose phase on
+/// `Probe`).
+#[must_use]
+pub fn probe_due(
+    policy: &crate::policy::BenchmarkPolicy,
+    recent: &[cadence_core::progress::SessionRecap],
+    unseen_available: bool,
+) -> cadence_core::benchmark::Due {
+    cadence_core::benchmark::due(
+        completed_with_prose(recent),
+        u64::from(policy.every_completed_sessions),
+        unseen_available,
+    )
+}
+
 #[cfg(test)]
 #[expect(
     clippy::arithmetic_side_effects,
@@ -363,3 +397,62 @@ mod tests;
 #[cfg(test)]
 #[path = "plan_pace_tests.rs"]
 mod pace_tests;
+
+#[cfg(test)]
+mod probe_tests {
+    use super::*;
+    use cadence_core::benchmark::Due;
+    use cadence_core::progress::{SessionRecap, Track, TrackProgress};
+
+    fn policy() -> crate::policy::BenchmarkPolicy {
+        crate::policy::parse_policy(
+            std::fs::read(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../policies/trainer-v3.toml"
+            ))
+            .unwrap()
+            .as_slice(),
+        )
+        .unwrap()
+        .benchmark
+    }
+
+    fn sessions(count: usize, completed: bool, track: Track) -> Vec<SessionRecap> {
+        (0..count)
+            .map(|_| SessionRecap {
+                day: 1,
+                completed,
+                tracks: vec![TrackProgress::empty(track)],
+            })
+            .collect()
+    }
+
+    /// #63 table: 6 completed sessions is NotYet, 7 is Probe, 7 with no
+    /// unseen passage is NoPassage; unfinished sessions and sessions
+    /// without prose do not count.
+    #[test]
+    fn a_probe_is_due_after_seven_completed_prose_sessions() {
+        let policy = policy();
+        assert_eq!(policy.every_completed_sessions, 7);
+        assert_eq!(
+            probe_due(&policy, &sessions(6, true, Track::Prose), true),
+            Due::NotYet
+        );
+        assert_eq!(
+            probe_due(&policy, &sessions(7, true, Track::Prose), true),
+            Due::Probe
+        );
+        assert_eq!(
+            probe_due(&policy, &sessions(7, true, Track::Prose), false),
+            Due::NoPassage
+        );
+        assert_eq!(
+            probe_due(&policy, &sessions(7, false, Track::Prose), true),
+            Due::NotYet
+        );
+        assert_eq!(
+            probe_due(&policy, &sessions(7, true, Track::Words), true),
+            Due::NotYet
+        );
+    }
+}

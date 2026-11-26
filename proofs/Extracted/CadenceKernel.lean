@@ -20,6 +20,64 @@ set_option maxRecDepth 2048
 
 namespace cadence_kernel
 
+/-- [cadence_kernel::benchmark::Due]
+    Source: 'crates/kernel/src/benchmark.rs', lines 13:0-20:1
+    Visibility: public -/
+@[discriminant isize]
+inductive benchmark.Due where
+| Probe : benchmark.Due
+| NotYet : benchmark.Due
+| NoPassage : benchmark.Due
+
+/-- [cadence_kernel::benchmark::Facts]
+    Source: 'crates/kernel/src/benchmark.rs', lines 24:0-39:1
+    Visibility: public -/
+structure benchmark.Facts where
+  completed_window : Bool
+  paused : Bool
+  ended_early : Bool
+  pasted : Bool
+  synthetic : Bool
+  same_layout : Bool
+  same_strata : Bool
+
+/-- [cadence_kernel::benchmark::due]:
+    Source: 'crates/kernel/src/benchmark.rs', lines 45:0-54:1
+    Visibility: public -/
+def benchmark.due
+  (completed_since_probe : Std.U64) (every : Std.U64) (unseen_available : Bool)
+  :
+  Result benchmark.Due
+  := do
+  if completed_since_probe < every
+  then ok benchmark.Due.NotYet
+  else
+    if unseen_available
+    then ok benchmark.Due.Probe
+    else ok benchmark.Due.NoPassage
+
+/-- [cadence_kernel::benchmark::comparable]:
+    Source: 'crates/kernel/src/benchmark.rs', lines 58:0-66:1
+    Visibility: public -/
+def benchmark.comparable (facts : benchmark.Facts) : Result Bool := do
+  if facts.completed_window
+  then
+    if facts.paused
+    then ok false
+    else
+      if facts.ended_early
+      then ok false
+      else
+        if facts.pasted
+        then ok false
+        else
+          if facts.synthetic
+          then ok false
+          else if facts.same_layout
+               then ok facts.same_strata
+               else ok false
+  else ok false
+
 /-- [cadence_kernel::calendar::MAX_OFFSET_SECONDS]
     Source: 'crates/kernel/src/calendar.rs', lines 9:0-9:43
     Visibility: public -/

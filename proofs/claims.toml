@@ -1307,6 +1307,54 @@ file = "crates/kernel/src/pace.rs"
 before = "    if !seen.degraded\n        && seen.qualifying >= policy.qualifying_blocks\n"
 after = "    if seen.qualifying >= policy.qualifying_blocks\n"
 
+# ---- benchmark probes (crates/kernel/src/benchmark.rs, #63)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/benchmark.rs"
+function = "benchmark::due"
+lean = "cadence_kernel.benchmark.due"
+theorems = ["Proofs.Benchmark.due_exact"]
+total = "Proofs.Benchmark.due_exact"
+mutants = ["due-off-by-one", "no-passage-hidden"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/benchmark.rs"
+function = "benchmark::comparable"
+lean = "cadence_kernel.benchmark.comparable"
+theorems = [
+  "Proofs.Benchmark.interrupted_never_comparable",
+  "Proofs.Benchmark.synthetic_never_comparable",
+  "Proofs.Benchmark.comparable_iff_all",
+]
+total = "Proofs.Benchmark.comparable_iff_all"
+mutants = ["paused-comparable", "synthetic-comparable"]
+
+[[mutant]]
+name = "due-off-by-one"
+file = "crates/kernel/src/benchmark.rs"
+before = "    if completed_since_probe < every {\n"
+after = "    if completed_since_probe <= every {\n"
+
+[[mutant]]
+name = "no-passage-hidden"
+file = "crates/kernel/src/benchmark.rs"
+before = "    } else {\n        Due::NoPassage\n"
+after = "    } else {\n        Due::NotYet\n"
+
+[[mutant]]
+name = "paused-comparable"
+file = "crates/kernel/src/benchmark.rs"
+before = "        && !facts.paused\n"
+after = ""
+
+[[mutant]]
+name = "synthetic-comparable"
+file = "crates/kernel/src/benchmark.rs"
+before = "        && !facts.synthetic\n"
+after = ""
+
 # ---- local-calendar days (crates/kernel/src/calendar.rs, #52)
 
 [[claim]]

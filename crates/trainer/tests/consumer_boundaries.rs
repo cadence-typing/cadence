@@ -305,8 +305,8 @@ fn pace_rejects_invented_counts_and_handles_full_width_evidence() -> TestResult 
     Ok(())
 }
 
-/// #61: the pace decision lives only in the kernel; the trainer calls it
-/// and keeps no second copy of its comparisons.
+/// #61, #63: the pace and benchmark decisions live only in the kernel; the
+/// trainer calls them and keeps no second copy.
 #[test]
 fn pace_has_no_second_copy_in_the_trainer() -> TestResult {
     let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src");
@@ -315,7 +315,13 @@ fn pace_has_no_second_copy_in_the_trainer() -> TestResult {
         let text = std::fs::read_to_string(&path)?;
         let name = path.display().to_string();
         assert!(!name.ends_with("/pace.rs"), "trainer::pace is gone: {name}");
-        for copy in ["fn below_band", "PaceDecision", "fn pace_decision_inner"] {
+        for copy in [
+            "fn below_band",
+            "PaceDecision",
+            "fn pace_decision_inner",
+            "fn comparable(",
+            "Due::Probe =>",
+        ] {
             assert!(!text.contains(copy), "{name} keeps {copy}");
         }
         let policy_file = [
