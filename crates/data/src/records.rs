@@ -62,7 +62,8 @@ pub(crate) fn load_session(
 ) -> Result<Option<StoredSession>, StoreError> {
     let id = sql_integer(session.get(), "session_id")?;
     let mut statement = connection.prepare(
-        "SELECT profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq,utc_offset_minutes
+        "SELECT profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq,utc_offset_minutes,
+            layout,content_class
          FROM sessions WHERE session_id=?1",
     )?;
     let mut rows = statement.query([id])?;
@@ -78,6 +79,15 @@ pub(crate) fn load_session(
         active_micros: read_integer(row.get(5)?, "active_micros")?,
         tracks: Vec::new(),
         utc_offset_minutes: row.get(7)?,
+        layout: match row.get::<_, String>(8)?.as_str() {
+            "unspecified" => None,
+            other => Some(
+                cadence_core::Layout::parse(other)
+                    .ok_or_else(|| StoreError::Corrupt("unknown session layout".into()))?,
+            ),
+        },
+        content_class: cadence_core::progress::ContentClass::parse(&row.get::<_, String>(9)?)
+            .ok_or_else(|| StoreError::Corrupt("unknown content class".into()))?,
     };
     let sequence = CommitSeq::from_raw(read_integer(row.get(6)?, "commit_seq")?);
     let mut statement = connection.prepare(
@@ -238,6 +248,8 @@ fn validate_progress_advance(
             if new.status != ProgressStatus::Completed
                 || scored(old) != scored(new)
                 || old.utc_offset_minutes != new.utc_offset_minutes
+                || old.layout != new.layout
+                || old.content_class != new.content_class
             {
                 return Err(StoreError::Regression("terminal session changed".into()));
             }

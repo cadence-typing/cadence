@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use sha2::{Digest, Sha256};
 
-use crate::alphabet::{LayoutSupportsPound, TrainingChar};
+use crate::alphabet::{Layout, TrainingChar};
 use crate::{CoreError, Micros, PassageId, SessionId, WordId};
 
 #[cfg(test)]
@@ -106,7 +106,7 @@ impl Skill {
     pub fn parse(kind: &str, text: &str) -> Result<Self, CoreError> {
         let mut units = text
             .chars()
-            .map(|character| TrainingChar::new(character, LayoutSupportsPound::UK));
+            .map(|character| TrainingChar::new(character, Layout::Uk));
         let mut next = || -> Result<Option<TrainingChar>, CoreError> {
             units.next().transpose().map_err(|_rejected| invalid())
         };

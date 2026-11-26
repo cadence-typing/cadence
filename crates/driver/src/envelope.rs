@@ -322,9 +322,9 @@ fn operation(op: &str, args: &Args<'_>) -> Result<Operation, Rejection> {
             // The whole expansion is checked before any key: every unit in
             // the training alphabet, the length bound, and its duration.
             let units = text.chars().count();
-            let alphabet = text.chars().all(|c| {
-                cadence_core::TrainingChar::new(c, cadence_core::LayoutSupportsPound::US).is_ok()
-            });
+            let alphabet = text
+                .chars()
+                .all(|c| cadence_core::TrainingChar::new(c, cadence_core::Layout::Us).is_ok());
             let span = u64::try_from(units).ok().and_then(|n| n.checked_mul(gap));
             if units > MAXIMUM_TEXT_UNITS || !alphabet || span.is_none() {
                 return Err(args.invalid("text"));

@@ -26,6 +26,8 @@ fn session_with(positions: u64, correct: u64, content: u64) -> SessionRecap {
     SessionRecap {
         day: 1,
         completed: true,
+        layout: None,
+        content_class: cadence_core::progress::ContentClass::Standard,
         tracks: vec![TrackProgress {
             first_attempted: positions,
             first_correct: correct,

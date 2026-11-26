@@ -67,6 +67,50 @@ impl Track {
         !matches!(self, Self::Review | Self::Benchmark)
     }
 }
+/// What kind of content a session practised (#77): only sessions of the
+/// same class are compared.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContentClass {
+    /// The shipped packs.
+    #[default]
+    Standard,
+    /// Text the learner imported (#84).
+    Imported,
+    /// Code practice packs (#85).
+    Code,
+}
+
+impl ContentClass {
+    /// The persisted name.
+    #[must_use]
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Standard => "standard",
+            Self::Imported => "imported",
+            Self::Code => "code",
+        }
+    }
+
+    /// Parses a persisted name.
+    #[must_use]
+    pub fn parse(key: &str) -> Option<Self> {
+        [Self::Standard, Self::Imported, Self::Code]
+            .into_iter()
+            .find(|c| c.key() == key)
+    }
+
+    /// A stable code for comparisons and digests.
+    #[must_use]
+    pub const fn code(self) -> u8 {
+        match self {
+            Self::Standard => 0,
+            Self::Imported => 1,
+            Self::Code => 2,
+        }
+    }
+}
+
 /// Persisted session disposition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -199,6 +243,13 @@ pub struct SessionProgress {
     /// present, so earlier receipts keep their digests.
     #[serde(default)]
     pub utc_offset_minutes: Option<i32>,
+    /// The keyboard layout the session was typed on (#77); `None` for
+    /// sessions recorded before schema 6. In the digest only when present.
+    #[serde(default)]
+    pub layout: Option<crate::alphabet::Layout>,
+    /// The content class (#77). In the digest only when not standard.
+    #[serde(default)]
+    pub content_class: ContentClass,
     /// Frozen policy digest.
     pub policy_digest: String,
     /// Frozen corpus digest.
@@ -317,6 +368,13 @@ impl Checkpoint {
             h.update([OFFSET_SECTION_TAG]);
             h.update(offset.to_le_bytes());
         }
+        if let Some(layout) = progress.layout {
+            h.update([0xFB]);
+            h.update(layout.key().as_bytes());
+        }
+        if progress.content_class != ContentClass::Standard {
+            h.update([0xFA, progress.content_class.code()]);
+        }
         if let Some(learning) = &learning {
             h.update([LEARNING_SECTION_TAG]);
             learning.digest_into(&mut h);
@@ -373,6 +431,10 @@ pub struct SessionRecap {
     pub completed: bool,
     /// Exact cumulative track totals, in stored order.
     pub tracks: Vec<TrackProgress>,
+    /// The layout it was typed on, `unspecified` read as its adopter (#77).
+    pub layout: Option<crate::alphabet::Layout>,
+    /// Its content class (#77).
+    pub content_class: ContentClass,
 }
 fn invalid() -> CoreError {
     CoreError::InvalidIdentity {

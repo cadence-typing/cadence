@@ -8,7 +8,7 @@
 
 use cadence_core::learning::PaceMove;
 use cadence_core::progress::{SaveResult, Track};
-use cadence_core::{LayoutSupportsPound, MonoTick, TrainingChar};
+use cadence_core::{Layout, MonoTick, TrainingChar};
 use cadence_data::ProgressStore;
 use cadence_engine::{Engine, EventEnvelope, EventKind, Key, ScreenView, UnitSpan};
 
@@ -50,7 +50,7 @@ impl Run {
 }
 
 fn unit(c: char) -> Result<TrainingChar, Box<dyn std::error::Error>> {
-    Ok(TrainingChar::new(c, LayoutSupportsPound::US)?)
+    Ok(TrainingChar::new(c, Layout::Us)?)
 }
 
 /// Plays one session to its end; `slip_every` > 0 mistypes (then corrects)

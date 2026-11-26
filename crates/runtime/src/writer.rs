@@ -65,13 +65,16 @@ impl SaveWorker {
     pub fn open(
         profile: Option<PathBuf>,
         learner_window: usize,
+        layout: Option<cadence_core::Layout>,
     ) -> Result<(Self, StoreBootstrap), WriterError> {
         let (requests, incoming) = mpsc::sync_channel(SAVE_SLOT_COUNT);
         let (outgoing, results) = mpsc::sync_channel(SAVE_SLOT_COUNT);
         let (startup, ready) = mpsc::sync_channel(SAVE_SLOT_COUNT);
         let thread = thread::Builder::new()
             .name("cadence-progress".to_string())
-            .spawn(move || writer_loop(profile, learner_window, incoming, outgoing, startup))
+            .spawn(move || {
+                writer_loop(profile, learner_window, layout, incoming, outgoing, startup)
+            })
             .map_err(WriterError::Spawn)?;
         match ready.recv_timeout(STORE_STARTUP_TIMEOUT) {
             Ok(Ok(bootstrap)) => Ok((
@@ -151,12 +154,19 @@ fn slow_save_fault() -> Option<(u64, std::time::Duration)> {
 fn writer_loop(
     profile: Option<PathBuf>,
     learner_window: usize,
+    layout: Option<cadence_core::Layout>,
     requests: Receiver<Checkpoint>,
     results: SyncSender<SaveResult>,
     startup: SyncSender<Result<StoreBootstrap, StoreError>>,
 ) {
-    let opened = ProgressStore::open(profile.as_deref()).and_then(|store| {
-        let bootstrap = store.bootstrap(learner_window)?;
+    let opened = ProgressStore::open(profile.as_deref()).and_then(|mut store| {
+        // The first chosen layout adopts the history recorded before
+        // layouts existed (#77).
+        if let Some(layout) = layout {
+            let next = store.bootstrap(1)?.next_session;
+            store.adopt_unspecified(layout, next)?;
+        }
+        let bootstrap = store.bootstrap_for(learner_window, layout)?;
         Ok((store, bootstrap))
     });
     let mut store = match opened {

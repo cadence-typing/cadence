@@ -15,6 +15,7 @@ pub mod alphabet;
 pub mod barrier;
 pub mod benchmark;
 pub mod calendar;
+pub mod comparison;
 pub mod error;
 pub mod evidence;
 pub mod focus;
@@ -38,7 +39,7 @@ pub mod tick;
 pub mod ticket;
 pub mod units;
 
-pub use alphabet::{AlphabetError, LayoutSupportsPound, TrainingChar, validate_target};
+pub use alphabet::{AlphabetError, Layout, TrainingChar, validate_target};
 pub use error::CoreError;
 pub use id::{
     BasisPoints, CommitSeq, ContentDigest, CorpusVersion, EventSeq, ExerciseId, FrameRevision,

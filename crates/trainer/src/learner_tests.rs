@@ -1,5 +1,5 @@
 use super::*;
-use cadence_core::LayoutSupportsPound;
+use cadence_core::Layout;
 use cadence_core::SessionId;
 use cadence_core::learning::{PlanRecord, SessionLearning, SkillTally, WordTally};
 
@@ -8,7 +8,7 @@ fn policy() -> TrainerPolicy {
 }
 
 fn unit(character: char) -> TrainingChar {
-    TrainingChar::new(character, LayoutSupportsPound::US).unwrap()
+    TrainingChar::new(character, Layout::Us).unwrap()
 }
 
 fn bigram(pair: &str) -> SkillKey {

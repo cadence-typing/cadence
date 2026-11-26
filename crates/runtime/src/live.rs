@@ -8,7 +8,7 @@ use std::sync::{
 use std::time::{Duration, Instant};
 
 use crate::{presenter::Presenter, text_protocol};
-use cadence_core::{LayoutSupportsPound, MonoTick, TrainingChar};
+use cadence_core::{Layout, MonoTick, TrainingChar};
 use cadence_engine::view::{LineRendition, TextSupport};
 use cadence_engine::{EventKind, Key};
 use crossterm::cursor::Show;
@@ -219,7 +219,7 @@ fn translate_key(key: KeyEvent) -> Key {
         {
             Key::Other
         }
-        KeyCode::Char(character) => match TrainingChar::new(character, LayoutSupportsPound::UK) {
+        KeyCode::Char(character) => match TrainingChar::new(character, Layout::Uk) {
             Ok(training) => Key::Content(training),
             Err(_) => Key::Other,
         },

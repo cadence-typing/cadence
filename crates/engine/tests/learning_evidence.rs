@@ -4,9 +4,7 @@ use cadence_core::learning::{
     KeyLane, PlanRecord, PlannerMode, SessionLearning, Skill, SkillKey, SkillTally, WordTally,
 };
 use cadence_core::progress::{Checkpoint, HistorySummary, ProgressStatus, SaveResult, Track};
-use cadence_core::{
-    ContentDigest, LayoutSupportsPound, Micros, MonoTick, SessionId, TrainingChar, WordId,
-};
+use cadence_core::{ContentDigest, Layout, Micros, MonoTick, SessionId, TrainingChar, WordId};
 use cadence_engine::{Engine, EventEnvelope, EventKind, Key, ScreenView};
 use cadence_trainer::{
     Adaptation, ExerciseKind, Lane, Phase, PlannedExercise, PlannedPhase, PlannedWord, SessionPlan,
@@ -18,13 +16,13 @@ type Error = Box<dyn std::error::Error>;
 const SECOND: u64 = 1_000_000;
 
 fn unit(c: char) -> Result<TrainingChar, Error> {
-    Ok(TrainingChar::new(c, LayoutSupportsPound::US)?)
+    Ok(TrainingChar::new(c, Layout::Us)?)
 }
 
 fn words_exercise(slots: &[(&str, u64, Lane)]) -> Result<PlannedExercise, Error> {
     let text: Vec<&str> = slots.iter().map(|(word, _, _)| *word).collect();
     Ok(PlannedExercise {
-        units: cadence_core::validate_target(&text.join(" "), LayoutSupportsPound::US)?,
+        units: cadence_core::validate_target(&text.join(" "), Layout::Us)?,
         kind: ExerciseKind::Words,
         words: slots
             .iter()
@@ -334,7 +332,7 @@ fn numpad_keys_form_a_separate_lane() -> TestResult {
         phase: Phase::Numpad,
         seconds: 30,
         exercises: vec![PlannedExercise::plain(
-            cadence_core::validate_target("12", LayoutSupportsPound::US)?,
+            cadence_core::validate_target("12", Layout::Us)?,
             ExerciseKind::Numpad,
         )],
     }])?)?;
@@ -644,7 +642,7 @@ fn numeric_phase(
             .iter()
             .map(|text| {
                 Ok(PlannedExercise {
-                    units: cadence_core::validate_target(text, LayoutSupportsPound::US)?,
+                    units: cadence_core::validate_target(text, Layout::Us)?,
                     kind,
                     words: Vec::new(),
                     passage: None,
@@ -780,7 +778,7 @@ fn prose_exercise(
     spans: &[(u64, usize, usize, usize, &str)],
 ) -> Result<PlannedExercise, Error> {
     Ok(PlannedExercise {
-        units: cadence_core::validate_target(text, LayoutSupportsPound::US)?,
+        units: cadence_core::validate_target(text, Layout::Us)?,
         kind: ExerciseKind::Prose,
         words: Vec::new(),
         passage: None,
@@ -794,7 +792,7 @@ fn prose_exercise(
                     token: *token,
                     start: *start,
                     len: *len,
-                    units: cadence_core::validate_target(form, LayoutSupportsPound::US)?,
+                    units: cadence_core::validate_target(form, Layout::Us)?,
                 })
             })
             .collect::<Result<_, Error>>()?,
@@ -1130,7 +1128,7 @@ fn probe_engine() -> Result<Engine, Error> {
                 phase: Phase::Probe,
                 seconds: 2,
                 exercises: vec![PlannedExercise {
-                    units: cadence_core::validate_target(text, LayoutSupportsPound::US)?,
+                    units: cadence_core::validate_target(text, Layout::Us)?,
                     kind: ExerciseKind::Probe,
                     words: Vec::new(),
                     passage: Some(cadence_core::PassageId::new(77)?),

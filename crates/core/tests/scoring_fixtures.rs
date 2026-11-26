@@ -8,7 +8,7 @@
 // the workspace denies them in production code only.
 #![cfg(test)]
 
-use cadence_core::alphabet::{LayoutSupportsPound, TrainingChar, validate_target};
+use cadence_core::alphabet::{Layout, TrainingChar, validate_target};
 use cadence_core::ledger::{AttemptLedger, ExtraInputAllowance, LedgerEvent};
 use cadence_core::metrics::{exercise_metrics, numeric_metrics};
 use cadence_core::session::TimingSegments;
@@ -16,7 +16,7 @@ use cadence_core::tick::{Micros, MonoTick};
 use serde_json::Value;
 
 fn run_case(target: &str, events: &[Value], active: Micros) -> AttemptLedger {
-    let units = validate_target(target, LayoutSupportsPound::US)
+    let units = validate_target(target, Layout::Us)
         .unwrap_or_else(|error| panic!("target {target:?} rejected: {error}"));
     let mut ledger =
         AttemptLedger::new(units, ExtraInputAllowance::new(128).unwrap()).expect("bounded target");
@@ -27,7 +27,7 @@ fn run_case(target: &str, events: &[Value], active: Micros) -> AttemptLedger {
         } else {
             let character = TrainingChar::new(
                 text.chars().next().unwrap_or_else(|| panic!("empty event")),
-                LayoutSupportsPound::US,
+                Layout::Us,
             )
             .unwrap_or_else(|error| panic!("event {text:?} rejected: {error}"));
             ledger.apply(LedgerEvent::Content(character))

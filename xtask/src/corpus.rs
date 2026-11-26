@@ -6,7 +6,7 @@
 
 use std::path::PathBuf;
 
-use cadence_core::LayoutSupportsPound;
+use cadence_core::Layout;
 use cadence_trainer::{WordBand, WordPack};
 
 /// Minimum distinct vetted forms promised for the first release (P-04).
@@ -32,8 +32,7 @@ fn repo_root() -> Result<PathBuf, String> {
 /// # Errors
 /// The first failed check.
 pub fn check_pack(text: &str, reviewed: &str) -> Result<WordPack, String> {
-    let pack =
-        WordPack::from_tsv(text, 1, LayoutSupportsPound::US).map_err(|error| error.to_string())?;
+    let pack = WordPack::from_tsv(text, 1, Layout::Us).map_err(|error| error.to_string())?;
     let words = pack.len();
     if words < MINIMUM_RELEASE_WORDS {
         return Err(format!(

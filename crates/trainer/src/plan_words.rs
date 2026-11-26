@@ -241,7 +241,7 @@ impl<'a> WordSelector<'a> {
 
     /// The units of a block, space-separated.
     pub(super) fn units(&self, words: &[PlannedWord]) -> Result<Vec<TrainingChar>, PlanError> {
-        let space = TrainingChar::new(' ', cadence_core::LayoutSupportsPound::US)
+        let space = TrainingChar::new(' ', cadence_core::Layout::Us)
             .map_err(|error| PlanError::Content(error.to_string()))?;
         let mut units = Vec::new();
         for word in words {

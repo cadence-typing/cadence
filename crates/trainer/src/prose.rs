@@ -4,7 +4,7 @@
 //! passage keeps its id when the bank is reordered or extended.
 use std::collections::HashSet;
 
-use cadence_core::alphabet::{LayoutSupportsPound, TrainingChar, validate_target};
+use cadence_core::alphabet::{Layout, TrainingChar, validate_target};
 use cadence_core::{ContentDigest, PassageId};
 
 use crate::corpus::digest_of;
@@ -123,8 +123,7 @@ impl ProseBank {
             if text.is_empty() || text.contains("  ") || text.trim() != text {
                 return Err(ProseError::Malformed { line });
             }
-            let units =
-                validate_target(text, LayoutSupportsPound::US).map_err(ProseError::Alphabet)?;
+            let units = validate_target(text, Layout::Us).map_err(ProseError::Alphabet)?;
             let id = passage_id(text).ok_or(ProseError::Duplicate { line })?;
             if !seen.insert(id) {
                 return Err(ProseError::Duplicate { line });
@@ -193,7 +192,7 @@ pub fn chunk_passage(
     if target_units == 0 {
         return Err(ProseError::InvalidBound);
     }
-    let space = TrainingChar::new(' ', LayoutSupportsPound::US).map_err(ProseError::Alphabet)?;
+    let space = TrainingChar::new(' ', Layout::Us).map_err(ProseError::Alphabet)?;
     let minimum = target_units.div_ceil(2);
     let mut result = Vec::new();
     let mut pending: Vec<&[TrainingChar]> = Vec::new();
@@ -293,11 +292,8 @@ mod tests {
 
     #[test]
     fn chunks_respect_bounds_and_keep_every_character() {
-        let units = validate_target(
-            "One two three. Averylongunbrokenwordthenmore!",
-            LayoutSupportsPound::US,
-        )
-        .unwrap();
+        let units =
+            validate_target("One two three. Averylongunbrokenwordthenmore!", Layout::Us).unwrap();
         for bound in 1..=30 {
             let chunks = chunk_passage(&units, bound).unwrap();
             assert!(chunks.iter().all(|c| !c.is_empty() && c.len() <= bound));
@@ -314,7 +310,7 @@ mod tests {
     fn chunks_prefer_sentence_then_clause_boundaries() {
         let units = validate_target(
             "The sun rose. It was cold, and the road was long; we walked on",
-            LayoutSupportsPound::US,
+            Layout::Us,
         )
         .unwrap();
         let chunks: Vec<String> = chunk_passage(&units, 30)

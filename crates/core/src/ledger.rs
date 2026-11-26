@@ -470,12 +470,12 @@ mod tests {
     // workspace denies them in production code only.
 
     use super::*;
-    use crate::alphabet::LayoutSupportsPound;
+    use crate::alphabet::Layout;
     use crate::alphabet::validate_target;
 
     fn ledger(target: &str) -> AttemptLedger {
         AttemptLedger::new(
-            validate_target(target, LayoutSupportsPound::US).unwrap(),
+            validate_target(target, Layout::Us).unwrap(),
             ExtraInputAllowance::new(8).unwrap(),
         )
         .unwrap()
@@ -485,7 +485,7 @@ mod tests {
         for character in text.chars() {
             ledger
                 .apply(LedgerEvent::Content(
-                    TrainingChar::new(character, LayoutSupportsPound::US).unwrap(),
+                    TrainingChar::new(character, Layout::Us).unwrap(),
                 ))
                 .unwrap();
         }
@@ -541,14 +541,14 @@ mod tests {
     #[test]
     fn over_bound_content_is_rejected_and_interrupts_measurement() {
         let mut ledger = AttemptLedger::new(
-            validate_target("cat", LayoutSupportsPound::US).unwrap(),
+            validate_target("cat", Layout::Us).unwrap(),
             ExtraInputAllowance::new(1).unwrap(),
         )
         .unwrap();
         type_str(&mut ledger, "catx");
         let applied = ledger
             .apply(LedgerEvent::Content(
-                TrainingChar::new('z', LayoutSupportsPound::US).unwrap(),
+                TrainingChar::new('z', Layout::Us).unwrap(),
             ))
             .unwrap();
         assert_eq!(applied, Applied::RejectedOverBound);

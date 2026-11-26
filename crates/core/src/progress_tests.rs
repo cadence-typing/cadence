@@ -4,6 +4,8 @@ fn progress() -> SessionProgress {
         profile: "default".to_string(),
         day: 1,
         utc_offset_minutes: None,
+        layout: None,
+        content_class: crate::progress::ContentClass::Standard,
         policy_digest: "policy".to_string(),
         corpus_digest: "corpus".to_string(),
         status: ProgressStatus::Running,

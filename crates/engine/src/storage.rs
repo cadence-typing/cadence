@@ -267,6 +267,8 @@ impl Engine {
             tracks,
             active_micros: self.active.as_us(),
             utc_offset_minutes: self.utc_offset_minutes,
+            layout: self.layout,
+            content_class: self.content_class,
         };
         let sequence = storage.sequence.next()?;
         let checkpoint = Checkpoint::new(

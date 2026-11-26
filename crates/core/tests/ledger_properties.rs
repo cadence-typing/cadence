@@ -16,7 +16,7 @@
     reason = "test arithmetic is exact by construction"
 )]
 
-use cadence_core::alphabet::{LayoutSupportsPound, TrainingChar, validate_target};
+use cadence_core::alphabet::{Layout, TrainingChar, validate_target};
 use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent, Slot};
 use proptest::prelude::*;
 
@@ -26,7 +26,7 @@ fn any_training_char() -> impl Strategy<Value = char> {
 
 fn ledger_for(target: &str) -> AttemptLedger {
     AttemptLedger::new(
-        validate_target(target, LayoutSupportsPound::US).unwrap(),
+        validate_target(target, Layout::Us).unwrap(),
         ExtraInputAllowance::new(8).unwrap(),
     )
     .unwrap()
@@ -35,7 +35,7 @@ fn ledger_for(target: &str) -> AttemptLedger {
 fn event_strategy() -> impl Strategy<Value = LedgerEvent> {
     prop_oneof![
         8 => any_training_char().prop_map(|c| LedgerEvent::Content(
-            TrainingChar::new(c, LayoutSupportsPound::US).unwrap()
+            TrainingChar::new(c, Layout::Us).unwrap()
         )),
         2 => Just(LedgerEvent::Backspace),
     ]
@@ -105,7 +105,7 @@ proptest! {
         wrong in any_training_char(),
     ) {
         // Type a deliberately wrong first character, then correct it.
-        let wrong_unit = TrainingChar::new(wrong, LayoutSupportsPound::US).unwrap();
+        let wrong_unit = TrainingChar::new(wrong, Layout::Us).unwrap();
         let mut ledger = ledger_for(&target);
         let first = target.chars().next().unwrap();
         if wrong_unit.get() != first {

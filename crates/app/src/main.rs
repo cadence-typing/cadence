@@ -15,7 +15,7 @@ use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use cadence_core::calendar::{Day, local_day};
-use cadence_core::{LayoutSupportsPound, UtcDay};
+use cadence_core::{Layout, UtcDay};
 use cadence_data::{ProgressStore, StoreBootstrap};
 use cadence_engine::Engine;
 use cadence_runtime::SaveWorker;
@@ -118,9 +118,16 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
             let policy = parse_policy(POLICY.as_bytes())?;
             // Store first: the plan is built from its evidence, before the
             // terminal and the input/reduce/render loop start.
-            let (worker, bootstrap) =
-                SaveWorker::open(options.profile.clone(), policy.learning.history_window())?;
+            let (worker, bootstrap) = SaveWorker::open(
+                options.profile.clone(),
+                policy.learning.history_window(),
+                Some(options.layout),
+            )?;
             let engine = build_engine(&options, &policy, &bootstrap, day)?
+                .with_layout(
+                    options.layout,
+                    cadence_core::progress::ContentClass::Standard,
+                )
                 .with_utc_offset(Some(offset.checked_div(60).ok_or("offset")?), detected);
             practice::run(
                 engine,
@@ -179,6 +186,10 @@ fn apply_config(mut options: cli::Options, config: &cadence_data::config::Config
             _ => Some(cadence_engine::view::TextSize::Auto),
         };
     }
+    options.layout = config
+        .text("keyboard.layout")
+        .and_then(cadence_core::Layout::parse)
+        .unwrap_or_default();
     if !options.theme_set
         && config.source("display.theme") == Some(cadence_data::config::Source::File)
     {
@@ -230,7 +241,7 @@ pub(crate) fn build_engine(
     day: i64,
 ) -> Result<Engine, Box<dyn Error>> {
     // Content and learner work finish before the hot input/reducer/render path.
-    let pack = WordPack::from_tsv(WORDS, MINIMUM_WORDS, LayoutSupportsPound::US)?;
+    let pack = WordPack::from_tsv(WORDS, MINIMUM_WORDS, Layout::Us)?;
     let prose = ProseBank::from_tsv(PROSE, PROSE_SOURCES, MINIMUM_PASSAGES)?;
     let probes = cadence_trainer::probe::ProbeBank::from_tsv(
         PROBES,
@@ -288,4 +299,32 @@ fn session_seed(session: u64, day: i64) -> u64 {
     let mut seed = [0_u8; 8];
     seed.copy_from_slice(digest.as_bytes().get(..8).unwrap_or(&[0; 8]));
     u64::from_le_bytes(seed)
+}
+
+#[cfg(test)]
+mod config_tests {
+    use super::{apply_config, cli};
+    use cadence_data::config::Config;
+    use std::path::Path;
+
+    /// #77: changing only the theme changes no partition; the layout comes
+    /// from `keyboard.layout` alone.
+    #[test]
+    fn changing_only_the_theme_changes_no_partition() -> Result<(), String> {
+        let parse = |text: &str| {
+            Config::parse(text, Path::new("/cfg/config.toml")).map_err(|e| format!("{e:?}"))
+        };
+        let dark = apply_config(
+            cli::Options::defaults(),
+            &parse("[keyboard]\nlayout = \"uk\"\n")?,
+        );
+        let light = apply_config(
+            cli::Options::defaults(),
+            &parse("[keyboard]\nlayout = \"uk\"\n[display]\ntheme = \"light\"\n")?,
+        );
+        assert_eq!(dark.layout, cadence_core::Layout::Uk);
+        assert_eq!(dark.layout, light.layout);
+        assert!(matches!(light.theme, cli::Theme::Light));
+        Ok(())
+    }
 }

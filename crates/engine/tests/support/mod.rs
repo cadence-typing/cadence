@@ -4,9 +4,7 @@
     reason = "each integration-test crate uses a different subset of these helpers"
 )]
 use cadence_core::progress::{Checkpoint, HistorySummary, SaveResult};
-use cadence_core::{
-    ContentDigest, CoreError, LayoutSupportsPound, MonoTick, SessionId, TrainingChar,
-};
+use cadence_core::{ContentDigest, CoreError, Layout, MonoTick, SessionId, TrainingChar};
 use cadence_engine::{Engine, EventEnvelope, EventKind, Key, Transition};
 use cadence_trainer::{ExerciseKind, Phase, PlannedExercise, PlannedPhase, SessionPlan};
 
@@ -22,7 +20,7 @@ pub fn phase(
     for text in targets {
         exercises.push(PlannedExercise {
             kind,
-            units: cadence_core::validate_target(text, LayoutSupportsPound::US)?,
+            units: cadence_core::validate_target(text, Layout::Us)?,
             words: Vec::new(),
             passage: None,
             caption: None,
@@ -78,11 +76,7 @@ pub fn key(e: &mut Engine, at: u64, key: Key) -> Result<Transition, CoreError> {
     send(e, at, EventKind::Key(key))
 }
 pub fn content(e: &mut Engine, at: u64, c: char) -> Result<Transition, Box<dyn std::error::Error>> {
-    Ok(key(
-        e,
-        at,
-        Key::Content(TrainingChar::new(c, LayoutSupportsPound::US)?),
-    )?)
+    Ok(key(e, at, Key::Content(TrainingChar::new(c, Layout::Us)?))?)
 }
 pub fn ready(e: &mut Engine) -> Result<(), CoreError> {
     send(

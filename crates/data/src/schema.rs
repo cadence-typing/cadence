@@ -10,8 +10,10 @@
 //! adds the nullable `sessions.utc_offset_minutes` (written by #52); no row
 //! changes. Schema 5 (#64) adds `pace_targets`, `benchmark_probes` and
 //! `sessions.provenance` (`live` by default) and admits the `benchmark`
-//! track. Every 0/1/2/3/4 -> 5 path is one transaction; no destructive
-//! reset path exists. `word_outcomes` also holds warm-up and prose words from
+//! track. Schema 6 (#77) records each session's layout and content class
+//! (existing rows read `unspecified` and `standard`), a nullable pack digest
+//! and `settings_audit`. Every 0/1/2/3/4/5 -> 6 path is one transaction; no
+//! destructive reset path exists. `word_outcomes` also holds warm-up and prose words from
 //! alpha.7 (columns unchanged).
 
 use rusqlite::{Connection, OptionalExtension};
@@ -19,7 +21,7 @@ use rusqlite::{Connection, OptionalExtension};
 use crate::StoreError;
 
 /// Highest supported persistence schema version.
-pub const SUPPORTED_SCHEMA: i64 = 5;
+pub const SUPPORTED_SCHEMA: i64 = 6;
 
 pub(crate) fn inspect(connection: &Connection) -> Result<i64, StoreError> {
     let has_schema: bool = connection.query_row(
@@ -96,6 +98,7 @@ pub(crate) fn migrate(connection: &mut Connection, current: i64) -> Result<(), S
         (3, MIGRATION_V3),
         (4, MIGRATION_V4),
         (5, MIGRATION_V5),
+        (6, MIGRATION_V6),
     ] {
         if current < target {
             tx.execute_batch(sql)
@@ -222,4 +225,23 @@ CREATE TABLE benchmark_probes (
 ALTER TABLE sessions ADD COLUMN provenance TEXT NOT NULL DEFAULT 'live'
     CHECK(provenance IN ('live','synthetic'));
 UPDATE schema_info SET version=5 WHERE id=1;
+";
+
+/// Layout and content class per session, the pack digest, and the audit of
+/// score-affecting settings (#77). Existing sessions read `unspecified` and
+/// `standard`; nothing is rewritten.
+const MIGRATION_V6: &str = "
+ALTER TABLE sessions ADD COLUMN layout TEXT NOT NULL DEFAULT 'unspecified'
+    CHECK(layout IN ('unspecified','us','uk','custom'));
+ALTER TABLE sessions ADD COLUMN content_class TEXT NOT NULL DEFAULT 'standard'
+    CHECK(content_class IN ('standard','imported','code'));
+ALTER TABLE sessions ADD COLUMN pack_digest TEXT NULL CHECK(pack_digest IS NULL OR length(pack_digest)=64);
+CREATE TABLE settings_audit (
+    at_session INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    old TEXT NOT NULL,
+    new TEXT NOT NULL,
+    PRIMARY KEY(at_session,key)
+);
+UPDATE schema_info SET version=6 WHERE id=1;
 ";

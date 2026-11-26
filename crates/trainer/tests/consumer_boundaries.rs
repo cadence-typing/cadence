@@ -1,5 +1,5 @@
 //! Consumer-boundary coverage for the distributed policy and corpus.
-use cadence_core::{ContentDigest, LayoutSupportsPound};
+use cadence_core::{ContentDigest, Layout};
 use cadence_trainer::{
     ExerciseKind, LearnerModel, Phase, PlanInputs, ProseBank, TrainerPolicy, WordBand, WordPack,
     build_session_plan, parse_policy,
@@ -20,7 +20,7 @@ fn policy() -> Result<TrainerPolicy, cadence_trainer::PolicyError> {
 #[test]
 fn shipped_startup_replays_many_seeds_and_obeys_caps() -> TestResult {
     let policy = policy()?;
-    let pack = WordPack::from_tsv(WORDS, 20_000, LayoutSupportsPound::US)?;
+    let pack = WordPack::from_tsv(WORDS, 20_000, Layout::Us)?;
     let (prose, learner) = (bank()?, LearnerModel::cold(&policy));
     for seed in 0..32 {
         let plan = build_session_plan(
@@ -108,12 +108,7 @@ fn caps_are_filtered_before_ranking_with_smallest_legal_scan() -> TestResult {
             )
         })
         .collect();
-    let pack = WordPack::new(
-        entries,
-        ContentDigest::from_bytes([1; 32]),
-        1,
-        LayoutSupportsPound::US,
-    )?;
+    let pack = WordPack::new(entries, ContentDigest::from_bytes([1; 32]), 1, Layout::Us)?;
     let (prose, learner) = (bank()?, LearnerModel::cold(&policy));
     for seed in 0..32 {
         let plan = build_session_plan(
@@ -140,7 +135,7 @@ fn caps_are_filtered_before_ranking_with_smallest_legal_scan() -> TestResult {
 #[test]
 fn all_cli_track_presets_keep_exact_budget() -> TestResult {
     let policy = policy()?;
-    let pack = WordPack::from_tsv(WORDS, 1, LayoutSupportsPound::US)?;
+    let pack = WordPack::from_tsv(WORDS, 1, Layout::Us)?;
     let (prose, learner) = (bank()?, LearnerModel::cold(&policy));
     for selected in [
         Phase::AdaptiveWords,
@@ -247,10 +242,10 @@ fn tsv_boundary_rejects_identity_content_and_shape_errors() -> TestResult {
         "1\tword\tcore\n1\tother\tcore",
         "1\tword\tcore\n2\tword\ttail",
     ] {
-        assert!(WordPack::from_tsv(text, 1, LayoutSupportsPound::US).is_err());
+        assert!(WordPack::from_tsv(text, 1, Layout::Us).is_err());
     }
     let text = "1\tword\tcore\n2\tother\ttail\n";
-    let pack = WordPack::from_tsv(text, 2, LayoutSupportsPound::US)?;
+    let pack = WordPack::from_tsv(text, 2, Layout::Us)?;
     assert_eq!(
         pack.digest(),
         cadence_trainer::corpus::digest_of(text.as_bytes())
@@ -268,6 +263,8 @@ fn pace_rejects_invented_counts_and_handles_full_width_evidence() -> TestResult 
         day: 1,
         completed: true,
         tracks: vec![track],
+        layout: None,
+        content_class: cadence_core::progress::ContentClass::Standard,
     };
     // More first-correct positions than first attempts: refused.
     let invalid = TrackProgress {
@@ -346,6 +343,21 @@ fn pace_has_no_second_copy_in_the_trainer() -> TestResult {
                 "{name} reads the pace bands"
             );
         }
+    }
+    Ok(())
+}
+
+/// #77: whether two sessions compare is decided only by the kernel's
+/// `same_basis`; the engine's review keeps no track-set equality of its own.
+#[test]
+fn comparison_has_no_second_copy_in_the_engine() -> TestResult {
+    let review = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../engine/src/review.rs"
+    ))?;
+    assert!(review.contains("same_basis("), "review calls same_basis");
+    for copy in ["shared(&recap.tracks) ==", "== tracks)", "recap.layout =="] {
+        assert!(!review.contains(copy), "review keeps {copy}");
     }
     Ok(())
 }

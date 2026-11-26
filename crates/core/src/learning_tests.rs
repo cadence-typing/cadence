@@ -1,9 +1,9 @@
 use super::*;
 use crate::progress::{Checkpoint, ProgressStatus, SessionProgress, Track, TrackProgress};
-use crate::{CommitSeq, LayoutSupportsPound};
+use crate::{CommitSeq, Layout};
 
 fn unit(character: char) -> TrainingChar {
-    TrainingChar::new(character, LayoutSupportsPound::US).unwrap()
+    TrainingChar::new(character, Layout::Us).unwrap()
 }
 
 fn bigram(first: char, second: char) -> SkillKey {
@@ -18,6 +18,8 @@ fn progress() -> SessionProgress {
         profile: "default".to_string(),
         day: 1,
         utc_offset_minutes: None,
+        layout: None,
+        content_class: crate::progress::ContentClass::Standard,
         policy_digest: "policy".to_string(),
         corpus_digest: "corpus".to_string(),
         status: ProgressStatus::Running,

@@ -1,9 +1,9 @@
 use super::*;
-use crate::{LayoutSupportsPound, validate_target};
+use crate::{Layout, validate_target};
 
 fn sample() -> Result<AttemptLedger, Box<dyn std::error::Error>> {
     Ok(AttemptLedger::new(
-        validate_target("cat", LayoutSupportsPound::US)?,
+        validate_target("cat", Layout::Us)?,
         ExtraInputAllowance::new(2)?,
     )?)
 }
@@ -15,10 +15,7 @@ fn correct_counter_exhaustion_does_not_partially_insert() -> Result<(), Box<dyn 
     let before = ledger.clone();
     assert!(
         ledger
-            .apply(LedgerEvent::Content(TrainingChar::new(
-                'c',
-                LayoutSupportsPound::US
-            )?))
+            .apply(LedgerEvent::Content(TrainingChar::new('c', Layout::Us)?))
             .is_err()
     );
     assert_eq!(ledger, before);
@@ -29,19 +26,13 @@ fn overflow_counter_exhaustion_does_not_change_buffer_or_content_count()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut ledger = sample()?;
     for c in "cat".chars() {
-        ledger.apply(LedgerEvent::Content(TrainingChar::new(
-            c,
-            LayoutSupportsPound::US,
-        )?))?;
+        ledger.apply(LedgerEvent::Content(TrainingChar::new(c, Layout::Us)?))?;
     }
     ledger.counters.inner.overflow = u64::MAX;
     let before = ledger.clone();
     assert!(
         ledger
-            .apply(LedgerEvent::Content(TrainingChar::new(
-                'x',
-                LayoutSupportsPound::US
-            )?))
+            .apply(LedgerEvent::Content(TrainingChar::new('x', Layout::Us)?))
             .is_err()
     );
     assert_eq!(ledger, before);
@@ -51,10 +42,7 @@ fn overflow_counter_exhaustion_does_not_change_buffer_or_content_count()
 fn counted_deletion_overflow_is_atomic() -> Result<(), Box<dyn std::error::Error>> {
     let mut ledger = sample()?;
     for c in "cat".chars() {
-        ledger.apply(LedgerEvent::Content(TrainingChar::new(
-            c,
-            LayoutSupportsPound::US,
-        )?))?;
+        ledger.apply(LedgerEvent::Content(TrainingChar::new(c, Layout::Us)?))?;
     }
     ledger.counters.inner.deletions = u64::MAX.checked_sub(1).ok_or("fixture underflow")?;
     let before = ledger.clone();

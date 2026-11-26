@@ -660,6 +660,8 @@ mod probe_tests {
                 day: 1,
                 completed,
                 tracks: vec![TrackProgress::empty(track)],
+                layout: None,
+                content_class: cadence_core::progress::ContentClass::Standard,
             })
             .collect()
     }

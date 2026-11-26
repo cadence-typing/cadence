@@ -8,7 +8,7 @@
 // the workspace denies them in production code only.
 #![cfg(test)]
 
-use cadence_core::{EventSeq, LayoutSupportsPound, MonoTick, TrainingChar};
+use cadence_core::{EventSeq, Layout, MonoTick, TrainingChar};
 use cadence_engine::view::LineRendition;
 use cadence_engine::{
     DomainOutcome, Engine, EventEnvelope, EventKind, InputOwner, Key, ScreenView, UnitSpan,
@@ -19,7 +19,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
 fn planned_engine(text: &str) -> Result<Engine, Box<dyn std::error::Error>> {
-    let units = cadence_core::validate_target(text, LayoutSupportsPound::US)?;
+    let units = cadence_core::validate_target(text, Layout::Us)?;
     words_engine(vec![cadence_trainer::PlannedExercise {
         units,
         kind: cadence_trainer::ExerciseKind::Words,
@@ -70,8 +70,7 @@ fn envelope(seq: u64, at_us: u64, kind: EventKind) -> EventEnvelope {
 
 fn content(character: char) -> EventKind {
     EventKind::Key(Key::Content(
-        TrainingChar::new(character, LayoutSupportsPound::US)
-            .expect("fixture characters are in the alphabet"),
+        TrainingChar::new(character, Layout::Us).expect("fixture characters are in the alphabet"),
     ))
 }
 
@@ -421,7 +420,7 @@ fn slotted(
 ) -> Result<cadence_trainer::PlannedExercise, Box<dyn std::error::Error>> {
     let text: Vec<&str> = slots.iter().map(|(word, _, _)| *word).collect();
     Ok(cadence_trainer::PlannedExercise {
-        units: cadence_core::validate_target(&text.join(" "), LayoutSupportsPound::US)?,
+        units: cadence_core::validate_target(&text.join(" "), Layout::Us)?,
         kind: cadence_trainer::ExerciseKind::Words,
         words: slots
             .iter()
@@ -492,7 +491,7 @@ fn plain(
     kind: cadence_trainer::ExerciseKind,
 ) -> Result<cadence_trainer::PlannedExercise, Box<dyn std::error::Error>> {
     Ok(cadence_trainer::PlannedExercise::plain(
-        cadence_core::validate_target(text, LayoutSupportsPound::US)?,
+        cadence_core::validate_target(text, Layout::Us)?,
         kind,
     ))
 }
@@ -509,7 +508,7 @@ fn targeted_engine(
         .map(|(lane, text)| {
             let units: Vec<TrainingChar> = text
                 .chars()
-                .map(|c| TrainingChar::new(c, LayoutSupportsPound::US))
+                .map(|c| TrainingChar::new(c, Layout::Us))
                 .collect::<Result<_, _>>()?;
             let skill = match units.as_slice() {
                 [one] => Skill::Unit(*one),
@@ -662,7 +661,7 @@ fn goal_engine(
     moved: cadence_core::learning::PaceMove,
     target_cpm: Option<u64>,
 ) -> Result<Engine, Box<dyn std::error::Error>> {
-    let units = cadence_core::validate_target("the theme then", LayoutSupportsPound::US)?;
+    let units = cadence_core::validate_target("the theme then", Layout::Us)?;
     Ok(Engine::new_plan(cadence_trainer::SessionPlan {
         budget_seconds: 60,
         policy_digest: cadence_core::ContentDigest::from_bytes([1; 32]),
@@ -736,10 +735,7 @@ fn the_pace_goal_is_named_on_the_start_screen_and_results() -> Result<(), Box<dy
 }
 
 fn probe_engine() -> Result<Engine, Box<dyn std::error::Error>> {
-    let units = cadence_core::validate_target(
-        "Probe text for measuring transfer.",
-        LayoutSupportsPound::US,
-    )?;
+    let units = cadence_core::validate_target("Probe text for measuring transfer.", Layout::Us)?;
     let passage = cadence_core::PassageId::new(77)?;
     let mut exercise =
         cadence_trainer::PlannedExercise::plain(units, cadence_trainer::ExerciseKind::Probe);

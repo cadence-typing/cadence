@@ -24,6 +24,19 @@ pub use crate::records::StoredSession;
 pub use crate::schema::SUPPORTED_SCHEMA;
 use crate::{records, schema};
 
+/// A letter or letter-pair skill on the main lane: the same keys on every
+/// layout (#77).
+fn letters_only(key: cadence_core::learning::SkillKey) -> bool {
+    use cadence_core::learning::{KeyLane, Skill};
+    let letter =
+        |unit: cadence_core::TrainingChar| unit.get().is_ascii_lowercase() || unit.get() == '\'';
+    key.lane == KeyLane::Main
+        && match key.skill {
+            Skill::Unit(unit) => letter(unit),
+            Skill::Bigram(first, second) => letter(first) && letter(second),
+        }
+}
+
 /// Startup facts; history counts never imply restoration of an interrupted word.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StoreBootstrap {
@@ -119,6 +132,72 @@ impl ProgressStore {
     /// # Errors
     /// Rejects corrupt rows and exhausted identity space rather than clamping either.
     pub fn bootstrap(&self, learner_window: usize) -> Result<StoreBootstrap, StoreError> {
+        self.bootstrap_for(learner_window, None)
+    }
+
+    /// The layout that adopted the sessions recorded before layouts were
+    /// (#77), if any did.
+    ///
+    /// # Errors
+    /// SQL failures or a corrupt audit value.
+    pub fn adopter(&self) -> Result<Option<cadence_core::Layout>, StoreError> {
+        let value: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT new FROM settings_audit WHERE key='layout.adopted' ORDER BY at_session LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
+        value
+            .map(|key| {
+                cadence_core::Layout::parse(&key)
+                    .ok_or_else(|| StoreError::Corrupt("unknown adopted layout".into()))
+            })
+            .transpose()
+    }
+
+    /// The first chosen layout adopts every `unspecified` session, once,
+    /// and the adoption is written to `settings_audit` (#77).
+    ///
+    /// # Errors
+    /// SQL failures.
+    pub fn adopt_unspecified(
+        &mut self,
+        layout: cadence_core::Layout,
+        at_session: SessionId,
+    ) -> Result<(), StoreError> {
+        if self.adopter()?.is_some() {
+            return Ok(());
+        }
+        let unspecified: i64 = self.connection.query_row(
+            "SELECT COUNT(*) FROM sessions WHERE layout='unspecified'",
+            [],
+            |row| row.get(0),
+        )?;
+        if unspecified == 0 {
+            return Ok(());
+        }
+        self.connection.execute(
+            "INSERT INTO settings_audit(at_session,key,old,new) VALUES (?1,'layout.adopted','unspecified',?2)",
+            params![sql_integer(at_session.get(), "session")?, layout.key()],
+        )?;
+        Ok(())
+    }
+
+    /// Startup facts for a layout (#77): sessions read their own layout,
+    /// or the adopter's when they predate layouts. History from another
+    /// layout keeps its letter skills and word outcomes (the letters are the
+    /// same keys) but not its digit and symbol skills.
+    ///
+    /// # Errors
+    /// Corrupt rows or SQL failures.
+    pub fn bootstrap_for(
+        &self,
+        learner_window: usize,
+        layout: Option<cadence_core::Layout>,
+    ) -> Result<StoreBootstrap, StoreError> {
+        let adopter = self.adopter()?;
         let all = self.session_history()?;
         // Synthetic (headless) sessions never enter history, learning,
         // comparisons or probes (#69); they only reserve their ids.
@@ -173,10 +252,16 @@ impl ProgressStore {
             .rev()
             .filter_map(|session| {
                 let checkpoint = &session.checkpoint;
-                checkpoint.learning.clone().map(|learning| HistoricSession {
-                    session: checkpoint.key.session,
-                    day: checkpoint.progress.day,
-                    learning,
+                let effective = checkpoint.progress.layout.or(adopter);
+                checkpoint.learning.clone().map(|mut learning| {
+                    if layout.is_some() && effective != layout {
+                        learning.skills.retain(|key, _| letters_only(*key));
+                    }
+                    HistoricSession {
+                        session: checkpoint.key.session,
+                        day: checkpoint.progress.day,
+                        learning,
+                    }
                 })
             })
             .take(learner_window)
@@ -200,6 +285,8 @@ impl ProgressStore {
                 day: session.checkpoint.progress.day,
                 completed: session.checkpoint.progress.status == ProgressStatus::Completed,
                 tracks: session.checkpoint.progress.tracks.clone(),
+                layout: session.checkpoint.progress.layout.or(adopter),
+                content_class: session.checkpoint.progress.content_class,
             })
             .collect();
         history.latest_corpus_digest = sessions
@@ -331,13 +418,15 @@ impl ProgressStore {
             [&progress.profile],
         )?;
         tx.execute(
-            "INSERT INTO sessions(session_id,profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq,utc_offset_minutes)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)
+            "INSERT INTO sessions(session_id,profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq,utc_offset_minutes,layout,content_class)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)
              ON CONFLICT(session_id) DO UPDATE SET status=excluded.status,
                 active_micros=excluded.active_micros,commit_seq=excluded.commit_seq",
             params![session, progress.profile, progress.day, progress.policy_digest, progress.corpus_digest,
                 records::status_name(progress.status), sql_integer(progress.active_micros, "active_micros")?, sequence,
-                progress.utc_offset_minutes],
+                progress.utc_offset_minutes,
+                progress.layout.map_or("unspecified", cadence_core::Layout::key),
+                progress.content_class.key()],
         )?;
         tx.execute("DELETE FROM session_tracks WHERE session_id=?1", [session])?;
         for track in &progress.tracks {

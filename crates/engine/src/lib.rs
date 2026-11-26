@@ -154,6 +154,10 @@ pub struct Engine {
     probe_pasted: bool,
     /// The UTC offset in minutes the session's day is counted in (#52).
     utc_offset_minutes: Option<i32>,
+    /// The keyboard layout this session is typed on (#77).
+    layout: Option<cadence_core::Layout>,
+    /// The session's content class (#77).
+    content_class: cadence_core::progress::ContentClass,
     phase_start: Micros,
     exercise_start: Micros,
     active: Micros,
@@ -239,6 +243,8 @@ impl Engine {
             probe_paused: false,
             probe_pasted: false,
             utc_offset_minutes: None,
+            layout: None,
+            content_class: cadence_core::progress::ContentClass::Standard,
             phase_start: Micros::ZERO,
             exercise_start: Micros::ZERO,
             active: Micros::ZERO,
@@ -261,6 +267,19 @@ impl Engine {
             ended_early: false,
         })
     }
+    /// The keyboard layout and content class this session is typed on
+    /// (#77): recorded with the session and the basis of comparisons.
+    #[must_use]
+    pub const fn with_layout(
+        mut self,
+        layout: cadence_core::Layout,
+        content_class: cadence_core::progress::ContentClass,
+    ) -> Self {
+        self.layout = Some(layout);
+        self.content_class = content_class;
+        self
+    }
+
     /// Records the UTC offset (minutes) the session's day was counted in,
     /// so it is saved with the session (#52). Set once, before the session;
     /// without a detected local time zone the start screen says days are

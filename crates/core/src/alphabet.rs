@@ -12,21 +12,45 @@ use core::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TrainingChar(char);
 
-/// Whether a layout provides the `£` glyph (layout-dependent alphabet
-/// extension, L-02).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LayoutSupportsPound(bool);
+/// The keyboard layout (#77): it decides which units are typeable (UK
+/// admits `£`) and partitions the learner's history (L-06).
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum Layout {
+    /// US QWERTY: no `£`.
+    #[default]
+    Us,
+    /// UK QWERTY: `£` on its own key.
+    Uk,
+    /// Another layout, typed as text only.
+    Custom,
+}
 
-impl LayoutSupportsPound {
-    /// US QWERTY does not produce `£` directly.
-    pub const US: Self = Self(false);
-    /// UK layouts have a dedicated key.
-    pub const UK: Self = Self(true);
-
+impl Layout {
     /// Whether `£` is admissible.
     #[must_use]
-    pub const fn get(self) -> bool {
-        self.0
+    pub const fn supports_pound(self) -> bool {
+        matches!(self, Self::Uk)
+    }
+
+    /// The persisted and configured name.
+    #[must_use]
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Us => "us",
+            Self::Uk => "uk",
+            Self::Custom => "custom",
+        }
+    }
+
+    /// Parses a persisted or configured name.
+    #[must_use]
+    pub fn parse(key: &str) -> Option<Self> {
+        [Self::Us, Self::Uk, Self::Custom]
+            .into_iter()
+            .find(|l| l.key() == key)
     }
 }
 
@@ -62,8 +86,9 @@ impl TrainingChar {
     /// # Errors
     /// Returns [`AlphabetError`] diagnostics with position `0,0`; use
     /// [`validate_target`] for positioned diagnostics.
-    pub fn new(character: char, pound: LayoutSupportsPound) -> Result<Self, AlphabetError> {
-        let ok = matches!(character, '\n' | ' '..='~') || (character == '£' && pound.get());
+    pub fn new(character: char, pound: Layout) -> Result<Self, AlphabetError> {
+        let ok =
+            matches!(character, '\n' | ' '..='~') || (character == '£' && pound.supports_pound());
         if ok {
             Ok(Self(character))
         } else {
@@ -104,15 +129,13 @@ impl fmt::Display for TrainingChar {
 ///
 /// # Errors
 /// Returns the first [`AlphabetError`] with one-based line/column.
-pub fn validate_target(
-    text: &str,
-    pound: LayoutSupportsPound,
-) -> Result<Vec<TrainingChar>, AlphabetError> {
+pub fn validate_target(text: &str, pound: Layout) -> Result<Vec<TrainingChar>, AlphabetError> {
     let mut units = Vec::with_capacity(text.len());
     let mut line = 1u32;
     let mut column = 1u32;
     for character in text.chars() {
-        let ok = matches!(character, '\n' | ' '..='~') || (character == '£' && pound.get());
+        let ok =
+            matches!(character, '\n' | ' '..='~') || (character == '£' && pound.supports_pound());
         if !ok {
             return Err(AlphabetError {
                 line,
@@ -146,25 +169,23 @@ mod tests {
     #[test]
     fn accepts_printable_ascii_and_newline() {
         assert_eq!(
-            validate_target("cat 005.20\n;?", LayoutSupportsPound::US)
-                .unwrap()
-                .len(),
+            validate_target("cat 005.20\n;?", Layout::Us).unwrap().len(),
             13
         );
     }
 
     #[test]
     fn pound_depends_on_layout() {
-        assert!(validate_target("£", LayoutSupportsPound::UK).is_ok());
-        let error = validate_target("a£b", LayoutSupportsPound::US).unwrap_err();
+        assert!(validate_target("£", Layout::Uk).is_ok());
+        let error = validate_target("a£b", Layout::Us).unwrap_err();
         assert_eq!((error.line, error.column), (1, 2));
     }
 
     #[test]
     fn rejects_non_ascii_with_line_column() {
-        let error = validate_target("café", LayoutSupportsPound::UK).unwrap_err();
+        let error = validate_target("café", Layout::Uk).unwrap_err();
         assert_eq!((error.line, error.column, error.character), (1, 4, 'é'));
-        let tab = validate_target("a\tb", LayoutSupportsPound::UK).unwrap_err();
+        let tab = validate_target("a\tb", Layout::Uk).unwrap_err();
         assert_eq!(tab.character, '\t');
     }
 }

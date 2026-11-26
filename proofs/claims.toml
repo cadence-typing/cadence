@@ -1484,6 +1484,34 @@ file = "crates/kernel/src/ticket.rs"
 before = "    if !has_pending || pending_request != result_request {\n        return Admit::NotPending;\n    }\n"
 after = ""
 
+# ---- comparable sessions (crates/kernel/src/comparison.rs, #77)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/comparison.rs"
+function = "comparison::same_basis"
+lean = "cadence_kernel.comparison.same_basis"
+theorems = [
+  "Proofs.Comparison.never_across_layout",
+  "Proofs.Comparison.never_with_synthetic",
+  "Proofs.Comparison.never_across_class",
+  "Proofs.Comparison.same_basis_iff_all",
+]
+total = "Proofs.Comparison.same_basis_iff_all"
+mutants = ["layout-ignored", "synthetic-compared"]
+
+[[mutant]]
+name = "layout-ignored"
+file = "crates/kernel/src/comparison.rs"
+before = "    a.layout == b.layout\n        && a.content_class"
+after = "    a.content_class"
+
+[[mutant]]
+name = "synthetic-compared"
+file = "crates/kernel/src/comparison.rs"
+before = "        && !a.synthetic\n        && !b.synthetic\n"
+after = ""
+
 # ---- local-calendar days (crates/kernel/src/calendar.rs, #52)
 
 [[claim]]

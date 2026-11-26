@@ -4,14 +4,14 @@ use cadence_core::learning::{
     KeyLane, PlanRecord, PlannerMode, SessionLearning, Skill, SkillKey, SkillTally, WordTally,
 };
 use cadence_core::progress::ProgressStatus;
-use cadence_core::{LayoutSupportsPound, PassageId, TrainingChar, WordId};
+use cadence_core::{Layout, PassageId, TrainingChar, WordId};
 use rusqlite::{Connection, params};
 
 use super::{TestResult, checkpoint, rekey};
 use crate::{ProgressStore, SUPPORTED_SCHEMA, StoreError, paths::DATABASE_FILE};
 
 fn learning(seed: u64, attempts: u64) -> Result<SessionLearning, Box<dyn std::error::Error>> {
-    let unit = |c| TrainingChar::new(c, LayoutSupportsPound::US);
+    let unit = |c| TrainingChar::new(c, Layout::Us);
     let key = SkillKey {
         lane: KeyLane::Main,
         skill: Skill::Bigram(unit('t')?, unit('h')?),
@@ -198,7 +198,7 @@ fn recent_history_is_newest_first_with_status_and_skips_untyped_sessions() -> Te
 /// numpad keys) round-trips through `plan_focus` in rank order.
 #[test]
 fn a_mixed_focus_list_round_trips() -> TestResult {
-    let unit = |c| TrainingChar::new(c, LayoutSupportsPound::US);
+    let unit = |c| TrainingChar::new(c, Layout::Us);
     let focus = vec![
         SkillKey {
             lane: KeyLane::Main,
@@ -302,5 +302,82 @@ fn a_probe_record_round_trips_and_feeds_the_probe_history() -> TestResult {
         bootstrap.probes.completed_with_prose_since, 2,
         "sessions 3 and 4"
     );
+    Ok(())
+}
+
+/// #77: the first chosen layout adopts the history recorded before layouts,
+/// once. Switching to another layout keeps the letter skills (the same
+/// keys) and starts digit and symbol skills empty; its own sessions keep
+/// theirs.
+#[test]
+fn a_new_layout_adopts_letters_once_and_starts_symbols_empty() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let digit = SkillKey {
+        lane: KeyLane::Main,
+        skill: Skill::Unit(TrainingChar::new('1', Layout::Us)?),
+    };
+    let letters = SkillKey {
+        lane: KeyLane::Main,
+        skill: Skill::Bigram(
+            TrainingChar::new('t', Layout::Us)?,
+            TrainingChar::new('h', Layout::Us)?,
+        ),
+    };
+    let save = |store: &mut ProgressStore, session: u64, layout| -> TestResult {
+        let base = checkpoint(session, 1, ProgressStatus::Completed)?;
+        let mut progress = base.progress.clone();
+        progress.layout = layout;
+        let mut evidence = learning(session, 10)?;
+        evidence.skills.insert(
+            digit,
+            SkillTally {
+                attempts: 4,
+                errors: 2,
+                timed: 0,
+                timed_micros: 0,
+            },
+        );
+        store.apply_checkpoint(&cadence_core::progress::Checkpoint::new(
+            base.key.session,
+            base.key.sequence,
+            progress,
+            Some(evidence),
+        )?)?;
+        Ok(())
+    };
+    let mut store = ProgressStore::open_in(directory.path())?;
+    save(&mut store, 1, None)?;
+    store.adopt_unspecified(Layout::Us, cadence_core::SessionId::new(2)?)?;
+    // A second adoption changes nothing: the first chosen layout keeps it.
+    store.adopt_unspecified(Layout::Uk, cadence_core::SessionId::new(2)?)?;
+    assert_eq!(store.adopter()?, Some(Layout::Us));
+    fn skills(
+        store: &ProgressStore,
+        layout: Layout,
+    ) -> Result<Vec<SkillKey>, Box<dyn std::error::Error>> {
+        let bootstrap = store.bootstrap_for(60, Some(layout))?;
+        Ok(bootstrap
+            .learner
+            .sessions
+            .iter()
+            .flat_map(|s| s.learning.skills.keys().copied())
+            .collect())
+    }
+    let us = skills(&store, Layout::Us)?;
+    assert!(us.contains(&digit) && us.contains(&letters));
+    let uk = skills(&store, Layout::Uk)?;
+    assert!(uk.contains(&letters), "letters history adopted");
+    assert!(!uk.contains(&digit), "number-row skills start empty on UK");
+    let recaps = store.bootstrap_for(60, Some(Layout::Uk))?.history.recent;
+    assert_eq!(recaps.first().and_then(|r| r.layout), Some(Layout::Us));
+    // A UK session's own digit skills are UK history.
+    save(&mut store, 2, Some(Layout::Uk))?;
+    assert!(skills(&store, Layout::Uk)?.contains(&digit));
+    let audit: i64 = store.connection.query_row(
+        "SELECT COUNT(*) FROM settings_audit WHERE key='layout.adopted'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(audit, 1);
     Ok(())
 }

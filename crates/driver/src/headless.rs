@@ -8,7 +8,7 @@
 
 use cadence_core::barrier::{Barrier, causal, durable};
 use cadence_core::progress::{Checkpoint, HistorySummary, SaveResult};
-use cadence_core::{LayoutSupportsPound, MonoTick, SessionId, TrainingChar};
+use cadence_core::{Layout, MonoTick, SessionId, TrainingChar};
 use cadence_engine::{Engine, EventEnvelope, EventKind, Key, ScreenView};
 use serde_json::{Map, Value, json};
 
@@ -291,7 +291,7 @@ impl<S: Services> Headless<S> {
                 let mut chars = single.chars();
                 match (chars.next(), chars.next()) {
                     (Some(c), None) if !control => Key::Content(
-                        TrainingChar::new(c, LayoutSupportsPound::US)
+                        TrainingChar::new(c, Layout::Us)
                             .map_err(|error| invalid(&error.to_string()))?,
                     ),
                     _ => return Err(invalid("unsupported key")),
@@ -502,7 +502,7 @@ impl<S: Services> Host for Headless<S> {
                         self.advance(*inter_key_microseconds)?;
                         self.send(EventKind::Tick)?;
                     }
-                    let unit = TrainingChar::new(unit, LayoutSupportsPound::US)
+                    let unit = TrainingChar::new(unit, Layout::Us)
                         .map_err(|error| invalid(&error.to_string()))?;
                     self.send(EventKind::Key(Key::Content(unit)))?;
                 }

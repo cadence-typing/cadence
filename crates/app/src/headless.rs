@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use cadence_core::progress::{Checkpoint, HistorySummary};
-use cadence_core::{ContentDigest, LayoutSupportsPound, Micros, SessionId};
+use cadence_core::{ContentDigest, Layout, Micros, SessionId};
 use cadence_data::{ProgressStore, SUPPORTED_SCHEMA};
 use cadence_driver::headless::{Headless, Services};
 use cadence_driver::protocol::Protocol;
@@ -63,7 +63,7 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
     let exercises = targets
         .iter()
         .map(|text| {
-            cadence_core::validate_target(text, LayoutSupportsPound::US)
+            cadence_core::validate_target(text, Layout::Us)
                 .map(|units| PlannedExercise::plain(units, kind))
                 .map_err(|error| error.to_string())
         })
@@ -88,7 +88,7 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
         retired_due: 0,
         phases: if name == "row-and-pad" {
             // The same digits on the number row, then on the numpad (L-01).
-            let pad = cadence_core::validate_target("1234", LayoutSupportsPound::US)
+            let pad = cadence_core::validate_target("1234", Layout::Us)
                 .map_err(|error| error.to_string())?;
             vec![
                 PlannedPhase {

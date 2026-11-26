@@ -4,7 +4,7 @@ use cadence_core::learning::{
     HistoricSession, KeyLane, LearnerHistory, PlanRecord, PlannerMode, SessionLearning, Skill,
     SkillTally, WordTally,
 };
-use cadence_core::{LayoutSupportsPound, SessionId, UtcDay};
+use cadence_core::{Layout, SessionId, UtcDay};
 
 fn policy() -> TrainerPolicy {
     crate::policy::parse_policy(include_bytes!("../../../policies/trainer-v2.toml")).unwrap()
@@ -36,13 +36,7 @@ fn pack(word_count: u64) -> WordPack {
             (n, word(n), band)
         })
         .collect();
-    WordPack::new(
-        entries,
-        ContentDigest::from_bytes([9; 32]),
-        1,
-        LayoutSupportsPound::US,
-    )
-    .unwrap()
+    WordPack::new(entries, ContentDigest::from_bytes([9; 32]), 1, Layout::Us).unwrap()
 }
 
 const SOURCES: &str = "s\tA Work\tAn Author\n";
@@ -87,7 +81,7 @@ fn text(units: &[TrainingChar]) -> String {
 fn bigram(pair: &str) -> SkillKey {
     let mut chars = pair
         .chars()
-        .map(|c| TrainingChar::new(c, LayoutSupportsPound::US).unwrap());
+        .map(|c| TrainingChar::new(c, Layout::Us).unwrap());
     SkillKey {
         lane: KeyLane::Main,
         skill: Skill::Bigram(chars.next().unwrap(), chars.next().unwrap()),
@@ -423,7 +417,7 @@ fn target_words_keep_their_repeat_gap() {
 fn numeric_entries_follow_their_own_groups_focus() {
     let v3 =
         crate::policy::parse_policy(include_bytes!("../../../policies/trainer-v3.toml")).unwrap();
-    let unit = |c| TrainingChar::new(c, LayoutSupportsPound::US).unwrap();
+    let unit = |c| TrainingChar::new(c, Layout::Us).unwrap();
     let numpad_key = |skill| SkillKey {
         lane: KeyLane::Numpad,
         skill,
@@ -607,15 +601,8 @@ fn prose_spans_mark_pack_words() {
         (2, "cat".to_string(), WordBand::Core),
         (3, "sat".to_string(), WordBand::Core),
     ];
-    let words = WordPack::new(
-        entries,
-        ContentDigest::from_bytes([9; 32]),
-        1,
-        LayoutSupportsPound::US,
-    )
-    .unwrap();
-    let units =
-        cadence_core::validate_target("The cat, quietly sat.", LayoutSupportsPound::US).unwrap();
+    let words = WordPack::new(entries, ContentDigest::from_bytes([9; 32]), 1, Layout::Us).unwrap();
+    let units = cadence_core::validate_target("The cat, quietly sat.", Layout::Us).unwrap();
     let spans = crate::plan_content::word_spans(&units, &words);
     let found: Vec<(u64, usize, usize, usize)> = spans
         .iter()
@@ -778,6 +765,8 @@ fn words_session(positions: u64, correct: u64) -> cadence_core::progress::Sessio
     SessionRecap {
         day: 1,
         completed: true,
+        layout: None,
+        content_class: cadence_core::progress::ContentClass::Standard,
         tracks: vec![TrackProgress {
             first_attempted: positions,
             first_correct: correct,

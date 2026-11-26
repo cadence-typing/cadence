@@ -152,11 +152,15 @@ fn review_compares_only_with_the_same_track_set() -> TestResult {
                 day: 122,
                 completed: true,
                 tracks: vec![words_only.clone(), numpad],
+                layout: None,
+                content_class: cadence_core::progress::ContentClass::Standard,
             },
             SessionRecap {
                 day: 120,
                 completed: false,
                 tracks: vec![words_only],
+                layout: None,
+                content_class: cadence_core::progress::ContentClass::Standard,
             },
         ],
         ..HistorySummary::default()
@@ -186,6 +190,63 @@ fn review_compares_only_with_the_same_track_set() -> TestResult {
     Ok(())
 }
 
+/// #77: results never show a delta between sessions typed on different
+/// layouts, and the start-screen recap names only this layout's sessions.
+#[test]
+fn review_never_compares_across_layouts() -> TestResult {
+    let words_only = TrackProgress {
+        first_correct: 90,
+        first_attempted: 100,
+        correct_units: 300,
+        active_micros: 60_000_000,
+        ..TrackProgress::empty(Track::Words)
+    };
+    let on = |layout, day| SessionRecap {
+        day,
+        completed: true,
+        tracks: vec![words_only.clone()],
+        layout: Some(layout),
+        content_class: cadence_core::progress::ContentClass::Standard,
+    };
+    for (history, expected) in [
+        (vec![on(cadence_core::Layout::Us, 122)], None),
+        (
+            vec![
+                on(cadence_core::Layout::Us, 122),
+                on(cadence_core::Layout::Uk, 120),
+            ],
+            Some(3),
+        ),
+    ] {
+        let history = HistorySummary {
+            completed_sessions: 1,
+            recent: history,
+            ..HistorySummary::default()
+        };
+        let mut e = words()?.with_layout(
+            cadence_core::Layout::Uk,
+            cadence_core::progress::ContentClass::Standard,
+        );
+        ready_with(&mut e, history)?;
+        let today = e.prepare(MonoTick::from_us(1));
+        assert_eq!(today.last_session.map(|b| b.days_ago), expected);
+        let mut at = 10;
+        let t = key(&mut e, at, Key::Enter)?;
+        settle(&mut e, &mut at, t)?;
+        for c in ['c', 'a', 't'] {
+            at = at.saturating_add(300_000);
+            let t = content(&mut e, at, c)?;
+            settle(&mut e, &mut at, t)?;
+        }
+        let t = key(&mut e, at, Key::Interrupt)?;
+        settle(&mut e, &mut at, t)?;
+        let review = e.prepare(MonoTick::from_us(at)).review;
+        assert_eq!(review.session.map(|b| b.days_ago), expected);
+        assert_eq!(review.tracks.first().map(|b| b.days_ago), expected);
+    }
+    Ok(())
+}
+
 /// #60: a review row never makes sessions incomparable or enters the
 /// comparison: an earlier session with a closing review compares with
 /// today's on the shared tracks, and the start-screen recap omits it.
@@ -211,6 +272,8 @@ fn a_closing_review_row_does_not_break_like_for_like() -> TestResult {
             day: 122,
             completed: true,
             tracks: vec![words_only, review],
+            layout: None,
+            content_class: cadence_core::progress::ContentClass::Standard,
         }],
         ..HistorySummary::default()
     };

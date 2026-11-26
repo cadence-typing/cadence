@@ -4,7 +4,7 @@
 
 use cadence_core::alphabet::TrainingChar;
 use cadence_core::learning::ProbeHistory;
-use cadence_core::{ContentDigest, LayoutSupportsPound, PassageId, validate_target};
+use cadence_core::{ContentDigest, Layout, PassageId, validate_target};
 
 use crate::corpus::{CorpusError, WordBand, WordPack, digest_of};
 
@@ -120,8 +120,8 @@ impl ProbeBank {
             if body.chars().count() < MINIMUM_PROBE_UNITS {
                 return Err(invalid("probe passage shorter than 1000 units"));
             }
-            let units = validate_target(body, LayoutSupportsPound::US)
-                .map_err(|error| invalid(&error.to_string()))?;
+            let units =
+                validate_target(body, Layout::Us).map_err(|error| invalid(&error.to_string()))?;
             let mut domain = b"cadence-probe-v1\0".to_vec();
             domain.extend_from_slice(body.as_bytes());
             let digest = digest_of(&domain);

@@ -73,6 +73,8 @@ pub struct Options {
     pub utc_offset: Option<i32>,
     /// `--theme` was given (it then overrides the config file).
     pub theme_set: bool,
+    /// The keyboard layout (config `keyboard.layout`, #77).
+    pub layout: cadence_core::Layout,
 }
 
 impl Options {
@@ -88,6 +90,7 @@ impl Options {
             theme: Theme::Dark,
             utc_offset: None,
             theme_set: false,
+            layout: cadence_core::Layout::Us,
         }
     }
 
@@ -103,6 +106,7 @@ impl Options {
             theme: self.theme,
             utc_offset: self.utc_offset,
             theme_set: self.theme_set,
+            layout: self.layout,
         }
     }
 }
@@ -119,6 +123,7 @@ pub fn parse() -> Result<Options, String> {
         theme: Theme::Dark,
         utc_offset: None,
         theme_set: false,
+        layout: cadence_core::Layout::Us,
     };
     let mut theme = None;
     let mut action = None;

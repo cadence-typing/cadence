@@ -26,6 +26,8 @@ fn checkpoint(
             profile: "default".into(),
             day: 20_000,
             utc_offset_minutes: None,
+            layout: None,
+            content_class: cadence_core::progress::ContentClass::Standard,
             policy_digest: "policy-v1".into(),
             corpus_digest: "corpus-v1".into(),
             status,

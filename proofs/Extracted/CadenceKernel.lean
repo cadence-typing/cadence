@@ -223,6 +223,32 @@ def checkpoint.admit
   | checkpoint.Receipt.Same => ok checkpoint.Admission.Replay
   | checkpoint.Receipt.Different => ok checkpoint.Admission.Conflict
 
+/-- [cadence_kernel::comparison::Basis]
+    Source: 'crates/kernel/src/comparison.rs', lines 7:0-16:1
+    Visibility: public -/
+structure comparison.Basis where
+  layout : Std.U64
+  content_class : Std.U64
+  synthetic : Bool
+  tracks : Std.U64
+
+/-- [cadence_kernel::comparison::same_basis]:
+    Source: 'crates/kernel/src/comparison.rs', lines 20:0-26:1
+    Visibility: public -/
+def comparison.same_basis
+  (a : comparison.Basis) (b : comparison.Basis) : Result Bool := do
+  if a.layout = b.layout
+  then
+    if a.content_class = b.content_class
+    then
+      if a.synthetic
+      then ok false
+      else if b.synthetic
+           then ok false
+           else ok (a.tracks = b.tracks)
+    else ok false
+  else ok false
+
 /-- [cadence_kernel::counters::Counters]
     Source: 'crates/kernel/src/counters.rs', lines 6:0-15:1
     Visibility: public -/

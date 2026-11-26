@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use cadence_core::alphabet::{LayoutSupportsPound, TrainingChar, validate_target};
+use cadence_core::alphabet::{Layout, TrainingChar, validate_target};
 use cadence_core::{ContentDigest, WordId};
 
 /// Frequency band labels (decision 0002): everyday prominence with a
@@ -125,11 +125,7 @@ impl WordPack {
     /// # Errors
     /// Rejects malformed rows, nonpositive or repeated IDs, duplicate forms,
     /// unsupported text and insufficient content.
-    pub fn from_tsv(
-        text: &str,
-        minimum_words: usize,
-        pound: LayoutSupportsPound,
-    ) -> Result<Self, CorpusError> {
+    pub fn from_tsv(text: &str, minimum_words: usize, pound: Layout) -> Result<Self, CorpusError> {
         let mut entries = Vec::new();
         for line in text.lines() {
             let mut fields = line.split('\t');
@@ -165,7 +161,7 @@ impl WordPack {
         entries: Vec<(u64, String, WordBand)>,
         digest: ContentDigest,
         minimum_words: usize,
-        pound: LayoutSupportsPound,
+        pound: Layout,
     ) -> Result<Self, CorpusError> {
         if entries.len() < minimum_words {
             return Err(CorpusError::TooSmall {
@@ -314,12 +310,7 @@ mod tests {
                 )
             })
             .collect();
-        WordPack::new(
-            raw,
-            ContentDigest::from_bytes([7; 32]),
-            minimum,
-            LayoutSupportsPound::US,
-        )
+        WordPack::new(raw, ContentDigest::from_bytes([7; 32]), minimum, Layout::Us)
     }
 
     fn band_entries(count: u64, band: &str) -> Vec<(String, String)> {
@@ -345,12 +336,7 @@ mod tests {
     #[test]
     fn invalid_alphabet_rejected_with_word_context() {
         let raw = vec![(1u64, "café".to_string(), WordBand::Core)];
-        match WordPack::new(
-            raw,
-            ContentDigest::from_bytes([0; 32]),
-            1,
-            LayoutSupportsPound::US,
-        ) {
+        match WordPack::new(raw, ContentDigest::from_bytes([0; 32]), 1, Layout::Us) {
             Err(CorpusError::InvalidWord { word, .. }) => assert_eq!(word, "café"),
             other => panic!("expected invalid word, got {other:?}"),
         }

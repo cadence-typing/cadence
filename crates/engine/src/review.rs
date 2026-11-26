@@ -6,6 +6,7 @@ use super::{Engine, Screen};
 use crate::summary::{SummaryMetrics, percent_label};
 use crate::view::{Baseline, ProbeView, RateUnit, ReviewContext, Slip};
 use cadence_core::calendar::days_ago;
+use cadence_core::comparison::{Basis, basis, same_basis};
 use cadence_core::learning::{KeyLane, ProbeReason, Skill};
 use cadence_core::progress::{SessionRecap, Track, TrackProgress};
 
@@ -30,9 +31,25 @@ impl Engine {
             .map_or(0, |storage| days_ago(storage.day(), recap.day))
     }
 
-    /// The most recent session with typing, for the start screen.
+    /// This session's basis for comparisons over `tracks` (#77). History
+    /// never holds synthetic sessions, and a live session is never one.
+    fn basis_over(&self, tracks: impl IntoIterator<Item = Track>) -> Basis {
+        basis(self.layout, self.content_class, false, tracks)
+    }
+
+    /// An earlier session's basis over `tracks`.
+    fn recap_basis(recap: &SessionRecap, tracks: impl IntoIterator<Item = Track>) -> Basis {
+        basis(recap.layout, recap.content_class, false, tracks)
+    }
+
+    /// The most recent session with typing on this layout and content
+    /// class, for the start screen (#77).
     pub(super) fn last_session(&self) -> Option<Baseline> {
-        let recap = self.history.recent.first()?;
+        let recap = self
+            .history
+            .recent
+            .iter()
+            .find(|recap| same_basis(self.basis_over([]), Self::recap_basis(recap, [])))?;
         Some(Baseline {
             days_ago: self.days_ago(recap),
             completed: recap.completed,
@@ -53,12 +70,12 @@ impl Engine {
                 .filter(|track| track.in_headline())
                 .collect()
         };
-        let tracks = shared(&self.tracks);
+        let mine = self.basis_over(shared(&self.tracks));
         let session = self
             .history
             .recent
             .iter()
-            .find(|recap| shared(&recap.tracks) == tracks)
+            .find(|recap| same_basis(mine, Self::recap_basis(recap, shared(&recap.tracks))))
             .map(|recap| Baseline {
                 days_ago: self.days_ago(recap),
                 completed: recap.completed,
@@ -70,6 +87,10 @@ impl Engine {
             .filter(|current| current.track.in_headline())
             .filter_map(|current| {
                 self.history.recent.iter().find_map(|recap| {
+                    let one = [current.track];
+                    if !same_basis(self.basis_over(one), Self::recap_basis(recap, one)) {
+                        return None;
+                    }
                     recap
                         .tracks
                         .iter()

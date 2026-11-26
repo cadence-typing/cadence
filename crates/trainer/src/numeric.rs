@@ -1,6 +1,6 @@
 //! Seeded numeric practice. Numpad targets are single Enter-submitted entries;
 //! decimals and leading zeros remain strings, never parsed numeric values.
-use cadence_core::alphabet::{LayoutSupportsPound, TrainingChar};
+use cadence_core::alphabet::{Layout, TrainingChar};
 use cadence_core::learning::Skill;
 use std::collections::HashSet;
 
@@ -57,7 +57,7 @@ fn count(rng: &mut dyn DigitSource, base: usize, bound: u64) -> Result<usize, Nu
 fn units(text: &str) -> Result<Vec<TrainingChar>, NumericError> {
     text.chars()
         .map(|character| {
-            TrainingChar::new(character, LayoutSupportsPound::US)
+            TrainingChar::new(character, Layout::Us)
                 .map_err(|_unrepresentable| NumericError::InvalidCharacter)
         })
         .collect()
@@ -241,7 +241,7 @@ mod tests {
     fn skill(text: &str) -> Skill {
         let units: Vec<TrainingChar> = text
             .chars()
-            .map(|c| TrainingChar::new(c, LayoutSupportsPound::US).unwrap())
+            .map(|c| TrainingChar::new(c, Layout::Us).unwrap())
             .collect();
         match units.as_slice() {
             [one] => Skill::Unit(*one),

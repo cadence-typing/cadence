@@ -17,6 +17,7 @@ pub mod barrier;
 pub mod benchmark;
 pub mod calendar;
 pub mod checkpoint;
+pub mod comparison;
 pub mod counters;
 pub mod cycle;
 pub mod evidence;

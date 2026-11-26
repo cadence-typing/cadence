@@ -161,7 +161,11 @@ fn populated_schema_three_migrates_intact() -> TestResult {
         let history = store.session_history()?;
         // Turn the file back into its schema-3 layout.
         store.connection.execute_batch(
-            "DROP TABLE pace_targets;
+            "DROP TABLE settings_audit;
+             ALTER TABLE sessions DROP COLUMN pack_digest;
+             ALTER TABLE sessions DROP COLUMN content_class;
+             ALTER TABLE sessions DROP COLUMN layout;
+             DROP TABLE pace_targets;
              DROP TABLE benchmark_probes;
              ALTER TABLE sessions DROP COLUMN provenance;
              ALTER TABLE sessions DROP COLUMN utc_offset_minutes;
@@ -174,7 +178,7 @@ fn populated_schema_three_migrates_intact() -> TestResult {
         store
             .connection
             .query_row("SELECT version FROM schema_info", [], |row| row.get(0))?;
-    assert_eq!(version, 5);
+    assert_eq!(version, 6);
     assert_eq!(store.session_history()?, before);
     let offsets: i64 = store.connection.query_row(
         "SELECT COUNT(*) FROM sessions WHERE utc_offset_minutes IS NOT NULL",
@@ -185,8 +189,8 @@ fn populated_schema_three_migrates_intact() -> TestResult {
     Ok(())
 }
 
-/// #45, #64: a schema newer than this build (as schema 5 is for alpha.7)
-/// is refused, not migrated or reset.
+/// #45, #64, #77: a schema newer than this build (as schema 6 is for
+/// beta.2) is refused, not migrated or reset.
 #[test]
 fn the_next_schema_is_refused() -> TestResult {
     let directory = tempfile::tempdir()?;
@@ -194,13 +198,13 @@ fn the_next_schema_is_refused() -> TestResult {
         let store = ProgressStore::open_in(directory.path())?;
         store
             .connection
-            .execute_batch("UPDATE schema_info SET version=6 WHERE id=1;")?;
+            .execute_batch("UPDATE schema_info SET version=7 WHERE id=1;")?;
     }
     assert!(matches!(
         ProgressStore::open_in(directory.path()),
         Err(StoreError::SchemaTooNew {
-            found: 6,
-            supported: 5
+            found: 7,
+            supported: 6
         })
     ));
     Ok(())
@@ -231,7 +235,11 @@ fn populated_schema_four_migrates_intact() -> TestResult {
             rows.collect::<Result<_, _>>()?
         };
         store.connection.execute_batch(
-            "DROP TABLE pace_targets;
+            "DROP TABLE settings_audit;
+             ALTER TABLE sessions DROP COLUMN pack_digest;
+             ALTER TABLE sessions DROP COLUMN content_class;
+             ALTER TABLE sessions DROP COLUMN layout;
+             DROP TABLE pace_targets;
              DROP TABLE benchmark_probes;
              ALTER TABLE sessions DROP COLUMN provenance;
              UPDATE schema_info SET version=4 WHERE id=1;",
@@ -243,7 +251,7 @@ fn populated_schema_four_migrates_intact() -> TestResult {
         store
             .connection
             .query_row("SELECT version FROM schema_info", [], |row| row.get(0))?;
-    assert_eq!(version, 5);
+    assert_eq!(version, 6);
     assert_eq!(store.session_history()?, before);
     let after: Vec<(i64, i64, String)> = {
         let mut statement = store
@@ -371,5 +379,50 @@ fn a_completed_session_advances_only_its_review() -> TestResult {
         store.apply_checkpoint(&super::rekey(&base, 4, reopened)?),
         Err(StoreError::Regression(_))
     ));
+    Ok(())
+}
+
+/// #77: a populated schema-5 profile migrates to schema 6 with every
+/// session, receipt and digest intact; existing sessions read layout
+/// `unspecified` and class `standard`; the audit table is empty.
+#[test]
+fn populated_schema_five_migrates_intact() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let saved = [
+        checkpoint(1, 1, ProgressStatus::Completed)?,
+        checkpoint(2, 3, ProgressStatus::Abandoned)?,
+    ];
+    let before = {
+        let mut store = ProgressStore::open_in(directory.path())?;
+        for checkpoint in &saved {
+            store.apply_checkpoint(checkpoint)?;
+        }
+        let history = store.session_history()?;
+        store.connection.execute_batch(
+            "DROP TABLE settings_audit;
+             ALTER TABLE sessions DROP COLUMN pack_digest;
+             ALTER TABLE sessions DROP COLUMN content_class;
+             ALTER TABLE sessions DROP COLUMN layout;
+             UPDATE schema_info SET version=5 WHERE id=1;",
+        )?;
+        history
+    };
+    let store = ProgressStore::open_in(directory.path())?;
+    let version: i64 =
+        store
+            .connection
+            .query_row("SELECT version FROM schema_info", [], |row| row.get(0))?;
+    assert_eq!(version, 6);
+    assert_eq!(store.session_history()?, before, "digests intact");
+    let count = |sql: &str| -> rusqlite::Result<i64> {
+        store.connection.query_row(sql, [], |row| row.get(0))
+    };
+    assert_eq!(
+        count(
+            "SELECT COUNT(*) FROM sessions WHERE layout<>'unspecified' OR content_class<>'standard'"
+        )?,
+        0
+    );
+    assert_eq!(count("SELECT COUNT(*) FROM settings_audit")?, 0);
     Ok(())
 }

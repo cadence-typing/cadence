@@ -1,6 +1,6 @@
 //! Display controls must preserve scoring facts and obey resize pause boundaries.
 
-use cadence_core::{ContentDigest, LayoutSupportsPound, MonoTick, TrainingChar};
+use cadence_core::{ContentDigest, Layout, MonoTick, TrainingChar};
 use cadence_engine::view::{PhaseState, TextSize, TextSupport, ViewMode};
 use cadence_engine::{
     DomainOutcome, Engine, EventEnvelope, EventKind, Key, ScreenView, Transition,
@@ -33,7 +33,7 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
                 phase: Phase::AdaptiveWords,
                 seconds: 10,
                 exercises: vec![PlannedExercise {
-                    units: cadence_core::validate_target("cat", LayoutSupportsPound::US)?,
+                    units: cadence_core::validate_target("cat", Layout::Us)?,
                     kind: ExerciseKind::Words,
                     words: Vec::new(),
                     passage: None,
@@ -46,7 +46,7 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
                 phase: Phase::Numpad,
                 seconds: 20,
                 exercises: vec![PlannedExercise {
-                    units: cadence_core::validate_target("005.20", LayoutSupportsPound::US)?,
+                    units: cadence_core::validate_target("005.20", Layout::Us)?,
                     kind: ExerciseKind::Numpad,
                     words: Vec::new(),
                     passage: None,
@@ -84,10 +84,7 @@ fn content(
     send(
         engine,
         at,
-        EventKind::Key(Key::Content(TrainingChar::new(
-            value,
-            LayoutSupportsPound::US,
-        )?)),
+        EventKind::Key(Key::Content(TrainingChar::new(value, Layout::Us)?)),
     )
 }
 

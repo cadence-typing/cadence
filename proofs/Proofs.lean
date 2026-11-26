@@ -6,6 +6,7 @@ import Proofs.Checkpoint
 import Proofs.Ticket
 import Proofs.Time
 import Proofs.First
+import Proofs.Comparison
 import Proofs.Counters
 import Proofs.Ratio
 import Proofs.Progress
