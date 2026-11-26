@@ -136,6 +136,12 @@ impl TrackProgress {
             }
         }
     }
+    /// Whether the counters are consistent: the proved
+    /// `cadence_kernel::progress::track_valid`.
+    #[must_use]
+    pub fn is_valid(&self) -> bool {
+        cadence_kernel::progress::track_valid(self.counters())
+    }
     /// The kernel's view of the counters, for its validity decision.
     fn counters(&self) -> cadence_kernel::progress::TrackCounters {
         cadence_kernel::progress::TrackCounters {

@@ -945,6 +945,358 @@ def ledger.complete
   then ok (correct_visible = target_len)
   else ok false
 
+/-- [cadence_kernel::pace::FULL_BP]
+    Source: 'crates/kernel/src/pace.rs', lines 14:0-14:28 -/
+@[global_simps, irreducible] def pace.FULL_BP : Std.U64 := 10000#u64
+
+/-- [cadence_kernel::pace::ROUND_UP]
+    Source: 'crates/kernel/src/pace.rs', lines 16:0-16:28 -/
+@[global_simps, irreducible] def pace.ROUND_UP : Std.U64 := 9999#u64
+
+/-- [cadence_kernel::pace::Block]
+    Source: 'crates/kernel/src/pace.rs', lines 20:0-31:1
+    Visibility: public -/
+structure pace.Block where
+  first_correct : Std.U64
+  first_attempted : Std.U64
+  correct_attempts : Std.U64
+  content_attempts : Std.U64
+  session : Std.U64
+
+/-- [cadence_kernel::pace::Policy]
+    Source: 'crates/kernel/src/pace.rs', lines 35:0-48:1
+    Visibility: public -/
+structure pace.Policy where
+  slow_down_below_bp : Std.U64
+  qualifying_blocks : Std.U64
+  minimum_sessions : Std.U64
+  minimum_positions : Std.U64
+  raise_bp : Std.U64
+  lower_bp : Std.U64
+
+/-- [cadence_kernel::pace::Decision]
+    Source: 'crates/kernel/src/pace.rs', lines 52:0-61:1
+    Visibility: public -/
+@[discriminant isize]
+inductive pace.Decision where
+| NoBaseline : pace.Decision
+| Steady : pace.Decision
+| Raise : Std.U64 → pace.Decision
+| Lower : Std.U64 → pace.Decision
+
+/-- [cadence_kernel::pace::Tally]
+    Source: 'crates/kernel/src/pace.rs', lines 65:0-81:1
+    Visibility: public -/
+structure pace.Tally where
+  qualifying : Std.U64
+  sessions : Std.U64
+  has_last : Bool
+  last_session : Std.U64
+  degraded : Bool
+  previous_correct : Std.U64
+  previous_total : Std.U64
+
+/-- [cadence_kernel::pace::EMPTY]
+    Source: 'crates/kernel/src/pace.rs', lines 84:0-92:2
+    Visibility: public -/
+@[global_simps, irreducible]
+def pace.EMPTY : pace.Tally :=
+  {
+    qualifying := 0#u64,
+    sessions := 0#u64,
+    has_last := false,
+    last_session := 0#u64,
+    degraded := false,
+    previous_correct := 0#u64,
+    previous_total := 0#u64
+  }
+
+/-- [cadence_kernel::pace::block_accuracy_below]:
+    Source: 'crates/kernel/src/pace.rs', lines 97:0-109:1
+    Visibility: public -/
+def pace.block_accuracy_below
+  (first_correct : Std.U64) (first_attempted : Std.U64) (band_bp : Std.U64) :
+  Result Bool
+  := do
+  if first_attempted = 0#u64
+  then ok false
+  else
+    let i ← lift (core.convert.num.FromU128U64.from first_correct)
+    let i1 ← lift (core.convert.num.FromU128U64.from pace.FULL_BP)
+    let o ← lift (U128.checked_mul i i1)
+    match o with
+    | none => ok false
+    | some left =>
+      let i2 ← lift (core.convert.num.FromU128U64.from band_bp)
+      let i3 ← lift (core.convert.num.FromU128U64.from first_attempted)
+      let o1 ← lift (U128.checked_mul i2 i3)
+      match o1 with
+      | none => ok false
+      | some right => ok (left < right)
+
+/-- [cadence_kernel::pace::attempt_worse]:
+    Source: 'crates/kernel/src/pace.rs', lines 114:0-122:1
+    Visibility: public -/
+def pace.attempt_worse
+  (correct : Std.U64) (total : Std.U64) (previous_correct : Std.U64)
+  (previous_total : Std.U64) :
+  Result Bool
+  := do
+  let i ← lift (core.convert.num.FromU128U64.from correct)
+  let i1 ← lift (core.convert.num.FromU128U64.from previous_total)
+  let o ← lift (U128.checked_mul i i1)
+  match o with
+  | none => ok false
+  | some left =>
+    let i2 ← lift (core.convert.num.FromU128U64.from previous_correct)
+    let i3 ← lift (core.convert.num.FromU128U64.from total)
+    let o1 ← lift (U128.checked_mul i2 i3)
+    match o1 with
+    | none => ok false
+    | some right => ok (left < right)
+
+/-- [cadence_kernel::pace::qualifies]:
+    Source: 'crates/kernel/src/pace.rs', lines 127:0-130:1
+    Visibility: public -/
+def pace.qualifies
+  (block : pace.Block) (desired_bp : Std.U64) (minimum_positions : Std.U64) :
+  Result Bool
+  := do
+  if block.first_attempted >= minimum_positions
+  then
+    let b ←
+      pace.block_accuracy_below block.first_correct block.first_attempted
+        desired_bp
+    ok (¬ b)
+  else ok false
+
+/-- [cadence_kernel::pace::absorb]:
+    Source: 'crates/kernel/src/pace.rs', lines 134:0-175:1
+    Visibility: public -/
+def pace.absorb
+  (tally : pace.Tally) (block : pace.Block) (desired_bp : Std.U64)
+  (minimum_positions : Std.U64) :
+  Result pace.Tally
+  := do
+  let qualified ← pace.qualifies block desired_bp minimum_positions
+  let (tally1, block1, new_session) ←
+    if qualified
+    then
+      do
+      let (b, b1) ←
+        if tally.has_last
+        then ok (block, tally.last_session != block.session)
+        else ok (block, true)
+      ok (tally, b, b1)
+    else ok (tally, block, false)
+  let (block2, worse) ←
+    if tally1.previous_total != 0#u64
+    then
+      do
+      let b ←
+        if block1.content_attempts != 0#u64
+        then
+          pace.attempt_worse block1.correct_attempts block1.content_attempts
+            tally1.previous_correct tally1.previous_total
+        else ok false
+      ok (block1, b)
+    else ok (block1, false)
+  let i ←
+    if qualified
+    then ok (core.num.U64.saturating_add tally1.qualifying 1#u64)
+    else ok tally1.qualifying
+  let i1 ←
+    if new_session
+    then ok (core.num.U64.saturating_add tally1.sessions 1#u64)
+    else ok tally1.sessions
+  let b ← if qualified
+            then ok true
+            else ok tally1.has_last
+  let i2 ← if qualified
+             then ok block2.session
+             else ok tally1.last_session
+  let b1 ← if tally1.degraded
+             then ok true
+             else ok worse
+  let i3 ←
+    if block2.content_attempts != 0#u64
+    then ok block2.correct_attempts
+    else ok tally1.previous_correct
+  if block2.content_attempts != 0#u64
+  then
+    ok
+      {
+        qualifying := i,
+        sessions := i1,
+        has_last := b,
+        last_session := i2,
+        degraded := b1,
+        previous_correct := i3,
+        previous_total := block2.content_attempts
+      }
+  else
+    ok
+      {
+        tally1
+          with
+          qualifying := i,
+          sessions := i1,
+          has_last := b,
+          last_session := i2,
+          degraded := b1,
+          previous_correct := i3
+      }
+
+/-- [cadence_kernel::pace::tally]: loop body 0:
+    Source: 'crates/kernel/src/pace.rs', lines 182:4-187:5
+    Visibility: public -/
+@[rust_loop_body]
+def pace.tally_loop.body
+  (blocks : Slice pace.Block) (desired_bp : Std.U64)
+  (minimum_positions : Std.U64) (acc : pace.Tally) (i : Std.Usize) :
+  Result (ControlFlow (pace.Tally × Std.Usize) pace.Tally)
+  := do
+  let i1 := Slice.len blocks
+  if i < i1
+  then
+    let o ←
+      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice pace.Block)
+        blocks i
+    let acc1 ←
+      match o with
+      | none => ok acc
+      | some block => pace.absorb acc block desired_bp minimum_positions
+    let i2 ← lift (core.num.Usize.saturating_add i 1#usize)
+    ok (cont (acc1, i2))
+  else ok (done acc)
+
+/-- [cadence_kernel::pace::tally]: loop 0:
+    Source: 'crates/kernel/src/pace.rs', lines 182:4-187:5
+    Visibility: public -/
+@[rust_loop]
+def pace.tally_loop
+  (blocks : Slice pace.Block) (desired_bp : Std.U64)
+  (minimum_positions : Std.U64) (acc : pace.Tally) (i : Std.Usize) :
+  Result pace.Tally
+  := do
+  loop
+    (fun (acc1, i1) => pace.tally_loop.body blocks desired_bp minimum_positions
+      acc1 i1)
+    (acc, i)
+
+/-- [cadence_kernel::pace::tally]:
+    Source: 'crates/kernel/src/pace.rs', lines 179:0-189:1
+    Visibility: public -/
+@[reducible]
+def pace.tally
+  (blocks : Slice pace.Block) (desired_bp : Std.U64)
+  (minimum_positions : Std.U64) :
+  Result pace.Tally
+  := do
+  pace.tally_loop blocks desired_bp minimum_positions pace.EMPTY 0#usize
+
+/-- [cadence_kernel::pace::share]:
+    Source: 'crates/kernel/src/pace.rs', lines 193:0-201:1
+    Visibility: public -/
+def pace.share
+  (target : Std.U64) (share_bp : Std.U64) : Result (Option Std.U64) := do
+  let o ← lift (U64.checked_mul target share_bp)
+  match o with
+  | none => ok none
+  | some product =>
+    let o1 ← lift (U64.checked_add product pace.ROUND_UP)
+    match o1 with
+    | none => ok none
+    | some rounded => ok (U64.checked_div rounded pace.FULL_BP)
+
+/-- [cadence_kernel::pace::raise]:
+    Source: 'crates/kernel/src/pace.rs', lines 205:0-216:1
+    Visibility: public -/
+def pace.raise
+  (target : Std.U64) (raise_bp : Std.U64) : Result pace.Decision := do
+  let o ← pace.share target raise_bp
+  match o with
+  | none => ok pace.Decision.Steady
+  | some delta =>
+    if delta = 0#u64
+    then ok pace.Decision.Steady
+    else
+      let o1 ← lift (U64.checked_add target delta)
+      match o1 with
+      | none => ok pace.Decision.Steady
+      | some raised => ok (pace.Decision.Raise raised)
+
+/-- [cadence_kernel::pace::lower]:
+    Source: 'crates/kernel/src/pace.rs', lines 220:0-239:1
+    Visibility: public -/
+def pace.lower
+  (target : Std.U64) (lower_bp : Std.U64) : Result pace.Decision := do
+  let o ← pace.share target lower_bp
+  match o with
+  | none => ok pace.Decision.Steady
+  | some delta =>
+    if delta = 0#u64
+    then ok pace.Decision.Steady
+    else
+      if delta < target
+      then
+        let o1 ← lift (U64.checked_sub target delta)
+        match o1 with
+        | none => ok pace.Decision.Steady
+        | some lowered => ok (pace.Decision.Lower lowered)
+      else
+        if target > 1#u64
+        then ok (pace.Decision.Lower 1#u64)
+        else ok pace.Decision.Steady
+
+/-- [cadence_kernel::pace::latest_below]:
+    Source: 'crates/kernel/src/pace.rs', lines 243:0-253:1
+    Visibility: public -/
+def pace.latest_below
+  (blocks : Slice pace.Block) (band_bp : Std.U64) : Result Bool := do
+  let i := Slice.len blocks
+  let o ← lift (Usize.checked_sub i 1#usize)
+  match o with
+  | none => ok false
+  | some last =>
+    let o1 ←
+      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice pace.Block)
+        blocks last
+    match o1 with
+    | none => ok false
+    | some block =>
+      pace.block_accuracy_below block.first_correct block.first_attempted
+        band_bp
+
+/-- [cadence_kernel::pace::decide]:
+    Source: 'crates/kernel/src/pace.rs', lines 259:0-277:1
+    Visibility: public -/
+def pace.decide
+  (target : Option Std.U64) (desired_bp : Std.U64) (blocks : Slice pace.Block)
+  (policy : pace.Policy) :
+  Result pace.Decision
+  := do
+  match target with
+  | none => ok pace.Decision.NoBaseline
+  | some current =>
+    if current = 0#u64
+    then ok pace.Decision.NoBaseline
+    else
+      let b ← pace.latest_below blocks policy.slow_down_below_bp
+      if b
+      then pace.lower current policy.lower_bp
+      else
+        let seen ← pace.tally blocks desired_bp policy.minimum_positions
+        if seen.degraded
+        then ok pace.Decision.Steady
+        else
+          if seen.qualifying >= policy.qualifying_blocks
+          then
+            if seen.sessions >= policy.minimum_sessions
+            then pace.raise current policy.raise_bp
+            else ok pace.Decision.Steady
+          else ok pace.Decision.Steady
+
 /-- [cadence_kernel::plan::Allocation]
     Source: 'crates/kernel/src/plan.rs', lines 15:0-27:1
     Visibility: public -/

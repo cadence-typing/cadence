@@ -23,6 +23,7 @@ pub mod focus;
 pub mod label;
 pub mod lanes;
 pub mod ledger;
+pub mod pace;
 pub mod plan;
 pub mod progress;
 pub mod queue;

@@ -253,31 +253,85 @@ fn tsv_boundary_rejects_identity_content_and_shape_errors() -> TestResult {
 
 #[test]
 fn pace_rejects_invented_counts_and_handles_full_width_evidence() -> TestResult {
-    use cadence_core::BasisPoints;
-    use cadence_trainer::pace::{BlockEvidence, PaceDecision, pace_decision};
+    use cadence_core::pace::Decision;
+    use cadence_core::progress::{SessionRecap, Track, TrackProgress};
     let policy = policy()?;
-    let invalid = BlockEvidence {
-        first_attempt_positions: 1,
+    let recap = |track: TrackProgress| SessionRecap {
+        day: 1,
+        completed: true,
+        tracks: vec![track],
+    };
+    // More first-correct positions than first attempts: refused.
+    let invalid = TrackProgress {
+        first_attempted: 1,
         first_correct: 2,
         content_attempts: 1,
         correct_attempts: 1,
-        session_ordinal: 1,
+        ..TrackProgress::empty(Track::Words)
     };
-    assert!(pace_decision(&policy.pace, Some(BasisPoints::MAX), &[invalid]).is_err());
-    assert_eq!(
-        pace_decision(&policy.pace, None, &[])?,
-        PaceDecision::NoBaseline
+    assert!(
+        cadence_trainer::pace_decision(
+            &policy.pace,
+            Track::Words,
+            Some(u64::MAX),
+            &[recap(invalid)]
+        )
+        .is_err()
     );
-    let valid = BlockEvidence {
-        first_attempt_positions: u64::MAX,
-        first_correct: u64::MAX,
-        content_attempts: u64::MAX,
-        correct_attempts: u64::MAX,
-        session_ordinal: 1,
+    assert_eq!(
+        cadence_trainer::pace_decision(&policy.pace, Track::Words, None, &[])?,
+        Decision::NoBaseline
+    );
+    // Full-width stored counters (the persisted maximum) never overflow the
+    // exact comparison.
+    let top = u64::try_from(i64::MAX)?;
+    let full = TrackProgress {
+        first_attempted: top,
+        first_correct: top,
+        content_attempts: top,
+        correct_attempts: top,
+        correct_units: top,
+        ..TrackProgress::empty(Track::Words)
     };
     assert_eq!(
-        pace_decision(&policy.pace, Some(BasisPoints::MAX), &[valid, valid])?,
-        PaceDecision::Steady
+        cadence_trainer::pace_decision(
+            &policy.pace,
+            Track::Words,
+            Some(u64::MAX),
+            &[recap(full.clone()), recap(full)]
+        )?,
+        Decision::Steady
     );
+    Ok(())
+}
+
+/// #61: the pace decision lives only in the kernel; the trainer calls it
+/// and keeps no second copy of its comparisons.
+#[test]
+fn pace_has_no_second_copy_in_the_trainer() -> TestResult {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src");
+    for entry in std::fs::read_dir(dir)? {
+        let path = entry?.path();
+        let text = std::fs::read_to_string(&path)?;
+        let name = path.display().to_string();
+        assert!(!name.ends_with("/pace.rs"), "trainer::pace is gone: {name}");
+        for copy in ["fn below_band", "PaceDecision", "fn pace_decision_inner"] {
+            assert!(!text.contains(copy), "{name} keeps {copy}");
+        }
+        let policy_file = [
+            "/plan.rs",
+            "/policy.rs",
+            "/policy_parse.rs",
+            "/policy_validation.rs",
+        ]
+        .iter()
+        .any(|allowed| name.ends_with(allowed));
+        if !policy_file {
+            assert!(
+                !text.contains("slow_down_below"),
+                "{name} reads the pace bands"
+            );
+        }
+    }
     Ok(())
 }

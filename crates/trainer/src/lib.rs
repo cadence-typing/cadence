@@ -14,7 +14,6 @@ pub mod lanes;
 pub mod learner;
 pub mod learning_policy;
 pub mod numeric;
-pub mod pace;
 pub mod plan;
 mod plan_content;
 mod plan_words;
@@ -31,10 +30,9 @@ pub use lanes::{BlockPlan, LaneSlot, QuotaTracker};
 pub use learner::{FocusGroup, LearnerModel, SkillScore, group_of};
 pub use learning_policy::LearningPolicy;
 pub use numeric::{DigitSource, NumericError, number_row_exercise, numpad_exercise};
-pub use pace::{PaceDecision, pace_decision};
 pub use plan::{
     Adaptation, ExerciseKind, PlanError, PlanInputs, PlanRng, PlannedExercise, PlannedPhase,
-    PlannedWord, SessionPlan, WordSpan, build_session_plan,
+    PlannedWord, SessionPlan, WordSpan, build_session_plan, pace_decision,
 };
 pub use policy::{
     Lane, PacePolicy, Phase, PolicyError, ReviewPolicy, SelectionPolicy, SessionPolicy,

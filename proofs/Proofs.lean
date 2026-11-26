@@ -10,6 +10,7 @@ import Proofs.Ratio
 import Proofs.Progress
 import Proofs.Session
 import Proofs.Ledger
+import Proofs.Pace
 import Proofs.Plan
 import Proofs.Select
 import Proofs.Lanes

@@ -1237,6 +1237,76 @@ file = "crates/kernel/src/session.rs"
 before = "            Status::Open => Status::Abandoned,\n"
 after = "            Status::Open => Status::Open,\n"
 
+# ---- pace hysteresis (crates/kernel/src/pace.rs, #61)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/pace.rs"
+function = "pace::decide"
+lean = "cadence_kernel.pace.decide"
+theorems = [
+  "Proofs.Pace.no_baseline_without_target",
+  "Proofs.Pace.raise_bounded",
+  "Proofs.Pace.lower_bounded",
+  "Proofs.Pace.raise_needs_evidence",
+  "Proofs.Pace.low_block_lowers",
+  "Proofs.Pace.between_bands_steady",
+  "Proofs.Pace.decide_total",
+]
+total = "Proofs.Pace.decide_total"
+mutants = ["raise-unbounded", "raise-on-one-session", "raise-ignores-floor", "lower-on-equal", "lower-below-one", "degradation-ignored"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/pace.rs"
+function = "pace::block_accuracy_below"
+lean = "cadence_kernel.pace.block_accuracy_below"
+theorems = ["Proofs.Pace.below_exact"]
+total = "Proofs.Pace.below_exact"
+mutants = ["below-rounds"]
+
+[[mutant]]
+name = "raise-unbounded"
+file = "crates/kernel/src/pace.rs"
+before = "        Some(raised) => Decision::Raise(raised),\n"
+after = "        Some(raised) => Decision::Raise(raised.saturating_add(delta)),\n"
+
+[[mutant]]
+name = "raise-on-one-session"
+file = "crates/kernel/src/pace.rs"
+before = "        && seen.qualifying >= policy.qualifying_blocks\n        && seen.sessions >= policy.minimum_sessions\n"
+after = "        && seen.qualifying >= policy.qualifying_blocks\n"
+
+[[mutant]]
+name = "raise-ignores-floor"
+file = "crates/kernel/src/pace.rs"
+before = "    block.first_attempted >= minimum_positions\n        && !block_accuracy_below"
+after = "    block.first_attempted >= 0\n        && !block_accuracy_below"
+
+[[mutant]]
+name = "lower-on-equal"
+file = "crates/kernel/src/pace.rs"
+before = "        Some(left) => match u128::from(band_bp).checked_mul(u128::from(first_attempted)) {\n            None => false,\n            Some(right) => left < right,\n"
+after = "        Some(left) => match u128::from(band_bp).checked_mul(u128::from(first_attempted)) {\n            None => false,\n            Some(right) => left <= right,\n"
+
+[[mutant]]
+name = "below-rounds"
+file = "crates/kernel/src/pace.rs"
+before = "        Some(left) => match u128::from(band_bp).checked_mul(u128::from(first_attempted)) {\n            None => false,\n            Some(right) => left < right,\n"
+after = "        Some(left) => match u128::from(band_bp).checked_mul(u128::from(first_attempted)) {\n            None => false,\n            Some(right) => left / 1_000_000 < right / 1_000_000,\n"
+
+[[mutant]]
+name = "lower-below-one"
+file = "crates/kernel/src/pace.rs"
+before = "    if target > 1 {\n        Decision::Lower(1)\n"
+after = "    if target > 0 {\n        Decision::Lower(0)\n"
+
+[[mutant]]
+name = "degradation-ignored"
+file = "crates/kernel/src/pace.rs"
+before = "    if !seen.degraded\n        && seen.qualifying >= policy.qualifying_blocks\n"
+after = "    if seen.qualifying >= policy.qualifying_blocks\n"
+
 # ---- local-calendar days (crates/kernel/src/calendar.rs, #52)
 
 [[claim]]

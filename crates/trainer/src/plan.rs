@@ -304,6 +304,54 @@ pub fn build_session_plan(
     })
 }
 
+/// The pace decision for one typing track (L-06, #61): the proved
+/// `cadence_kernel::pace::decide` over the track's recent blocks, one block
+/// per session that typed it, oldest first. `target` is the track's last
+/// suggested pace in correct units per minute (none yet: `NoBaseline`).
+/// `recent` is newest first, as stored. Nothing is displayed or persisted
+/// yet (#62).
+///
+/// # Errors
+/// [`PlanError::Content`] when a stored track's counters are inconsistent.
+pub fn pace_decision(
+    policy: &crate::policy::PacePolicy,
+    track: cadence_core::progress::Track,
+    target: Option<u64>,
+    recent: &[cadence_core::progress::SessionRecap],
+) -> Result<cadence_core::pace::Decision, PlanError> {
+    let mut blocks = Vec::new();
+    for (session, recap) in recent.iter().rev().enumerate() {
+        for progress in recap.tracks.iter().filter(|t| t.track == track) {
+            if !progress.is_valid() {
+                return Err(PlanError::Content(
+                    "inconsistent track evidence".to_string(),
+                ));
+            }
+            blocks.push(cadence_core::pace::Block {
+                first_correct: progress.first_correct,
+                first_attempted: progress.first_attempted,
+                correct_attempts: progress.correct_attempts,
+                content_attempts: progress.content_attempts,
+                session: u64::try_from(session)
+                    .map_err(|_unrepresentable| PlanError::Content("session index".to_string()))?,
+            });
+        }
+    }
+    Ok(cadence_core::pace::decide(
+        target,
+        u64::from(policy.desired_first_pass.get()),
+        &blocks,
+        cadence_core::pace::Policy {
+            slow_down_below_bp: u64::from(policy.slow_down_below.get()),
+            qualifying_blocks: u64::from(policy.qualifying_blocks_to_raise),
+            minimum_sessions: u64::from(policy.minimum_sessions_to_raise),
+            minimum_positions: policy.minimum_first_attempt_positions_per_block,
+            raise_bp: u64::from(policy.maximum_raise.get()),
+            lower_bp: u64::from(policy.maximum_lower.get()),
+        },
+    ))
+}
+
 #[cfg(test)]
 #[expect(
     clippy::arithmetic_side_effects,
@@ -311,3 +359,7 @@ pub fn build_session_plan(
 )]
 #[path = "plan_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "plan_pace_tests.rs"]
+mod pace_tests;
