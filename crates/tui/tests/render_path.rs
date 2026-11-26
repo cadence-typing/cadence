@@ -1077,3 +1077,34 @@ fn imported_passages_paint_no_control_bytes() -> Result<(), Box<dyn std::error::
     }
     Ok(())
 }
+
+/// #85: code keeps its indentation: its rows share one left edge, so an
+/// indented line starts exactly its indent to the right.
+#[test]
+fn code_rows_keep_their_indentation() -> Result<(), Box<dyn std::error::Error>> {
+    let mut engine = planned_engine("fn a() {\n    b();\n}")?;
+    engine.reduce(envelope(
+        1,
+        1,
+        EventKind::Resized {
+            columns: 100,
+            rows: 32,
+        },
+    ));
+    engine.reduce(envelope(2, 2, EventKind::Key(Key::Enter)));
+    let view = engine.prepare(MonoTick::from_us(10));
+    let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
+    let area = buffer.area;
+    let mut rows = vec![LineRendition::Normal; 32];
+    paint(&mut buffer, area, &view, Palette::cadence_dark(), &mut rows);
+    let text = screen_text(&buffer);
+    let column = |needle: &str| {
+        text.lines()
+            .find_map(|line| line.find(needle))
+            .ok_or_else(|| format!("{needle} not painted\n{text}"))
+    };
+    let (open, body, close) = (column("fn a()")?, column("b();")?, column("}")?);
+    assert_eq!(body, open + 4, "{text}");
+    assert_eq!(close, open, "{text}");
+    Ok(())
+}

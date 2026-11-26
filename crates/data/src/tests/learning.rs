@@ -446,3 +446,51 @@ fn history_points_are_bounded_and_flag_synthetic_sessions() -> TestResult {
     );
     Ok(())
 }
+
+/// #85: a pack session (imported text or code) never enters the learner
+/// model, the review ladder or probe due-ness, and stays readable without
+/// its pack's files: the store keeps its class and digest, not the text.
+#[test]
+fn pack_sessions_feed_nothing_and_stay_readable() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let mut store = ProgressStore::open_in(directory.path())?;
+    let mut base = checkpoint(1, 1, ProgressStatus::Completed)?;
+    base.progress.tracks[0].track = cadence_core::progress::Track::Prose;
+    store.apply_checkpoint(&cadence_core::progress::Checkpoint::new(
+        base.key.session,
+        base.key.sequence,
+        base.progress.clone(),
+        Some(learning(1, 10)?),
+    )?)?;
+    let before = store.bootstrap(60)?;
+    let mut pack = base.progress.clone();
+    pack.content_class = cadence_core::progress::ContentClass::Imported;
+    pack.pack_digest = Some("ab".repeat(32));
+    store.apply_checkpoint(&cadence_core::progress::Checkpoint::new(
+        cadence_core::SessionId::new(2)?,
+        cadence_core::CommitSeq::from_raw(1),
+        pack,
+        Some(learning(2, 40)?),
+    )?)?;
+    let after = store.bootstrap(60)?;
+    // Learner model and ladder (word outcomes live in learner sessions).
+    assert_eq!(after.learner.sessions, before.learner.sessions);
+    // Probe due-ness counts completed standard sessions with prose only.
+    assert_eq!(after.probes, before.probes);
+    assert_eq!(after.pace_targets, before.pace_targets);
+    // The recap is kept, with its class, for comparisons to separate.
+    assert_eq!(
+        after.history.recent.first().map(|r| r.content_class),
+        Some(cadence_core::progress::ContentClass::Imported)
+    );
+    // No pack file is ever read back: the history is whole without it.
+    let stored = store.session_history()?;
+    assert_eq!(
+        stored
+            .iter()
+            .find(|s| s.checkpoint.key.session.get() == 2)
+            .and_then(|s| s.checkpoint.progress.pack_digest.clone()),
+        Some("ab".repeat(32))
+    );
+    Ok(())
+}

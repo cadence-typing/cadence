@@ -67,7 +67,7 @@ pub(super) fn paint(
     text(
         buffer,
         take(&mut body, 1),
-        "Session review",
+        view.content_note.unwrap_or("Session review"),
         emphasis(palette),
     );
     if show_active {

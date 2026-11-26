@@ -163,22 +163,54 @@ pub(super) fn paint(
             .checked_div(2)
             .unwrap_or(0),
     );
+    // Code (a target with newlines, #85) is one left-aligned block, centred
+    // by its widest row, so its indentation stays visible; other text
+    // centres each row.
+    let block = spans.iter().any(|span| expected(*span) == '\n').then(|| {
+        rows.clone()
+            .map(|range| {
+                spans
+                    .get(range)
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|span| char_width(display_char(span.cell_char())))
+                    .fold(0_usize, usize::saturating_add)
+            })
+            .max()
+            .unwrap_or(0)
+    });
+    let (row_x, row_width, align) = match block {
+        Some(widest) => {
+            let widest = u16::try_from(widest).unwrap_or(u16::MAX).min(canvas.width);
+            let inset = canvas
+                .width
+                .saturating_sub(widest)
+                .checked_div(2)
+                .unwrap_or(0);
+            (
+                canvas.x.saturating_add(inset),
+                canvas.width.saturating_sub(inset),
+                Align::Left,
+            )
+        }
+        None => (canvas.x, canvas.width, Align::Center),
+    };
     for (offset, range) in rows.skip(top).take(count).enumerate() {
         let row = Rect::new(
-            canvas.x,
+            row_x,
             y.saturating_add(u16::try_from(offset).unwrap_or(0).saturating_mul(stride)),
-            canvas.width,
+            row_width,
             row_height,
         );
         let visible_spans = spans.get(range).unwrap_or_default();
         if large {
             if let Some(halves) = native.pair(buffer, row) {
                 for half in halves {
-                    paint_normal_line(buffer, half, visible_spans, palette);
+                    paint_normal_line(buffer, half, visible_spans, palette, align);
                 }
             }
         } else {
-            paint_normal_line(buffer, row, visible_spans, palette);
+            paint_normal_line(buffer, row, visible_spans, palette, align);
         }
     }
     let footer = Rect::new(area.x, canvas.bottom(), area.width, footer_height);
@@ -311,7 +343,20 @@ fn wrap_rows(spans: &[UnitSpan], width: usize) -> impl Clone + Iterator<Item = R
 
 /// Use Ratatui's Unicode-width-aware text rendering, not raw wide-cell writes.
 /// A stack UTF-8 buffer lets the common normal path avoid per-unit allocations.
-fn paint_normal_line(buffer: &mut Buffer, area: Rect, spans: &[UnitSpan], palette: Palette) {
+/// How a practice row sits in its area.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Align {
+    Center,
+    Left,
+}
+
+fn paint_normal_line(
+    buffer: &mut Buffer,
+    area: Rect,
+    spans: &[UnitSpan],
+    palette: Palette,
+    align: Align,
+) {
     let width = spans
         .iter()
         .map(|span| char_width(display_char(span.cell_char())))
@@ -336,12 +381,15 @@ fn paint_normal_line(buffer: &mut Buffer, area: Rect, spans: &[UnitSpan], palett
         skipped_width = skipped_width.saturating_add(char_width(display_char(span.cell_char())));
         first = first.saturating_add(1);
     }
-    let mut x = area.x.saturating_add(
-        area.width
-            .saturating_sub(u16::try_from(width).unwrap_or(u16::MAX))
-            .checked_div(2)
-            .unwrap_or(0),
-    );
+    let mut x = match align {
+        Align::Center => area.x.saturating_add(
+            area.width
+                .saturating_sub(u16::try_from(width).unwrap_or(u16::MAX))
+                .checked_div(2)
+                .unwrap_or(0),
+        ),
+        Align::Left => area.x,
+    };
     for span in spans.iter().skip(first) {
         let unit = display_char(span.cell_char());
         let unit_width = char_width(unit);

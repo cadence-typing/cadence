@@ -108,6 +108,8 @@ pub struct Options {
     pub numpad: bool,
     /// Numpad operators and decimal separator (config, #83).
     pub numeric: cadence_trainer::numeric::NumericOptions,
+    /// `--pack NAME`: a pack session (#85).
+    pub pack: Option<String>,
 }
 
 impl Options {
@@ -126,6 +128,7 @@ impl Options {
             layout: cadence_core::Layout::Us,
             numpad: true,
             numeric: cadence_trainer::numeric::NumericOptions::default(),
+            pack: None,
         }
     }
 
@@ -144,6 +147,7 @@ impl Options {
             layout: self.layout,
             numpad: self.numpad,
             numeric: self.numeric,
+            pack: self.pack.clone(),
         }
     }
 }
@@ -163,6 +167,7 @@ pub fn parse() -> Result<Options, String> {
         layout: cadence_core::Layout::Us,
         numpad: true,
         numeric: cadence_trainer::numeric::NumericOptions::default(),
+        pack: None,
     };
     let mut theme = None;
     let mut action = None;
@@ -270,6 +275,12 @@ pub fn parse() -> Result<Options, String> {
                     return Err("--minutes requires 5, 10, 15, 20 or 30".into());
                 }
                 options.minutes = Some(minutes);
+            }
+            "--pack" => {
+                if options.pack.is_some() {
+                    return Err("duplicate --pack".into());
+                }
+                options.pack = Some(value(&mut args, &arg)?);
             }
             "--track" => {
                 if options.track.is_some() {

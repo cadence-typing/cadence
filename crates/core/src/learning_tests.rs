@@ -20,6 +20,7 @@ fn progress() -> SessionProgress {
         utc_offset_minutes: None,
         layout: None,
         content_class: crate::progress::ContentClass::Standard,
+        pack_digest: None,
         policy_digest: "policy".to_string(),
         corpus_digest: "corpus".to_string(),
         status: ProgressStatus::Running,

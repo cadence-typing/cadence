@@ -1,0 +1,198 @@
+shell-001	#!/bin/sh\nset -eu\numask 022
+shell-002	set -euo pipefail\nIFS=$'\\n\\t'
+shell-003	name="world"\necho "hello, $name"
+shell-004	count=$((count + 1))
+shell-005	echo "${HOME}/notes" | tr '/' ' '
+shell-006	ls -l | wc -l | tr -d " "
+shell-007	grep -rn "TODO" src/ | sort | uniq -c
+shell-008	grep -v '^#' config.txt | grep -v '^$'
+shell-009	grep -c "error" app.log
+shell-010	grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}' log.txt | head -n 5
+shell-011	sed 's/foo/bar/g' input.txt > output.txt
+shell-012	sed -n '10,20p' file.txt
+shell-013	sed -i.bak 's/localhost/example.com/' settings.conf
+shell-014	sed '/^$/d' notes.txt
+shell-015	awk '{ print $1 }' data.txt
+shell-016	awk -F: '{ print $1, $3 }' /etc/passwd
+shell-017	awk '{ sum += $2 } END { print sum }' sales.txt
+shell-018	awk 'NR > 1 && $3 > 100' report.txt
+shell-019	awk -F, '{ n[$1]++ } END { for (k in n) print k, n[k] }' f.csv
+shell-020	find . -name "*.log" -mtime +7
+shell-021	find src -type f -name "*.rs" | wc -l
+shell-022	find . -type f -name "*.tmp" -print
+shell-023	find . -name "*.md" -print0 | xargs -0 wc -l
+shell-024	find . -type d -name node_modules -prune -o -type f -print
+shell-025	ls *.txt | xargs -n 1 basename
+shell-026	cut -d, -f1,3 data.csv
+shell-027	sort -t, -k2 -n data.csv | tail -n 3
+shell-028	sort names.txt | uniq -d
+shell-029	head -n 20 access.log | cut -d' ' -f1
+shell-030	tail -n 50 app.log | grep WARN
+shell-031	tr 'a-z' 'A-Z' < input.txt
+shell-032	tr -d '\\r' < dos.txt > unix.txt
+shell-033	words=$(wc -w < essay.txt)
+shell-034	for f in *.txt; do\n  echo "$f"\ndone
+shell-035	for i in 1 2 3 4 5; do\n  echo "item $i"\ndone
+shell-036	for i in $(seq 1 10); do\n  printf '%02d\\n' "$i"\ndone
+shell-037	for dir in */; do\n  echo "${dir%/}"\ndone
+shell-038	while read -r line; do\n  echo "> $line"\ndone < input.txt
+shell-039	n=0\nwhile [ "$n" -lt 5 ]; do\n  n=$((n + 1))\ndone\necho "$n"
+shell-040	until [ -f ready.flag ]; do\n  sleep 1\ndone
+shell-041	if [ -f "$file" ]; then\n  echo "found $file"\nfi
+shell-042	if [ -d build ]; then\n  echo "build exists"\nelse\n  mkdir build\nfi
+shell-043	if [ "$#" -lt 1 ]; then\n  echo "usage: $0 <file>" >&2\n  exit 1\nfi
+shell-044	if grep -q "main" src/lib.rs; then\n  echo "has main"\nfi
+shell-045	[ -n "$USER" ] && echo "user is set"
+shell-046	[ -z "${VAR:-}" ] && VAR="default"
+shell-047	case "$1" in\n  start) echo "starting" ;;\n  stop)  echo "stopping" ;;\n  *)     echo "unknown: $1" ;;\nesac
+shell-048	case "$file" in\n  *.tar.gz) echo "tarball" ;;\n  *.zip)    echo "zip" ;;\nesac
+shell-049	greet() {\n  echo "hello, $1"\n}\ngreet "team"
+shell-050	log() {\n  printf '[%s] %s\\n' "$(date +%H:%M:%S)" "$*"\n}
+shell-051	die() {\n  echo "error: $*" >&2\n  exit 1\n}
+shell-052	is_number() {\n  case "$1" in\n    ''|*[!0-9]*) return 1 ;;\n    *) return 0 ;;\n  esac\n}
+shell-053	today=$(date +%Y-%m-%d)\necho "$today"
+shell-054	files=$(ls | wc -l)\necho "files: $files"
+shell-055	echo "${name:-anonymous}"
+shell-056	echo "name: ${path##*/}"
+shell-057	echo "${file%.txt}.md"
+shell-058	echo "length: ${#name}"
+shell-059	echo "prefix: ${text:0:5}"
+shell-060	echo "${var:?variable is required}"
+shell-061	echo 'single $quotes stay literal'
+shell-062	echo "double quotes expand $HOME"
+shell-063	echo "tab:\\t newline:\\n" | cat -A
+shell-064	printf '%s\\n' "one" "two" "three"
+shell-065	printf '%5.2f\\n' 3.14159
+shell-066	printf 'name=%s age=%d\\n' "$name" "$age"
+shell-067	cat <<EOF\nHello, $USER\nToday is $(date +%A)\nEOF
+shell-068	cat <<'EOF' > script.sh\n#!/bin/sh\necho "generated"\nEOF
+shell-069	cat > notes.txt <<EOF\nfirst line\nsecond line\nEOF
+shell-070	cat <<EOF >> log.txt\nrun finished\nEOF
+shell-071	command > out.txt 2> err.txt
+shell-072	command > all.txt 2>&1
+shell-073	some_command 2>/dev/null
+shell-074	echo "appended" >> log.txt
+shell-075	sort < unsorted.txt > sorted.txt
+shell-076	diff <(sort a.txt) <(sort b.txt)
+shell-077	tee run.log < input.txt | wc -l
+shell-078	make 2>&1 | tee build.log
+shell-079	git status --short --branch
+shell-080	git log --oneline -n 10
+shell-081	git log --oneline --graph --decorate --all
+shell-082	git diff --stat main..HEAD
+shell-083	git diff --cached --stat
+shell-084	git add -p src/main.rs
+shell-085	git commit -m "Fix off-by-one in parser"
+shell-086	git checkout -b feature/typing-stats
+shell-087	git switch main && git pull
+shell-088	git branch --list "feature/*"
+shell-089	git branch -d feature/typing-stats
+shell-090	git stash push -m "wip: layout tweaks"
+shell-091	git stash list --date=relative
+shell-092	git fetch origin\ngit rebase origin/main
+shell-093	git pull --ff-only origin main
+shell-094	git remote -v | head -n 2
+shell-095	git tag -a v1.0.0 -m "First release"
+shell-096	git show HEAD~1 --stat
+shell-097	git blame -L 10,20 src/main.rs
+shell-098	git log --author="dev" --since="2 weeks ago"
+shell-099	git ls-files | grep '\\.rs$'
+shell-100	git ls-files '*.sh' | xargs wc -l
+shell-101	git rev-parse --short HEAD
+shell-102	git rev-parse --abbrev-ref HEAD
+shell-103	branch=$(git rev-parse --abbrev-ref HEAD)\necho "on $branch"
+shell-104	git diff --name-only main | sort
+shell-105	git log -1 --format='%h %s'
+shell-106	git config --get remote.origin.url
+shell-107	git clean -n -d -e "*.log"
+shell-108	mkdir -p build/output
+shell-109	mkdir -p "$HOME/projects/demo/src"
+shell-110	cp -r templates/basic demo
+shell-111	cp config.example.toml config.toml
+shell-112	mv draft.txt final.txt
+shell-113	touch notes.txt todo.txt
+shell-114	tmp=$(mktemp)\ntrap 'rm -f "$tmp"' EXIT
+shell-115	tmpdir=$(mktemp -d)\necho "$tmpdir"
+shell-116	ln -s target/release/app ./app
+shell-117	chmod +x run.sh build.sh
+shell-118	chmod 644 notes.txt todo.txt
+shell-119	tar -czf backup.tar.gz docs/
+shell-120	tar -tzf backup.tar.gz | head
+shell-121	tar -xzf backup.tar.gz -C /tmp/restore
+shell-122	gzip -k -9 big.log -v
+shell-123	zip -r docs.zip docs/
+shell-124	unzip -l docs.zip | tail -n 3
+shell-125	du -sh docs/ src/ tests/
+shell-126	df -h . | tail -n 1 | cut -c 1-40
+shell-127	pwd\ncd "$(dirname "$0")"
+shell-128	script_dir=$(cd "$(dirname "$0")" && pwd)
+shell-129	echo "$PATH" | tr ':' '\\n'
+shell-130	export EDITOR=vim VISUAL=vim
+shell-131	export PATH="$HOME/bin:$PATH"
+shell-132	env | grep '^LANG' | sort
+shell-133	which python3 git cargo
+shell-134	command -v cargo >/dev/null 2>&1 || echo "cargo missing"
+shell-135	alias ll='ls -lah --color=auto'
+shell-136	ps aux | grep '[s]shd'
+shell-137	sleep 2 && echo "done"
+shell-138	(sleep 5; echo "later") &\nwait
+shell-139	cargo build --release
+shell-140	cargo test -- --nocapture
+shell-141	cargo fmt --check && cargo clippy
+shell-142	cargo run --release -- --help
+shell-143	python3 -m venv .venv\n. .venv/bin/activate
+shell-144	python3 -m http.server 8000
+shell-145	curl -s https://example.com/api/items | head -c 200
+shell-146	curl -I https://example.com
+shell-147	curl -o page.html https://example.com/index.html
+shell-148	ping -c 3 example.com
+shell-149	date -u +%Y-%m-%dT%H:%M:%SZ
+shell-150	uname -sr && uname -m
+shell-151	false; echo "status: $?"
+shell-152	test -r file.txt && echo readable
+shell-153	sum=$(expr 7 + 5 + 1)
+shell-154	echo "kib: $((2 ** 10))"
+shell-155	echo "$((RANDOM % 6 + 1))"
+shell-156	arr=(apple banana cherry)\necho "${arr[1]}"
+shell-157	arr=(one two three)\nfor x in "${arr[@]}"; do\n  echo "$x"\ndone
+shell-158	echo "size: ${#arr[@]}"
+shell-159	declare -A ages\nages[ann]=31\necho "${ages[ann]}"
+shell-160	read -r -p "Name: " name\necho "Hi, $name"
+shell-161	select opt in start stop quit; do\n  echo "chose $opt"\n  break\ndone
+shell-162	[[ "$name" == a* ]] && echo "starts with a"
+shell-163	[[ $line =~ ^[0-9]+$ ]] && echo "numeric"
+shell-164	if (( count > 3 )); then\n  echo "many"\nfi
+shell-165	for ((i = 0; i < 3; i++)); do\n  echo "$i"\ndone
+shell-166	shift\necho "remaining: $@"
+shell-167	while getopts "vo:" opt; do\n  case "$opt" in\n    v) verbose=1 ;;\n    o) out="$OPTARG" ;;\n  esac\ndone
+shell-168	echo "args: $#"\nfor arg in "$@"; do\n  echo "- $arg"\ndone
+shell-169	set -x\necho "traced"\nset +x
+shell-170	trap 'echo "interrupted" >&2' INT
+shell-171	ls | head -n 3 | tail -n 1
+shell-172	history | tail -n 5 | cut -c 8-
+shell-173	basename /usr/local/bin/tool .sh
+shell-174	dirname /usr/local/bin/tool
+shell-175	target=$(readlink -f ./link)
+shell-176	stat -c '%s %n' notes.txt
+shell-177	file notes.txt todo.txt
+shell-178	sha256sum notes.txt todo.txt
+shell-179	md5sum *.txt | sort | uniq -w32 -d
+shell-180	od -c small.bin | head
+shell-181	xargs -I{} echo "file: {}" < list.txt
+shell-182	echo "a b c" | xargs -n 1
+shell-183	paste -d, names.txt scores.txt
+shell-184	join -t, a.csv b.csv
+shell-185	comm -12 sorted_a.txt sorted_b.txt
+shell-186	nl -ba script.sh | sed -n '1,5p'
+shell-187	word=$(rev <<< "stressed")
+shell-188	grep -rl "fn main" --include="*.rs" .
+shell-189	grep -n -A2 -B2 "panic" src/lib.rs
+shell-190	grep -o '[a-z]*@example.com' contacts.txt
+shell-191	sed -E 's/([a-z]+)-([0-9]+)/\\2-\\1/' ids.txt
+shell-192	sed '1i\\\nheader line' body.txt
+shell-193	sed -n '/BEGIN/,/END/p' notes.txt
+shell-194	awk 'length($0) > 72' src/main.rs
+shell-195	awk '!seen[$0]++' words.txt
+shell-196	awk 'BEGIN { for (i = 1; i <= 3; i++) print i * i }'
+shell-197	tmp=$(mktemp)\nrm -f "$tmp"
+shell-198	rm -f build/output/*.o

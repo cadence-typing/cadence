@@ -1,0 +1,170 @@
+rust-001	fn add(a: i32, b: i32) -> i32 {\n    a + b\n}
+rust-002	fn square(x: f64) -> f64 {\n    x * x\n}
+rust-003	let total: i32 = values.iter().sum();
+rust-004	let names = vec!["ada", "bob", "cy"];
+rust-005	println!("count = {}", items.len());
+rust-006	let msg = format!("{}-{:03}", prefix, n);
+rust-007	struct Point {\n    x: i32,\n    y: i32,\n}
+rust-008	#[derive(Debug, Clone, PartialEq)]\nstruct Rect {\n    w: u32,\n    h: u32,\n}
+rust-009	impl Rect {\n    fn area(&self) -> u32 {\n        self.w * self.h\n    }\n}
+rust-010	enum Shape {\n    Circle(f64),\n    Square(f64),\n}
+rust-011	match shape {\n    Shape::Circle(r) => 3.14 * r * r,\n    Shape::Square(s) => s * s,\n}
+rust-012	let doubled: Vec<i32> = v.iter().map(|x| x * 2).collect();
+rust-013	let evens = v.iter().filter(|&&x| x % 2 == 0).count();
+rust-014	fn first(v: &[i32]) -> Option<i32> {\n    v.first().copied()\n}
+rust-015	fn parse(s: &str) -> Result<i32, std::num::ParseIntError> {\n    s.trim().parse::<i32>()\n}
+rust-016	fn read_len(path: &str) -> std::io::Result<usize> {\n    let text = std::fs::read_to_string(path)?;\n    Ok(text.len())\n}
+rust-017	trait Greet {\n    fn hello(&self) -> String;\n}
+rust-018	impl Greet for Rect {\n    fn hello(&self) -> String {\n        format!("rect {}x{}", self.w, self.h)\n    }\n}
+rust-019	fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {\n    if a.len() >= b.len() { a } else { b }\n}
+rust-020	#[test]\nfn adds_two() {\n    assert_eq!(add(2, 3), 5);\n}
+rust-021	#[cfg(test)]\nmod tests {\n    use super::*;\n}
+rust-022	let s = "line one\\nline two";
+rust-023	let path = "C:\\\\temp\\\\out.txt";
+rust-024	let tab = "col1\\tcol2";
+rust-025	let quote = "say \\"hi\\"";
+rust-026	println!("{}\\n", title);
+rust-027	let mut count = 0;\nfor _ in 0..10 {\n    count += 1;\n}
+rust-028	let mut i = 0;\nwhile i < 5 {\n    i += 1;\n}
+rust-029	let label = if n > 0 { "pos" } else { "non-pos" };
+rust-030	if let Some(x) = opt {\n    println!("got {}", x);\n}
+rust-031	while let Some(top) = stack.pop() {\n    println!("{}", top);\n}
+rust-032	let Some(v) = map.get("key") else {\n    return;\n};
+rust-033	use std::collections::HashMap;
+rust-034	let mut map: HashMap<String, u32> = HashMap::new();
+rust-035	map.insert("apple".to_string(), 3);
+rust-036	*map.entry(word).or_insert(0) += 1;
+rust-037	for (k, v) in &map {\n    println!("{k}: {v}");\n}
+rust-038	let mut v: Vec<u8> = Vec::with_capacity(16);
+rust-039	v.push(1);\nv.push(2);\nv.extend_from_slice(&[3, 4]);
+rust-040	let slice = &v[1..3];
+rust-041	let text = String::from("hello");\nlet upper = text.to_uppercase();
+rust-042	let words: Vec<&str> = line.split_whitespace().collect();
+rust-043	let n = s.chars().filter(|c| c.is_alphabetic()).count();
+rust-044	fn is_even(n: u32) -> bool {\n    n % 2 == 0\n}
+rust-045	const MAX_ITEMS: usize = 128;
+rust-046	static GREETING: &str = "hello";
+rust-047	type Grid = Vec<Vec<u8>>;
+rust-048	let t = (1, "two", 3.0);\nlet (a, b, c) = t;
+rust-049	let arr = [0u8; 16];
+rust-050	let sq = |x: i32| x * x;\nprintln!("{}", sq(7));
+rust-051	fn apply<F: Fn(i32) -> i32>(f: F, x: i32) -> i32 {\n    f(x)\n}
+rust-052	fn make_adder(n: i32) -> impl Fn(i32) -> i32 {\n    move |x| x + n\n}
+rust-053	let boxed: Box<dyn Fn(i32) -> i32> = Box::new(|x| x + 1);
+rust-054	impl Default for Config {\n    fn default() -> Self {\n        Self { verbose: false, depth: 3 }\n    }\n}
+rust-055	impl std::fmt::Display for Point {\n    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {\n        write!(f, "({}, {})", self.x, self.y)\n    }\n}
+rust-056	impl From<u8> for Level {\n    fn from(n: u8) -> Self {\n        Level(n)\n    }\n}
+rust-057	let result = match value {\n    0 => "zero",\n    1..=9 => "small",\n    _ => "large",\n};
+rust-058	let pair = (3, -3);\nmatch pair {\n    (x, y) if x + y == 0 => println!("opposites"),\n    _ => println!("other"),\n}
+rust-059	let total = v.iter().fold(0, |acc, x| acc + x);
+rust-060	let max = v.iter().max().unwrap_or(&0);
+rust-061	let pos = v.iter().position(|&x| x == 42);
+rust-062	let pairs: Vec<(usize, char)> = "abc".chars().enumerate().collect();
+rust-063	for (a, b) in xs.iter().zip(ys.iter()) {\n    println!("{} {}", a, b);\n}
+rust-064	let flat: Vec<i32> = nested.into_iter().flatten().collect();
+rust-065	let firsts: Vec<_> = v.iter().take(3).collect();
+rust-066	let rest: Vec<_> = v.iter().skip(2).collect();
+rust-067	let any_neg = v.iter().any(|&x| x < 0);\nlet all_pos = v.iter().all(|&x| x > 0);
+rust-068	v.sort_by(|a, b| b.cmp(a));
+rust-069	v.sort_by_key(|p| p.age);
+rust-070	v.dedup();\nv.retain(|&x| x != 0);
+rust-071	let chunks: Vec<_> = v.chunks(2).collect();
+rust-072	let windows = v.windows(3).count();
+rust-073	fn main() {\n    println!("Hello, world!");\n}
+rust-074	fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let n: u32 = "42".parse()?;\n    println!("{n}");\n    Ok(())\n}
+rust-075	let x = opt.unwrap_or_default();
+rust-076	let y = opt.map(|v| v + 1).unwrap_or(0);
+rust-077	let z = res.map_err(|e| e.to_string())?;
+rust-078	let val = opt.ok_or("missing value")?;
+rust-079	let n = res.unwrap_or_else(|_| 0);
+rust-080	#[derive(Debug)]\nenum AppError {\n    Io(std::io::Error),\n    Parse(String),\n}
+rust-081	impl From<std::io::Error> for AppError {\n    fn from(e: std::io::Error) -> Self {\n        AppError::Io(e)\n    }\n}
+rust-082	impl Iterator for Counter {\n    type Item = u32;\n    fn next(&mut self) -> Option<u32> {\n        self.n += 1;\n        if self.n <= 5 { Some(self.n) } else { None }\n    }\n}
+rust-083	struct Stack<T> {\n    items: Vec<T>,\n}
+rust-084	impl<T> Stack<T> {\n    fn new() -> Self {\n        Stack { items: Vec::new() }\n    }\n}
+rust-085	fn largest<T: PartialOrd + Copy>(v: &[T]) -> T {\n    let mut m = v[0];\n    for &x in v {\n        if x > m { m = x; }\n    }\n    m\n}
+rust-086	fn show(item: &impl std::fmt::Debug) {\n    println!("{:?}", item);\n}
+rust-087	fn describe<T>(x: T) -> String\nwhere\n    T: std::fmt::Display,\n{\n    format!("<{}>", x)\n}
+rust-088	let shared = std::rc::Rc::new(5);\nlet other = std::rc::Rc::clone(&shared);
+rust-089	use std::cell::RefCell;\nlet cell = RefCell::new(vec![1, 2]);\ncell.borrow_mut().push(3);
+rust-090	use std::sync::{Arc, Mutex};\nlet data = Arc::new(Mutex::new(0));
+rust-091	let handle = std::thread::spawn(move || {\n    println!("in thread");\n});\nhandle.join().unwrap();
+rust-092	let (tx, rx) = std::sync::mpsc::channel();\ntx.send(10).unwrap();\nprintln!("{}", rx.recv().unwrap());
+rust-093	let mut guard = data.lock().unwrap();\n*guard += 1;
+rust-094	macro_rules! square {\n    ($x:expr) => {\n        $x * $x\n    };\n}
+rust-095	assert!(v.len() > 2, "too short: {}", v.len());
+rust-096	debug_assert_eq!(a, b);
+rust-097	eprintln!("warning: {}", msg);
+rust-098	let s = String::with_capacity(32);
+rust-099	let mut out = String::new();\nout.push_str("abc");\nout.push('d');
+rust-100	let trimmed = line.trim_end_matches('\\n');
+rust-101	let parts: Vec<&str> = "a,b,c".split(',').collect();
+rust-102	if s.starts_with("http") && s.ends_with("/") {\n    println!("url");\n}
+rust-103	let bytes = s.as_bytes();\nprintln!("{}", bytes[0]);
+rust-104	let c = 'x';\nlet code = c as u32;
+rust-105	let n = 300_i32 as u8;
+rust-106	let big: u64 = u64::MAX;
+rust-107	let f = 2.5_f64.powi(3);
+rust-108	let r = (10.0_f64).sqrt().floor() as i32;
+rust-109	let q = a.checked_add(b).ok_or("overflow")?;
+rust-110	let w = a.wrapping_mul(31);
+rust-111	let s = a.saturating_sub(b);
+rust-112	let bits = 0b1010_u8 << 2;
+rust-113	let hex = format!("{:#06x}", 255);
+rust-114	println!("{:>8.3}|", 3.14159);
+rust-115	println!("{:<6}|{:^6}|{:>6}", "a", "b", "c");
+rust-116	println!("{0} {1} {0}", "x", "y");
+rust-117	println!("{name} is {age}", name = "Zed", age = 30);
+rust-118	let width = 10;\nprintln!("{:width$}", 42);
+rust-119	println!("{:?}", Some("x"));
+rust-120	println!("{:#?}", rect);
+rust-121	let r = 1..=5;\nlet total: i32 = r.sum();
+rust-122	for i in (0..10).rev().step_by(3) {\n    print!("{} ", i);\n}
+rust-123	'outer: for i in 0..5 {\n    for j in 0..5 {\n        if i * j > 6 { break 'outer; }\n    }\n}
+rust-124	let v = loop {\n    counter += 1;\n    if counter == 10 {\n        break counter * 2;\n    }\n};
+rust-125	mod geometry {\n    pub fn area(w: u32, h: u32) -> u32 {\n        w * h\n    }\n}
+rust-126	use std::fmt::{self, Display};
+rust-127	pub struct Config {\n    pub name: String,\n    pub retries: u8,\n}
+rust-128	impl Config {\n    pub fn new(name: &str) -> Self {\n        Self { name: name.into(), retries: 3 }\n    }\n}
+rust-129	let cfg = Config { retries: 5, ..Config::default() };
+rust-130	#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\nenum Color {\n    Red,\n    Green,\n    Blue,\n}
+rust-131	fn code(c: Color) -> u8 {\n    match c {\n        Color::Red => 1,\n        Color::Green => 2,\n        Color::Blue => 3,\n    }\n}
+rust-132	enum Msg {\n    Quit,\n    Move { x: i32, y: i32 },\n    Write(String),\n}
+rust-133	if let Msg::Move { x, y } = msg {\n    println!("{x},{y}");\n}
+rust-134	let opt: Option<&str> = None;\nprintln!("{}", opt.is_none());
+rust-135	let words = ["a", "bb", "ccc"];\nlet lens: Vec<usize> = words.iter().map(|w| w.len()).collect();
+rust-136	let joined = words.join("-");
+rust-137	let text = lines.iter().map(|l| l.trim()).collect::<Vec<_>>().join(" ");
+rust-138	let sum_sq: u32 = (1..=10).map(|n| n * n).sum();
+rust-139	let (small, big): (Vec<i32>, Vec<i32>) =\n    v.iter().partition(|&&x| x < 10);
+rust-140	let lookup: HashMap<_, _> = keys.into_iter().zip(vals).collect();
+rust-141	use std::collections::HashSet;\nlet uniq: HashSet<i32> = v.iter().cloned().collect();
+rust-142	use std::collections::BTreeMap;\nlet mut tree = BTreeMap::new();\ntree.insert(2, "b");
+rust-143	use std::collections::VecDeque;\nlet mut q = VecDeque::new();\nq.push_back(1);
+rust-144	let file = std::fs::File::open("data.txt")?;\nlet reader = std::io::BufReader::new(file);
+rust-145	use std::io::BufRead;\nfor line in reader.lines() {\n    println!("{}", line?);\n}
+rust-146	use std::io::Write;\nwriteln!(out, "total={}", total)?;
+rust-147	let mut input = String::new();\nstd::io::stdin().read_line(&mut input)?;
+rust-148	let args: Vec<String> = std::env::args().collect();
+rust-149	let home = std::env::var("HOME").unwrap_or_default();
+rust-150	std::fs::write("out.txt", b"hello\\n")?;
+rust-151	let now = std::time::Instant::now();\nlet ms = now.elapsed().as_millis();
+rust-152	let d = std::time::Duration::from_secs(2);\nstd::thread::sleep(d);
+rust-153	struct Wrapper<'a> {\n    text: &'a str,\n}
+rust-154	impl<'a> Wrapper<'a> {\n    fn head(&self) -> &'a str {\n        &self.text[..1]\n    }\n}
+rust-155	fn swap(pair: (i32, i32)) -> (i32, i32) {\n    (pair.1, pair.0)\n}
+rust-156	fn fib(n: u32) -> u64 {\n    match n {\n        0 => 0,\n        1 => 1,\n        _ => fib(n - 1) + fib(n - 2),\n    }\n}
+rust-157	fn gcd(a: u64, b: u64) -> u64 {\n    if b == 0 { a } else { gcd(b, a % b) }\n}
+rust-158	fn is_palindrome(s: &str) -> bool {\n    let cs: Vec<char> = s.chars().collect();\n    cs.iter().eq(cs.iter().rev())\n}
+rust-159	#[test]\nfn parse_fails_on_empty() {\n    assert!(parse("").is_err());\n}
+rust-160	#[test]\n#[should_panic(expected = "overflow")]\nfn panics_on_overflow() {\n    checked(u8::MAX, 1);\n}
+rust-161	#[allow(dead_code)]\nfn unused_helper() {}
+rust-162	#[inline]\nfn clamp(x: i32, lo: i32, hi: i32) -> i32 {\n    x.max(lo).min(hi)\n}
+rust-163	let boxed = Box::new(42);\nprintln!("{}", *boxed);
+rust-164	let r: &mut Vec<i32> = &mut v;\nr.push(9);
+rust-165	let moved = v;\nprintln!("{}", moved.len());
+rust-166	let copy = v.clone();
+rust-167	std::mem::swap(&mut a, &mut b);
+rust-168	let old = std::mem::replace(&mut slot, None);
+rust-169	let taken = opt.take();
+rust-170	unsafe fn raw(p: *const u8) -> u8 {\n    *p\n}

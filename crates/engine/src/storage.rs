@@ -269,6 +269,7 @@ impl Engine {
             utc_offset_minutes: self.utc_offset_minutes,
             layout: self.layout,
             content_class: self.content_class,
+            pack_digest: self.pack_digest.clone(),
         };
         let sequence = storage.sequence.next()?;
         let checkpoint = Checkpoint::new(

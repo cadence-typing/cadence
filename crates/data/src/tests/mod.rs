@@ -29,6 +29,7 @@ fn checkpoint(
             utc_offset_minutes: None,
             layout: None,
             content_class: cadence_core::progress::ContentClass::Standard,
+            pack_digest: None,
             policy_digest: "policy-v1".into(),
             corpus_digest: "corpus-v1".into(),
             status,

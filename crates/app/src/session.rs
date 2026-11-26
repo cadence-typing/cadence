@@ -27,6 +27,14 @@ pub(crate) const fn needs_setup(
 /// phase in the plan it is `Operators`, never compared with plain drills.
 pub(crate) fn content_class(options: &cli::Options) -> cadence_core::progress::ContentClass {
     use cadence_trainer::Phase;
+    // A pack session (#85) is imported text or code, never standard.
+    if let Some(name) = &options.pack {
+        return if crate::is_code_pack(name) {
+            cadence_core::progress::ContentClass::Code
+        } else {
+            cadence_core::progress::ContentClass::Imported
+        };
+    }
     let numpad_phase = match options.track {
         Some(track) => track == Phase::Numpad,
         None => options.numpad,
@@ -48,6 +56,13 @@ fn prepare(
 ) -> Result<Prepared, Box<dyn Error>> {
     let loaded = crate::load_config(None)?;
     let mut options = crate::apply_config(options.clone_for_practice(), &loaded.config);
+    // A pack session is a single prose-shaped track over the pack (#85).
+    if options.pack.is_some() {
+        if options.track.is_some() {
+            return Err("--pack and --track cannot be combined".into());
+        }
+        options.track = Some(cadence_trainer::Phase::Prose);
+    }
     // Train and Numpad (#80) are `--track` and `--minutes`, nothing else.
     if let Some((phase, minutes)) = track {
         options.track = Some(phase);

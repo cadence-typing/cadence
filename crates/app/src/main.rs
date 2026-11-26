@@ -289,7 +289,56 @@ pub(crate) fn build_engine(
         numeric: options.numeric,
     };
     let plan = build_session_plan(policy, inputs, seed, &disabled, budget)?;
-    Ok(Engine::new_plan(plan)?)
+    // A pack session (#85): the same single-track plan, over the pack.
+    let Some(name) = &options.pack else {
+        return Ok(Engine::new_plan(plan)?);
+    };
+    let pack = load_pack(name, options)?;
+    let mut rng = <cadence_trainer::PlanRng as rand::SeedableRng>::seed_from_u64(seed);
+    let plan = cadence_trainer::packs::pack_session(
+        plan,
+        &pack,
+        &mut rng,
+        policy.learning.prose_units_per_second,
+    )?;
+    Ok(Engine::new_plan(plan)?.with_pack(pack.digest))
+}
+
+/// The shipped code packs (#85).
+const CODE_PACKS: [(&str, &str); 2] = [
+    (
+        "code-rust",
+        include_str!("../../../corpus/code-rust-v1.tsv"),
+    ),
+    (
+        "code-shell",
+        include_str!("../../../corpus/code-shell-v1.tsv"),
+    ),
+];
+
+/// Whether `name` is a shipped code pack.
+pub(crate) fn is_code_pack(name: &str) -> bool {
+    CODE_PACKS.iter().any(|(code, _)| *code == name)
+}
+
+/// A shipped code pack, or an imported pack from the profile's packs.
+fn load_pack(
+    name: &str,
+    options: &cli::Options,
+) -> Result<cadence_trainer::packs::Pack, Box<dyn Error>> {
+    if let Some((_, tsv)) = CODE_PACKS.iter().find(|(code, _)| *code == name) {
+        return Ok(cadence_trainer::packs::code_pack(name, tsv)?);
+    }
+    let packs = cadence_data::packs::directory(
+        &cadence_data::paths::data_dir(options.profile.as_deref())?.data,
+    );
+    let text = std::fs::read_to_string(packs.join(name).join("passages.txt"))
+        .map_err(|error| format!("no pack named {name} ({error}); see `cadence packs`"))?;
+    Ok(cadence_trainer::packs::imported_pack(
+        name,
+        &text,
+        options.layout,
+    )?)
 }
 
 /// A distinct, replayable seed per session (persisted with the plan), so

@@ -15,6 +15,7 @@ pub mod lanes;
 pub mod learner;
 pub mod learning_policy;
 pub mod numeric;
+pub mod packs;
 pub mod plan;
 mod plan_content;
 mod plan_words;

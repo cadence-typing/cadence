@@ -316,7 +316,14 @@ impl ProgressStore {
         let mut maximum = 0_u64;
         let mut probes = ProbeHistory::default();
         let mut pace_targets: PaceTargets = Vec::new();
-        for session in &sessions {
+        // Pack sessions (imported text, code: #85) never feed pace goals,
+        // probe due-ness, the learner model or the review ladder; their
+        // recaps keep their class, so comparisons separate them too.
+        let standard = |session: &&StoredSession| {
+            session.checkpoint.progress.content_class
+                == cadence_core::progress::ContentClass::Standard
+        };
+        for session in sessions.iter().filter(standard) {
             let checkpoint = &session.checkpoint;
             for record in checkpoint.learning.iter().flat_map(|l| l.pace.iter()) {
                 if let Some(cpm) = record.target_cpm {
@@ -351,6 +358,7 @@ impl ProgressStore {
         let mut learner: Vec<HistoricSession> = sessions
             .iter()
             .rev()
+            .filter(standard)
             .filter_map(|session| {
                 let checkpoint = &session.checkpoint;
                 let effective = checkpoint.progress.layout.or(adopter);
@@ -519,15 +527,16 @@ impl ProgressStore {
             [&progress.profile],
         )?;
         tx.execute(
-            "INSERT INTO sessions(session_id,profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq,utc_offset_minutes,layout,content_class)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)
+            "INSERT INTO sessions(session_id,profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq,utc_offset_minutes,layout,content_class,pack_digest)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)
              ON CONFLICT(session_id) DO UPDATE SET status=excluded.status,
                 active_micros=excluded.active_micros,commit_seq=excluded.commit_seq",
             params![session, progress.profile, progress.day, progress.policy_digest, progress.corpus_digest,
                 records::status_name(progress.status), sql_integer(progress.active_micros, "active_micros")?, sequence,
                 progress.utc_offset_minutes,
                 progress.layout.map_or("unspecified", cadence_core::Layout::key),
-                progress.content_class.key()],
+                progress.content_class.key(),
+                progress.pack_digest],
         )?;
         tx.execute("DELETE FROM session_tracks WHERE session_id=?1", [session])?;
         for track in &progress.tracks {

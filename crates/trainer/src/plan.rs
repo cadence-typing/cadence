@@ -425,6 +425,7 @@ pub fn pace_baseline(
 ) -> Option<u64> {
     let mut paces: Vec<u64> = recent
         .iter()
+        .filter(|recap| recap.content_class == cadence_core::progress::ContentClass::Standard)
         .flat_map(|recap| recap.tracks.iter())
         .filter(|t| {
             t.track == track
@@ -559,7 +560,13 @@ pub fn pace_decision(
     recent: &[cadence_core::progress::SessionRecap],
 ) -> Result<cadence_core::pace::Decision, PlanError> {
     let mut blocks = Vec::new();
-    for (session, recap) in recent.iter().rev().enumerate() {
+    // Pack sessions (#85) are never pace evidence.
+    for (session, recap) in recent
+        .iter()
+        .rev()
+        .filter(|recap| recap.content_class == cadence_core::progress::ContentClass::Standard)
+        .enumerate()
+    {
         for progress in recap.tracks.iter().filter(|t| t.track == track) {
             if !progress.is_valid() {
                 return Err(PlanError::Content(

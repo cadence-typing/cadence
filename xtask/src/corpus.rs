@@ -31,6 +31,9 @@ fn repo_root() -> Result<PathBuf, String> {
 ///
 /// # Errors
 /// The first failed check.
+/// Each shipped code pack holds at least this many snippets (#85).
+const MINIMUM_CODE_SNIPPETS: usize = 150;
+
 pub fn check_pack(text: &str, reviewed: &str) -> Result<WordPack, String> {
     let pack = WordPack::from_tsv(text, 1, Layout::Us).map_err(|error| error.to_string())?;
     let words = pack.len();
@@ -168,6 +171,35 @@ pub fn check() -> Result<(), String> {
         return Err(format!(
             "prose bank has {prose_units} units; the no-repeat window needs {window_units}"
         ));
+    }
+
+    // Code packs (#85): digest, and they load through the same parser the
+    // app uses, with at least the shipped minimum of snippets.
+    for (name, file) in [
+        ("code-rust", "corpus/code-rust-v1.tsv"),
+        ("code-shell", "corpus/code-shell-v1.tsv"),
+    ] {
+        let text = std::fs::read_to_string(root.join(file))
+            .map_err(|error| format!("cannot read {file}: {error}"))?;
+        let recorded = manifest
+            .get("code")
+            .and_then(|code| code.get(name))
+            .and_then(|entry| entry.get("sha256"))
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| format!("manifest code.{name}.sha256 missing"))?;
+        let actual = cadence_trainer::corpus::digest_of(text.as_bytes()).to_hex();
+        if recorded != actual {
+            return Err(format!(
+                "{name} digest mismatch: manifest {recorded}, actual {actual}"
+            ));
+        }
+        let pack = cadence_trainer::packs::code_pack(name, &text)?;
+        if pack.passages.len() < MINIMUM_CODE_SNIPPETS {
+            return Err(format!(
+                "{name} has {} snippets; at least {MINIMUM_CODE_SNIPPETS} ship",
+                pack.passages.len()
+            ));
+        }
     }
 
     // Transfer probes (#64): digest, count, alphabet, length, unique keys,

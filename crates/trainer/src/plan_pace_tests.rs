@@ -162,3 +162,23 @@ fn a_pace_of_one_is_the_floor() {
     assert_eq!(decide(Some(1), &[session(150, 135)]), Decision::Steady);
     assert_eq!(decide(Some(2), &[session(150, 135)]), Decision::Lower(1));
 }
+
+/// #85: a pack session is never pace evidence: a sloppy pack session would
+/// lower the goal if it counted, and it changes nothing.
+#[test]
+fn a_pack_session_is_never_pace_evidence() {
+    let standard = [session(200, 196), session(200, 196), session(200, 196)];
+    let mut with_pack = standard.to_vec();
+    for class in [
+        cadence_core::progress::ContentClass::Imported,
+        cadence_core::progress::ContentClass::Code,
+    ] {
+        let mut sloppy = session(200, 120);
+        sloppy.content_class = class;
+        with_pack.push(sloppy);
+    }
+    assert_eq!(decide(Some(200), &with_pack), decide(Some(200), &standard));
+    let baseline =
+        |recaps: &[SessionRecap]| crate::plan::pace_baseline(&policy(), Track::Words, recaps);
+    assert_eq!(baseline(&with_pack), baseline(&standard));
+}

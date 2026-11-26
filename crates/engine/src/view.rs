@@ -444,6 +444,9 @@ pub struct PreparedView {
     pub destination: DestinationView,
     /// The Progress destination, when selected (#81).
     pub progress: Option<crate::progress::ProgressView>,
+    /// A pack session's results caption (#85): imported text and code are
+    /// never compared with standard practice.
+    pub content_note: Option<&'static str>,
     /// The expected next key, on numeric tracks when the key guide is on
     /// (#82). It names the key the target expects, never the key or finger
     /// used.

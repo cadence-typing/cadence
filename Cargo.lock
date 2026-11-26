@@ -71,6 +71,7 @@ dependencies = [
  "cadence-trainer",
  "cadence-tui",
  "chrono",
+ "rand",
  "serde_json",
  "sha2",
  "tempfile",

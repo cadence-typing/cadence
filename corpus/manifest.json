@@ -274,5 +274,25 @@
     },
     "report": "corpus/vetting/report-v2.txt",
     "sha256": "e9d5e89c99c514374b7a8cd6ce5406d9f3f8d7effb9a1a26c12ab4d92afcc113"
+  },
+  "code": {
+    "code-rust": {
+      "file": "code-rust-v1.tsv",
+      "sha256": "0e94b99c363e105c2046908fd76074ee96d62f7b5153a62c7360b6bbb332a0fc",
+      "snippets": 170,
+      "licence": "Apache-2.0 OR MIT",
+      "source": "written for this repository",
+      "check": "tools/corpus/check_code.py",
+      "encoding": "id<TAB>snippet; \\n is a newline, \\\\ a backslash"
+    },
+    "code-shell": {
+      "file": "code-shell-v1.tsv",
+      "sha256": "d3e8515513974d03e95c1326a437bee948f8e0ffd2b63fd958be91c06fb3ecc4",
+      "snippets": 198,
+      "licence": "Apache-2.0 OR MIT",
+      "source": "written for this repository",
+      "check": "tools/corpus/check_code.py",
+      "encoding": "id<TAB>snippet; \\n is a newline, \\\\ a backslash"
+    }
   }
 }

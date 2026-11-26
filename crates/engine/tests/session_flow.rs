@@ -343,3 +343,97 @@ fn retired_due_words_are_named_once() -> TestResult {
     }
     Ok(())
 }
+
+/// #85: a pack session's recap never gives a standard session a baseline
+/// (headline comparison), and a pack session shows its caption.
+#[test]
+fn pack_sessions_are_never_compared_with_standard_practice() -> TestResult {
+    use cadence_core::progress::ContentClass;
+    let words_only = TrackProgress {
+        first_correct: 90,
+        first_attempted: 100,
+        correct_units: 300,
+        active_micros: 60_000_000,
+        ..TrackProgress::empty(Track::Words)
+    };
+    let recap = |class| SessionRecap {
+        day: 122,
+        completed: true,
+        tracks: vec![words_only.clone()],
+        layout: None,
+        content_class: class,
+    };
+    let history = HistorySummary {
+        completed_sessions: 1,
+        recent: vec![recap(ContentClass::Imported), recap(ContentClass::Code)],
+        ..HistorySummary::default()
+    };
+    let mut e = words()?;
+    ready_with(&mut e, history)?;
+    assert_eq!(e.prepare(MonoTick::from_us(1)).last_session, None);
+    let mut at = 10;
+    let t = key(&mut e, at, Key::Enter)?;
+    settle(&mut e, &mut at, t)?;
+    for c in ['c', 'a', 't'] {
+        at = at.saturating_add(300_000);
+        let t = content(&mut e, at, c)?;
+        settle(&mut e, &mut at, t)?;
+    }
+    let t = key(&mut e, at, Key::Interrupt)?;
+    settle(&mut e, &mut at, t)?;
+    let view = e.prepare(MonoTick::from_us(at));
+    assert_eq!(view.review.session, None);
+    assert!(view.review.tracks.is_empty());
+    assert_eq!(view.content_note, None, "a standard session has no caption");
+    Ok(())
+}
+
+/// #85: in a code exercise the newline is a unit typed with Enter: the
+/// exercise completes only when Enter is typed at that position; Enter in a
+/// word exercise is never content, so standard scores are unchanged.
+#[test]
+fn a_code_newline_is_typed_with_enter() -> TestResult {
+    let mut e = engine(vec![phase(
+        ExerciseKind::Prose,
+        Phase::Prose,
+        60,
+        &["a\nb"],
+    )?])?;
+    ready(&mut e)?;
+    key(&mut e, 1, Key::Enter)?;
+    content(&mut e, 2, 'a')?;
+    assert!(
+        matches!(content(&mut e, 3, 'b')?.outcome, DomainOutcome::None),
+        "b where the newline is expected is a slip"
+    );
+    key(&mut e, 4, Key::Backspace)?;
+    key(&mut e, 5, Key::Enter)?;
+    let done = content(&mut e, 6, 'b')?;
+    assert!(
+        matches!(
+            done.outcome,
+            DomainOutcome::ExerciseCompleted {
+                first_pass: Some((2, 3)),
+                ..
+            }
+        ),
+        "{:?}",
+        done.outcome
+    );
+    // Words: Enter changes nothing.
+    let mut w = words()?;
+    ready(&mut w)?;
+    key(&mut w, 1, Key::Enter)?;
+    content(&mut w, 2, 'c')?;
+    key(&mut w, 3, Key::Enter)?;
+    content(&mut w, 4, 'a')?;
+    let done = content(&mut w, 5, 't')?;
+    assert!(matches!(
+        done.outcome,
+        DomainOutcome::ExerciseCompleted {
+            first_pass: Some((3, 3)),
+            ..
+        }
+    ));
+    Ok(())
+}

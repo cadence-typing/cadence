@@ -22,6 +22,7 @@ cadence-core.workspace = true
 cadence-engine.workspace = true
 cadence-trainer.workspace = true
 sha2.workspace = true
+rand.workspace = true
 cadence-runtime.workspace = true
 cadence-tui.workspace = true
 cadence-data.workspace = true

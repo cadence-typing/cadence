@@ -255,6 +255,10 @@ pub struct SessionProgress {
     /// The content class (#77). In the digest only when not standard.
     #[serde(default)]
     pub content_class: ContentClass,
+    /// For a pack session (#85): the pack's passage digest (hex). In the
+    /// digest only when present.
+    #[serde(default)]
+    pub pack_digest: Option<String>,
     /// Frozen policy digest.
     pub policy_digest: String,
     /// Frozen corpus digest.
@@ -379,6 +383,10 @@ impl Checkpoint {
         }
         if progress.content_class != ContentClass::Standard {
             h.update([0xFA, progress.content_class.code()]);
+        }
+        if let Some(pack) = &progress.pack_digest {
+            h.update([0xF9]);
+            h.update(pack.as_bytes());
         }
         if let Some(learning) = &learning {
             h.update([LEARNING_SECTION_TAG]);

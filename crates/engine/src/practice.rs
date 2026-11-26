@@ -223,6 +223,19 @@ impl Engine {
         let Some(ledger) = self.ledger.as_mut() else {
             return Err(invalid("missing practice ledger"));
         };
+        // In an exercise with newlines (code packs, #85) Enter types the
+        // newline unit; elsewhere Enter is never content.
+        let key = if key == Key::Enter
+            && !numpad
+            && ledger.target().iter().any(|unit| unit.get() == '\n')
+        {
+            Key::Content(
+                cadence_core::TrainingChar::new('\n', cadence_core::Layout::Us)
+                    .map_err(|_alphabet| invalid("newline unit"))?,
+            )
+        } else {
+            key
+        };
         match key {
             Key::Content(c) => {
                 self.timing.first_content(at)?;

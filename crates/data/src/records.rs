@@ -63,7 +63,7 @@ pub(crate) fn load_session(
     let id = sql_integer(session.get(), "session_id")?;
     let mut statement = connection.prepare(
         "SELECT profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq,utc_offset_minutes,
-            layout,content_class
+            layout,content_class,pack_digest
          FROM sessions WHERE session_id=?1",
     )?;
     let mut rows = statement.query([id])?;
@@ -88,6 +88,7 @@ pub(crate) fn load_session(
         },
         content_class: cadence_core::progress::ContentClass::parse(&row.get::<_, String>(9)?)
             .ok_or_else(|| StoreError::Corrupt("unknown content class".into()))?,
+        pack_digest: row.get(10)?,
     };
     let sequence = CommitSeq::from_raw(read_integer(row.get(6)?, "commit_seq")?);
     let mut statement = connection.prepare(
@@ -250,6 +251,7 @@ fn validate_progress_advance(
                 || old.utc_offset_minutes != new.utc_offset_minutes
                 || old.layout != new.layout
                 || old.content_class != new.content_class
+                || old.pack_digest != new.pack_digest
             {
                 return Err(StoreError::Regression("terminal session changed".into()));
             }

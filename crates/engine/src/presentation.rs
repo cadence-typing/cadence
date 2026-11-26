@@ -56,6 +56,14 @@ impl Engine {
             help: self.help_view(),
             destination: self.destination_view(),
             key_guide,
+            content_note: match self.content_class {
+                cadence_core::progress::ContentClass::Imported
+                | cadence_core::progress::ContentClass::Code => {
+                    Some("Your own text \u{b7} not compared with standard practice")
+                }
+                cadence_core::progress::ContentClass::Standard
+                | cadence_core::progress::ContentClass::Operators => None,
+            },
             progress: (self.navigation_destination() == crate::commands::Destination::Progress)
                 .then(|| self.progress.view()),
             numpad_off: matches!(

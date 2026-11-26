@@ -181,6 +181,8 @@ pub struct Engine {
     layout: Option<cadence_core::Layout>,
     /// The session's content class (#77).
     content_class: cadence_core::progress::ContentClass,
+    /// The pack a pack session practises (#85): its passage digest.
+    pack_digest: Option<String>,
     phase_start: Micros,
     exercise_start: Micros,
     active: Micros,
@@ -272,6 +274,7 @@ impl Engine {
             utc_offset_minutes: None,
             layout: None,
             content_class: cadence_core::progress::ContentClass::Standard,
+            pack_digest: None,
             phase_start: Micros::ZERO,
             exercise_start: Micros::ZERO,
             active: Micros::ZERO,
@@ -304,6 +307,13 @@ impl Engine {
     ) -> Self {
         self.layout = Some(layout);
         self.content_class = content_class;
+        self
+    }
+
+    /// A pack session (#85): the pack's passage digest is stored with it.
+    #[must_use]
+    pub fn with_pack(mut self, digest: String) -> Self {
+        self.pack_digest = Some(digest);
         self
     }
 
