@@ -185,3 +185,53 @@ fn review_compares_only_with_the_same_track_set() -> TestResult {
     );
     Ok(())
 }
+
+/// #60: a review row never makes sessions incomparable or enters the
+/// comparison: an earlier session with a closing review compares with
+/// today's on the shared tracks, and the start-screen recap omits it.
+#[test]
+fn a_closing_review_row_does_not_break_like_for_like() -> TestResult {
+    let words_only = TrackProgress {
+        first_correct: 90,
+        first_attempted: 100,
+        correct_units: 300,
+        active_micros: 60_000_000,
+        ..TrackProgress::empty(Track::Words)
+    };
+    let review = TrackProgress {
+        first_correct: 10,
+        first_attempted: 10,
+        correct_units: 40,
+        active_micros: 5_000_000,
+        ..TrackProgress::empty(Track::Review)
+    };
+    let history = HistorySummary {
+        completed_sessions: 1,
+        recent: vec![SessionRecap {
+            day: 122,
+            completed: true,
+            tracks: vec![words_only, review],
+        }],
+        ..HistorySummary::default()
+    };
+    let mut e = words()?;
+    ready_with(&mut e, history)?;
+    let today = e.prepare(MonoTick::from_us(1));
+    let recap = today.last_session.ok_or("recap expected")?;
+    assert!(recap.tracks.iter().all(|t| t.track != Track::Review));
+    let mut at = 10;
+    let t = key(&mut e, at, Key::Enter)?;
+    settle(&mut e, &mut at, t)?;
+    for c in ['c', 'a', 't'] {
+        at = at.saturating_add(300_000);
+        let t = content(&mut e, at, c)?;
+        settle(&mut e, &mut at, t)?;
+    }
+    let t = key(&mut e, at, Key::Interrupt)?;
+    settle(&mut e, &mut at, t)?;
+    let context = e.prepare(MonoTick::from_us(at)).review;
+    let session = context.session.ok_or("like-for-like expected")?;
+    assert_eq!(session.days_ago, 1);
+    assert!(session.tracks.iter().all(|t| t.track != Track::Review));
+    Ok(())
+}

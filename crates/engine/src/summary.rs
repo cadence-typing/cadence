@@ -25,13 +25,19 @@ impl SummaryMetrics {
     /// Refuses counter/duration exhaustion or an invalid accuracy ratio. No saturation
     /// or silently omitted track can improve the displayed session result.
     pub fn from_reports(reports: &[TrackProgress], rate_valid: bool) -> Result<Self, CoreError> {
+        // The closing review retypes words missed minutes earlier: easier
+        // than first-pass typing, so it never reaches the headline (#60).
+        let reports: Vec<&TrackProgress> = reports
+            .iter()
+            .filter(|report| report.track != Track::Review)
+            .collect();
         let mut typing_units = UnitCount::ZERO;
         let mut typing_time = Micros::ZERO;
         let mut keypad_digits = UnitCount::ZERO;
         let mut keypad_time = Micros::ZERO;
         let mut first_correct = UnitCount::ZERO;
         let mut first_attempted = UnitCount::ZERO;
-        for report in reports {
+        for report in &reports {
             first_correct = first_correct.checked_add(UnitCount::from_raw(report.first_correct))?;
             first_attempted =
                 first_attempted.checked_add(UnitCount::from_raw(report.first_attempted))?;

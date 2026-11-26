@@ -20,7 +20,7 @@ const TITLE_ACTION_ROWS: u16 = 2;
 /// Gaps after the heading, after the tiles and before the final action.
 const SECTION_GAP_ROWS: u16 = 3;
 /// Track, accuracy, pace, corrections, change since the last session.
-const SUMMARY_COLUMN_WIDTHS: [u16; 5] = [10, 7, 11, 5, 18];
+const SUMMARY_COLUMN_WIDTHS: [u16; 5] = [10, 7, 11, 5, 19];
 /// Raw first-pass fractions, added only when the review is wide enough.
 const DETAIL_COLUMN_WIDTH: u16 = 13;
 const COLUMN_GAP: u16 = 1;
@@ -291,6 +291,8 @@ fn result_row(buffer: &mut Buffer, area: Rect, row: Row<'_>, palette: Palette) {
         .render(fixes, buffer);
     let earlier = baseline.and_then(|b| b.tracks.first());
     let delta = match earlier {
+        // Retyping recent misses is easier than first-pass typing (#60).
+        _ if report.track == Track::Review => "not in the headline".to_string(),
         None => "first time".to_string(),
         Some(before) => {
             let pace_change = rate

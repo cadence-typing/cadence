@@ -342,3 +342,67 @@ fn review_names_slips_and_end_state_at_every_size() -> Result<(), Box<dyn std::e
     }
     Ok(())
 }
+
+/// #60: the closing review has its own row with its own accuracy and pace
+/// and the note "not in the headline"; the headline tiles do not move.
+#[test]
+fn the_closing_review_row_is_not_in_the_headline() -> Result<(), Box<dyn std::error::Error>> {
+    use cadence_core::progress::{Track, TrackProgress};
+    for (columns, rows) in [(60, 18), (100, 32)] {
+        let mut engine = planned_engine("the theme then")?;
+        let mut seq = 0;
+        let mut at = 1_000;
+        let mut send = |engine: &mut Engine, kind: EventKind| {
+            seq += 1;
+            at += 200_000;
+            engine.reduce(envelope(seq, at, kind));
+        };
+        send(&mut engine, EventKind::Key(Key::Enter));
+        for c in "the the".chars() {
+            send(&mut engine, content(c));
+        }
+        send(&mut engine, EventKind::Key(Key::Interrupt));
+        let paint_view = |view: &cadence_engine::PreparedView| {
+            let mut buffer = Buffer::empty(Rect::new(0, 0, columns, rows));
+            let area = buffer.area;
+            let mut renditions = vec![LineRendition::Normal; usize::from(area.height)];
+            paint(
+                &mut buffer,
+                area,
+                view,
+                Palette::cadence_dark(),
+                &mut renditions,
+            );
+            screen_text(&buffer)
+        };
+        let view = engine.prepare(MonoTick::from_us(at));
+        let without = paint_view(&view);
+        let mut with = view.clone();
+        with.summary_reports.push(TrackProgress {
+            first_correct: 3,
+            first_attempted: 3,
+            correct_attempts: 3,
+            content_attempts: 3,
+            correct_units: 3,
+            active_micros: 1_000_000,
+            ..TrackProgress::empty(Track::Review)
+        });
+        let screen = paint_view(&with);
+        assert!(screen.contains("review"), "{columns}x{rows}:\n{screen}");
+        assert!(
+            screen.contains("not in the headline"),
+            "{columns}x{rows}:\n{screen}"
+        );
+        assert!(screen.contains("100.0%"), "{columns}x{rows}:\n{screen}");
+        // The headline tiles (above the table) are unchanged.
+        let head = |s: &str| {
+            s.lines()
+                .take_while(|l| !l.contains("Track"))
+                .filter(|l| !l.trim().is_empty())
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        assert_eq!(head(&without), head(&screen), "{columns}x{rows}");
+    }
+    Ok(())
+}

@@ -7,7 +7,16 @@ use crate::summary::{SummaryMetrics, percent_label};
 use crate::view::{Baseline, RateUnit, ReviewContext, Slip};
 use cadence_core::calendar::days_ago;
 use cadence_core::learning::{KeyLane, Skill};
-use cadence_core::progress::{SessionRecap, Track};
+use cadence_core::progress::{SessionRecap, Track, TrackProgress};
+
+/// An earlier session's rows without its closing review (#60).
+fn headline_tracks(tracks: &[TrackProgress]) -> Vec<TrackProgress> {
+    tracks
+        .iter()
+        .filter(|t| t.track != Track::Review)
+        .cloned()
+        .collect()
+}
 
 /// Slips named in the review sentence; more would stop being one sentence.
 const SLIPS_SHOWN: usize = 3;
@@ -27,7 +36,7 @@ impl Engine {
         Some(Baseline {
             days_ago: self.days_ago(recap),
             completed: recap.completed,
-            tracks: recap.tracks.clone(),
+            tracks: headline_tracks(&recap.tracks),
         })
     }
 
@@ -35,27 +44,30 @@ impl Engine {
         if self.screen != Screen::Summary {
             return ReviewContext::default();
         }
-        let tracks: BTreeSet<Track> = self.tracks.iter().map(|t| t.track).collect();
+        // Like for like on the headline tracks: a review row never makes a
+        // session incomparable, nor enters the comparison (#60).
+        let shared = |tracks: &[TrackProgress]| -> BTreeSet<Track> {
+            tracks
+                .iter()
+                .map(|t| t.track)
+                .filter(|track| *track != Track::Review)
+                .collect()
+        };
+        let tracks = shared(&self.tracks);
         let session = self
             .history
             .recent
             .iter()
-            .find(|recap| {
-                recap
-                    .tracks
-                    .iter()
-                    .map(|t| t.track)
-                    .collect::<BTreeSet<_>>()
-                    == tracks
-            })
+            .find(|recap| shared(&recap.tracks) == tracks)
             .map(|recap| Baseline {
                 days_ago: self.days_ago(recap),
                 completed: recap.completed,
-                tracks: recap.tracks.clone(),
+                tracks: headline_tracks(&recap.tracks),
             });
         let per_track = self
             .tracks
             .iter()
+            .filter(|current| current.track != Track::Review)
             .filter_map(|current| {
                 self.history.recent.iter().find_map(|recap| {
                     recap

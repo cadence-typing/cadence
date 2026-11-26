@@ -118,3 +118,31 @@ fn a_remaining_first_pass_error_never_displays_perfect_accuracy() -> Result<(), 
     );
     Ok(())
 }
+
+/// #60: headline figures are identical with and without a closing-review
+/// row, whether it is perfect or has nothing correct; a keypad-only
+/// session with a review row still reports digits per minute.
+#[test]
+fn the_closing_review_never_moves_the_headline() -> Result<(), CoreError> {
+    let base = vec![
+        report(Track::WarmUp, 50, (50, 50), 10_000_000),
+        report(Track::Words, 150, (100, 150), 90_000_000),
+        report(Track::Numpad, 300, (300, 300), 60_000_000),
+    ];
+    let without = SummaryMetrics::from_reports(&base, true)?;
+    for review in [
+        report(Track::Review, 400, (400, 400), 5_000_000),
+        report(Track::Review, 0, (0, 40), 30_000_000),
+    ] {
+        let mut with = base.clone();
+        with.push(review);
+        assert_eq!(SummaryMetrics::from_reports(&with, true)?, without);
+    }
+    let keypad = vec![report(Track::Numpad, 300, (300, 300), 60_000_000)];
+    let mut keypad_with = keypad.clone();
+    keypad_with.push(report(Track::Review, 40, (40, 40), 5_000_000));
+    let keypad_metrics = SummaryMetrics::from_reports(&keypad_with, true)?;
+    assert_eq!(keypad_metrics, SummaryMetrics::from_reports(&keypad, true)?);
+    assert_eq!(keypad_metrics.speed_unit, RateUnit::DigitsPerMinute);
+    Ok(())
+}
