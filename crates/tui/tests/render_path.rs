@@ -1018,3 +1018,62 @@ fn progress_renders_at_three_sizes() -> Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
+
+/// #84: every passage an import accepts paints without a control byte in
+/// the cell buffer, whatever the fixture held.
+#[test]
+fn imported_passages_paint_no_control_bytes() -> Result<(), Box<dyn std::error::Error>> {
+    use cadence_trainer::import::{ImportOptions, normalize};
+    let fixtures: [&[u8]; 4] = [
+        b"red \x1b[31mtext\x1b[0m\nplain after colour\n",
+        b"title \x1b]0;owned\x07\nplain after a title\n",
+        "abc\u{202E}def\nplain after bidi\n".as_bytes(),
+        b"crlf line one\r\n\ttabbed line two\r\n",
+    ];
+    for fixture in fixtures {
+        let report = normalize(
+            fixture,
+            ImportOptions {
+                normalize_typography: true,
+                layout: Layout::Us,
+            },
+        )?;
+        assert!(!report.passages.is_empty());
+        let exercises = report
+            .passages
+            .into_iter()
+            .map(|units| cadence_trainer::PlannedExercise {
+                units,
+                kind: cadence_trainer::ExerciseKind::Words,
+                words: Vec::new(),
+                passage: None,
+                caption: None,
+                target: None,
+                spans: Vec::new(),
+            })
+            .collect();
+        let mut engine = words_engine(exercises)?;
+        engine.reduce(envelope(
+            1,
+            1,
+            EventKind::Resized {
+                columns: 100,
+                rows: 32,
+            },
+        ));
+        engine.reduce(envelope(2, 2, EventKind::Key(Key::Enter)));
+        let view = engine.prepare(MonoTick::from_us(10));
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 100, 32));
+        let area = buffer.area;
+        let mut rows = vec![LineRendition::Normal; 32];
+        paint(&mut buffer, area, &view, Palette::cadence_dark(), &mut rows);
+        for cell in buffer.content() {
+            assert!(
+                cell.symbol().chars().all(|c| !c.is_control()),
+                "control character {:?} in a painted cell",
+                cell.symbol()
+            );
+        }
+    }
+    Ok(())
+}

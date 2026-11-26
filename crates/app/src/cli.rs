@@ -39,6 +39,26 @@ pub enum Command {
     Doctor,
     /// Validate a config file and print effective values (#76).
     ConfigCheck(Option<PathBuf>),
+    /// Import local text as a pack (#84).
+    Import(ImportRequest),
+    /// List imported packs (#84).
+    Packs,
+}
+
+/// `cadence import FILE|- --name NAME [--dry-run] [--normalize-typography]
+/// [--replace]` (#84).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportRequest {
+    /// The file, or `None` for stdin (`-`).
+    pub file: Option<PathBuf>,
+    /// The pack name.
+    pub name: String,
+    /// Report only; write nothing.
+    pub dry_run: bool,
+    /// Map smart quotes, dashes and non-breaking spaces.
+    pub normalize_typography: bool,
+    /// Replace a pack of the same name with other content.
+    pub replace: bool,
 }
 
 /// Display palette (U-02); never affects targets or scoring.
@@ -157,6 +177,11 @@ pub fn parse() -> Result<Options, String> {
     let mut capture_dir = None;
     let mut trace = None;
     let mut config_file = None;
+    let mut import_source: Option<Option<PathBuf>> = None;
+    let mut pack_name = None;
+    let mut dry_run = false;
+    let mut normalize_typography = false;
+    let mut replace = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--version" | "-V" => set_action(&mut action, "version")?,
@@ -165,6 +190,25 @@ pub fn parse() -> Result<Options, String> {
             "export" => set_action(&mut action, "export")?,
             "headless" => set_action(&mut action, "headless")?,
             "doctor" => set_action(&mut action, "doctor")?,
+            "packs" => set_action(&mut action, "packs")?,
+            "import" => {
+                set_action(&mut action, "import")?;
+                let source = value(&mut args, &arg)?;
+                import_source = Some(if source == "-" {
+                    None
+                } else {
+                    Some(absolute_path(source)?)
+                });
+            }
+            "--name" => {
+                if pack_name.is_some() {
+                    return Err("duplicate --name".into());
+                }
+                pack_name = Some(value(&mut args, &arg)?);
+            }
+            "--dry-run" => dry_run = true,
+            "--normalize-typography" => normalize_typography = true,
+            "--replace" => replace = true,
             "config" => {
                 set_action(&mut action, "config")?;
                 if value(&mut args, &arg)? != "check" {
@@ -329,6 +373,16 @@ pub fn parse() -> Result<Options, String> {
             }
         }
         Some("config") => Command::ConfigCheck(config_file.take()),
+        Some("packs") => Command::Packs,
+        Some("import") => Command::Import(ImportRequest {
+            file: import_source
+                .take()
+                .ok_or("usage: cadence import FILE|- --name NAME")?,
+            name: pack_name.take().ok_or("import requires --name NAME")?,
+            dry_run,
+            normalize_typography,
+            replace,
+        }),
         Some("doctor") => {
             if !json {
                 return Err("doctor requires --json".into());
@@ -397,6 +451,8 @@ pub fn help() {
         cadence headless --stdio|--script /absolute/requests.jsonl --profile-dir PATH|--ephemeral-profile\n\
         cadence doctor --json [--profile-dir PATH]\n\
         cadence config check [/absolute/config.toml]\n\
+        cadence import /absolute/file|- --name NAME [--dry-run] [--normalize-typography] [--replace]\n\
+        cadence packs\n\
         cadence replay /absolute/trace.jsonl --read-only [--capture-dir /absolute/dir]\n\n\
         Enter starts/continues. Esc pauses; while paused, e ends the session and shows the review.\n\
         Ctrl-C during practice also ends it and shows the review; Enter there saves and exits.\n\

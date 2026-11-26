@@ -72,6 +72,7 @@ dependencies = [
  "cadence-tui",
  "chrono",
  "serde_json",
+ "sha2",
  "tempfile",
 ]
 
@@ -151,6 +152,7 @@ name = "cadence-trainer"
 version = "0.1.0-beta.2"
 dependencies = [
  "cadence-core",
+ "proptest",
  "rand",
  "rand_chacha",
  "serde",

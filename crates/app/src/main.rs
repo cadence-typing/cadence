@@ -2,6 +2,7 @@
 
 mod cli;
 mod headless;
+mod import;
 mod practice;
 #[cfg(test)]
 #[expect(
@@ -96,6 +97,15 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
         }
         cli::Command::Doctor => headless::doctor(options.profile.as_deref()),
         cli::Command::ConfigCheck(file) => config_check(file.as_deref()),
+        cli::Command::Import(request) => {
+            let config = load_config(None)?.config;
+            let layout = config
+                .text("keyboard.layout")
+                .and_then(cadence_core::Layout::parse)
+                .unwrap_or_default();
+            import::run(request, options.profile.as_deref(), layout)
+        }
+        cli::Command::Packs => import::list(options.profile.as_deref()),
         cli::Command::Practice => session::run(&options),
     }
 }

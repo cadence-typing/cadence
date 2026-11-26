@@ -10,6 +10,7 @@
 
 pub mod candidate;
 pub mod corpus;
+pub mod import;
 pub mod lanes;
 pub mod learner;
 pub mod learning_policy;

@@ -15,6 +15,7 @@ mod transfer;
 
 pub mod config;
 pub mod config_write;
+pub mod packs;
 pub mod paths;
 pub mod store;
 pub mod theme_file;
