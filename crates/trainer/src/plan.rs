@@ -119,6 +119,8 @@ pub struct Adaptation {
     pub reinforcement_capacity: usize,
     /// Times one word may be reinforced in a session.
     pub reinforcements_per_word: u32,
+    /// Entries before a missed numeric entry returns (#59; 0 disables).
+    pub numeric_gap_entries: u32,
 }
 
 /// Content and evidence a plan is built from.
@@ -264,6 +266,7 @@ pub fn build_session_plan(
             hesitation_ceiling: policy.learning.hesitation_ceiling,
             reinforcement_capacity: policy.learning.reinforcement_queue_capacity,
             reinforcements_per_word: policy.review.maximum_same_session_reinforcements,
+            numeric_gap_entries: policy.learning.numeric_reinforcement_gap_entries,
         },
         phases,
     })

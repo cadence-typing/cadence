@@ -57,6 +57,7 @@ fn engine(phases: Vec<PlannedPhase>) -> Result<Engine, Error> {
             hesitation_ceiling: Micros::from_us(1_500_000),
             reinforcement_capacity: 8,
             reinforcements_per_word: 1,
+            numeric_gap_entries: 0,
         },
         phases,
     })?)
@@ -358,6 +359,7 @@ fn engine_with(capacity: usize, per_word: u32, phases: Vec<PlannedPhase>) -> Res
             hesitation_ceiling: Micros::from_us(1_500_000),
             reinforcement_capacity: capacity,
             reinforcements_per_word: per_word,
+            numeric_gap_entries: 0,
         },
         phases,
     })?)
@@ -592,5 +594,133 @@ fn with_no_admissible_slot_the_exercise_is_unchanged() -> TestResult {
     );
     let at = type_text(&mut driver, at, "sun hat")?;
     assert_eq!(practice_text(&mut driver, at)?, "map cat");
+    Ok(())
+}
+
+fn numeric_engine(gap: u32, phases: Vec<PlannedPhase>) -> Result<Engine, Error> {
+    Ok(Engine::new_plan(SessionPlan {
+        budget_seconds: 120,
+        policy_digest: ContentDigest::from_bytes([1; 32]),
+        corpus_digest: ContentDigest::from_bytes([2; 32]),
+        record: PlanRecord {
+            seed: 9,
+            mode: PlannerMode::Adaptive,
+            focus: Vec::new(),
+        },
+        adaptation: Adaptation {
+            hesitation_ceiling: Micros::from_us(1_500_000),
+            reinforcement_capacity: 8,
+            reinforcements_per_word: 1,
+            numeric_gap_entries: gap,
+        },
+        phases,
+    })?)
+}
+
+fn numeric_phase(
+    kind: ExerciseKind,
+    phase: Phase,
+    seconds: u64,
+    entries: &[&str],
+) -> Result<PlannedPhase, Error> {
+    Ok(PlannedPhase {
+        phase,
+        seconds,
+        exercises: entries
+            .iter()
+            .map(|text| {
+                Ok(PlannedExercise {
+                    units: cadence_core::validate_target(text, LayoutSupportsPound::US)?,
+                    kind,
+                    words: Vec::new(),
+                    passage: None,
+                    caption: None,
+                    target: None,
+                })
+            })
+            .collect::<Result<_, Error>>()?,
+    })
+}
+
+fn context_line(driver: &mut Driver, at: u64) -> Option<String> {
+    let ScreenView::Practice { status, .. } = driver.engine.prepare(MonoTick::from_us(at)).screen
+    else {
+        return None;
+    };
+    status.context
+}
+
+/// #59: a missed numpad entry returns exactly once, not before two other
+/// entries, byte-identical (leading zeros and decimals kept), captioned
+/// "again"; the returned entry is ordinary typing.
+#[test]
+fn a_missed_numpad_entry_returns_once_after_two_others() -> TestResult {
+    let phases = vec![numeric_phase(
+        ExerciseKind::Numpad,
+        Phase::Numpad,
+        60,
+        &["007.50", "456", "789", "012", "345", "678"],
+    )?];
+    let mut driver = Driver::new(numeric_engine(2, phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let mut at = type_text(&mut driver, SECOND, "#007.50")?;
+    driver.key(at, Key::Enter)?;
+    let mut seen = Vec::new();
+    for _ in 0..5 {
+        at += 100_000;
+        let text = practice_text(&mut driver, at)?;
+        seen.push((text.clone(), context_line(&mut driver, at)));
+        at = type_text(&mut driver, at, &text)?;
+        driver.key(at, Key::Enter)?;
+    }
+    let texts: Vec<&str> = seen.iter().map(|(t, _)| t.as_str()).collect();
+    assert_eq!(texts, ["456", "789", "007.50", "345", "678"]);
+    assert_eq!(seen[2].1.as_deref(), Some("again"));
+    assert!(
+        seen.iter()
+            .filter(|(_, c)| c.as_deref() == Some("again"))
+            .count()
+            == 1
+    );
+    Ok(())
+}
+
+/// #59: a miss at the end of a numeric phase never reaches the next phase,
+/// and the number-row and numpad queues never mix (L-01).
+#[test]
+fn a_numeric_miss_never_leaves_its_phase() -> TestResult {
+    let phases = vec![
+        numeric_phase(
+            ExerciseKind::NumberRow,
+            Phase::NumberRow,
+            1,
+            &["room 42", "box 17"],
+        )?,
+        numeric_phase(
+            ExerciseKind::Numpad,
+            Phase::Numpad,
+            30,
+            &["111", "222", "333", "444"],
+        )?,
+    ];
+    let mut driver = Driver::new(numeric_engine(1, phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "room 4#2")?;
+    let at = at + 100_000;
+    let row = practice_text(&mut driver, at)?;
+    assert_eq!(row, "box 17");
+    // The row phase's second passes: the deadline ends it.
+    driver.send(at + 1_500_000, EventKind::Tick)?;
+    driver.key(at + 3_000_000, Key::Enter)?;
+    let mut at = at + 3_100_000;
+    let mut numpad = Vec::new();
+    for _ in 0..4 {
+        let text = practice_text(&mut driver, at)?;
+        numpad.push(text.clone());
+        at = type_text(&mut driver, at, &text)?;
+        driver.key(at, Key::Enter)?;
+        at += 100_000;
+    }
+    assert_eq!(numpad, ["111", "222", "333", "444"]);
     Ok(())
 }

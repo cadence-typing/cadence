@@ -157,6 +157,7 @@ impl Engine {
             .ok_or_else(|| invalid("phase index exhausted"))?;
         self.exercise_index = 0;
         self.list_wrapped = false;
+        self.learning.end_phase();
         self.phase_start = self.active;
         self.interlude_opened = None;
         let Some(phase) = self.plan.phases.get(self.phase_index) else {

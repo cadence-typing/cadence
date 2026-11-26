@@ -23,6 +23,7 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
             hesitation_ceiling: cadence_core::Micros::from_us(1_500_000),
             reinforcement_capacity: 8,
             reinforcements_per_word: 1,
+            numeric_gap_entries: 0,
         },
         phases: vec![
             PlannedPhase {

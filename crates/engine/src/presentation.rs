@@ -119,6 +119,18 @@ impl Engine {
         if let Some(caption) = &exercise.caption {
             return Some(caption.clone());
         }
+        // A returned numeric miss (#59) is labelled by the proved label::of.
+        if self.learning.numeric_again
+            && label::of(label::Facts {
+                served_before: 1,
+                reinforcement: true,
+                due_review: false,
+                wrapped: false,
+                recent_passage: false,
+            }) == label::Label::Again
+        {
+            return Some("again".to_string());
+        }
         let words = &self.learning.words;
         let mut parts = Vec::new();
         let mut focus: Vec<String> = Vec::new();

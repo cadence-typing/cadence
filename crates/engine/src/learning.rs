@@ -41,6 +41,26 @@ pub(super) struct Learning {
     served: BTreeMap<WordId, u32>,
     /// Word slots of the open exercise after any substitution.
     pub(super) words: Vec<PlannedWord>,
+    /// Missed numeric entries waiting to return in this phase (#59);
+    /// session-local, discarded at the phase's end.
+    numeric: VecDeque<NumericReturn>,
+    /// Numeric entries opened in this phase.
+    numeric_opened: usize,
+    /// The open numeric entry's units.
+    numeric_current: Option<Vec<TrainingChar>>,
+    /// The open numeric entry is a returned miss ("again").
+    pub(super) numeric_again: bool,
+}
+
+/// A missed numeric entry and the entry index it returns at.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct NumericReturn {
+    units: Vec<TrainingChar>,
+    due: usize,
+}
+
+const fn numeric(kind: ExerciseKind) -> bool {
+    matches!(kind, ExerciseKind::NumberRow | ExerciseKind::Numpad)
 }
 
 fn slot_lane(lane: Lane) -> slots::SlotLane {
@@ -60,6 +80,10 @@ impl Learning {
             queue: VecDeque::with_capacity(adaptation.reinforcement_capacity),
             served: BTreeMap::new(),
             words: Vec::new(),
+            numeric: VecDeque::new(),
+            numeric_opened: 0,
+            numeric_current: None,
+            numeric_again: false,
         }
     }
 
@@ -156,6 +180,9 @@ impl Learning {
     ) -> Result<Vec<TrainingChar>, CoreError> {
         self.mark = None;
         self.words.clone_from(&exercise.words);
+        if numeric(exercise.kind) {
+            return Ok(self.open_numeric(exercise));
+        }
         if exercise.kind != ExerciseKind::Words || self.queue.is_empty() {
             return Ok(exercise.units.clone());
         }
@@ -220,12 +247,86 @@ impl Learning {
 
     /// Folds a finished or interrupted exercise: completed word outcomes,
     /// the typed passage, and missed words queued for reinforcement.
+    /// A numeric entry: a missed one returns once its gap has passed,
+    /// replacing the prepared entry at that index (#59).
+    fn open_numeric(&mut self, exercise: &PlannedExercise) -> Vec<TrainingChar> {
+        let index = self.numeric_opened;
+        self.numeric_opened = index.saturating_add(1);
+        let units = match self.numeric.front() {
+            Some(waiting) if waiting.due <= index => {
+                self.numeric_again = true;
+                self.numeric
+                    .pop_front()
+                    .map_or_else(|| exercise.units.clone(), |waiting| waiting.units)
+            }
+            Some(_) | None => {
+                self.numeric_again = false;
+                exercise.units.clone()
+            }
+        };
+        self.numeric_current = Some(units.clone());
+        units
+    }
+
+    /// A numeric phase ended: its waiting entries are discarded; they are
+    /// session-local and never reach another phase (#59).
+    pub(super) fn end_phase(&mut self) {
+        self.numeric.clear();
+        self.numeric_opened = 0;
+        self.numeric_current = None;
+        self.numeric_again = false;
+    }
+
+    /// Queues a completed numeric entry with a first-attempt error, once,
+    /// through the proved `queue::admit`.
+    fn close_numeric(
+        &mut self,
+        ledger: &cadence_core::ledger::AttemptLedger,
+    ) -> Result<(), CoreError> {
+        let Some(units) = self.numeric_current.take() else {
+            return Ok(());
+        };
+        let gap = usize::try_from(self.adaptation.numeric_gap_entries)
+            .map_err(|_unrepresentable| invalid("numeric gap outside address space"))?;
+        let missed = ledger.first_outcomes().contains(&Slot::Incorrect);
+        let clean_end = ledger.is_complete()
+            && ledger
+                .word_flags()
+                .iter()
+                .all(|f| !f.interrupted && !f.pasted);
+        if gap == 0 || !missed || !clean_end {
+            return Ok(());
+        }
+        // A returned entry is not queued again: each miss returns once.
+        let served = u32::from(self.numeric_again);
+        match queue::admit(
+            self.numeric.iter().any(|waiting| waiting.units == units),
+            self.numeric.len(),
+            self.adaptation.reinforcement_capacity,
+            served,
+            1,
+        ) {
+            queue::Admit::Admitted => {
+                let due = self
+                    .numeric_opened
+                    .checked_add(gap)
+                    .ok_or_else(|| invalid("numeric return index overflow"))?;
+                self.numeric.push_back(NumericReturn { units, due });
+            }
+            queue::Admit::Duplicate | queue::Admit::Full | queue::Admit::Exhausted => {}
+        }
+        Ok(())
+    }
+
     pub(super) fn close(
         &mut self,
         exercise: &PlannedExercise,
         ledger: &cadence_core::ledger::AttemptLedger,
     ) -> Result<(), CoreError> {
         self.mark = None;
+        if numeric(exercise.kind) {
+            self.close_numeric(ledger)?;
+        }
         if let Some(passage) = exercise.passage
             && ledger.first_attempted().get() > 0
         {
