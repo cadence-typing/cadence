@@ -2870,6 +2870,54 @@ def session.overdue
   (elapsed_us : Std.U64) (bound_us : Std.U64) : Result Bool := do
   ok (elapsed_us > bound_us)
 
+/-- [cadence_kernel::settings::Kind]
+    Source: 'crates/kernel/src/settings.rs', lines 8:0-37:1
+    Visibility: public -/
+@[discriminant isize]
+inductive settings.Kind where
+| Minutes : settings.Kind
+| Tracks : settings.Kind
+| Emphasis : settings.Kind
+| AccuracyTarget : settings.Kind
+| LivePace : settings.Kind
+| Breadth : settings.Kind
+| Packs : settings.Kind
+| Layout : settings.Kind
+| Numpad : settings.Kind
+| DecimalSeparator : settings.Kind
+| Theme : settings.Kind
+| TextSize : settings.Kind
+| KeyGuide : settings.Kind
+| HighContrast : settings.Kind
+
+/-- [cadence_kernel::settings::Effect]
+    Source: 'crates/kernel/src/settings.rs', lines 41:0-46:1
+    Visibility: public -/
+@[discriminant isize]
+inductive settings.Effect where
+| Now : settings.Effect
+| NextSession : settings.Effect
+
+/-- [cadence_kernel::settings::takes_effect]:
+    Source: 'crates/kernel/src/settings.rs', lines 50:0-65:1
+    Visibility: public -/
+def settings.takes_effect (kind : settings.Kind) : Result settings.Effect := do
+  match kind with
+  | settings.Kind.Minutes => ok settings.Effect.NextSession
+  | settings.Kind.Tracks => ok settings.Effect.NextSession
+  | settings.Kind.Emphasis => ok settings.Effect.NextSession
+  | settings.Kind.AccuracyTarget => ok settings.Effect.NextSession
+  | settings.Kind.LivePace => ok settings.Effect.Now
+  | settings.Kind.Breadth => ok settings.Effect.NextSession
+  | settings.Kind.Packs => ok settings.Effect.NextSession
+  | settings.Kind.Layout => ok settings.Effect.NextSession
+  | settings.Kind.Numpad => ok settings.Effect.NextSession
+  | settings.Kind.DecimalSeparator => ok settings.Effect.NextSession
+  | settings.Kind.Theme => ok settings.Effect.Now
+  | settings.Kind.TextSize => ok settings.Effect.Now
+  | settings.Kind.KeyGuide => ok settings.Effect.Now
+  | settings.Kind.HighContrast => ok settings.Effect.Now
+
 /-- [cadence_kernel::slots::SlotLane]
     Source: 'crates/kernel/src/slots.rs', lines 10:0-17:1
     Visibility: public -/

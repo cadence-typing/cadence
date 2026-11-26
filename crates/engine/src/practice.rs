@@ -205,6 +205,7 @@ impl Engine {
                 | Key::Backspace
                 | Key::Interrupt
                 | Key::ToggleTextSize
+                | Key::Arrow(_)
                 | Key::Other => {}
             }
             return Ok(DomainOutcome::None);
@@ -283,7 +284,12 @@ impl Engine {
                 self.learning.break_timing();
             }
             Key::Enter if numpad && ledger.is_complete() => return self.finish_exercise(at),
-            Key::Enter | Key::Escape | Key::Interrupt | Key::ToggleTextSize | Key::Other => {}
+            Key::Enter
+            | Key::Escape
+            | Key::Interrupt
+            | Key::ToggleTextSize
+            | Key::Arrow(_)
+            | Key::Other => {}
         }
         Ok(DomainOutcome::None)
     }

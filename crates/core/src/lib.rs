@@ -34,6 +34,7 @@ pub mod request;
 pub mod review;
 pub mod select;
 pub mod session;
+pub mod settings;
 pub mod slots;
 pub mod tick;
 pub mod ticket;

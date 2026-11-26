@@ -9,7 +9,7 @@
 use cadence_core::barrier::{Barrier, causal, durable};
 use cadence_core::progress::{Checkpoint, HistorySummary, SaveResult};
 use cadence_core::{Layout, MonoTick, SessionId, TrainingChar};
-use cadence_engine::{Engine, EventEnvelope, EventKind, Key, ScreenView};
+use cadence_engine::{Direction, Engine, EventEnvelope, EventKind, Key, ScreenView};
 use serde_json::{Map, Value, json};
 
 use crate::envelope::{Code, DeliverVariant, Operation, Request};
@@ -285,7 +285,11 @@ impl<S: Services> Headless<S> {
             "Escape" => Key::Escape,
             "Backspace" => Key::Backspace,
             "F2" => Key::ToggleTextSize,
-            "Tab" | "Left" | "Right" | "Up" | "Down" | "Home" | "End" => Key::Other,
+            "Left" => Key::Arrow(Direction::Left),
+            "Right" => Key::Arrow(Direction::Right),
+            "Up" => Key::Arrow(Direction::Up),
+            "Down" => Key::Arrow(Direction::Down),
+            "Tab" | "Home" | "End" => Key::Other,
             "c" if control => Key::Interrupt,
             single => {
                 let mut chars = single.chars();

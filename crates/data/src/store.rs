@@ -185,6 +185,62 @@ impl ProgressStore {
         Ok(())
     }
 
+    /// Records the score-affecting settings a session starts with (#79):
+    /// for each key whose value differs from its last audited value (its
+    /// default when never audited), one row at `at_session`. Launching
+    /// again before that session is saved updates the same row, and a
+    /// value changed back removes it. Returns the rows now recorded at
+    /// `at_session`.
+    ///
+    /// # Errors
+    /// SQL failures.
+    pub fn audit_settings(
+        &mut self,
+        at_session: SessionId,
+        values: &[(&str, String)],
+    ) -> Result<u64, StoreError> {
+        let at = sql_integer(at_session.get(), "session")?;
+        let transaction = self.connection.transaction()?;
+        for (key, new) in values {
+            let last: Option<String> = transaction
+                .query_row(
+                    "SELECT new FROM settings_audit WHERE key=?1 AND at_session<?2
+                     ORDER BY at_session DESC LIMIT 1",
+                    params![key, at],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            let old = match last {
+                Some(value) => value,
+                None => cadence_core::settings::KEYS
+                    .iter()
+                    .find(|spec| spec.name == *key)
+                    .map(|spec| spec.default.setting().to_string())
+                    .ok_or_else(|| StoreError::Corrupt("unknown setting audited".into()))?,
+            };
+            if &old == new {
+                transaction.execute(
+                    "DELETE FROM settings_audit WHERE at_session=?1 AND key=?2",
+                    params![at, key],
+                )?;
+            } else {
+                transaction.execute(
+                    "INSERT INTO settings_audit(at_session,key,old,new) VALUES (?1,?2,?3,?4)
+                     ON CONFLICT(at_session,key) DO UPDATE SET new=excluded.new",
+                    params![at, key, old, new],
+                )?;
+            }
+        }
+        let recorded: i64 = transaction.query_row(
+            "SELECT COUNT(*) FROM settings_audit WHERE at_session=?1 AND key<>'layout.adopted'",
+            [at],
+            |row| row.get(0),
+        )?;
+        transaction.commit()?;
+        u64::try_from(recorded)
+            .map_err(|error| StoreError::Corrupt(format!("audit count: {error}")))
+    }
+
     /// Startup facts for a layout (#77): sessions read their own layout,
     /// or the adopter's when they predate layouts. History from another
     /// layout keeps its letter skills and word outcomes (the letters are the

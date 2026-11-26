@@ -66,6 +66,7 @@ impl SaveWorker {
         profile: Option<PathBuf>,
         learner_window: usize,
         layout: Option<cadence_core::Layout>,
+        audit: Vec<(&'static str, String)>,
     ) -> Result<(Self, StoreBootstrap), WriterError> {
         let (requests, incoming) = mpsc::sync_channel(SAVE_SLOT_COUNT);
         let (outgoing, results) = mpsc::sync_channel(SAVE_SLOT_COUNT);
@@ -73,7 +74,14 @@ impl SaveWorker {
         let thread = thread::Builder::new()
             .name("cadence-progress".to_string())
             .spawn(move || {
-                writer_loop(profile, learner_window, layout, incoming, outgoing, startup)
+                writer_loop(
+                    profile,
+                    learner_window,
+                    (layout, audit),
+                    incoming,
+                    outgoing,
+                    startup,
+                );
             })
             .map_err(WriterError::Spawn)?;
         match ready.recv_timeout(STORE_STARTUP_TIMEOUT) {
@@ -154,7 +162,7 @@ fn slow_save_fault() -> Option<(u64, std::time::Duration)> {
 fn writer_loop(
     profile: Option<PathBuf>,
     learner_window: usize,
-    layout: Option<cadence_core::Layout>,
+    (layout, audit): (Option<cadence_core::Layout>, Vec<(&'static str, String)>),
     requests: Receiver<Checkpoint>,
     results: SyncSender<SaveResult>,
     startup: SyncSender<Result<StoreBootstrap, StoreError>>,
@@ -162,10 +170,13 @@ fn writer_loop(
     let opened = ProgressStore::open(profile.as_deref()).and_then(|mut store| {
         // The first chosen layout adopts the history recorded before
         // layouts existed (#77).
+        let next = store.bootstrap(1)?.next_session;
         if let Some(layout) = layout {
-            let next = store.bootstrap(1)?.next_session;
             store.adopt_unspecified(layout, next)?;
         }
+        // Score-affecting settings changes are recorded at the session they
+        // first apply to (#79).
+        store.audit_settings(next, &audit)?;
         let bootstrap = store.bootstrap_for(learner_window, layout)?;
         Ok((store, bootstrap))
     });

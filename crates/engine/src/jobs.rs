@@ -6,17 +6,26 @@
 use cadence_core::ticket::{Admit, admit};
 
 /// Kinds of ticketed jobs. `Ping` is a no-op used to exercise the path;
-/// configuration writes, reloads and imports join it (#76, #79, #84).
+/// imports join them (#84).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JobKind {
     /// A no-op round trip.
     Ping,
+    /// An acknowledged `config.toml` write (#79).
+    ConfigWrite,
+    /// A `config.toml` reload (#79).
+    ConfigReload,
 }
+
+/// One slot per kind.
+const KINDS: usize = 3;
 
 impl JobKind {
     const fn index(self) -> usize {
         match self {
             Self::Ping => 0,
+            Self::ConfigWrite => 1,
+            Self::ConfigReload => 2,
         }
     }
 }
@@ -39,6 +48,14 @@ pub enum JobOutcome {
     Succeeded,
     /// Failed, with a reason.
     Failed(String),
+    /// A config write or reload succeeded: the file's validated values, by
+    /// key, and its digest (`None` when there is no file).
+    Settings {
+        /// Every key's value.
+        values: Vec<(&'static str, cadence_core::settings::Setting)>,
+        /// The file's digest.
+        digest: Option<cadence_core::settings::ConfigDigest>,
+    },
 }
 
 /// One kind's state.
@@ -59,7 +76,7 @@ pub struct JobSlot {
 /// The bounded job table: one slot per kind.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Jobs {
-    slots: [JobSlot; 1],
+    slots: [JobSlot; KINDS],
 }
 
 impl Jobs {

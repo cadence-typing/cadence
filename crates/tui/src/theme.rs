@@ -57,6 +57,18 @@ impl Palette {
         SemanticRole::SelectedBackground,
     ];
 
+    /// A built-in palette by its `display.theme` name (#79); theme files
+    /// are read by the app.
+    #[must_use]
+    pub fn named(name: &str) -> Option<Self> {
+        match name {
+            "dark" => Some(Self::cadence_dark()),
+            "light" => Some(Self::cadence_light()),
+            "terminal" => Some(Self::terminal()),
+            _ => None,
+        }
+    }
+
     /// The shipped `cadence-dark` palette: neutral readable text with a
     /// restrained mint accent (approved visual direction).
     #[must_use]

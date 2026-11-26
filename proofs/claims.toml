@@ -1512,6 +1512,23 @@ file = "crates/kernel/src/comparison.rs"
 before = "        && !a.synthetic\n        && !b.synthetic\n"
 after = ""
 
+# ---- when a setting takes effect (crates/kernel/src/settings.rs, #79)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/settings.rs"
+function = "settings::takes_effect"
+lean = "cadence_kernel.settings.takes_effect"
+theorems = ["Proofs.Settings.score_affecting_never_now"]
+total = "Proofs.Settings.score_affecting_never_now"
+mutants = ["layout-applies-now"]
+
+[[mutant]]
+name = "layout-applies-now"
+file = "crates/kernel/src/settings.rs"
+before = "        Kind::LivePace | Kind::Theme | Kind::TextSize | Kind::KeyGuide | Kind::HighContrast => {"
+after = "        Kind::LivePace | Kind::Theme | Kind::TextSize | Kind::KeyGuide | Kind::HighContrast | Kind::Layout => {"
+
 # ---- local-calendar days (crates/kernel/src/calendar.rs, #52)
 
 [[claim]]

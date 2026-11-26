@@ -28,7 +28,13 @@ pub fn paint(
     rows: &mut [LineRendition],
 ) {
     let area = area.intersection(buffer.area);
-    let mut native = NativeText::new(view.text_support, area, buffer.area, rows);
+    // Under the settings overlay every row is normal size (#79).
+    let support = if view.settings.is_some() {
+        cadence_engine::view::TextSupport::NormalOnly
+    } else {
+        view.text_support
+    };
+    let mut native = NativeText::new(support, area, buffer.area, rows);
     Clear.render(area, buffer);
     buffer.set_style(area, style(palette, Role::Text));
     if area.width < MINIMUM_COLUMNS || area.height < MINIMUM_ROWS {
@@ -66,6 +72,9 @@ pub fn paint(
             ResolvedTextSize::Normal
         }
     };
+    if let Some(settings) = &view.settings {
+        crate::settings::paint(buffer, body, settings, palette);
+    }
     if let Some(message) = &view.notice {
         let role = if view.durability.is_failed() || view.mode == ViewMode::Invalid {
             Role::Error

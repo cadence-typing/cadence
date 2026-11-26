@@ -813,3 +813,43 @@ fn the_transfer_probe_is_named_and_measured() -> Result<(), Box<dyn std::error::
     }
     Ok(())
 }
+
+/// #79: the settings overlay renders at three sizes with its controls, and
+/// the selected row stays visible when the list scrolls.
+#[test]
+fn the_settings_overlay_renders_at_three_sizes() -> Result<(), Box<dyn std::error::Error>> {
+    let mut engine = planned_engine("cat")?;
+    engine.reduce(envelope(1, 1, content('s')));
+    let last = cadence_core::settings::KEYS.len();
+    for seq in 2..=u64::try_from(last)? {
+        engine.reduce(envelope(
+            seq,
+            seq,
+            EventKind::Key(Key::Arrow(cadence_engine::Direction::Down)),
+        ));
+    }
+    let view = engine.prepare(MonoTick::from_us(100));
+    assert_eq!(view.settings.as_ref().map(|s| s.cursor), Some(last - 1));
+    for (columns, rows) in [(60_u16, 18_u16), (80, 24), (100, 32)] {
+        let mut buffer = Buffer::empty(Rect::new(0, 0, columns, rows));
+        let area = buffer.area;
+        let mut renditions = vec![LineRendition::Normal; usize::from(rows)];
+        paint(
+            &mut buffer,
+            area,
+            &view,
+            Palette::cadence_dark(),
+            &mut renditions,
+        );
+        let text = screen_text(&buffer);
+        assert!(text.contains(" Settings "), "{columns}x{rows}\n{text}");
+        assert!(text.contains("› high_contrast"), "{columns}x{rows}\n{text}");
+        assert!(text.contains("applies now"), "{columns}x{rows}\n{text}");
+        assert!(text.contains("Enter save"), "{columns}x{rows}\n{text}");
+        assert!(
+            renditions.iter().all(|r| *r == LineRendition::Normal),
+            "no double-height rows under the overlay"
+        );
+    }
+    Ok(())
+}

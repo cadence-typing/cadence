@@ -19,7 +19,7 @@ impl Engine {
         {
             Some("Invalid presentation timestamp: backward time; displayed measurements remain at the last admitted event.".to_string())
         } else {
-            self.notice.clone()
+            self.notice.clone().or_else(|| self.settings.notice())
         };
         let screen = match self.screen {
             Screen::Today => ScreenView::Today {
@@ -49,6 +49,8 @@ impl Engine {
             screen,
             active: self.active,
             notice,
+            settings: self.settings.view(),
+            display: self.display_view(),
             history: self.history.clone(),
             text_size: self.text_size,
             text_support: self.text_support,

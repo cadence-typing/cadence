@@ -27,9 +27,24 @@ pub enum Key {
     Interrupt,
     /// F2 changes visual text size without becoming scored content.
     ToggleTextSize,
-    /// Any other non-training key (arrows, function keys, Tab) —
-    /// admitted for accounting, interpreted per input owner.
+    /// An arrow key: navigation in overlays (#79); never training input.
+    Arrow(Direction),
+    /// Any other non-training key (function keys, Tab) — admitted for
+    /// accounting, interpreted per input owner.
     Other,
+}
+
+/// An arrow key's direction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    /// Up.
+    Up,
+    /// Down.
+    Down,
+    /// Left.
+    Left,
+    /// Right.
+    Right,
 }
 
 /// External events admitted to the reducer, in arrival order.

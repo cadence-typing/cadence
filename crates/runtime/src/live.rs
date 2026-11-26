@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use crate::{presenter::Presenter, text_protocol};
 use cadence_core::{Layout, MonoTick, TrainingChar};
 use cadence_engine::view::{LineRendition, TextSupport};
-use cadence_engine::{EventKind, Key};
+use cadence_engine::{Direction, EventKind, Key};
 use crossterm::cursor::Show;
 use crossterm::event::{
     self, DisableBracketedPaste, DisableFocusChange, EnableBracketedPaste, EnableFocusChange,
@@ -227,6 +227,10 @@ fn translate_key(key: KeyEvent) -> Key {
         KeyCode::Enter => Key::Enter,
         KeyCode::Esc => Key::Escape,
         KeyCode::F(2) => Key::ToggleTextSize,
+        KeyCode::Up => Key::Arrow(Direction::Up),
+        KeyCode::Down => Key::Arrow(Direction::Down),
+        KeyCode::Left => Key::Arrow(Direction::Left),
+        KeyCode::Right => Key::Arrow(Direction::Right),
         _ => Key::Other,
     }
 }

@@ -51,6 +51,7 @@ start_from = [
     "cadence_kernel::barrier::durable",
     "cadence_kernel::ticket::admit",
     "cadence_kernel::comparison::same_basis",
+    "cadence_kernel::settings::takes_effect",
     "cadence_kernel::calendar::local_day",
     "cadence_kernel::calendar::days_ago",
     "cadence_kernel::checkpoint::admit",

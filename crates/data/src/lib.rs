@@ -14,6 +14,7 @@ mod schema;
 mod transfer;
 
 pub mod config;
+pub mod config_write;
 pub mod paths;
 pub mod store;
 

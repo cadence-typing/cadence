@@ -361,3 +361,21 @@ fn comparison_has_no_second_copy_in_the_engine() -> TestResult {
     }
     Ok(())
 }
+
+/// #79: when a setting applies is decided only by the kernel's
+/// `takes_effect`; the engine's overlay classifies no keys itself.
+#[test]
+fn settings_effect_has_no_second_copy_in_the_engine() -> TestResult {
+    let settings = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../engine/src/settings.rs"
+    ))?;
+    assert!(
+        settings.contains("effect(key.name)"),
+        "the overlay asks the kernel"
+    );
+    for copy in ["starts_with(\"display", "Kind::Theme", "Kind::Layout", "fn takes_effect"] {
+        assert!(!settings.contains(copy), "engine/settings.rs keeps {copy}");
+    }
+    Ok(())
+}

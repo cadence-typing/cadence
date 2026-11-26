@@ -101,7 +101,18 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
         cli::Command::Practice => {
             // The config file is read once, before the terminal starts; an
             // invalid file stops here with its diagnostics (#76).
-            let options = apply_config(options.clone_for_practice(), &load_config(None)?);
+            let loaded = load_config(None)?;
+            let options = apply_config(options.clone_for_practice(), &loaded.config);
+            // The overlay starts from the file's values with the flags laid
+            // over them, so a flag keeps winning until the file is edited.
+            let mut settings = cadence_runtime::config_worker::values(&loaded.config);
+            if options.theme_set {
+                for (key, value) in &mut settings {
+                    if *key == "display.theme" {
+                        *value = cadence_core::settings::Setting::Text(options.theme.key().into());
+                    }
+                }
+            }
             // The wall clock and the local offset are read once, here, at
             // session start; the proved calendar::local_day decides the day.
             let now = i64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs())?;
@@ -122,16 +133,20 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
                 options.profile.clone(),
                 policy.learning.history_window(),
                 Some(options.layout),
+                score_affecting(&loaded.config),
             )?;
             let engine = build_engine(&options, &policy, &bootstrap, day)?
                 .with_layout(
                     options.layout,
                     cadence_core::progress::ContentClass::Standard,
                 )
-                .with_utc_offset(Some(offset.checked_div(60).ok_or("offset")?), detected);
+                .with_utc_offset(Some(offset.checked_div(60).ok_or("offset")?), detected)
+                .with_settings(&settings, loaded.digest);
+            let config = cadence_runtime::ConfigWorker::spawn(config_path(None))?;
             practice::run(
                 engine,
                 worker,
+                config,
                 bootstrap,
                 day,
                 options.text_size.unwrap_or_default(),
@@ -139,6 +154,19 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
             )
         }
     }
+}
+
+/// The settings a session's scores depend on, for the audit (#79): those
+/// the proved `settings::takes_effect` holds for the next session.
+fn score_affecting(config: &cadence_data::config::Config) -> Vec<(&'static str, String)> {
+    config
+        .effective()
+        .into_iter()
+        .filter(|(key, _, _)| {
+            cadence_core::settings::effect(key) == Some(cadence_core::settings::Effect::NextSession)
+        })
+        .map(|(key, value, _)| (key, value.to_string()))
+        .collect()
 }
 
 /// The config file: the given path, else the XDG location.
@@ -153,11 +181,14 @@ fn config_path(file: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
 
 fn load_config(
     file: Option<&std::path::Path>,
-) -> Result<cadence_data::config::Config, Box<dyn Error>> {
+) -> Result<cadence_data::config_write::Loaded, Box<dyn Error>> {
     let Some(path) = config_path(file) else {
-        return Ok(cadence_data::config::Config::default());
+        return Ok(cadence_data::config_write::Loaded {
+            config: cadence_data::config::Config::default(),
+            digest: None,
+        });
     };
-    cadence_data::config::Config::load(&path).map_err(|errors| {
+    cadence_data::config_write::reload(&path).map_err(|errors| {
         errors
             .iter()
             .map(ToString::to_string)

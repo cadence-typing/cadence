@@ -11,6 +11,7 @@ mod learning;
 mod practice;
 mod presentation;
 mod review;
+pub mod settings;
 mod storage;
 pub mod summary;
 pub mod view;
@@ -21,7 +22,7 @@ use cadence_core::session::{
 };
 use cadence_core::{CoreError, EventSeq, ExerciseId, FrameRevision, Micros, MonoTick};
 use cadence_trainer::{Phase, SessionPlan};
-pub use events::{EventEnvelope, EventKind, Key};
+pub use events::{Direction, EventEnvelope, EventKind, Key};
 use storage::Storage;
 pub use view::{
     Baseline, LearningView, PauseReason, PreparedView, ProbeView, ReviewContext, ScreenView, Slip,
@@ -145,6 +146,8 @@ pub struct Engine {
     state_revision: u64,
     /// Ticketed worker jobs (#75).
     jobs: jobs::Jobs,
+    /// Effective settings and the overlay (#79).
+    settings: settings::SettingsState,
     /// The group of the checkpoint whose acknowledgement is being consumed
     /// (#71): a follow-up dispatched now inherits it.
     ack_group: Option<u64>,
@@ -239,6 +242,7 @@ impl Engine {
             list_wrapped: false,
             state_revision: 0,
             jobs: jobs::Jobs::default(),
+            settings: settings::SettingsState::default(),
             ack_group: None,
             probe_paused: false,
             probe_pasted: false,
@@ -399,13 +403,21 @@ impl Engine {
             EventKind::SaveResult(result) => self.save_result(result, &mut t)?,
             EventKind::StartJob(kind) => t.job = self.jobs.start(kind),
             EventKind::JobResult { ticket, outcome } => {
-                self.jobs.result(ticket, outcome);
+                if self.jobs.result(ticket, outcome) {
+                    self.settings_result(ticket.kind);
+                }
             }
             EventKind::RestartJobs => self.jobs.restart(),
             EventKind::CheckpointRequested => {
                 if self.storage.is_some() && !self.finishing {
                     self.checkpoint_due = true;
                 }
+            }
+            EventKind::Key(key) if self.settings.is_open() && key != Key::Interrupt => {
+                self.settings_key(key, &mut t);
+            }
+            EventKind::Key(Key::Content(c)) if c.get() == 's' && self.settings_openable() => {
+                self.settings.open();
             }
             EventKind::Key(Key::Interrupt) => self.interrupt(at, &mut t)?,
             EventKind::Terminate => self.request_exit(at, &mut t)?,

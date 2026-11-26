@@ -430,4 +430,49 @@ pub struct PreparedView {
     pub last_session: Option<Baseline>,
     /// Comparison and slips, on the review only.
     pub review: ReviewContext,
+    /// The settings overlay, when open (#79).
+    pub settings: Option<SettingsView>,
+    /// The effective display settings, applied at once (#79).
+    pub display: DisplayView,
+}
+
+/// The display settings the painter applies (#79).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DisplayView {
+    /// `display.theme`: a built-in name or a theme file name.
+    pub theme: String,
+    /// `display.high_contrast`.
+    pub high_contrast: bool,
+    /// `display.key_guide`: `auto`, `always` or `off`.
+    pub key_guide: String,
+    /// `practice.live_pace`.
+    pub live_pace: bool,
+}
+
+/// The settings overlay (#79).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SettingsView {
+    /// One row per key, in catalogue order.
+    pub rows: Vec<SettingRow>,
+    /// The selected row.
+    pub cursor: usize,
+    /// A write or reload is waiting for its acknowledgement.
+    pub saving: bool,
+    /// The last outcome.
+    pub notice: Option<String>,
+}
+
+/// One key in the overlay.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SettingRow {
+    /// `table.key`.
+    pub key: &'static str,
+    /// The draft value, as TOML.
+    pub value: String,
+    /// Left and Right change it (lists are edited in the file).
+    pub editable: bool,
+    /// The draft differs from the effective value.
+    pub changed: bool,
+    /// A saved change applies at once (else from the next session).
+    pub applies_now: bool,
 }

@@ -381,3 +381,45 @@ fn a_new_layout_adopts_letters_once_and_starts_symbols_empty() -> TestResult {
     assert_eq!(audit, 1);
     Ok(())
 }
+
+/// #79: score-affecting settings are audited once per change, at the
+/// session they first apply to; relaunching before that session is saved
+/// updates the same row, and changing a value back removes it.
+#[test]
+fn settings_changes_are_audited_once_at_the_session_they_apply_to() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let mut store = ProgressStore::open_in(directory.path())?;
+    let at = |n| cadence_core::SessionId::new(n);
+    let defaults = [("session.minutes", "15".to_string())];
+    assert_eq!(
+        store.audit_settings(at(1)?, &defaults)?,
+        0,
+        "defaults are not changes"
+    );
+    assert_eq!(
+        store.audit_settings(at(1)?, &[("session.minutes", "20".into())])?,
+        1
+    );
+    // Relaunch before session 1 is saved, with another value.
+    assert_eq!(
+        store.audit_settings(at(1)?, &[("session.minutes", "30".into())])?,
+        1
+    );
+    let row: (String, String) = store.connection.query_row(
+        "SELECT old, new FROM settings_audit WHERE at_session=1 AND key='session.minutes'",
+        [],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?;
+    assert_eq!(row, ("15".into(), "30".into()));
+    // Unchanged at the next session: nothing more.
+    assert_eq!(
+        store.audit_settings(at(2)?, &[("session.minutes", "30".into())])?,
+        0
+    );
+    // Changed back before session 2: no row.
+    assert_eq!(
+        store.audit_settings(at(1)?, &[("session.minutes", "15".into())])?,
+        0
+    );
+    Ok(())
+}

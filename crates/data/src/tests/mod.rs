@@ -2,6 +2,7 @@
 
 mod checkpoints;
 mod config;
+mod config_write;
 mod disk;
 mod learning;
 mod schema;

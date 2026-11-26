@@ -11,6 +11,7 @@ import Proofs.Counters
 import Proofs.Ratio
 import Proofs.Progress
 import Proofs.Session
+import Proofs.Settings
 import Proofs.Ledger
 import Proofs.Pace
 import Proofs.Plan

@@ -51,6 +51,15 @@ pub enum Theme {
 }
 
 impl Theme {
+    /// The `display.theme` name.
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Dark => "dark",
+            Self::Light => "light",
+            Self::Terminal => "terminal",
+        }
+    }
+
     pub const fn palette(self) -> cadence_tui::Palette {
         match self {
             Self::Dark => cadence_tui::Palette::cadence_dark(),
