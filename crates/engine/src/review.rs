@@ -87,13 +87,15 @@ impl Engine {
             .evidence
             .skills
             .iter()
-            .filter(|(key, tally)| {
-                key.lane == KeyLane::Main
-                    && matches!(key.skill, Skill::Bigram(..))
-                    && tally.errors > 0
-            })
+            // Slips from every lane practised (#50); a keypad pair says so.
+            .filter(|(key, tally)| matches!(key.skill, Skill::Bigram(..)) && tally.errors > 0)
             .map(|(key, tally)| Slip {
-                skill: super::presentation::skill_label(*key),
+                skill: match key.lane {
+                    KeyLane::Main => super::presentation::skill_label(*key),
+                    KeyLane::Numpad => {
+                        format!("numpad {}", super::presentation::skill_label(*key))
+                    }
+                },
                 errors: tally.errors,
                 attempts: tally.attempts,
             })

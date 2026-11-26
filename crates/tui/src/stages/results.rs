@@ -154,7 +154,7 @@ fn slips_line(view: &PreparedView) -> [String; 2] {
         return [line.clone(), line];
     }
     if view.review.slips.is_empty() {
-        let line = "No slips on letter pairs this session.".to_string();
+        let line = "No slips on key pairs this session.".to_string();
         return [line.clone(), line];
     }
     let slips: Vec<String> = view
@@ -176,8 +176,22 @@ fn learning_line(view: &PreparedView) -> [String; 2] {
     let plural = if missed == 1 { "" } else { "s" };
     let long = format!("{missed} missed word{plural} scheduled for review");
     let short = format!("{missed} to review");
-    if learning.adaptive && !learning.focus.is_empty() {
-        let focus = learning.focus.join(" \u{b7} ");
+    // Targets per practised track (#50).
+    let focus: Vec<String> = learning
+        .targets
+        .iter()
+        .filter(|group| group.practised && !group.skills.is_empty())
+        .map(|group| {
+            let skills = group.skills.join(" \u{b7} ");
+            if group.name == "letters" {
+                skills
+            } else {
+                format!("{} {skills}", group.name)
+            }
+        })
+        .collect();
+    if learning.adaptive && !focus.is_empty() {
+        let focus = focus.join(" \u{b7} ");
         [
             format!("Targeted today: {focus} \u{b7} {long}"),
             format!("Targeted: {focus} \u{b7} {short}"),

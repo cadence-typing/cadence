@@ -483,3 +483,171 @@ fn repeat_labels_show_whole_at_the_smallest_size() -> Result<(), Box<dyn std::er
     assert_eq!(captions.len(), 3);
     Ok(())
 }
+
+fn plain(
+    text: &str,
+    kind: cadence_trainer::ExerciseKind,
+) -> Result<cadence_trainer::PlannedExercise, Box<dyn std::error::Error>> {
+    Ok(cadence_trainer::PlannedExercise::plain(
+        cadence_core::validate_target(text, LayoutSupportsPound::US)?,
+        kind,
+    ))
+}
+
+/// A plan with the given phases and focus skills (adaptive when any).
+fn targeted_engine(
+    phases: &[cadence_trainer::Phase],
+    focus: &[(cadence_core::learning::KeyLane, &str)],
+) -> Result<Engine, Box<dyn std::error::Error>> {
+    use cadence_core::learning::{PlannerMode, Skill, SkillKey};
+    use cadence_trainer::{ExerciseKind, Phase};
+    let focus = focus
+        .iter()
+        .map(|(lane, text)| {
+            let units: Vec<TrainingChar> = text
+                .chars()
+                .map(|c| TrainingChar::new(c, LayoutSupportsPound::US))
+                .collect::<Result<_, _>>()?;
+            let skill = match units.as_slice() {
+                [one] => Skill::Unit(*one),
+                [first, second] => Skill::Bigram(*first, *second),
+                _ => return Err("one or two units".into()),
+            };
+            Ok(SkillKey { lane: *lane, skill })
+        })
+        .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
+    let planned = phases
+        .iter()
+        .map(|phase| {
+            let exercise = match phase {
+                Phase::NumberRow => plain("room 42", ExerciseKind::NumberRow)?,
+                Phase::Numpad => plain("12", ExerciseKind::Numpad)?,
+                _ => plain("the then", ExerciseKind::Words)?,
+            };
+            Ok(cadence_trainer::PlannedPhase {
+                phase: *phase,
+                seconds: 60,
+                exercises: vec![exercise],
+            })
+        })
+        .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
+    Ok(Engine::new_plan(cadence_trainer::SessionPlan {
+        budget_seconds: 180,
+        policy_digest: cadence_core::ContentDigest::from_bytes([1; 32]),
+        corpus_digest: cadence_core::ContentDigest::from_bytes([2; 32]),
+        record: cadence_core::learning::PlanRecord {
+            seed: 0,
+            mode: if focus.is_empty() {
+                PlannerMode::ColdStart
+            } else {
+                PlannerMode::Adaptive
+            },
+            focus,
+        },
+        adaptation: cadence_trainer::Adaptation {
+            hesitation_ceiling: cadence_core::Micros::from_us(1_500_000),
+            reinforcement_capacity: 8,
+            reinforcements_per_word: 1,
+            numeric_gap_entries: 0,
+        },
+        phases: planned,
+    })?)
+}
+
+fn line_with<'a>(screen: &'a str, needle: &str) -> Option<&'a str> {
+    screen
+        .lines()
+        .find(|line| line.contains(needle))
+        .map(str::trim)
+}
+
+/// #50: the start screen names targets per group, from the plan record;
+/// nothing is cut mid-token at 60 columns: whole groups drop from the
+/// right with "+N more".
+#[test]
+fn the_start_screen_names_targets_per_group() -> Result<(), Box<dyn std::error::Error>> {
+    use cadence_core::learning::KeyLane::{Main, Numpad};
+    use cadence_trainer::Phase::{AdaptiveWords, NumberRow, Numpad as NumpadPhase};
+    let all = [AdaptiveWords, NumberRow, NumpadPhase];
+    for (columns, rows) in [(60, 18), (100, 32)] {
+        let cold = render(&targeted_engine(&all, &[])?, 0, columns, rows);
+        assert!(
+            cold.contains("No per-key history yet"),
+            "{columns}x{rows}:\n{cold}"
+        );
+
+        let letters = render(
+            &targeted_engine(&[AdaptiveWords], &[(Main, "th"), (Main, "ou")])?,
+            0,
+            columns,
+            rows,
+        );
+        assert_eq!(
+            line_with(&letters, "Today targets"),
+            Some("Today targets  th · ou"),
+            "{letters}"
+        );
+
+        let every = targeted_engine(
+            &all,
+            &[
+                (Main, "th"),
+                (Main, "ou"),
+                (Main, "w"),
+                (Main, "7"),
+                (Main, "48"),
+                (Numpad, "0."),
+                (Numpad, "55"),
+            ],
+        )?;
+        let screen = render(&every, 0, columns, rows);
+        let line = line_with(&screen, "Today targets")
+            .ok_or_else(|| format!("{columns}x{rows}:\n{screen}"))?;
+        let full = "Today targets  th · ou · w   number row 7 · 48   numpad 0. · 55";
+        if columns >= 100 {
+            assert_eq!(line, full);
+        } else {
+            assert!(line.ends_with(" more"), "{line}");
+            let shown = line.split("   +").next().unwrap_or_default();
+            assert!(full.starts_with(shown), "cut mid-group: {line}");
+        }
+    }
+    Ok(())
+}
+
+/// #50: a numpad-only session reports its numpad slips, never "letter
+/// pairs"; the numpad purpose names its targets.
+#[test]
+fn a_numpad_only_session_reports_numpad_slips() -> Result<(), Box<dyn std::error::Error>> {
+    use cadence_core::learning::KeyLane::Numpad;
+    for (columns, rows) in [(60, 18), (100, 32)] {
+        let mut engine = targeted_engine(&[cadence_trainer::Phase::Numpad], &[(Numpad, "12")])?;
+        let today = render(&engine, 0, columns, rows);
+        assert!(
+            today.contains("Exact entries targeting 12"),
+            "{columns}x{rows}:\n{today}"
+        );
+        let mut seq = 0;
+        let mut at = 1_000;
+        let mut send = |engine: &mut Engine, kind: EventKind| {
+            seq += 1;
+            at += 200_000;
+            engine.reduce(envelope(seq, at, kind));
+        };
+        send(&mut engine, EventKind::Key(Key::Enter));
+        send(&mut engine, content('1'));
+        send(&mut engine, content('3'));
+        send(&mut engine, EventKind::Key(Key::Backspace));
+        send(&mut engine, content('2'));
+        send(&mut engine, EventKind::Key(Key::Interrupt));
+        let screen = render(&engine, at, columns, rows);
+        assert!(!screen.contains("letter pairs"), "{screen}");
+        if rows >= 24 {
+            assert!(
+                screen.contains("Most slips: numpad 12 1/1"),
+                "{columns}x{rows}:\n{screen}"
+            );
+        }
+    }
+    Ok(())
+}

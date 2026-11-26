@@ -1,13 +1,13 @@
 //! Read-only presentation; only admitted reducer events advance measurements.
 use super::{Engine, PreparedView, Screen, ScreenView, StatusFigures, UnitSpan};
 use crate::summary::{track_accuracy, track_rate};
-use crate::view::{LearningView, PhaseOverview, PhaseState, RateUnit, ViewMode};
+use crate::view::{LearningView, PhaseOverview, PhaseState, RateUnit, TargetGroup, ViewMode};
 use cadence_core::learning::{PlannerMode, Skill, SkillKey};
 use cadence_core::ledger::AttemptLedger;
 use cadence_core::progress::Track;
 use cadence_core::session::SessionState;
 use cadence_core::{Micros, MonoTick, label};
-use cadence_trainer::{ExerciseKind, Lane, Phase};
+use cadence_trainer::{ExerciseKind, FocusGroup, Lane, Phase, group_of};
 impl Engine {
     /// Builds a view without I/O, state mutation or advancing the clock.
     /// An invalid view timestamp is visibly rejected, never converted to zero time.
@@ -80,10 +80,64 @@ impl Engine {
             review: self.review_context(),
         }
     }
+    /// Targets per focus group whose phase is in the plan (#50).
+    fn target_groups(&self) -> Vec<TargetGroup> {
+        let groups = [
+            (
+                FocusGroup::Letters,
+                "letters",
+                Phase::AdaptiveWords,
+                Track::Words,
+            ),
+            (
+                FocusGroup::Row,
+                "number row",
+                Phase::NumberRow,
+                Track::NumberRow,
+            ),
+            (FocusGroup::Numpad, "numpad", Phase::Numpad, Track::Numpad),
+        ];
+        groups
+            .into_iter()
+            .filter(|(_, _, phase, _)| self.plan.phases.iter().any(|p| p.phase == *phase))
+            .map(|(group, name, _, track)| TargetGroup {
+                name,
+                skills: self
+                    .learning
+                    .evidence
+                    .plan
+                    .focus
+                    .iter()
+                    .filter(|key| group_of(**key) == Some(group))
+                    .map(|key| skill_label(*key))
+                    .collect(),
+                practised: self
+                    .tracks
+                    .iter()
+                    .any(|t| t.track == track && t.first_attempted > 0),
+            })
+            .collect()
+    }
+
+    /// The skills a phase targets, joined for a sentence.
+    fn phase_targets(&self, phase: Phase) -> Option<String> {
+        let name = match phase {
+            Phase::AdaptiveWords => "letters",
+            Phase::NumberRow => "number row",
+            Phase::Numpad => "numpad",
+            Phase::WarmUp | Phase::Prose | Phase::Review => return None,
+        };
+        self.target_groups()
+            .into_iter()
+            .find(|group| group.name == name && !group.skills.is_empty())
+            .map(|group| group.skills.join(" \u{b7} "))
+    }
+
     fn learning_view(&self) -> LearningView {
         let evidence = &self.learning.evidence;
         LearningView {
             adaptive: evidence.plan.mode == PlannerMode::Adaptive,
+            targets: self.target_groups(),
             focus: evidence
                 .plan
                 .focus
@@ -138,7 +192,10 @@ impl Engine {
                 label::Label::Again => Some("again".to_string()),
                 label::Label::Repeat if wrapped => Some(RESTARTED.to_string()),
                 label::Label::Repeat => Some("repeat".to_string()),
-                label::Label::DueReview | label::Label::Fresh => None,
+                label::Label::Fresh => exercise
+                    .target
+                    .map(|key| format!("Targeting {}", skill_label(key))),
+                label::Label::DueReview => None,
             };
         }
         // The closing review (#49) serves the session's misses; once none
@@ -322,7 +379,11 @@ impl Engine {
                 };
                 PhaseOverview {
                     label: phase_label(phase.phase),
-                    purpose: phase_purpose(phase.phase, self.learning.evidence.plan.mode),
+                    purpose: phase_purpose(
+                        phase.phase,
+                        self.learning.evidence.plan.mode,
+                        self.phase_targets(phase.phase).as_deref(),
+                    ),
                     seconds: phase.seconds,
                     state,
                 }
@@ -380,18 +441,26 @@ fn phase_label(phase: Phase) -> &'static str {
     }
 }
 
-fn phase_purpose(phase: Phase, mode: PlannerMode) -> &'static str {
-    match phase {
-        Phase::AdaptiveWords if mode == PlannerMode::ColdStart => {
-            "Broad vocabulary while Cadence records your slips."
+/// A phase's purpose: what it targets, or that it is untargeted (#50).
+fn phase_purpose(phase: Phase, mode: PlannerMode, targets: Option<&str>) -> String {
+    match (phase, targets) {
+        (Phase::AdaptiveWords, Some(targets)) => {
+            format!("Words chosen for {targets}, plus variety.")
         }
-        Phase::WarmUp => "Settle into an easy rhythm.",
-        Phase::AdaptiveWords => "Words chosen from your recorded slips, plus variety.",
-        Phase::NumberRow => "Digits in short text contexts.",
-        Phase::Numpad => "Exact entries. Leading zeros count.",
-        Phase::Prose => {
-            "Not targeted: this measures how accuracy carries into sentences. Slips here feed your closing review and tomorrow's words."
+        (Phase::AdaptiveWords, None) if mode == PlannerMode::ColdStart => {
+            "Broad vocabulary while Cadence records your slips.".to_string()
         }
-        Phase::Review => "Look back at the session's real measurements.",
+        (Phase::AdaptiveWords, None) => "Words chosen for variety and due reviews.".to_string(),
+        (Phase::WarmUp, _) => "Settle into an easy rhythm; familiar words are checked.".to_string(),
+        (Phase::NumberRow, Some(targets)) => {
+            format!("Digits in short text contexts, targeting {targets}.")
+        }
+        (Phase::NumberRow, None) => "Digits in short text contexts.".to_string(),
+        (Phase::Numpad, Some(targets)) => {
+            format!("Exact entries targeting {targets}. Leading zeros count.")
+        }
+        (Phase::Numpad, None) => "Exact entries. Leading zeros count.".to_string(),
+        (Phase::Prose, _) => "Not targeted: this measures how accuracy carries into sentences. Slips here feed your closing review and tomorrow's words.".to_string(),
+        (Phase::Review, _) => "Retype this session's misses; not in the headline.".to_string(),
     }
 }

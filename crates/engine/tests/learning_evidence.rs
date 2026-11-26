@@ -1071,3 +1071,26 @@ fn a_reinforcement_that_is_also_due_reads_again() -> TestResult {
     assert_eq!(context_line(&mut driver, at).as_deref(), Some("again: cat"));
     Ok(())
 }
+
+/// #50: a numeric entry built around a focus skill says so.
+#[test]
+fn a_targeted_numeric_entry_names_its_target() -> TestResult {
+    let mut phase = numeric_phase(ExerciseKind::Numpad, Phase::Numpad, 60, &["7480", "123"])?;
+    if let Some(entry) = phase.exercises.first_mut() {
+        entry.target = Some(bigram('4', '8', KeyLane::Numpad)?);
+    }
+    let mut driver = Driver::new(numeric_engine(0, vec![phase])?)?;
+    driver.key(0, Key::Enter)?;
+    assert_eq!(
+        context_line(&mut driver, SECOND).as_deref(),
+        Some("Targeting 48")
+    );
+    let at = type_text(&mut driver, SECOND, "7480")?;
+    driver.key(at, Key::Enter)?;
+    assert_eq!(
+        context_line(&mut driver, at + 100_000),
+        None,
+        "untargeted entry"
+    );
+    Ok(())
+}

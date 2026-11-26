@@ -143,26 +143,60 @@ fn landing(
         style(palette, Role::Muted),
     );
     if baseline != 0 {
-        let learning = &view.learning;
-        let line = if learning.adaptive && !learning.focus.is_empty() {
-            format!(
-                "Today targets {} from your recorded slips",
-                learning.focus.join(" \u{b7} ")
-            )
-        } else if learning.adaptive {
-            format!("{} missed words are due for review", learning.due_reviews)
-        } else {
-            "No per-key history yet: this session teaches Cadence your slips.".to_string()
-        };
-        text(
-            buffer,
-            take(&mut body, 1),
-            line,
-            style(palette, Role::Muted),
-        );
+        let row = take(&mut body, 1);
+        let line = targets_line(&view.learning, row.width);
+        text(buffer, row, line, style(palette, Role::Muted));
     }
     take(&mut body, gap);
     action(buffer, take(&mut body, 1), "Begin session", view, palette);
+}
+
+/// "Today targets  th · ou · w   number row 7 · 48   numpad 0. · 55   5 due
+/// reviews" from the plan record (#50); a group with nothing to target
+/// says so; whole groups drop from the right with "+N more" when the line
+/// does not fit.
+pub(crate) fn targets_line(learning: &cadence_engine::LearningView, width: u16) -> String {
+    let mut groups: Vec<String> = Vec::new();
+    for group in &learning.targets {
+        let skills = group.skills.join(" \u{b7} ");
+        match (group.name, skills.is_empty()) {
+            ("letters", false) => groups.push(skills),
+            ("letters", true) => {}
+            (name, false) => groups.push(format!("{name} {skills}")),
+            (name, true) if !learning.adaptive => {
+                groups.push(format!("{name}: no digit history yet"));
+            }
+            (_, true) => {}
+        }
+    }
+    if learning.due_reviews > 0 {
+        let plural = if learning.due_reviews == 1 { "" } else { "s" };
+        groups.push(format!("{} due review{plural}", learning.due_reviews));
+    }
+    if groups.is_empty()
+        || (!learning.adaptive && learning.targets.iter().all(|g| g.skills.is_empty()))
+    {
+        return "No per-key history yet: this session teaches Cadence your slips.".to_string();
+    }
+    let width = usize::from(width);
+    let compose = |shown: &[String], hidden: usize| {
+        let mut line = format!("Today targets  {}", shown.join("   "));
+        if hidden > 0 {
+            line.push_str(&format!("   +{hidden} more"));
+        }
+        line
+    };
+    for keep in (1..=groups.len()).rev() {
+        let (shown, hidden) = groups.split_at(keep);
+        let line = compose(shown, hidden.len());
+        if line.chars().count() <= width {
+            return line;
+        }
+    }
+    compose(
+        groups.get(..1).unwrap_or_default(),
+        groups.len().saturating_sub(1),
+    )
 }
 
 fn interlude(
@@ -343,7 +377,7 @@ fn purpose(
             style(palette, Role::Focus),
         );
     }
-    Paragraph::new(phase.purpose)
+    Paragraph::new(phase.purpose.as_str())
         .alignment(Alignment::Center)
         .style(style(palette, Role::Text))
         .wrap(Wrap { trim: true })

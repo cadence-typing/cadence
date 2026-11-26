@@ -139,8 +139,9 @@ pub enum PhaseState {
 pub struct PhaseOverview {
     /// Stable human-readable track label.
     pub label: &'static str,
-    /// Concise practice purpose, without efficacy claims.
-    pub purpose: &'static str,
+    /// Concise practice purpose naming what it targets (#50), without
+    /// efficacy claims.
+    pub purpose: String,
     /// Frozen allocated seconds.
     pub seconds: u64,
     /// Actual position in the session.
@@ -249,6 +250,9 @@ pub struct StatusFigures {
 pub struct LearningView {
     /// Whether the plan used recorded evidence.
     pub adaptive: bool,
+    /// Targets per focus group whose phase is in the plan (#50), in
+    /// letters, number row, numpad order.
+    pub targets: Vec<TargetGroup>,
     /// Focus skills as typed text, strongest first.
     pub focus: Vec<String>,
     /// Due spaced-review words planned this session.
@@ -259,6 +263,18 @@ pub struct LearningView {
     pub missed_words: usize,
     /// First attempts recorded for the learner model this session.
     pub observed_keys: u64,
+}
+
+/// What one focus group's phase targets (#50), from the plan record.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct TargetGroup {
+    /// "letters", "number row" or "numpad".
+    pub name: &'static str,
+    /// Focus skills as typed text, strongest first; empty when the plan has
+    /// nothing to target in this group.
+    pub skills: Vec<String>,
+    /// The group's track was typed this session.
+    pub practised: bool,
 }
 
 /// Why practice is paused; the controls explain it in plain words.
