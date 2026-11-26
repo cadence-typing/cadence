@@ -4,6 +4,8 @@ User-visible changes per release. Design decisions live in the [RFC registry](do
 
 ## [Unreleased]
 
+## [0.1.0-alpha.7] — Deliberate practice in every phase (2026-11-26)
+
 Deliberate practice in every phase. Design: [RFC](docs/rfcs/2026-11-26-deliberate-practice-in-every-phase.md).
 
 - **Store schema 4.** Migration is automatic; it adds the session's UTC offset and a `review` track. alpha.6 cannot open a schema-4 profile (`SchemaTooNew`), so back up before downgrading. [#45](https://github.com/cadence-typing/cadence/issues/45)

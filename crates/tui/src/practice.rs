@@ -482,7 +482,10 @@ pub(crate) fn fit_whole(text: &str, width: usize) -> String {
     let first = parts.first().copied().unwrap_or_default();
     let items: Vec<&str> = first.split(", ").collect();
     for keep in (1..items.len()).rev() {
-        let line = format!("{}, \u{2026}", items.get(..keep).unwrap_or_default().join(", "));
+        let line = format!(
+            "{}, \u{2026}",
+            items.get(..keep).unwrap_or_default().join(", ")
+        );
         if line.chars().count() <= width {
             return line;
         }
@@ -530,9 +533,15 @@ mod fit_tests {
             assert!(fitted.chars().count() <= width, "{width}: {fitted}");
             for token in fitted.split([' ', ',']) {
                 let token = token.trim_end_matches('\u{2026}');
-                assert!(token.is_empty() || line.contains(token), "{width}: cut token {token:?}");
+                assert!(
+                    token.is_empty() || line.contains(token),
+                    "{width}: cut token {token:?}"
+                );
             }
         }
-        assert_eq!(fit_whole("again: truly, really, nearly", 22), "again: truly, \u{2026}");
+        assert_eq!(
+            fit_whole("again: truly, really, nearly", 22),
+            "again: truly, \u{2026}"
+        );
     }
 }

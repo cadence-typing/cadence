@@ -56,7 +56,7 @@ Creation order. New proposals use `—` in the Legacy column.
 | — | [Formal gates with production mappings](2026-11-26-formal-gates-and-production-mapping.md) | accepted | complete | [#25](https://github.com/cadence-typing/cadence/issues/25) |
 | — | [Practice decisions in the kernel](2026-11-26-practice-decisions-in-the-kernel.md) | accepted | complete | [#26](https://github.com/cadence-typing/cadence/issues/26) |
 | — | [Deliberate practice in every phase](2026-11-26-deliberate-practice-in-every-phase.md) | accepted | complete | [#27](https://github.com/cadence-typing/cadence/issues/27) |
-| — | [Release bundles built from a tag in public CI](2026-11-26-release-bundles-from-a-tag.md) | accepted | not-started | [#3](https://github.com/cadence-typing/cadence/issues/3) |
+| — | [Release bundles built from a tag in public CI](2026-11-26-release-bundles-from-a-tag.md) | accepted | complete | [#3](https://github.com/cadence-typing/cadence/issues/3) |
 | — | [Evidence attribution and repeat-gap decisions in the kernel](2026-11-26-evidence-and-repeat-gap-decisions.md) | accepted | complete | [#54](https://github.com/cadence-typing/cadence/issues/54) |
 | — | [A slow save pauses practice instead of invalidating the session](2026-11-26-slow-save-pauses-practice.md) | accepted | complete | [#51](https://github.com/cadence-typing/cadence/issues/51) |
 | — | [Review days are local-calendar days with a recorded offset](2026-11-26-local-calendar-days.md) | accepted | not-started | [#52](https://github.com/cadence-typing/cadence/issues/52) |

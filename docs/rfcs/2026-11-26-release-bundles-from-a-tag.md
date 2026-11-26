@@ -2,7 +2,7 @@
 rfc: "2026-11-26-release-bundles-from-a-tag"
 title: "Release bundles built from a tag in public CI"
 status: accepted
-implementation: not-started
+implementation: complete
 authors:
   - claude-fable (grooming agent)
 created: 2026-11-26
