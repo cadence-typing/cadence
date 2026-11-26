@@ -27,6 +27,7 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
         },
         probe: cadence_trainer::ProbePlan::NotDue,
         pace: Vec::new(),
+        retired_due: 0,
         phases: vec![
             PlannedPhase {
                 phase: Phase::AdaptiveWords,

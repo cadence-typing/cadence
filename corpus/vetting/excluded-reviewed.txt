@@ -1,0 +1,17 @@
+# Hand-reviewed exclusions (decision 0006): words the pinned lists keep but
+# Cadence does not serve for practice, chiefly slurs. One word per line.
+# Reviewed 2026-11-26 against the kept set (with common inflections):
+# excluded because, served alone in a drill, they read as slurs or are
+# distressing; kept on review: erection, hoe, slave(s) (ordinary words).
+cripple
+dyke
+gypsies
+gypsy
+homo
+midget
+queer
+raped
+redskin
+retard
+spastic
+tranny

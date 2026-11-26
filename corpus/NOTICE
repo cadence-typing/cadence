@@ -116,3 +116,14 @@ material, never served as practice, and share no sentence with the practice
 prose bank.
 
 SHA-256 of benchmark-en-v1.tsv: 1bc7e61fe4ba791689ac965615f2bbf9a51e77b747669511789d9c9faa0da321
+
+Vetted word pack (words-en-v2.tsv, decision 0006, #8): the wordfreq ranks
+above (CC-BY-SA 4.0), filtered with SCOWL 2020.12.07 (Spell Checker Oriented
+Word Lists, Copyright 2000-2020 by Kevin Atkinson; used under its permissive
+notice), the LDNOOBW English list (CC-BY-4.0, Shutterstock and contributors)
+and a hand-reviewed exclusion list (corpus/vetting/excluded-reviewed.txt).
+The result is distributed under CC-BY-SA 4.0 like the frequency data. The
+lists and a sampling review do not guarantee that no objectionable word
+remains.
+
+SHA-256 of words-en-v2.tsv: e9d5e89c99c514374b7a8cd6ce5406d9f3f8d7effb9a1a26c12ab4d92afcc113

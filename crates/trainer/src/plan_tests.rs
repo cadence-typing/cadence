@@ -888,3 +888,23 @@ fn a_lowered_pace_brings_familiar_target_words() {
         phase(&lowered_plan, Phase::AdaptiveWords)
     );
 }
+
+/// #8: after the pack changes, due words still in it keep their reviews;
+/// due words it retired are dropped from planning and counted.
+#[test]
+fn retired_due_words_are_dropped_and_counted() {
+    let (words, bank) = (pack(3_000), prose(50));
+    let kept = WordId::new(321).unwrap();
+    let retired = WordId::new(9_999_999).unwrap();
+    assert!(words.word(retired).is_none());
+    let learner = weak_on("qa", &[(kept, 1), (retired, 1)], 10);
+    assert!(learner.due_words().contains(&retired));
+    let plan = build(&learner, &words, &bank, 3, &[], 900).unwrap();
+    assert_eq!(plan.retired_due, 1);
+    let due: Vec<WordId> = slots(&plan)
+        .filter(|s| s.due_review)
+        .map(|s| s.id)
+        .collect();
+    assert!(due.contains(&kept));
+    assert!(!due.contains(&retired));
+}

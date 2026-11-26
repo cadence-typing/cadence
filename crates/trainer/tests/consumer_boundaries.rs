@@ -7,7 +7,7 @@ use cadence_trainer::{
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 const POLICY: &str = include_str!("../../../policies/trainer-v2.toml");
-const WORDS: &str = include_str!("../../../corpus/words-en-v1.tsv");
+const WORDS: &str = include_str!("../../../corpus/words-en-v2.tsv");
 const PROSE: &str = include_str!("../../../corpus/prose-en-v2.tsv");
 const SOURCES: &str = include_str!("../../../corpus/prose-sources-v2.tsv");
 fn bank() -> Result<ProseBank, cadence_trainer::ProseError> {
@@ -20,7 +20,7 @@ fn policy() -> Result<TrainerPolicy, cadence_trainer::PolicyError> {
 #[test]
 fn shipped_startup_replays_many_seeds_and_obeys_caps() -> TestResult {
     let policy = policy()?;
-    let pack = WordPack::from_tsv(WORDS, 25_000, LayoutSupportsPound::US)?;
+    let pack = WordPack::from_tsv(WORDS, 20_000, LayoutSupportsPound::US)?;
     let (prose, learner) = (bank()?, LearnerModel::cold(&policy));
     for seed in 0..32 {
         let plan = build_session_plan(

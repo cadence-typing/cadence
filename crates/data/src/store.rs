@@ -190,6 +190,9 @@ impl ProgressStore {
                 tracks: session.checkpoint.progress.tracks.clone(),
             })
             .collect();
+        history.latest_corpus_digest = sessions
+            .last()
+            .map(|session| session.checkpoint.progress.corpus_digest.clone());
         for session in sessions {
             let checkpoint = session.checkpoint;
             maximum = maximum.max(checkpoint.key.session.get());

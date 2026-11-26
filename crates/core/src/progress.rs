@@ -358,6 +358,8 @@ pub struct HistorySummary {
     /// The latest comparable probe's track totals (#65): the only probe a
     /// new one is compared with.
     pub last_comparable_probe: Option<TrackProgress>,
+    /// The corpus digest the latest session was planned with (#8).
+    pub latest_corpus_digest: Option<String>,
 }
 /// Earlier sessions kept for comparison: enough to find the last
 /// session with the same track set after a few single-track runs.

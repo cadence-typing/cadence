@@ -247,6 +247,9 @@ pub struct SessionPlan {
     pub probe: ProbePlan,
     /// Each typing track's suggested pace and how it moved (#62).
     pub pace: Vec<cadence_core::learning::PaceRecord>,
+    /// Due words no longer in the pack (retired by vetting, #8): dropped
+    /// from planning.
+    pub retired_due: usize,
 }
 
 /// Plan construction failures.
@@ -387,6 +390,12 @@ pub fn build_session_plan(
         phases,
         probe,
         pace,
+        retired_due: inputs
+            .learner
+            .due_words()
+            .iter()
+            .filter(|word| inputs.pack.word(**word).is_none())
+            .count(),
     })
 }
 

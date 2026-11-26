@@ -257,7 +257,7 @@ this refresh.
 |---|---|---|
 | P0 / A-01, B-02 | in_progress | Pinned Rust image/toolchain, Cargo lock, musl C compiler, architecture feedback check. Proof-tool compatibility, full dependency/security audit and shared CI admission remain unqualified. |
 | P1 / L-02–03, VK-01–02 | implemented, behavior checked | `core/{ledger,metrics,session}`, `engine/{practice,presentation}`; scoring fixtures/properties and live corrected-entry smoke. The scoring decisions now live in `crates/kernel`, which production calls and which carries Lean theorems over its Aeneas translation (first-attempt write-once, counters, pace and accuracy arithmetic, active time, track validity, checkpoint admission); see [docs/TAUTEN.md](docs/TAUTEN.md) for each claim's badge. Ledger plumbing around the kernel stays tested. |
-| P2 / P-02–04, VK-03–06 | in_progress | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Since alpha.7 every phase but prose is adaptive: per-group focus for the number row and numpad (#46, #5), warm-up retention checks (#47), numeric and prose misses in the loop (#59, #48), a typed closing review on its own track excluded from the headline (#49, #60), every repeat labelled (#7) and targets named on screen (#50). Pace hysteresis (`pace.rs`) and benchmark probes remain unwired; retention/benchmark comparisons and 20k vetted vocabulary acceptance remain unfinished. |
+| P2 / P-02–04, VK-03–06 | in_progress | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Since alpha.7 every phase but prose is adaptive: per-group focus for the number row and numpad (#46, #5), warm-up retention checks (#47), numeric and prose misses in the loop (#59, #48), a typed closing review on its own track excluded from the headline (#49, #60), every repeat labelled (#7) and targets named on screen (#50). Pace hysteresis (`pace.rs`) and benchmark probes remain unwired; retention/benchmark comparisons remain unfinished. The 20k vetted vocabulary bar is met by `words-en-v2` (#8). |
 | P3 / D-01–02, VP-01–03 | in_progress | `core/{progress,learning}`, `data/{store,schema,records,learning_rows,files,transfer}`, schema 3 with migration/round-trip/regression tests, `engine/storage`, `runtime/writer`. One retained writer/result slot, full-key admission, checkpoints, retry, lock, reopen, backup/export implemented. General job-registry/async planner, immutable observation chunks, full crash/storage campaigns and formal correspondence remain unfinished. |
 | P4 / H-01–04, VP-04–05 | pending | No shipped NDJSON driver, causal/durable barriers or replay. Shared cell/row-rendition capture is rendering evidence, not a completed headless protocol. |
 | P5 / U-01–05 | in_progress | `engine/{view,summary}`, `tui/{paint,stages,stages/results,stages/headlines,modeline,practice,native_text}` share cells plus native row metadata; `runtime/{presenter,text_protocol}` present and negotiate it. Reducer/summary regressions preserve correction history, weighted metrics, timing and resize pause. Full destinations/settings/layout setup, imports and editable themes remain unfinished. |
@@ -287,9 +287,14 @@ this refresh.
   and no DT_NEEDED entries**. Bundles retain exact lock/policy/corpus hashes,
   source commit/clean flag, compiler identity and binary SHA-256. Packaging is
   not a substitute for release qualification.
-- The word pack contains 25,000 alphabet-filtered wordfreq tokens, not a
-  professionally vetted dictionary. It may include names, abbreviations,
-  offensive words or nonwords. Full upstream notices and CC-BY-SA terms ship
+- The word pack (`words-en-v2`, decision 0006, #8) holds 22,000 wordfreq
+  forms kept by vetting: each is a SCOWL (size <= 70) dictionary word, not an
+  abbreviation, not on the LDNOOBW profanity list or the committed
+  hand-reviewed exclusion list (both with common inflections), and not a lone
+  letter other than `a`/`i`; a report samples 200 kept and 200 excluded words.
+  Automatic lists plus a sampling review are not a guarantee that no
+  objectionable word remains, and size 70 admits some rare or archaic words.
+  Full upstream notices and CC-BY-SA terms ship
   in `corpus/`. Prose combines the original AI-assisted passages with verbatim
   public-domain book paragraphs whose sources, digests and extraction recipe
   are recorded in `corpus/NOTICE` and `corpus/manifest.json`; it is practice

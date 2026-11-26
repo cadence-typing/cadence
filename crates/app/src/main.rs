@@ -18,7 +18,7 @@ use cadence_trainer::{
 };
 
 /// The complete distributed word data, not a demo-only practice path.
-const WORDS: &str = include_str!("../../../corpus/words-en-v1.tsv");
+const WORDS: &str = include_str!("../../../corpus/words-en-v2.tsv");
 const PROSE: &str = include_str!("../../../corpus/prose-en-v2.tsv");
 const PROSE_SOURCES: &str = include_str!("../../../corpus/prose-sources-v2.tsv");
 const PROBES: &str = include_str!("../../../corpus/benchmark-en-v1.tsv");

@@ -51,6 +51,7 @@ fn words_engine(
         },
         probe: cadence_trainer::ProbePlan::NotDue,
         pace: Vec::new(),
+        retired_due: 0,
         phases: vec![cadence_trainer::PlannedPhase {
             phase: cadence_trainer::Phase::AdaptiveWords,
             seconds: 60,
@@ -554,6 +555,7 @@ fn targeted_engine(
         },
         probe: cadence_trainer::ProbePlan::NotDue,
         pace: Vec::new(),
+        retired_due: 0,
         phases: planned,
     })?)
 }
@@ -682,6 +684,7 @@ fn goal_engine(
             target_cpm,
             moved,
         }],
+        retired_due: 0,
         phases: vec![cadence_trainer::PlannedPhase {
             phase: cadence_trainer::Phase::AdaptiveWords,
             seconds: 60,
@@ -763,6 +766,7 @@ fn probe_engine() -> Result<Engine, Box<dyn std::error::Error>> {
             same_strata: true,
         }),
         pace: Vec::new(),
+        retired_due: 0,
         phases: vec![cadence_trainer::PlannedPhase {
             phase: cadence_trainer::Phase::Probe,
             seconds: 2,

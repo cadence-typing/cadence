@@ -54,6 +54,7 @@ pub fn engine(phases: Vec<PlannedPhase>) -> Result<Engine, CoreError> {
         },
         probe: cadence_trainer::ProbePlan::NotDue,
         pace: Vec::new(),
+        retired_due: 0,
         phases,
     })
 }

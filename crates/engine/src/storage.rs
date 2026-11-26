@@ -39,6 +39,22 @@ impl Engine {
         if self.storage.is_some() || self.screen != Screen::Today {
             return Err(invalid("storage readiness must occur once before starting"));
         }
+        // Shown once: on the first session planned with a changed corpus
+        // (#8), due words the vetted pack retired are named as dropped.
+        let corpus = self.plan.corpus_digest.to_hex();
+        if self.plan.retired_due > 0
+            && history
+                .latest_corpus_digest
+                .as_ref()
+                .is_some_and(|latest| *latest != corpus)
+            && self.notice.is_none()
+        {
+            let count = self.plan.retired_due;
+            let plural = if count == 1 { "" } else { "s" };
+            self.notice = Some(format!(
+                "{count} due word{plural} left the vetted word pack and will not be reviewed."
+            ));
+        }
         self.history = history;
         self.storage = Some(Storage {
             session,

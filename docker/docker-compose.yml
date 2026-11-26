@@ -22,7 +22,7 @@ services:
     network_mode: bridge
     environment:
       CARGO_NET_OFFLINE: "false"
-    command: [cargo, fetch, --locked]
+    command: [sh, -c, "cargo fetch --locked && python3 tools/corpus/fetch_vetting_sources.py"]
 
   quality:
     <<: *gate

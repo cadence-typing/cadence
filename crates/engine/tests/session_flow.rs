@@ -235,3 +235,48 @@ fn a_closing_review_row_does_not_break_like_for_like() -> TestResult {
     assert!(session.tracks.iter().all(|t| t.track != Track::Review));
     Ok(())
 }
+
+/// #8: retired due words are named once, on the first session planned with
+/// a changed corpus.
+#[test]
+fn retired_due_words_are_named_once() -> TestResult {
+    for (latest, shown) in [(Some("an older corpus".to_string()), true), (None, false)] {
+        let mut plan_phases = vec![phase(
+            cadence_trainer::ExerciseKind::Words,
+            cadence_trainer::Phase::AdaptiveWords,
+            10,
+            &["cat dog"],
+        )?];
+        let mut e = cadence_engine::Engine::new_plan(cadence_trainer::SessionPlan {
+            budget_seconds: 30,
+            policy_digest: cadence_core::ContentDigest::from_bytes([1; 32]),
+            corpus_digest: cadence_core::ContentDigest::from_bytes([2; 32]),
+            record: cadence_core::learning::PlanRecord {
+                seed: 7,
+                mode: cadence_core::learning::PlannerMode::Adaptive,
+                focus: Vec::new(),
+            },
+            adaptation: cadence_trainer::Adaptation {
+                hesitation_ceiling: cadence_core::Micros::from_us(1_500_000),
+                reinforcement_capacity: 8,
+                reinforcements_per_word: 1,
+                numeric_gap_entries: 0,
+            },
+            probe: cadence_trainer::ProbePlan::NotDue,
+            pace: Vec::new(),
+            retired_due: 3,
+            phases: std::mem::take(&mut plan_phases),
+        })?;
+        ready_with(
+            &mut e,
+            HistorySummary {
+                latest_corpus_digest: latest,
+                ..HistorySummary::default()
+            },
+        )?;
+        let view = e.prepare(MonoTick::from_us(1));
+        let named = format!("{view:?}").contains("3 due words left the vetted word pack");
+        assert_eq!(named, shown);
+    }
+    Ok(())
+}
