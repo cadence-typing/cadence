@@ -2,7 +2,7 @@
 rfc: "2026-11-24-public-distribution"
 title: "Public distribution: install script, website and project process"
 status: accepted
-implementation: in-progress
+implementation: complete
 authors:
   - tknawara
 created: 2026-11-24
@@ -83,3 +83,4 @@ Existing hand installs under `~/.local/lib/cadence/<version>-<sha>/` are left al
 
 - 2026-11-24: The owner chose the `cadence-typing` organization and asked for the repository to be made public once this work is done.
 - 2026-11-26: Accepted by default under the owner's rule adopted from Writfold (AGENTS.md, "Issues, milestones and RFCs"); the owner may amend. The org avatar upload remains on #1.
+- 2026-11-26: implementation complete; #1 closed. The avatar upload (owner only) moved to #97.

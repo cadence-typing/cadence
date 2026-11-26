@@ -156,3 +156,4 @@ None blocking; defaults are stated. Owner may amend: review-track exclusion from
 ## Decision log
 
 - 2026-11-26: accepted by default under the owner's 2026-11-26 rule; owner may amend.
+- 2026-11-26: regroomed. The rollout order now lives in tracker #27; #40–#44 moved to 0.1.0-alpha.6 with the kernel work; schema 4 also gains the nullable `sessions.utc_offset_minutes` column (local-calendar days, #52).

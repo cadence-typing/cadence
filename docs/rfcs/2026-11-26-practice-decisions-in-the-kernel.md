@@ -2,14 +2,14 @@
 rfc: "2026-11-26-practice-decisions-in-the-kernel"
 title: "Practice decisions in the kernel"
 status: accepted
-implementation: not-started
+implementation: in-progress
 authors:
   - tknawara
   - claude-fable (review agent)
 created: 2026-11-26
 updated: 2026-11-26
 issue: https://github.com/cadence-typing/cadence/issues/26
-milestone: "0.1.0-alpha.7"
+milestone: "0.1.0-alpha.6"
 supersedes: []
 superseded_by: []
 blocked_on:
@@ -174,3 +174,5 @@ None blocking. Owner may amend: the interpolation used for decay, and the label 
 ## Decision log
 
 - 2026-11-26: accepted by default under the owner's 2026-11-26 rule; owner may amend.
+- 2026-11-26: regroomed. Milestone moved to 0.1.0-alpha.6. Queue admission split from #37 into #55; focus `qualifies`/`pick` split from #38 into #56; `slots::substitute` moved from #39 into #43; amended by the evidence and repeat-gap RFC (#54). Every kernel function lands with its production caller.
+- 2026-11-26: #34 (`plan::allocate`) implemented; `total`, `pick`, `shares`, `hand_out` are separate translated helpers, and the tie theorem is stated on `pick`.

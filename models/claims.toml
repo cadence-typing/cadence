@@ -42,7 +42,7 @@ dir = "formal"
 config = "AsyncAdmission.cfg"
 invariants = ["TypeOK", "AcceptedFresh", "AtMostOnce"]
 status = "design-probe"
-blocked_on = "#4: no job registry with epoch/request tickets is shipped"
+blocked_on = "#75: no job registry with epoch/request tickets is shipped"
 
 [[model.mutant]]
 config = "AsyncAdmission-no-epoch.cfg"
