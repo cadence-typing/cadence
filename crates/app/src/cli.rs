@@ -210,7 +210,7 @@ pub fn help() {
         "Cadence — offline typing practice (development preview)\n\n\
         cadence [--minutes 5|10|15|20|30] [--track words|number-row|numpad|prose]\n\
         cadence [--profile-dir /absolute/private/profile] [--seed INTEGER] [--text-size auto|large|normal]\n\
-        cadence [--theme dark|light|terminal]\n\
+        cadence [--theme dark|light|terminal] [--utc-offset +HH:MM]\n\
         cadence backup --output /absolute/new.sqlite3 [--profile-dir PATH]\n\
         cadence export --output /absolute/new.json [--profile-dir PATH]\n\n\
         Enter starts/continues. Esc pauses; while paused, e ends the session and shows the review.\n\

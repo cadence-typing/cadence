@@ -2,7 +2,7 @@
 rfc: "2026-11-26-deliberate-practice-in-every-phase"
 title: "Deliberate practice in every phase"
 status: accepted
-implementation: not-started
+implementation: complete
 authors:
   - tknawara
   - claude-fable (review agent)

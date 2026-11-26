@@ -42,13 +42,15 @@ save without an acknowledgement. The normal profile is
 `$XDG_DATA_HOME/cadence`, falling back to `~/.local/share/cadence`; relative XDG
 values are ignored. Backup/export refuse to overwrite an existing destination.
 
-The default plan allocates 900 seconds (840 typing + 60 dismissible review).
-The phase clock starts on its first content key. Ordinary hesitation remains
-in active time; explicit pauses and inter-phase screens do not. Prepared
-exercise lists cycle until the deadline. A prose passage typed within the
-no-repeat window is labelled as a repeat; cycling of prepared word and numeric
-lists is **not yet labelled**. Since alpha.4 the words phase is **adaptive**
-(below); warm-up, number-row and numpad content remain cold-start drills.
+The default plan allocates 900 seconds, all typed: since alpha.7 the last
+60 seconds are a closing review that retypes the session's misses (its own
+`review` row, kept out of the headline). The phase clock starts on its first
+content key. Ordinary hesitation remains in active time; explicit pauses and
+inter-phase screens do not. Prepared exercise lists cycle until the deadline,
+and every repeat is labelled ("again", "due review", "repeat: word",
+"repeat · list restarted"; a prose passage typed within the no-repeat window
+reads "repeat"). Every phase except prose is adaptive (below); prose is
+deliberately untargeted and says so.
 Numpad strings preserve leading zeros and require Enter; physical-keypad origin
 is unverified. This preview supports ASCII-first practice, not full first-run
 layout configuration, imports, benchmark qualification, or the full settings UI.
@@ -60,6 +62,39 @@ resume a mid-word exercise or claim an uninterrupted timing trial. Store schema
 2 safely refuses a populated historical draft schema 1 rather than inventing
 measurements or resetting it. Keep that file and use a new explicit profile
 for feedback if such a draft database exists.
+
+## Alpha.7 deliberate practice in every phase
+
+[RFC: deliberate practice in every phase](docs/rfcs/2026-11-26-deliberate-practice-in-every-phase.md).
+
+- **Warm-up** serves retention checks (due words above the first ladder
+  rung) and says how many; a warm-up miss returns in the words phase.
+- **Number row and numpad** each have their own focus digits and digit
+  transitions from their own evidence and baseline (policy v3); two of
+  every three prepared entries contain a focus skill; a missed entry returns
+  once, at least two entries later in the same phase ("again").
+- **Words**: a target word does not recur within four exercises.
+- **Prose** stays untargeted (its passages never read the learner model) but
+  feeds the loop: a slip in a pack word is a word outcome, enters the ladder
+  and this session's closing review.
+- **Closing review**: a typed, clocked last phase serving the session's
+  misses in order, then extra words ("no misses left · extra words"). Its
+  figures are a separate row, excluded from the headline and from
+  like-for-like comparisons; ending during it still records the session as
+  completed (`session::settle`, `Session.review_phase_keeps_completed`;
+  `SessionFlow.ReviewNeverUncompletes`).
+- **What the UI says**: the start screen names targets per group and due
+  reviews; interludes say what the next phase targets; numeric entries are
+  captioned "Targeting 7 · 48"; the results name slips from every lane and
+  targets per practised track.
+- **Local days** follow the local calendar (`--utc-offset`, schema 4); a new
+  `review` track. Back up before downgrading: alpha.6 refuses a schema-4
+  profile (`SchemaTooNew`).
+
+Limits: retention checks and numeric targeting are only as good as the
+recorded evidence; whether any of this helps a learner improve is an
+empirical question and is not claimed. Pace targets and benchmark probes
+remain unwired (beta.1).
 
 ## Alpha.6 proved practice decisions
 
@@ -222,12 +257,12 @@ this refresh.
 |---|---|---|
 | P0 / A-01, B-02 | in_progress | Pinned Rust image/toolchain, Cargo lock, musl C compiler, architecture feedback check. Proof-tool compatibility, full dependency/security audit and shared CI admission remain unqualified. |
 | P1 / L-02–03, VK-01–02 | implemented, behavior checked | `core/{ledger,metrics,session}`, `engine/{practice,presentation}`; scoring fixtures/properties and live corrected-entry smoke. The scoring decisions now live in `crates/kernel`, which production calls and which carries Lean theorems over its Aeneas translation (first-attempt write-once, counters, pace and accuracy arithmetic, active time, track validity, checkpoint admission); see [docs/TAUTEN.md](docs/TAUTEN.md) for each claim's badge. Ledger plumbing around the kernel stays tested. |
-| P2 / P-02–04, VK-03–06 | in_progress | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Pace hysteresis (`pace.rs`) and benchmark probes remain unwired; numeric tracks are not adapted; retention/benchmark comparisons and 20k vetted vocabulary acceptance remain unfinished. |
+| P2 / P-02–04, VK-03–06 | in_progress | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Since alpha.7 every phase but prose is adaptive: per-group focus for the number row and numpad (#46, #5), warm-up retention checks (#47), numeric and prose misses in the loop (#59, #48), a typed closing review on its own track excluded from the headline (#49, #60), every repeat labelled (#7) and targets named on screen (#50). Pace hysteresis (`pace.rs`) and benchmark probes remain unwired; retention/benchmark comparisons and 20k vetted vocabulary acceptance remain unfinished. |
 | P3 / D-01–02, VP-01–03 | in_progress | `core/{progress,learning}`, `data/{store,schema,records,learning_rows,files,transfer}`, schema 3 with migration/round-trip/regression tests, `engine/storage`, `runtime/writer`. One retained writer/result slot, full-key admission, checkpoints, retry, lock, reopen, backup/export implemented. General job-registry/async planner, immutable observation chunks, full crash/storage campaigns and formal correspondence remain unfinished. |
 | P4 / H-01–04, VP-04–05 | pending | No shipped NDJSON driver, causal/durable barriers or replay. Shared cell/row-rendition capture is rendering evidence, not a completed headless protocol. |
 | P5 / U-01–05 | in_progress | `engine/{view,summary}`, `tui/{paint,stages,stages/results,stages/headlines,modeline,practice,native_text}` share cells plus native row metadata; `runtime/{presenter,text_protocol}` present and negotiate it. Reducer/summary regressions preserve correction history, weighted metrics, timing and resize pause. Full destinations/settings/layout setup, imports and editable themes remain unfinished. |
 | P6 / H-05–06 | in_progress | Hermetic Rust regressions and actual PTY/SQLite smoke; no broad terminal qualification or measured p99/memory admission claim. |
-| P7 / VP, VK, VL, VR inventory | pending | Packet models remain design probes, now run by the TLC gate in `./ci quality` from `models/claims.toml` (all 3 positive and 5 mutant configurations, pinned TLC 1.7.4; #28); `models/CheckpointSave.tla` maps the shipped save protocol (single-flight, retry, final flush; 4 mutants; #30); `models/FeedbackLoop.tla` maps the cross-session feedback loop (6 invariants, a liveness property, 7 mutants; #40); `models/SessionFlow.tla` maps the session flow (clock, phase window, interlude grace, end early; 4 mutants), whose state changes all go through the proved `session::step` (#31). Lean (Charon/Aeneas) replaces Verus for kernel proofs: the proof inventory for `crates/kernel` is in [docs/TAUTEN.md](docs/TAUTEN.md) (RFC: [2026-11-24-tauten-and-lean-kernel](docs/rfcs/2026-11-24-tauten-and-lean-kernel.md)). VK-03..05 and the VK-06 ladder are proved (`plan::allocate` #34, `select::scan` #35, `lanes::record` #36, `review::ladder_step` #37); VK-06 queue admission is proved (`queue::admit` #55). VL-01, VP-01/02/04/05 and VR-01 have no proof; no TLAPS inventory has passed. |
+| P7 / VP, VK, VL, VR inventory | pending | Packet models remain design probes, now run by the TLC gate in `./ci quality` from `models/claims.toml` (all 3 positive and 5 mutant configurations, pinned TLC 1.7.4; #28); `models/CheckpointSave.tla` maps the shipped save protocol (single-flight, retry, final flush; 4 mutants; #30); `models/FeedbackLoop.tla` maps the cross-session feedback loop (6 invariants, a liveness property, 7 mutants; #40); `models/SessionFlow.tla` maps the session flow (clock, phase window, interlude grace, end early, the typed closing review; 6 mutants), whose state changes all go through the proved `session::step` and status changes through `session::settle` (#31, #49). Lean (Charon/Aeneas) replaces Verus for kernel proofs: the proof inventory for `crates/kernel` is in [docs/TAUTEN.md](docs/TAUTEN.md) (RFC: [2026-11-24-tauten-and-lean-kernel](docs/rfcs/2026-11-24-tauten-and-lean-kernel.md)). VK-03..05 and the VK-06 ladder are proved (`plan::allocate` #34, `select::scan` #35, `lanes::record` #36, `review::ladder_step` #37); VK-06 queue admission is proved (`queue::admit` #55). VL-01, VP-01/02/04/05 and VR-01 have no proof; no TLAPS inventory has passed. |
 | P8 / B-03–06 | blocked for qualification | Static feedback-bundle producer and owner trial installation exist. Buildbot recovery, authorized signing, complete inventory admission and owner terminal/keypad qualification are not completed. |
 
 ## Evidence and limits

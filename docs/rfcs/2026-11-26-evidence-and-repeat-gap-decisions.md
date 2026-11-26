@@ -2,7 +2,7 @@
 rfc: "2026-11-26-evidence-and-repeat-gap-decisions"
 title: "Evidence attribution and repeat-gap decisions in the kernel"
 status: accepted
-implementation: in-progress
+implementation: complete
 authors:
   - claude-fable (grooming agent)
 created: 2026-11-26

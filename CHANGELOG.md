@@ -4,6 +4,19 @@ User-visible changes per release. Design decisions live in the [RFC registry](do
 
 ## [Unreleased]
 
+Deliberate practice in every phase. Design: [RFC](docs/rfcs/2026-11-26-deliberate-practice-in-every-phase.md).
+
+- **Store schema 4.** Migration is automatic; it adds the session's UTC offset and a `review` track. alpha.6 cannot open a schema-4 profile (`SchemaTooNew`), so back up before downgrading. [#45](https://github.com/cadence-typing/cadence/issues/45)
+- Days follow your local calendar, so the review ladder's "tomorrow" is tomorrow where you are; `--utc-offset +HH:MM` overrides the detected zone, and the start screen says when none was found. [#52](https://github.com/cadence-typing/cadence/issues/52)
+- The number row and the numpad each target their own weak digits and digit pairs (policy v3): two of every three entries contain one ("Targeting 7 · 48"); a missed entry comes back once, at least two entries later in the same phase ("again"). [#46](https://github.com/cadence-typing/cadence/issues/46), [#5](https://github.com/cadence-typing/cadence/issues/5), [#59](https://github.com/cadence-typing/cadence/issues/59)
+- Warm-up checks familiar words you have recovered ("Familiar words · 2 retention checks"); a word missed in warm-up returns in the words phase. [#47](https://github.com/cadence-typing/cadence/issues/47)
+- A target word does not recur within four exercises. [#58](https://github.com/cadence-typing/cadence/issues/58)
+- Prose stays untargeted and says so; a slip in a word that is in the word pack now counts for that word and returns in the closing review. [#48](https://github.com/cadence-typing/cadence/issues/48)
+- The last minute is a typed closing review of this session's misses (then "no misses left · extra words"), with its own results row that never enters the headline or like-for-like comparisons; ending during it still records the session as completed. [#49](https://github.com/cadence-typing/cadence/issues/49), [#60](https://github.com/cadence-typing/cadence/issues/60)
+- Every repeat is labelled: "again", "due review", "repeat: word", "repeat · list restarted". [#7](https://github.com/cadence-typing/cadence/issues/7)
+- The start screen, interludes, numeric captions and results say what each phase targeted; "Most slips" covers every lane. [#50](https://github.com/cadence-typing/cadence/issues/50)
+- Plans for a given seed differ from alpha.6.
+
 ## [0.1.0-alpha.6] — Proved practice decisions (2026-11-26)
 
 Practice decisions (phase split, word choice, quotas, the review ladder, the reinforcement queue, slot substitution, labels, the learner's focus and its evidence) are now proved kernel functions that the app calls. No schema change. **Plans for a given seed differ from alpha.5** (broad words are sampled without replacement and the learner model computes in integers), so an alpha.5 seed does not reproduce its alpha.5 plan. Design: [RFC: practice decisions in the kernel](docs/rfcs/2026-11-26-practice-decisions-in-the-kernel.md), [RFC: evidence and repeat-gap decisions](docs/rfcs/2026-11-26-evidence-and-repeat-gap-decisions.md), [RFC: a slow save pauses practice](docs/rfcs/2026-11-26-slow-save-pauses-practice.md).
