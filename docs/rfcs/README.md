@@ -53,3 +53,6 @@ Creation order. New proposals use `—` in the Legacy column.
 | plan/0004 | [Calm flow and results that answer "how did I do"](2026-11-14-calm-flow-and-honest-results.md) | accepted | complete | [#24](https://github.com/cadence-typing/cadence/issues/24) |
 | — | [Public distribution: install script, website and project process](2026-11-24-public-distribution.md) | accepted | in-progress | [#1](https://github.com/cadence-typing/cadence/issues/1) |
 | — | [Adopt tauten and prove the scoring kernel in Lean](2026-11-24-tauten-and-lean-kernel.md) | accepted | complete | [#2](https://github.com/cadence-typing/cadence/issues/2) |
+| — | [Formal gates with production mappings](2026-11-26-formal-gates-and-production-mapping.md) | accepted | not-started | [#25](https://github.com/cadence-typing/cadence/issues/25) |
+| — | [Practice decisions in the kernel](2026-11-26-practice-decisions-in-the-kernel.md) | accepted | not-started | [#26](https://github.com/cadence-typing/cadence/issues/26) |
+| — | [Deliberate practice in every phase](2026-11-26-deliberate-practice-in-every-phase.md) | accepted | not-started | [#27](https://github.com/cadence-typing/cadence/issues/27) |
