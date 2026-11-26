@@ -49,10 +49,11 @@ pub struct ConfigWorker {
     thread: JoinHandle<()>,
 }
 
-fn settings(loaded: Loaded) -> JobOutcome {
+fn settings(loaded: Loaded, directory: Option<&std::path::Path>) -> JobOutcome {
     JobOutcome::Settings {
         values: values(&loaded.config),
         digest: loaded.digest,
+        theme: cadence_data::theme_file::for_config(&loaded.config, directory),
     }
 }
 
@@ -72,11 +73,11 @@ fn answer(path: Option<&PathBuf>, request: SettingsRequest) -> JobOutcome {
     };
     match request {
         SettingsRequest::Write { based_on, edits } => match write(path, based_on, &edits) {
-            Ok(loaded) => settings(loaded),
+            Ok(loaded) => settings(loaded, path.parent()),
             Err(error) => JobOutcome::Failed(error.to_string()),
         },
         SettingsRequest::Reload => match reload(path) {
-            Ok(loaded) => settings(loaded),
+            Ok(loaded) => settings(loaded, path.parent()),
             Err(errors) => JobOutcome::Failed(match errors.as_slice() {
                 [] => "the settings file is not valid".to_string(),
                 [only] => only.to_string(),
@@ -193,7 +194,7 @@ mod tests {
         assert_eq!(answered, ticket);
         assert!(matches!(
             outcome,
-            JobOutcome::Settings { values, digest: Some(_) }
+            JobOutcome::Settings { values, digest: Some(_), .. }
                 if values.contains(&("session.minutes", Setting::Integer(20)))
         ));
         // A second write still based on "no file" conflicts.

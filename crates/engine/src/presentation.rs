@@ -42,6 +42,7 @@ impl Engine {
             },
             Screen::Summary => ScreenView::Summary,
         };
+        let key_guide = self.key_guide(&screen);
         PreparedView {
             revision: self.revision,
             state_revision: self.state_revision,
@@ -54,6 +55,7 @@ impl Engine {
             commands: self.commands(),
             help: self.help_view(),
             destination: self.destination_view(),
+            key_guide,
             progress: (self.navigation_destination() == crate::commands::Destination::Progress)
                 .then(|| self.progress.view()),
             numpad_off: matches!(

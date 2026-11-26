@@ -14,6 +14,7 @@ fn written(values: Vec<(&'static str, Setting)>) -> JobOutcome {
     JobOutcome::Settings {
         values,
         digest: Some(ConfigDigest::of(b"setup")),
+        theme: None,
     }
 }
 

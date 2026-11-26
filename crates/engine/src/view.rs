@@ -444,6 +444,10 @@ pub struct PreparedView {
     pub destination: DestinationView,
     /// The Progress destination, when selected (#81).
     pub progress: Option<crate::progress::ProgressView>,
+    /// The expected next key, on numeric tracks when the key guide is on
+    /// (#82). It names the key the target expects, never the key or finger
+    /// used.
+    pub key_guide: Option<char>,
     /// The effective display settings, applied at once (#79).
     pub display: DisplayView,
 }
@@ -466,6 +470,8 @@ pub struct DestinationView {
 pub struct DisplayView {
     /// `display.theme`: a built-in name or a theme file name.
     pub theme: String,
+    /// The validated colours of the theme file `theme` names (#82).
+    pub theme_colors: Option<cadence_core::settings::ThemeColors>,
     /// `display.high_contrast`.
     pub high_contrast: bool,
     /// `display.key_guide`: `auto`, `always` or `off`.

@@ -1,7 +1,10 @@
 //! Semantic theme roles (U-02).
 //!
-//! Colours remain in this adapter; error meaning also has underline/inversion.
-//! Palette data is built in. Custom palette editing is not yet exposed.
+//! Colours remain in this adapter: no other TUI module names a colour
+//! (tested). Error meaning also has underline and inversion. Palettes are
+//! built in, or come whole from a validated theme file (#82); high contrast
+//! uses the terminal's own colours and pairs every colour signal with a
+//! modifier, so meaning survives with colours disabled.
 
 use ratatui::style::Color;
 
@@ -39,6 +42,7 @@ pub enum SemanticRole {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Palette {
     colors: [Color; 11],
+    high_contrast: bool,
 }
 
 impl Palette {
@@ -117,7 +121,47 @@ impl Palette {
     /// Internal; public construction goes through named builders or the
     /// validated config path.
     const fn from_ordered(colors: [Color; 11]) -> Self {
-        Self { colors }
+        Self {
+            colors,
+            high_contrast: false,
+        }
+    }
+
+    /// A validated theme file's palette (#82).
+    #[must_use]
+    pub fn from_theme(colours: &cadence_core::settings::ThemeColors) -> Self {
+        let mut colors = [Color::Reset; 11];
+        for (slot, colour) in colors.iter_mut().zip(colours) {
+            *slot = match *colour {
+                cadence_core::settings::ThemeColor::Rgb(r, g, b) => Color::Rgb(r, g, b),
+                cadence_core::settings::ThemeColor::Default => Color::Reset,
+            };
+        }
+        Self::from_ordered(colors)
+    }
+
+    /// The palette the display settings ask for: high contrast, a theme
+    /// file, a built-in name, or `fallback` (the palette chosen at startup).
+    #[must_use]
+    pub fn for_display(display: &cadence_engine::view::DisplayView, fallback: Self) -> Self {
+        if display.high_contrast {
+            return Self {
+                high_contrast: true,
+                ..Self::terminal()
+            };
+        }
+        display
+            .theme_colors
+            .as_ref()
+            .map(Self::from_theme)
+            .or_else(|| Self::named(&display.theme))
+            .unwrap_or(fallback)
+    }
+
+    /// High contrast: every colour signal is also a modifier (#82).
+    #[must_use]
+    pub const fn high_contrast(self) -> bool {
+        self.high_contrast
     }
 
     /// The colour bound to a role.

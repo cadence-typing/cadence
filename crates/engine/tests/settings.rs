@@ -51,6 +51,7 @@ fn written(values: &[(&'static str, Setting)]) -> JobOutcome {
     JobOutcome::Settings {
         values: values.to_vec(),
         digest: Some(ConfigDigest::of(b"x")),
+        theme: None,
     }
 }
 
@@ -172,5 +173,103 @@ fn settings_never_open_while_typing() -> TestResult {
     key(&mut e, 0, Key::Enter)?;
     content(&mut e, 1, 's')?;
     assert!(e.prepare(MonoTick::from_us(1)).settings.is_none());
+    Ok(())
+}
+
+/// #82: a theme file is used whole: an invalid one keeps the current
+/// palette and theme with one diagnostic; a valid one becomes the palette.
+#[test]
+fn an_invalid_theme_file_keeps_the_current_palette() -> TestResult {
+    let mut e = words()?;
+    ready(&mut e)?;
+    content(&mut e, 1, 's')?;
+    let ticket = content(&mut e, 2, 'r')?.job.ok_or("reload")?;
+    answer(
+        &mut e,
+        3,
+        ticket,
+        JobOutcome::Settings {
+            values: vec![("display.theme", Setting::Text("ocean.toml".into()))],
+            digest: Some(ConfigDigest::of(b"x")),
+            theme: Some(Err("/cfg/ocean.toml: missing role warning".into())),
+        },
+    )?;
+    let view = e.prepare(MonoTick::from_us(3));
+    assert_eq!(view.display.theme, "dark");
+    assert_eq!(view.display.theme_colors, None);
+    assert_eq!(
+        view.notice.as_deref(),
+        Some("Settings not changed: /cfg/ocean.toml: missing role warning")
+    );
+    let ticket = content(&mut e, 4, 'r')?.job.ok_or("reload")?;
+    let colours = [cadence_core::settings::ThemeColor::Rgb(1, 2, 3); 11];
+    answer(
+        &mut e,
+        5,
+        ticket,
+        JobOutcome::Settings {
+            values: vec![("display.theme", Setting::Text("ocean.toml".into()))],
+            digest: Some(ConfigDigest::of(b"y")),
+            theme: Some(Ok(colours)),
+        },
+    )?;
+    let view = e.prepare(MonoTick::from_us(5));
+    assert_eq!(view.display.theme, "ocean.toml");
+    assert_eq!(view.display.theme_colors, Some(colours));
+    Ok(())
+}
+
+/// #82: the key guide names the expected next key on numeric tracks:
+/// always with `always`, never with `off`, and with `auto` only for the
+/// first numeric sessions.
+#[test]
+fn the_key_guide_follows_its_setting() -> TestResult {
+    use cadence_core::progress::{HistorySummary, SessionRecap, Track, TrackProgress};
+    use cadence_trainer::{ExerciseKind, Phase};
+    let numeric_session = SessionRecap {
+        day: 1,
+        completed: true,
+        tracks: vec![TrackProgress {
+            first_attempted: 10,
+            ..TrackProgress::empty(Track::Numpad)
+        }],
+        layout: None,
+        content_class: cadence_core::progress::ContentClass::Standard,
+    };
+    for (mode, past_numeric, expected) in [
+        ("auto", 0, Some('1')),
+        ("auto", 3, None),
+        ("always", 3, Some('1')),
+        ("off", 0, None),
+    ] {
+        let mut e = engine(vec![phase(
+            ExerciseKind::Numpad,
+            Phase::Numpad,
+            20,
+            &["12"],
+        )?])?
+        .with_settings(&[("display.key_guide", Setting::Text(mode.into()))], None);
+        ready_with(
+            &mut e,
+            HistorySummary {
+                recent: vec![numeric_session.clone(); past_numeric],
+                ..HistorySummary::default()
+            },
+        )?;
+        key(&mut e, 1, Key::Enter)?;
+        assert_eq!(
+            e.prepare(MonoTick::from_us(1)).key_guide,
+            expected,
+            "{mode}, {past_numeric}"
+        );
+    }
+    // Words are never guided.
+    let mut e = words()?.with_settings(
+        &[("display.key_guide", Setting::Text("always".into()))],
+        None,
+    );
+    ready(&mut e)?;
+    key(&mut e, 1, Key::Enter)?;
+    assert_eq!(e.prepare(MonoTick::from_us(1)).key_guide, None);
     Ok(())
 }

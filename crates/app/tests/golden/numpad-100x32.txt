@@ -54,7 +54,7 @@
    100×#d6dce0/#0a0d10/
 27 normal |                              Normal text · native scaling unavailable                              
    2×#d6dce0/#0a0d10/ 96×#e0b26a/#0a0d10/ 2×#d6dce0/#0a0d10/
-28 normal |                                            Enter submits                                           
+28 normal |                                    next key ‘2’ · Enter submits                                    
    2×#d6dce0/#0a0d10/ 96×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
 29 normal |                                                                                                    
    100×#d6dce0/#0a0d10/

@@ -11,6 +11,10 @@
 use cadence_core::settings::{Accepts, ConfigDigest, Effect, KEYS, Setting, effect};
 
 use crate::jobs::{JobKind, JobOutcome, JobTicket};
+
+/// With `display.key_guide = "auto"`, the guide shows for this many
+/// numeric sessions, then hides (#82).
+pub const KEY_GUIDE_SESSIONS: usize = 3;
 use crate::view::{SettingRow, SettingsView};
 
 /// What the worker is asked to do for a settings job.
@@ -51,6 +55,8 @@ pub(crate) struct SettingsState {
     pending: Option<(JobTicket, SettingsRequest)>,
     /// Saved keys that apply from the next session.
     held: Vec<&'static str>,
+    /// The validated theme file `display.theme` names, if it names one (#82).
+    theme_file: Option<cadence_core::settings::ThemeColors>,
     notice: Option<Notice>,
 }
 
@@ -62,6 +68,7 @@ impl Default for SettingsState {
             overlay: None,
             pending: None,
             held: Vec::new(),
+            theme_file: None,
             notice: None,
         }
     }
@@ -138,6 +145,33 @@ impl SettingsState {
             }
         }
         self.digest = digest;
+    }
+
+    /// The validated theme file in use, if any (#82).
+    pub(crate) const fn theme_file(&self) -> Option<cadence_core::settings::ThemeColors> {
+        self.theme_file
+    }
+
+    /// Starts with a theme file read at startup, or the reason it was not
+    /// used (the built-in palette stays).
+    pub(crate) fn start_theme(
+        &mut self,
+        theme: Option<Result<cadence_core::settings::ThemeColors, String>>,
+    ) {
+        match theme {
+            Some(Ok(colours)) => self.theme_file = Some(colours),
+            Some(Err(reason)) => {
+                self.notice = Some(Notice::Problem(reason));
+                if let Some(slot) = KEYS
+                    .iter()
+                    .position(|key| key.name == "display.theme")
+                    .and_then(|index| self.values.get_mut(index))
+                {
+                    *slot = Setting::Text("dark".into());
+                }
+            }
+            None => {}
+        }
     }
 
     /// A key's effective value.
@@ -226,9 +260,37 @@ impl SettingsState {
     pub(crate) fn finish(&mut self, kind: JobKind, outcome: JobOutcome) -> Vec<&'static str> {
         self.pending = None;
         match outcome {
-            JobOutcome::Settings { values, digest } => {
+            JobOutcome::Settings {
+                values,
+                digest,
+                theme,
+            } => {
                 let before = self.values.clone();
+                let previous_theme = self.value("display.theme").cloned();
                 self.replace(&values, digest);
+                // A theme file is used only whole (#82): an invalid one keeps
+                // the current palette and theme, with one diagnostic.
+                let theme_problem = match theme {
+                    None => {
+                        self.theme_file = None;
+                        None
+                    }
+                    Some(Ok(colours)) => {
+                        self.theme_file = Some(colours);
+                        None
+                    }
+                    Some(Err(reason)) => {
+                        if let (Some(old), Some(slot)) = (
+                            previous_theme,
+                            KEYS.iter()
+                                .position(|key| key.name == "display.theme")
+                                .and_then(|index| self.values.get_mut(index)),
+                        ) {
+                            *slot = old;
+                        }
+                        Some(reason)
+                    }
+                };
                 let mut now = Vec::new();
                 for (key, (old, new)) in KEYS.iter().zip(before.iter().zip(&self.values)) {
                     if old == new {
@@ -242,15 +304,19 @@ impl SettingsState {
                         Some(Effect::NextSession) | None => {}
                     }
                 }
-                match kind {
-                    JobKind::ConfigWrite => {
-                        self.notice = Some(Notice::Saved);
-                        self.overlay = None;
-                    }
-                    JobKind::ConfigReload | JobKind::Ping | JobKind::History => {
-                        self.notice = Some(Notice::Reloaded);
-                        if let Some(overlay) = self.overlay.as_mut() {
-                            overlay.draft.clone_from(&self.values);
+                if let Some(reason) = theme_problem {
+                    self.notice = Some(Notice::Problem(reason));
+                } else {
+                    match kind {
+                        JobKind::ConfigWrite => {
+                            self.notice = Some(Notice::Saved);
+                            self.overlay = None;
+                        }
+                        JobKind::ConfigReload | JobKind::Ping | JobKind::History => {
+                            self.notice = Some(Notice::Reloaded);
+                            if let Some(overlay) = self.overlay.as_mut() {
+                                overlay.draft.clone_from(&self.values);
+                            }
                         }
                     }
                 }
@@ -316,6 +382,17 @@ impl crate::Engine {
         digest: Option<ConfigDigest>,
     ) -> Self {
         self.settings = SettingsState::loaded(values, digest);
+        self
+    }
+
+    /// The theme file read at startup (#82): its colours, or why the
+    /// built-in palette is used instead.
+    #[must_use]
+    pub fn with_theme(
+        mut self,
+        theme: Option<Result<cadence_core::settings::ThemeColors, String>>,
+    ) -> Self {
+        self.settings.start_theme(theme);
         self
     }
 
@@ -399,6 +476,50 @@ impl crate::Engine {
         written
     }
 
+    /// The expected next key when the guide applies (#82): numeric tracks
+    /// only; `always`, never with `off`, and with `auto` for the learner's
+    /// first [`KEY_GUIDE_SESSIONS`] numeric sessions.
+    pub(crate) fn key_guide(&self, screen: &crate::view::ScreenView) -> Option<char> {
+        use cadence_core::progress::Track;
+        let numeric = |track: Track| matches!(track, Track::NumberRow | Track::Numpad);
+        if !self.current_track().is_ok_and(numeric) {
+            return None;
+        }
+        let on = match self.settings.value("display.key_guide") {
+            Some(Setting::Text(mode)) if mode == "always" => true,
+            Some(Setting::Text(mode)) if mode == "off" => false,
+            Some(
+                Setting::Text(_) | Setting::Integer(_) | Setting::Boolean(_) | Setting::List(_),
+            )
+            | None => {
+                self.history
+                    .recent
+                    .iter()
+                    .filter(|recap| {
+                        recap
+                            .tracks
+                            .iter()
+                            .any(|t| numeric(t.track) && t.first_attempted > 0)
+                    })
+                    .count()
+                    < KEY_GUIDE_SESSIONS
+            }
+        };
+        let crate::view::ScreenView::Practice { spans, .. } = screen else {
+            return None;
+        };
+        on.then(|| {
+            spans.iter().find_map(|span| match span {
+                crate::view::UnitSpan::Cursor { expected } => Some(*expected),
+                crate::view::UnitSpan::Correct { .. }
+                | crate::view::UnitSpan::Wrong { .. }
+                | crate::view::UnitSpan::Upcoming { .. }
+                | crate::view::UnitSpan::Extra { .. } => None,
+            })
+        })
+        .flatten()
+    }
+
     pub(crate) fn display_view(&self) -> crate::view::DisplayView {
         let text = |name: &str, fallback: &str| match self.settings.value(name) {
             Some(Setting::Text(s)) => s.clone(),
@@ -409,6 +530,7 @@ impl crate::Engine {
         let flag = |name: &str| matches!(self.settings.value(name), Some(Setting::Boolean(true)));
         crate::view::DisplayView {
             theme: text("display.theme", "dark"),
+            theme_colors: self.settings.theme_file(),
             high_contrast: flag("display.high_contrast"),
             key_guide: text("display.key_guide", "auto"),
             live_pace: flag("practice.live_pace"),

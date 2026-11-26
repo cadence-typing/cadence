@@ -17,6 +17,7 @@ pub mod config;
 pub mod config_write;
 pub mod paths;
 pub mod store;
+pub mod theme_file;
 
 pub use cadence_core::progress::{Checkpoint, SaveKey, SessionProgress, Track, TrackProgress};
 pub use paths::{PathsError, ProfilePaths, data_dir, resolve_data_dir};

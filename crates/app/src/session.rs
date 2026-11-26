@@ -67,7 +67,13 @@ fn prepare(
             cadence_core::progress::ContentClass::Standard,
         )
         .with_utc_offset(Some(offset.0.checked_div(60).ok_or("offset")?), offset.1)
-        .with_settings(&settings, loaded.digest);
+        .with_settings(&settings, loaded.digest)
+        .with_theme(cadence_data::theme_file::for_config(
+            &loaded.config,
+            crate::config_path(None)
+                .as_deref()
+                .and_then(std::path::Path::parent),
+        ));
     let engine = if first_run {
         engine.with_first_run()
     } else {
@@ -143,6 +149,24 @@ mod tests {
             assert_eq!(has_numpad, numpad);
             assert_eq!(view.numpad_off, !numpad);
         }
+        Ok(())
+    }
+
+    /// #82: changing only the theme changes no stored value: display
+    /// settings are never audited into the progress store.
+    #[test]
+    fn display_settings_are_never_audited() -> Result<(), String> {
+        let config = cadence_data::config::Config::parse(
+            "[display]\ntheme = \"light\"\nhigh_contrast = true\nkey_guide = \"off\"\n",
+            std::path::Path::new("/cfg/config.toml"),
+        )
+        .map_err(|errors| format!("{errors:?}"))?;
+        let audited = crate::score_affecting(&config);
+        assert!(audited.iter().all(|(key, _)| !key.starts_with("display.")));
+        assert_eq!(
+            audited,
+            crate::score_affecting(&cadence_data::config::Config::default())
+        );
         Ok(())
     }
 

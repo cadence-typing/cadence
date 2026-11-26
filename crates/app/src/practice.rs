@@ -328,7 +328,7 @@ fn draw(
     let view = engine.prepare(at);
     // The theme applies at once (#79); a theme file falls back to the
     // palette chosen at startup.
-    let palette = Palette::named(&view.display.theme).unwrap_or(palette);
+    let palette = Palette::for_display(&view.display, palette);
     terminal.draw(|buffer, rows| {
         let area = buffer.area;
         paint(buffer, area, &view, palette, rows);

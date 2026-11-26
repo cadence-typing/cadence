@@ -58,6 +58,9 @@ pub enum JobOutcome {
         values: Vec<(&'static str, cadence_core::settings::Setting)>,
         /// The file's digest.
         digest: Option<cadence_core::settings::ConfigDigest>,
+        /// The theme file `display.theme` names, read and validated with
+        /// the config (#82); `None` for a built-in theme.
+        theme: Option<Result<cadence_core::settings::ThemeColors, String>>,
     },
     /// The history query's sessions, oldest first (#81).
     History(Vec<cadence_core::progress::HistoryPoint>),

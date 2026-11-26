@@ -220,6 +220,33 @@ impl fmt::Display for ConfigDigest {
     }
 }
 
+/// The eleven roles a theme file defines, in palette order (#82).
+pub const THEME_ROLES: [&str; 11] = [
+    "background",
+    "panel",
+    "text",
+    "muted",
+    "border",
+    "focus",
+    "correct",
+    "error",
+    "error-background",
+    "warning",
+    "selected-background",
+];
+
+/// One role's colour in a theme file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ThemeColor {
+    /// `#rrggbb`.
+    Rgb(u8, u8, u8),
+    /// `default`: the terminal's own colour.
+    Default,
+}
+
+/// A validated theme: every role's colour, in [`THEME_ROLES`] order.
+pub type ThemeColors = [ThemeColor; 11];
+
 /// The kernel kind of a key, by a total match over the catalogue.
 #[must_use]
 pub fn kind(name: &str) -> Option<Kind> {

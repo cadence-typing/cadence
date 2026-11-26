@@ -191,6 +191,7 @@ pub(super) fn paint(
             paused: *paused,
             resolved,
             first_session: view.history.completed_sessions == 0,
+            key_guide: view.key_guide,
         },
         palette,
     );
@@ -392,6 +393,7 @@ struct Footer<'a> {
     paused: bool,
     resolved: ResolvedTextSize,
     first_session: bool,
+    key_guide: Option<char>,
 }
 
 fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Palette) {
@@ -401,6 +403,7 @@ fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Pa
         paused,
         resolved,
         first_session,
+        key_guide,
     } = footer;
     if area.is_empty() {
         return;
@@ -454,7 +457,14 @@ fn paint_footer(buffer: &mut Buffer, area: Rect, footer: Footer<'_>, palette: Pa
         } else {
             ""
         };
-        let fitted = fit_whole(instruction, usize::from(area.width));
+        // The key guide (#82) leads the line below the prompt: the key the
+        // target expects next, never the key or finger used.
+        let guided = match key_guide.filter(|_| !paused) {
+            Some(next) if instruction.is_empty() => format!("next key ‘{}’", next.escape_debug()),
+            Some(next) => format!("next key ‘{}’ · {instruction}", next.escape_debug()),
+            None => instruction.to_string(),
+        };
+        let fitted = fit_whole(&guided, usize::from(area.width));
         centered(
             buffer,
             Rect::new(area.x, y, area.width, 1),
@@ -501,6 +511,11 @@ fn centered(buffer: &mut Buffer, area: Rect, text: &str, style: Style) {
 
 fn unit_style(span: UnitSpan, palette: Palette) -> Style {
     match span {
+        // In high contrast typed text is bold, so it differs from the text
+        // ahead without colour (#82).
+        UnitSpan::Correct { .. } if palette.high_contrast() => {
+            style(palette, Role::Correct).add_modifier(Modifier::BOLD)
+        }
         UnitSpan::Correct { .. } => style(palette, Role::Correct),
         UnitSpan::Wrong { .. } | UnitSpan::Extra { .. } => {
             style(palette, Role::Error).add_modifier(Modifier::UNDERLINED | Modifier::REVERSED)
