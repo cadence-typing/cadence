@@ -354,7 +354,9 @@ fn phase_purpose(phase: Phase, mode: PlannerMode) -> &'static str {
         Phase::AdaptiveWords => "Words chosen from your recorded slips, plus variety.",
         Phase::NumberRow => "Digits in short text contexts.",
         Phase::Numpad => "Exact entries. Leading zeros count.",
-        Phase::Prose => "Carry accuracy into sentences.",
+        Phase::Prose => {
+            "Not targeted: this measures how accuracy carries into sentences. Slips here feed your closing review and tomorrow's words."
+        }
         Phase::Review => "Look back at the session's real measurements.",
     }
 }

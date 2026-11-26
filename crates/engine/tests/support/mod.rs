@@ -27,6 +27,7 @@ pub fn phase(
             passage: None,
             caption: None,
             target: None,
+            spans: Vec::new(),
         });
     }
     Ok(PlannedPhase {

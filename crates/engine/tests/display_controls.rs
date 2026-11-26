@@ -36,6 +36,7 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
                     passage: None,
                     caption: None,
                     target: None,
+                    spans: Vec::new(),
                 }],
             },
             PlannedPhase {
@@ -48,6 +49,7 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
                     passage: None,
                     caption: None,
                     target: None,
+                    spans: Vec::new(),
                 }],
             },
             PlannedPhase {

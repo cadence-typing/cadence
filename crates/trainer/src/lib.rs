@@ -34,7 +34,7 @@ pub use numeric::{DigitSource, NumericError, number_row_exercise, numpad_exercis
 pub use pace::{PaceDecision, pace_decision};
 pub use plan::{
     Adaptation, ExerciseKind, PlanError, PlanInputs, PlanRng, PlannedExercise, PlannedPhase,
-    PlannedWord, SessionPlan, build_session_plan,
+    PlannedWord, SessionPlan, WordSpan, build_session_plan,
 };
 pub use policy::{
     Lane, PacePolicy, Phase, PolicyError, ReviewPolicy, SelectionPolicy, SessionPolicy,

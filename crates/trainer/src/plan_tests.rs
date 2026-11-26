@@ -589,3 +589,48 @@ fn retention_checks_go_to_warm_up_and_spill_into_words() {
         .find_map(|e| e.caption.clone());
     assert!(caption.is_some_and(|c| c.starts_with("Familiar words · ")));
 }
+
+/// #48: prose spans mark pack words (lower-cased, punctuation stripped);
+/// other tokens have none.
+#[test]
+fn prose_spans_mark_pack_words() {
+    let entries = vec![
+        (1, "the".to_string(), WordBand::Core),
+        (2, "cat".to_string(), WordBand::Core),
+        (3, "sat".to_string(), WordBand::Core),
+    ];
+    let words = WordPack::new(
+        entries,
+        ContentDigest::from_bytes([9; 32]),
+        1,
+        LayoutSupportsPound::US,
+    )
+    .unwrap();
+    let units =
+        cadence_core::validate_target("The cat, quietly sat.", LayoutSupportsPound::US).unwrap();
+    let spans = crate::plan_content::word_spans(&units, &words);
+    let found: Vec<(u64, usize, usize, usize)> = spans
+        .iter()
+        .map(|s| (s.id.get(), s.token, s.start, s.len))
+        .collect();
+    assert_eq!(found, vec![(1, 0, 0, 3), (2, 1, 4, 3), (3, 3, 17, 3)]);
+}
+
+/// #48: the prose phase is identical for a cold and an adaptive learner
+/// with the same seed and passage history (prose reads no focus).
+#[test]
+fn prose_does_not_depend_on_the_learner_focus() {
+    let (words, bank) = (pack(3_000), prose(40));
+    let adaptive = weak_on("wb", &[(WordId::new(5).unwrap(), 1)], 10);
+    assert!(!adaptive.focus().is_empty());
+    let cold_plan = build(&cold(), &words, &bank, 11, &[], 900).unwrap();
+    let adaptive_plan = build(&adaptive, &words, &bank, 11, &[], 900).unwrap();
+    assert_eq!(
+        phase(&cold_plan, Phase::Prose),
+        phase(&adaptive_plan, Phase::Prose)
+    );
+    assert_ne!(
+        phase(&cold_plan, Phase::AdaptiveWords),
+        phase(&adaptive_plan, Phase::AdaptiveWords)
+    );
+}

@@ -40,6 +40,7 @@ fn words_exercise(slots: &[(&str, u64, Lane)]) -> Result<PlannedExercise, Error>
         passage: None,
         caption: None,
         target: None,
+        spans: Vec::new(),
     })
 }
 
@@ -636,6 +637,7 @@ fn numeric_phase(
                     passage: None,
                     caption: None,
                     target: None,
+                    spans: Vec::new(),
                 })
             })
             .collect::<Result<_, Error>>()?,
@@ -757,5 +759,127 @@ fn a_warm_up_miss_returns_in_the_words_phase() -> TestResult {
     assert_eq!(context_line(&mut driver, at).as_deref(), Some("again: cat"));
     let at = type_text(&mut driver, at, "sun cat")?;
     assert_eq!(practice_text(&mut driver, at)?, "map pen", "returned once");
+    Ok(())
+}
+
+fn prose_exercise(
+    text: &str,
+    spans: &[(u64, usize, usize, usize, &str)],
+) -> Result<PlannedExercise, Error> {
+    Ok(PlannedExercise {
+        units: cadence_core::validate_target(text, LayoutSupportsPound::US)?,
+        kind: ExerciseKind::Prose,
+        words: Vec::new(),
+        passage: None,
+        caption: None,
+        target: None,
+        spans: spans
+            .iter()
+            .map(|(id, token, start, len, form)| {
+                Ok(cadence_trainer::WordSpan {
+                    id: WordId::new(*id)?,
+                    token: *token,
+                    start: *start,
+                    len: *len,
+                    units: cadence_core::validate_target(form, LayoutSupportsPound::US)?,
+                })
+            })
+            .collect::<Result<_, Error>>()?,
+    })
+}
+
+/// #48: a corrected slip inside a prose word that is in the pack is a
+/// word outcome with an error and is queued (it returns in a later words
+/// exercise); a clean pack word is a clean outcome; a non-pack token is
+/// none.
+#[test]
+fn a_prose_slip_in_a_pack_word_enters_the_loop() -> TestResult {
+    let phases = vec![
+        PlannedPhase {
+            phase: Phase::Prose,
+            seconds: 1,
+            exercises: vec![prose_exercise(
+                "The cat, zyx sat.",
+                &[
+                    (1, 0, 0, 3, "the"),
+                    (2, 1, 4, 3, "cat"),
+                    (3, 3, 13, 3, "sat"),
+                ],
+            )?],
+        },
+        PlannedPhase {
+            phase: Phase::AdaptiveWords,
+            seconds: 60,
+            exercises: vec![words_exercise(&[
+                ("sun", 7, Lane::Target),
+                ("hat", 8, Lane::Review),
+            ])?],
+        },
+    ];
+    let mut driver = Driver::new(engine(phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "The c#at, zyx sat.")?;
+    driver.send(at + 1_000_000, EventKind::Tick)?;
+    driver.key(at + 2_000_000, Key::Enter)?;
+    let at = at + 2_100_000;
+    assert_eq!(
+        practice_text(&mut driver, at)?,
+        "sun cat",
+        "the prose miss returns"
+    );
+    let at = type_text(&mut driver, at, "sun cat")?;
+    let learning = driver.finish(at)?;
+    let tally = |id| learning.words.get(&WordId::new(id).unwrap()).copied();
+    assert_eq!(
+        tally(1),
+        Some(WordTally {
+            attempts: 1,
+            errors: 0
+        })
+    );
+    assert_eq!(
+        tally(2),
+        Some(WordTally {
+            attempts: 2,
+            errors: 1
+        })
+    );
+    // The phase deadline cut "sat" short: an unfinished word is no outcome.
+    assert_eq!(tally(3), None);
+    Ok(())
+}
+
+/// #48: an interrupted prose word yields no word outcome (a paste is
+/// rejected before any text enters, so a pasted word cannot occur; an
+/// over-bound insertion interrupts the word at the typed tail).
+#[test]
+fn an_interrupted_prose_word_is_no_outcome() -> TestResult {
+    let phases = vec![PlannedPhase {
+        phase: Phase::Prose,
+        seconds: 60,
+        exercises: vec![prose_exercise(
+            "cat sat",
+            &[(2, 0, 0, 3, "cat"), (3, 1, 4, 3, "sat")],
+        )?],
+    }];
+    let mut driver = Driver::new(engine(phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let mut at = type_text(&mut driver, SECOND, "cat sa")?;
+    for _ in 0..64 {
+        driver.typed(at, 'z')?;
+        at += 100_000;
+    }
+    let learning = driver.finish(at)?;
+    assert_eq!(
+        learning.words.get(&WordId::new(2)?).copied(),
+        Some(WordTally {
+            attempts: 1,
+            errors: 0
+        })
+    );
+    assert!(
+        !learning.words.contains_key(&WordId::new(3)?),
+        "interrupted: no outcome"
+    );
     Ok(())
 }

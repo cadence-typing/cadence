@@ -92,6 +92,24 @@ pub struct PlannedExercise {
     /// The focus skill a numeric entry was built around (#5), for the
     /// caption (#50) and replay; `None` for uniform entries.
     pub target: Option<cadence_core::learning::SkillKey>,
+    /// Pack words inside a prose exercise (#48): their outcomes feed the
+    /// ladder and the queue. Word exercises use `words` instead.
+    pub spans: Vec<WordSpan>,
+}
+
+/// A pack word inside a prose target (#48).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WordSpan {
+    /// The pack word.
+    pub id: WordId,
+    /// Its index among the target's space-separated tokens.
+    pub token: usize,
+    /// First unit of the word in the target.
+    pub start: usize,
+    /// Units in the word.
+    pub len: usize,
+    /// The pack form (lowercase), served if the word returns.
+    pub units: Vec<TrainingChar>,
 }
 
 impl PlannedExercise {
@@ -105,6 +123,7 @@ impl PlannedExercise {
             passage: None,
             caption: None,
             target: None,
+            spans: Vec::new(),
         }
     }
 }
@@ -122,6 +141,9 @@ pub struct Adaptation {
     /// Entries before a missed numeric entry returns (#59; 0 disables).
     pub numeric_gap_entries: u32,
 }
+
+/// Separates the prose stream from the other phases' (#48).
+const PROSE_STREAM: u64 = 0x5052_4f53_455f_5631;
 
 /// Content and evidence a plan is built from.
 #[derive(Debug, Clone, Copy)]
@@ -252,6 +274,7 @@ pub fn build_session_plan(
             phase,
             seconds,
             &mut served_due,
+            seed ^ PROSE_STREAM,
         )?;
         phases.push(PlannedPhase {
             phase,

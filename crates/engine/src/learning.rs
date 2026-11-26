@@ -11,7 +11,7 @@ use cadence_core::alphabet::TrainingChar;
 use cadence_core::learning::{KeyLane, SessionLearning, Skill, SkillKey};
 use cadence_core::ledger::Slot;
 use cadence_core::{CoreError, Micros, WordId, evidence, queue, slots};
-use cadence_trainer::{Adaptation, ExerciseKind, Lane, PlannedExercise, PlannedWord};
+use cadence_trainer::{Adaptation, ExerciseKind, Lane, PlannedExercise, PlannedWord, WordSpan};
 
 use super::invalid;
 
@@ -50,6 +50,8 @@ pub(super) struct Learning {
     numeric_current: Option<Vec<TrainingChar>>,
     /// The open numeric entry is a returned miss ("again").
     pub(super) numeric_again: bool,
+    /// Pack words inside the open prose exercise (#48).
+    prose_spans: Vec<WordSpan>,
 }
 
 /// A missed numeric entry and the entry index it returns at.
@@ -84,6 +86,7 @@ impl Learning {
             numeric_opened: 0,
             numeric_current: None,
             numeric_again: false,
+            prose_spans: Vec::new(),
         }
     }
 
@@ -183,6 +186,7 @@ impl Learning {
         if numeric(exercise.kind) {
             return Ok(self.open_numeric(exercise));
         }
+        self.prose_spans.clone_from(&exercise.spans);
         if exercise.kind != ExerciseKind::Words || self.queue.is_empty() {
             return Ok(exercise.units.clone());
         }
@@ -318,6 +322,39 @@ impl Learning {
         Ok(())
     }
 
+    /// Prose is a source for the loop (#48): each completed pack word that
+    /// was neither interrupted nor pasted is a word outcome (an error if any
+    /// of its own positions was a first-attempt error), and a miss joins the
+    /// shared queue for the closing review.
+    fn close_prose(
+        &mut self,
+        ledger: &cadence_core::ledger::AttemptLedger,
+    ) -> Result<(), CoreError> {
+        let outcomes = ledger.first_outcomes();
+        let flags = ledger.word_flags();
+        for span in std::mem::take(&mut self.prose_spans) {
+            let Some(stop) = span.start.checked_add(span.len) else {
+                return Err(invalid("prose span overflow"));
+            };
+            let Some(slots) = outcomes.get(span.start..stop) else {
+                continue;
+            };
+            let completed = slots.last().is_some_and(|slot| *slot != Slot::Open);
+            let clean_input = flags
+                .get(span.token)
+                .is_some_and(|flag| !flag.interrupted && !flag.pasted);
+            if !completed || !clean_input {
+                continue;
+            }
+            let error = slots.contains(&Slot::Incorrect);
+            self.evidence.observe_word(span.id, error)?;
+            if error {
+                self.enqueue(span.id, span.units);
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn close(
         &mut self,
         exercise: &PlannedExercise,
@@ -326,6 +363,9 @@ impl Learning {
         self.mark = None;
         if numeric(exercise.kind) {
             self.close_numeric(ledger)?;
+        }
+        if !self.prose_spans.is_empty() {
+            self.close_prose(ledger)?;
         }
         if let Some(passage) = exercise.passage
             && ledger.first_attempted().get() > 0
@@ -362,19 +402,22 @@ impl Learning {
             // Warm-up misses return in the words phase too (#47).
             if flag.any_error && matches!(exercise.kind, ExerciseKind::Words | ExerciseKind::WarmUp)
             {
-                self.enqueue(word.id, ledger.target(), end, length)?;
+                let start = end
+                    .checked_sub(1)
+                    .and_then(|e| e.checked_sub(length))
+                    .ok_or_else(|| invalid("word span underflow"))?;
+                let units = start
+                    .checked_add(length)
+                    .and_then(|stop| ledger.target().get(start..stop))
+                    .ok_or_else(|| invalid("word span outside target"))?
+                    .to_vec();
+                self.enqueue(word.id, units);
             }
         }
         Ok(())
     }
 
-    fn enqueue(
-        &mut self,
-        word: WordId,
-        target: &[TrainingChar],
-        end: usize,
-        length: usize,
-    ) -> Result<(), CoreError> {
+    fn enqueue(&mut self, word: WordId, units: Vec<TrainingChar>) {
         let served = self.served.get(&word).copied().unwrap_or(0);
         // A full queue or an exhausted per-word allowance only forgoes an
         // optional extra repetition; the miss itself is already recorded.
@@ -389,20 +432,10 @@ impl Learning {
         ) {
             queue::Admit::Admitted => {}
             queue::Admit::Duplicate | queue::Admit::Full | queue::Admit::Exhausted => {
-                return Ok(());
+                return;
             }
         }
-        let start = end
-            .checked_sub(1)
-            .and_then(|e| e.checked_sub(length))
-            .ok_or_else(|| invalid("word span underflow"))?;
-        let units = start
-            .checked_add(length)
-            .and_then(|stop| target.get(start..stop))
-            .ok_or_else(|| invalid("word span outside target"))?
-            .to_vec();
         self.served.insert(word, served.saturating_add(1));
         self.queue.push_back(Reinforcement { word, units });
-        Ok(())
     }
 }

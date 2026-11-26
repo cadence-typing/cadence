@@ -114,6 +114,8 @@ pub struct WordPack {
     words: Vec<WordEntry>,
     by_id: HashMap<u64, usize>,
     by_band: HashMap<WordBand, Vec<usize>>,
+    /// Word form to entry index, for prose spans (#48).
+    by_form: HashMap<String, usize>,
     digest: ContentDigest,
 }
 
@@ -174,7 +176,7 @@ impl WordPack {
         let mut words = Vec::with_capacity(entries.len());
         let mut by_id = HashMap::with_capacity(entries.len());
         let mut by_band: HashMap<WordBand, Vec<usize>> = HashMap::new();
-        let mut forms = std::collections::HashSet::with_capacity(entries.len());
+        let mut by_form: HashMap<String, usize> = HashMap::with_capacity(entries.len());
         for (index, (raw_id, text, band)) in entries.into_iter().enumerate() {
             if text.is_empty() || text.chars().any(char::is_whitespace) {
                 return Err(CorpusError::InvalidWord {
@@ -182,7 +184,7 @@ impl WordPack {
                     reason: "tokens must be nonempty and contain no whitespace".into(),
                 });
             }
-            if !forms.insert(text.clone()) {
+            if by_form.insert(text.clone(), index).is_some() {
                 return Err(CorpusError::DuplicateForm { word: text });
             }
             let id = WordId::new(raw_id).map_err(|_unrepresentable| CorpusError::InvalidWord {
@@ -204,6 +206,7 @@ impl WordPack {
             words,
             by_id,
             by_band,
+            by_form,
             digest,
         })
     }
@@ -231,6 +234,14 @@ impl WordPack {
     pub fn word(&self, id: WordId) -> Option<&WordEntry> {
         self.by_id
             .get(&id.get())
+            .and_then(|index| self.words.get(*index))
+    }
+
+    /// Lookup by word form (exact, as stored: lowercase).
+    #[must_use]
+    pub fn by_form(&self, form: &str) -> Option<&WordEntry> {
+        self.by_form
+            .get(form)
             .and_then(|index| self.words.get(*index))
     }
 

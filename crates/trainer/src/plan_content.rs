@@ -2,6 +2,7 @@
 //! [`crate::plan_words`]; prose rotates through passages not typed within the
 //! no-repeat window, labelling any unavoidable repeat. Numeric phases remain
 //! seeded cold-start drills. The engine records exhaustion when it cycles.
+use cadence_core::alphabet::TrainingChar;
 use cadence_core::label;
 use std::cmp::Reverse;
 
@@ -19,6 +20,7 @@ pub(super) fn exercises(
     phase: Phase,
     seconds: u64,
     served_due: &mut std::collections::HashSet<cadence_core::WordId>,
+    prose_seed: u64,
 ) -> Result<Vec<PlannedExercise>, PlanError> {
     match phase {
         Phase::Review => Ok(Vec::new()),
@@ -92,7 +94,17 @@ pub(super) fn exercises(
             }
             Ok(result)
         }
-        Phase::Prose => prose(policy, inputs, rng, seconds),
+        // Prose has its own stream (#48): its passages never depend on
+        // what the adaptive phases drew, nor on the learner's focus.
+        Phase::Prose => {
+            use rand::SeedableRng as _;
+            prose(
+                policy,
+                inputs,
+                &mut PlanRng::seed_from_u64(prose_seed),
+                seconds,
+            )
+        }
     }
 }
 
@@ -119,9 +131,43 @@ fn words(
             passage: None,
             caption: None,
             target: None,
+            spans: Vec::new(),
         });
     }
     Ok(result)
+}
+
+/// Pack words inside a prose target (#48): each space-separated token,
+/// lower-cased with surrounding punctuation stripped, that is a pack form.
+pub(crate) fn word_spans(
+    units: &[TrainingChar],
+    pack: &crate::corpus::WordPack,
+) -> Vec<crate::plan::WordSpan> {
+    let mut spans = Vec::new();
+    let mut start = 0_usize;
+    for (token, piece) in units.split(|unit| unit.get() == ' ').enumerate() {
+        let inner = |unit: &TrainingChar| unit.get().is_ascii_alphanumeric();
+        let lead = piece.iter().take_while(|unit| !inner(unit)).count();
+        let trail = piece.iter().rev().take_while(|unit| !inner(unit)).count();
+        let core = piece
+            .get(lead..piece.len().saturating_sub(trail))
+            .unwrap_or_default();
+        let form: String = core
+            .iter()
+            .map(|unit| unit.get().to_ascii_lowercase())
+            .collect();
+        if let Some(entry) = (!form.is_empty()).then(|| pack.by_form(&form)).flatten() {
+            spans.push(crate::plan::WordSpan {
+                id: entry.id,
+                token,
+                start: start.saturating_add(lead),
+                len: core.len(),
+                units: entry.units.clone(),
+            });
+        }
+        start = start.saturating_add(piece.len()).saturating_add(1);
+    }
+    spans
 }
 
 /// Seeded passage order: never-recently-typed passages first, then the
@@ -183,6 +229,7 @@ fn prose(
             .map_err(|error| content(&error.to_string()))?
         {
             prepared = prepared.saturating_add(units.len());
+            let spans = word_spans(&units, inputs.pack);
             result.push(PlannedExercise {
                 units,
                 kind: ExerciseKind::Prose,
@@ -190,6 +237,7 @@ fn prose(
                 passage: Some(passage.id),
                 caption: Some(caption.clone()),
                 target: None,
+                spans,
             });
         }
     }
