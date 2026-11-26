@@ -90,6 +90,10 @@ pub struct Transition {
     pub outcome: DomainOutcome,
     /// At most one outstanding full cumulative checkpoint.
     pub checkpoint: Option<Checkpoint>,
+    /// The causal group of the dispatched checkpoint (#71): the event that
+    /// caused it, or, for a follow-up dispatched when an acknowledgement is
+    /// consumed, its parent's group.
+    pub checkpoint_group: Option<u64>,
     /// Explicit non-success exit with an undurable tail.
     pub exit_failed: bool,
 }
@@ -100,6 +104,7 @@ impl Transition {
             quit: false,
             outcome,
             checkpoint: None,
+            checkpoint_group: None,
             exit_failed: false,
         }
     }
@@ -134,6 +139,9 @@ pub struct Engine {
     list_wrapped: bool,
     /// Admitted events so far (#69): rises on every admitted event.
     state_revision: u64,
+    /// The group of the checkpoint whose acknowledgement is being consumed
+    /// (#71): a follow-up dispatched now inherits it.
+    ack_group: Option<u64>,
     /// Practice paused during the transfer probe (#64).
     probe_paused: bool,
     /// A paste was refused during the transfer probe (#64).
@@ -220,6 +228,7 @@ impl Engine {
             last_credited: None,
             list_wrapped: false,
             state_revision: 0,
+            ack_group: None,
             probe_paused: false,
             probe_pasted: false,
             utc_offset_minutes: None,
@@ -288,6 +297,15 @@ impl Engine {
         self.state_revision
     }
 
+    /// The newest dispatched checkpoint sequence and the newest
+    /// acknowledged one (#71 durable barriers).
+    #[must_use]
+    pub fn save_watermarks(&self) -> (Option<u64>, Option<u64>) {
+        self.storage
+            .as_ref()
+            .map_or((None, None), |storage| storage.watermarks())
+    }
+
     /// Exact track totals now, including the open exercise (#69 snapshot).
     ///
     /// # Errors
@@ -347,6 +365,11 @@ impl Engine {
                 history,
             } => self.storage_ready(next_session, day, history)?,
             EventKind::SaveResult(result) => self.save_result(result, &mut t)?,
+            EventKind::CheckpointRequested => {
+                if self.storage.is_some() && !self.finishing {
+                    self.checkpoint_due = true;
+                }
+            }
             EventKind::Key(Key::Interrupt) => self.interrupt(at, &mut t)?,
             EventKind::Terminate => self.request_exit(at, &mut t)?,
             EventKind::Key(Key::Content(c)) if self.screen == Screen::Today && c.get() == 'q' => {
@@ -384,6 +407,8 @@ impl Engine {
         }
         self.watchdog(at, &mut t)?;
         self.dispatch_checkpoint(at, &mut t)?;
+        // Only a follow-up dispatched in this reduction inherits (#71).
+        self.ack_group = None;
         Ok(t)
     }
     fn invalidate(&mut self, reason: CoreError) -> Transition {

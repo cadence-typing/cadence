@@ -21,5 +21,6 @@ import Proofs.Label
 import Proofs.Slots
 import Proofs.Focus
 import Proofs.Evidence
+import Proofs.Barrier
 import Proofs.Benchmark
 import Proofs.Calendar

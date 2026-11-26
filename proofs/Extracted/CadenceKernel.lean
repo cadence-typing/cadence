@@ -20,6 +20,55 @@ set_option maxRecDepth 2048
 
 namespace cadence_kernel
 
+/-- [cadence_kernel::barrier::Barrier]
+    Source: 'crates/kernel/src/barrier.rs', lines 13:0-20:1
+    Visibility: public -/
+@[discriminant isize]
+inductive barrier.Barrier where
+| Done : barrier.Barrier
+| Waiting : barrier.Barrier
+| OutOfScope : barrier.Barrier
+
+/-- [cadence_kernel::barrier::causal]:
+    Source: 'crates/kernel/src/barrier.rs', lines 26:0-41:1
+    Visibility: public -/
+def barrier.causal
+  (through_seq : Std.U64) (latest_seq : Std.U64) (outstanding : Std.U64)
+  (pending_dispatch : Std.U64) (unconsumed : Std.U64) :
+  Result barrier.Barrier
+  := do
+  if through_seq > latest_seq
+  then ok barrier.Barrier.OutOfScope
+  else
+    if outstanding = 0#u64
+    then
+      if pending_dispatch = 0#u64
+      then
+        if unconsumed = 0#u64
+        then ok barrier.Barrier.Done
+        else ok barrier.Barrier.Waiting
+      else ok barrier.Barrier.Waiting
+    else ok barrier.Barrier.Waiting
+
+/-- [cadence_kernel::barrier::durable]:
+    Source: 'crates/kernel/src/barrier.rs', lines 46:0-58:1
+    Visibility: public -/
+def barrier.durable
+  (causal : barrier.Barrier) (acked_seq : Std.U64) (has_ack : Bool)
+  (watermark_seq : Std.U64) :
+  Result barrier.Barrier
+  := do
+  match causal with
+  | barrier.Barrier.Done =>
+    if has_ack
+    then
+      if acked_seq >= watermark_seq
+      then ok barrier.Barrier.Done
+      else ok barrier.Barrier.Waiting
+    else ok barrier.Barrier.Waiting
+  | barrier.Barrier.Waiting => ok barrier.Barrier.Waiting
+  | barrier.Barrier.OutOfScope => ok barrier.Barrier.OutOfScope
+
 /-- [cadence_kernel::benchmark::Due]
     Source: 'crates/kernel/src/benchmark.rs', lines 13:0-20:1
     Visibility: public -/

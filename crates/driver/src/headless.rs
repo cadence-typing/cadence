@@ -6,12 +6,13 @@
 //! service the composition root provides (a fixture or the profile store)
 //! and are acknowledged in the reducer before the request answers.
 
+use cadence_core::barrier::{Barrier, causal, durable};
 use cadence_core::progress::{Checkpoint, HistorySummary, SaveResult};
 use cadence_core::{LayoutSupportsPound, MonoTick, SessionId, TrainingChar};
 use cadence_engine::{Engine, EventEnvelope, EventKind, Key, ScreenView};
 use serde_json::{Map, Value, json};
 
-use crate::envelope::{Code, Operation, Request};
+use crate::envelope::{Code, DeliverVariant, Operation, Request};
 use crate::protocol::Host;
 
 /// What the composition root provides: scenarios and durable saves.
@@ -33,6 +34,13 @@ pub trait Services {
     fn save(&mut self, checkpoint: &Checkpoint) -> Result<(), String>;
 }
 
+/// A checkpoint save held for `deliver` (manual fixture delivery, #71).
+struct Job {
+    id: u64,
+    group: u64,
+    checkpoint: Checkpoint,
+}
+
 /// The headless host.
 pub struct Headless<S: Services> {
     services: S,
@@ -42,6 +50,10 @@ pub struct Headless<S: Services> {
     rows: u16,
     durable_seq: Option<u64>,
     finished: bool,
+    /// Saves wait for `deliver` instead of completing at once.
+    manual: bool,
+    jobs: Vec<Job>,
+    next_job: u64,
 }
 
 fn invalid(message: &str) -> (Code, String) {
@@ -59,6 +71,9 @@ impl<S: Services> Headless<S> {
             rows: 32,
             durable_seq: None,
             finished: false,
+            manual: false,
+            jobs: Vec::new(),
+            next_job: 1,
         }
     }
 
@@ -74,38 +89,184 @@ impl<S: Services> Headless<S> {
         self.engine.as_ref()
     }
 
-    /// Sends one event through the shared reducer; a checkpoint is saved
-    /// by the service and its result admitted before returning.
+    /// Sends one event through the shared reducer and absorbs what it
+    /// dispatched. Returns whether the engine allows exit.
     fn send(&mut self, kind: EventKind) -> Result<bool, (Code, String)> {
+        let transition = self.reduce(kind)?;
+        self.absorb(transition)
+    }
+
+    fn reduce(&mut self, kind: EventKind) -> Result<cadence_engine::Transition, (Code, String)> {
         let at = MonoTick::from_us(self.now_us);
         let engine = self.engine.as_mut().ok_or_else(|| invalid("hello first"))?;
         let seq = engine
             .consumed_events()
             .next()
             .map_err(|error| invalid(&error.to_string()))?;
-        let transition = engine.reduce(EventEnvelope { seq, at, kind });
-        let quit = transition.quit;
-        if let Some(checkpoint) = transition.checkpoint {
-            let result = self.services.save(&checkpoint);
-            if result.is_ok() {
-                self.durable_seq = Some(checkpoint.key.sequence.get());
-            }
-            let engine = self.engine.as_mut().ok_or_else(|| invalid("hello first"))?;
-            let seq = engine
-                .consumed_events()
-                .next()
-                .map_err(|error| invalid(&error.to_string()))?;
-            let ack = engine.reduce(EventEnvelope {
-                seq,
-                at,
-                kind: EventKind::SaveResult(SaveResult {
-                    key: checkpoint.key,
-                    result,
-                }),
+        Ok(engine.reduce(EventEnvelope { seq, at, kind }))
+    }
+
+    /// A dispatched checkpoint becomes a job in its causal group. With
+    /// automatic delivery it is saved and acknowledged at once, and a
+    /// follow-up dispatched while consuming the acknowledgement (the child)
+    /// is absorbed in the same step, before the parent counts as drained.
+    fn absorb(
+        &mut self,
+        mut transition: cadence_engine::Transition,
+    ) -> Result<bool, (Code, String)> {
+        let mut quit = transition.quit;
+        while let Some(checkpoint) = transition.checkpoint.take() {
+            let group = transition.checkpoint_group.unwrap_or_else(|| {
+                self.engine
+                    .as_ref()
+                    .map_or(0, |e| e.consumed_events().get())
             });
-            return Ok(quit || ack.quit);
+            let id = self.next_job;
+            self.next_job = self.next_job.saturating_add(1);
+            if self.manual {
+                self.jobs.push(Job {
+                    id,
+                    group,
+                    checkpoint,
+                });
+                break;
+            }
+            transition = self.complete(&checkpoint, true)?;
+            quit |= transition.quit;
         }
         Ok(quit)
+    }
+
+    /// Completes a save: through the service when `success`, else as a
+    /// failure; the result is admitted to the reducer.
+    fn complete(
+        &mut self,
+        checkpoint: &Checkpoint,
+        success: bool,
+    ) -> Result<cadence_engine::Transition, (Code, String)> {
+        let result = if success {
+            self.services.save(checkpoint)
+        } else {
+            Err("fixture failure".to_string())
+        };
+        if result.is_ok() {
+            self.durable_seq = Some(checkpoint.key.sequence.get());
+        }
+        self.reduce(EventKind::SaveResult(SaveResult {
+            key: checkpoint.key,
+            result,
+        }))
+    }
+
+    fn deliver(&mut self, job_id: u64, variant: DeliverVariant) -> Result<(), (Code, String)> {
+        if !self.manual {
+            return Err(invalid("deliver is for manual fixture delivery only"));
+        }
+        let index = self
+            .jobs
+            .iter()
+            .position(|job| job.id == job_id)
+            .ok_or_else(|| invalid("no such pending job"))?;
+        match variant {
+            DeliverVariant::Success | DeliverVariant::Failure | DeliverVariant::Duplicate => {
+                let job = self.jobs.remove(index);
+                let success = variant != DeliverVariant::Failure;
+                let transition = self.complete(&job.checkpoint, success)?;
+                self.finished |= self.absorb(transition)?;
+                if variant == DeliverVariant::Duplicate {
+                    // The same completion again: the engine ignores it.
+                    let again = self.reduce(EventKind::SaveResult(SaveResult {
+                        key: job.checkpoint.key,
+                        result: Ok(()),
+                    }))?;
+                    self.finished |= self.absorb(again)?;
+                }
+            }
+            DeliverVariant::StaleSuccess | DeliverVariant::StaleFailure => {
+                // A completion for an outdated request: an older sequence.
+                let job = self
+                    .jobs
+                    .get(index)
+                    .ok_or_else(|| invalid("no such pending job"))?;
+                let mut key = job.checkpoint.key;
+                key.sequence =
+                    cadence_core::CommitSeq::from_raw(key.sequence.get().saturating_sub(1));
+                let result = if variant == DeliverVariant::StaleSuccess {
+                    Ok(())
+                } else {
+                    Err("fixture stale failure".to_string())
+                };
+                let transition = self.reduce(EventKind::SaveResult(SaveResult { key, result }))?;
+                self.finished |= self.absorb(transition)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// One barrier (H-03): the proved `barrier::causal` over the jobs whose
+    /// group is in scope, and for the durable scope a checkpoint request
+    /// admitted into its own scope and `barrier::durable` over the
+    /// watermark. Virtual mode does not wait: undelivered jobs fail at once
+    /// with their ids, as at the watchdog bound. Practice time does not move.
+    fn barrier(
+        &mut self,
+        durable_scope: bool,
+        through: u64,
+    ) -> Result<Map<String, Value>, (Code, String)> {
+        let engine = self.engine.as_ref().ok_or_else(|| invalid("hello first"))?;
+        let latest = engine.consumed_events().get();
+        if causal(through, latest, 0, 0, 0) == Barrier::OutOfScope {
+            return Err((
+                Code::BarrierOutOfScope,
+                "through_event_seq is beyond the latest admitted event".into(),
+            ));
+        }
+        let mut scope = through;
+        if durable_scope {
+            self.send(EventKind::CheckpointRequested)?;
+            scope = self
+                .engine
+                .as_ref()
+                .map_or(scope, |e| e.consumed_events().get());
+        }
+        let latest = self
+            .engine
+            .as_ref()
+            .map_or(latest, |e| e.consumed_events().get());
+        let pending: Vec<u64> = self
+            .jobs
+            .iter()
+            .filter(|job| job.group <= scope)
+            .map(|job| job.id)
+            .collect();
+        let outstanding = u64::try_from(pending.len()).unwrap_or(u64::MAX);
+        let mut decision = causal(scope, latest, outstanding, 0, 0);
+        let (dispatched, acked) = self
+            .engine
+            .as_ref()
+            .map_or((None, None), Engine::save_watermarks);
+        let watermark = dispatched.unwrap_or(0);
+        if durable_scope {
+            decision = durable(decision, acked.unwrap_or(0), acked.is_some(), watermark);
+        }
+        match decision {
+            Barrier::Done => {
+                let mut result = self.revisions();
+                result.insert(
+                    "scope".into(),
+                    json!(if durable_scope { "durable" } else { "causal" }),
+                );
+                result.insert("through_event_seq".into(), json!(scope.to_string()));
+                if durable_scope {
+                    result.insert("watermark".into(), json!(watermark.to_string()));
+                }
+                Ok(result)
+            }
+            Barrier::Waiting | Barrier::OutOfScope => Err((
+                Code::BarrierTimeout,
+                format!("pending jobs at the watchdog: {pending:?}"),
+            )),
+        }
     }
 
     fn key(&mut self, name: &str, modifiers: &[String]) -> Result<Option<Key>, (Code, String)> {
@@ -228,7 +389,15 @@ impl<S: Services> Headless<S> {
                 "cold_start"
             }),
         );
-        result.insert("pending_jobs".into(), json!([]));
+        result.insert(
+            "pending_jobs".into(),
+            json!(
+                self.jobs
+                    .iter()
+                    .map(|job| job.id.to_string())
+                    .collect::<Vec<_>>()
+            ),
+        );
         result.insert("available_actions".into(), json!(actions));
         if let Some(target) = target {
             result.insert("target_text".into(), json!(target));
@@ -262,7 +431,11 @@ impl<S: Services> Host for Headless<S> {
 
     fn apply(&mut self, request: &Request) -> Result<Map<String, Value>, (Code, String)> {
         match &request.op {
-            Operation::Hello { scenario, .. } => {
+            Operation::Hello {
+                scenario,
+                auto_delivery,
+            } => {
+                self.manual = *auto_delivery == Some(false);
                 let engine = self
                     .services
                     .engine(scenario.as_deref())
@@ -341,8 +514,14 @@ impl<S: Services> Host for Headless<S> {
                 include_target_text,
             } => self.snapshot(*include_target_text),
             Operation::Capture { format } => self.capture(format),
-            Operation::Barrier { .. } | Operation::Deliver { .. } => {
-                Err(invalid("barriers and fixture delivery land with #71"))
+            Operation::Barrier {
+                durable,
+                through_event_seq,
+                ..
+            } => self.barrier(*durable, *through_event_seq),
+            Operation::Deliver { job_id, variant } => {
+                self.deliver(*job_id, *variant)?;
+                Ok(self.revisions())
             }
             Operation::Quit => {
                 self.finished |= self.send(EventKind::Terminate)?;

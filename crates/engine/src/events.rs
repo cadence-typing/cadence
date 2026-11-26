@@ -69,6 +69,9 @@ pub enum EventKind {
     /// Coalescible redraw/timer hint (A-04): explicit elapsed time is
     /// sampled at reduction, so a dropped tick cannot change a budget.
     Tick,
+    /// A durable barrier asks for a checkpoint of the current state (#71);
+    /// nothing else changes.
+    CheckpointRequested,
 }
 
 /// The sequenced admission envelope: one ordered external event with its

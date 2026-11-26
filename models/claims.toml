@@ -285,3 +285,36 @@ violates = "ConflictNeverMutates"
 config = "RequestCache-evicted-reexecutes.cfg"
 violates = "ExpiredNeverMutates"
 
+# Headless barriers (VP-04, #71): jobs in causal groups, children registered
+# when a parent's result is consumed, a durable scope over the checkpoint
+# watermark, later unrelated work. The decisions are the proved
+# cadence_kernel::barrier::{causal, durable}; the engine assigns groups.
+[[model]]
+module = "HeadlessBarrier"
+dir = "models"
+config = "HeadlessBarrier.cfg"
+invariants = ["TypeOK", "NoEarlyReturn", "ChildBeforeDrain", "DurableCoversWatermark", "LaterWorkExcluded"]
+status = "mapped"
+production_symbols = [
+  "cadence_kernel::barrier::causal",
+  "cadence_kernel::barrier::durable",
+  "cadence_engine::storage::{dispatch_checkpoint, save_result}",
+  "cadence_driver::headless::{barrier, deliver, absorb}",
+]
+runtime_tests = [
+  "cadence::a_causal_barrier_waits_for_the_follow_up",
+  "cadence::a_durable_barrier_covers_its_watermark_only",
+]
+
+[[model.mutant]]
+config = "HeadlessBarrier-early-return.cfg"
+violates = "NoEarlyReturn"
+
+[[model.mutant]]
+config = "HeadlessBarrier-child-after-drain.cfg"
+violates = "ChildBeforeDrain"
+
+[[model.mutant]]
+config = "HeadlessBarrier-ack-below-watermark.cfg"
+violates = "DurableCoversWatermark"
+

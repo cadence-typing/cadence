@@ -86,7 +86,9 @@
                 "HelloRequired",
                 "RequestIdConflict",
                 "RequestExpired",
-                "StaleState"
+                "StaleState",
+                "BarrierOutOfScope",
+                "BarrierTimeout"
               ]
             },
             "message": {

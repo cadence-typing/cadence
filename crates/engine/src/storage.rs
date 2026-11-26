@@ -18,12 +18,23 @@ pub(super) struct Storage {
     day: i64,
     sequence: CommitSeq,
     pending: Option<Checkpoint>,
+    /// The causal group of the pending checkpoint (#71).
+    pending_group: Option<u64>,
     pub(super) failed: Option<Checkpoint>,
     last_ack: Option<SaveKey>,
     sent_at: Option<MonoTick>,
     last_dispatch: Option<MonoTick>,
 }
 impl Storage {
+    /// The newest dispatched and the newest acknowledged sequence.
+    pub(super) fn watermarks(&self) -> (Option<u64>, Option<u64>) {
+        let dispatched = self.sequence.get();
+        (
+            (dispatched > 0).then_some(dispatched),
+            self.last_ack.map(|key| key.sequence.get()),
+        )
+    }
+
     /// Local calendar day of this session.
     pub(super) const fn day(&self) -> i64 {
         self.day
@@ -61,6 +72,7 @@ impl Engine {
             day,
             sequence: CommitSeq::INITIAL,
             pending: None,
+            pending_group: None,
             failed: None,
             last_ack: None,
             sent_at: None,
@@ -86,6 +98,9 @@ impl Engine {
         let Some(checkpoint) = storage.pending.take() else {
             return Err(invalid("missing pending checkpoint"));
         };
+        // A follow-up dispatched while this acknowledgement is consumed is
+        // this checkpoint's child (#71).
+        self.ack_group = storage.pending_group.take();
         storage.sent_at = None;
         match response.result {
             Ok(()) => {
@@ -260,14 +275,17 @@ impl Engine {
             progress,
             Some(self.learning.evidence.clone()),
         )?;
+        let group = self.ack_group.take().unwrap_or(self.consumed.get());
         if let Some(storage) = self.storage.as_mut() {
             storage.sequence = sequence;
+            storage.pending_group = Some(group);
             storage.pending = Some(checkpoint.clone());
             storage.sent_at = Some(at);
             storage.last_dispatch = Some(at);
         }
         self.checkpoint_due = false;
         t.checkpoint = Some(checkpoint);
+        t.checkpoint_group = Some(group);
         Ok(())
     }
     pub(super) fn durability(&self) -> Durability {

@@ -268,6 +268,41 @@
         "RequestCache-conflict-applies.cfg": "a64af614985abd16e8a4a616f3751f5b2f7adc2d6b1552f4102d6b568246de7b",
         "RequestCache-evicted-reexecutes.cfg": "4437f536d54871299fa77b78cf85b62b858514d892b572d5a939673299889e69"
       }
+    },
+    {
+      "module": "HeadlessBarrier",
+      "status": "mapped",
+      "invariants": [
+        "ChildBeforeDrain",
+        "DurableCoversWatermark",
+        "LaterWorkExcluded",
+        "NoEarlyReturn",
+        "TypeOK"
+      ],
+      "properties": [],
+      "mutants": [
+        "HeadlessBarrier-ack-below-watermark.cfg violates DurableCoversWatermark",
+        "HeadlessBarrier-child-after-drain.cfg violates ChildBeforeDrain",
+        "HeadlessBarrier-early-return.cfg violates NoEarlyReturn"
+      ],
+      "production_symbols": [
+        "cadence_driver::headless::{barrier, deliver, absorb}",
+        "cadence_engine::storage::{dispatch_checkpoint, save_result}",
+        "cadence_kernel::barrier::causal",
+        "cadence_kernel::barrier::durable"
+      ],
+      "runtime_tests": [
+        "cadence::a_causal_barrier_waits_for_the_follow_up",
+        "cadence::a_durable_barrier_covers_its_watermark_only"
+      ],
+      "constants": "MaxEvents = 3 MaxJobs = 3 ScopeGuard = TRUE ChildAtomic = TRUE WatermarkGuard = TRUE",
+      "sha256": {
+        "HeadlessBarrier.tla": "940e1545242b42e0bcc9aa24c3f967c09dc6579a5933de3b2ddad9d2d35bb005",
+        "HeadlessBarrier.cfg": "af41bf500adbfd07efd2684b3e5bb79c46e397e725d1aa1024ae1519e8cb054d",
+        "HeadlessBarrier-early-return.cfg": "273218dd8597037cc9d179e60f150345d3cb7ede6c51bcffaea8266529302afb",
+        "HeadlessBarrier-child-after-drain.cfg": "3aade514f12ad98ddd631b530accd96b46662efdf9d2657e6e31f6bfe1f01fc1",
+        "HeadlessBarrier-ack-below-watermark.cfg": "5536280cad66935ab57ebe0d657cbac4ef514415f0bd050615753dd792a4c12d"
+      }
     }
   ]
 }

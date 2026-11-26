@@ -37,6 +37,11 @@ pub enum Code {
     RequestExpired,
     /// `expected_state_revision` differs from the current revision.
     StaleState,
+    /// A barrier through an event not yet admitted.
+    BarrierOutOfScope,
+    /// A barrier's scope did not drain within its watchdog; the details
+    /// name the pending jobs.
+    BarrierTimeout,
 }
 
 impl Code {
@@ -55,6 +60,8 @@ impl Code {
             Self::RequestIdConflict => "RequestIdConflict",
             Self::RequestExpired => "RequestExpired",
             Self::StaleState => "StaleState",
+            Self::BarrierOutOfScope => "BarrierOutOfScope",
+            Self::BarrierTimeout => "BarrierTimeout",
         }
     }
 }

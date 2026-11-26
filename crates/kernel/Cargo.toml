@@ -47,6 +47,8 @@ start_from = [
     "cadence_kernel::request::admit",
     "cadence_kernel::request::revision_ok",
     "cadence_kernel::request::evict",
+    "cadence_kernel::barrier::causal",
+    "cadence_kernel::barrier::durable",
     "cadence_kernel::calendar::local_day",
     "cadence_kernel::calendar::days_ago",
     "cadence_kernel::checkpoint::admit",

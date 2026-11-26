@@ -12,6 +12,7 @@
 //! the rest of this crate is ordinary Rust with behavioural tests.
 
 pub mod alphabet;
+pub mod barrier;
 pub mod benchmark;
 pub mod calendar;
 pub mod error;

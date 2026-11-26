@@ -1419,6 +1419,44 @@ file = "crates/kernel/src/request.rs"
 before = "    len >= capacity\n"
 after = "    len > capacity\n"
 
+# ---- headless barriers (crates/kernel/src/barrier.rs, #71)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/barrier.rs"
+function = "barrier::causal"
+lean = "cadence_kernel.barrier.causal"
+theorems = ["Proofs.Barrier.no_early_return", "Proofs.Barrier.future_refused"]
+total = "Proofs.Barrier.no_early_return"
+mutants = ["done-with-unconsumed", "future-accepted"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/barrier.rs"
+function = "barrier::durable"
+lean = "cadence_kernel.barrier.durable"
+theorems = ["Proofs.Barrier.durable_covers_watermark"]
+total = "Proofs.Barrier.durable_covers_watermark"
+mutants = ["ack-below-watermark"]
+
+[[mutant]]
+name = "done-with-unconsumed"
+file = "crates/kernel/src/barrier.rs"
+before = "    if outstanding == 0 && pending_dispatch == 0 && unconsumed == 0 {\n"
+after = "    if outstanding == 0 && pending_dispatch == 0 {\n"
+
+[[mutant]]
+name = "future-accepted"
+file = "crates/kernel/src/barrier.rs"
+before = "    if through_seq > latest_seq {\n        return Barrier::OutOfScope;\n    }\n"
+after = ""
+
+[[mutant]]
+name = "ack-below-watermark"
+file = "crates/kernel/src/barrier.rs"
+before = "            if has_ack && acked_seq >= watermark_seq {\n"
+after = "            if has_ack {\n"
+
 # ---- local-calendar days (crates/kernel/src/calendar.rs, #52)
 
 [[claim]]
