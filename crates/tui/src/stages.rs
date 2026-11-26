@@ -105,7 +105,15 @@ fn landing(
     text(
         buffer,
         take(&mut body, 1),
-        format!("{} allocated · practice at your pace", Time(seconds)),
+        format!(
+            "{} allocated · practice at your pace{}",
+            Time(seconds),
+            if view.numpad_off {
+                " · numpad off"
+            } else {
+                ""
+            }
+        ),
         style(palette, Role::Muted),
     );
     take(&mut body, gap);

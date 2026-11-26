@@ -1,0 +1,173 @@
+===== first run / at launch
+  DAILY PRACTICE                                                                      0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+              ┌ Set up Cadence ──────────────────────────────────────────────────────┐
+              │› layout            "us"             applies now                      │
+              │  numpad            true             applies now                      │
+              │  minutes           15               applies now                      │
+              │                                                                      │
+              │                                                                      │
+              │↑↓ choose · ←→ change · Enter start (as shown)                        │
+              └──────────────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ Enter begin  q quit  F2 text size (AUTO)
+===== first run / edited
+  DAILY PRACTICE                                                                      0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+              ┌ Set up Cadence ──────────────────────────────────────────────────────┐
+              │  layout            "uk"             applies now                      │
+              │› numpad            false            applies now                      │
+              │  minutes           15               applies now                      │
+              │                                                                      │
+              │                                                                      │
+              │↑↓ choose · ←→ change · Enter start (as shown)                        │
+              └──────────────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ Enter begin  q quit  F2 text size (AUTO)
+===== first run / after Enter
+  DAILY PRACTICE                                                                      0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+                                              cadence
+
+
+                                  Make room for a little practice.
+                        15:00 allocated · practice at your pace · numpad off
+
+         ○ warm-up          ○ words        ○ number row          ○ prose          ○ review
+           1:14              6:21              2:30               3:40              1:15
+
+                                         UP FIRST · warm-up
+                       Settle into an easy rhythm; familiar words are checked.
+
+                             Local history · 0 completed · 0 unfinished
+                  No per-key history yet: this session teaches Cadence your slips.
+            Words goal: building your baseline   number row goal: building your baseline
+
+                                        Enter  Begin session
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ Enter begin  q quit  F2 text size (AUTO)
+===== second run / at launch
+  DAILY PRACTICE                                                                      0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+                                              cadence
+
+
+                                  Make room for a little practice.
+                        15:00 allocated · practice at your pace · numpad off
+
+         ○ warm-up          ○ words        ○ number row          ○ prose          ○ review
+           1:14              6:21              2:30               3:40              1:15
+
+                                         UP FIRST · warm-up
+                       Settle into an easy rhythm; familiar words are checked.
+
+                             Local history · 0 completed · 0 unfinished
+                  No per-key history yet: this session teaches Cadence your slips.
+            Words goal: building your baseline   number row goal: building your baseline
+
+                                        Enter  Begin session
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ Enter begin  q quit  F2 text size (AUTO)
+===== second run / settings open
+  DAILY PRACTICE                                                                      0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+              ┌ Settings ────────────────────────────────────────────────────────────┐
+              │› minutes           15               next session                     │
+              │  tracks            ["warmup", "word edit config.toml                 │
+              │  emphasis          "balanced"       next session                     │
+              │  layout            "uk"             next session                     │
+              │  numpad            false            next session                     │
+         ○ war│  decimal_separator "."              next session                     │view
+           1:1│  accuracy_target   98               next session                     │15
+              │  live_pace         false            applies now                      │
+              │  breadth           "balanced"       next session                     │
+              │  packs             ["standard"]     edit config.toml                 │
+              │  theme             "dark"           applies now                      │
+              │  text_size         "auto"           applies now                      │
+              │  key_guide         "auto"           applies now                      │
+            Wo│  high_contrast     false            applies now                      │ne
+              │                                                                      │
+              │                                                                      │
+              │↑↓ choose · ←→ change · Enter save · r reload · Esc close             │
+              └──────────────────────────────────────────────────────────────────────┘
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ Enter begin  q quit  F2 text size (AUTO)
+===== config.toml
+[keyboard]
+layout = "uk"
+numpad = false
+
+[session]
+minutes = 15
+

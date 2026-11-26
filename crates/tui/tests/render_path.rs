@@ -853,3 +853,37 @@ fn the_settings_overlay_renders_at_three_sizes() -> Result<(), Box<dyn std::erro
     }
     Ok(())
 }
+
+/// #78: first-run setup renders at 60x18 and 100x32 with its three
+/// questions and how to accept them.
+#[test]
+fn first_run_setup_renders_at_two_sizes() -> Result<(), Box<dyn std::error::Error>> {
+    let engine = planned_engine("cat")?.with_first_run();
+    let view = engine.prepare(MonoTick::ORIGIN);
+    for (columns, rows) in [(60_u16, 18_u16), (100, 32)] {
+        let mut buffer = Buffer::empty(Rect::new(0, 0, columns, rows));
+        let area = buffer.area;
+        let mut renditions = vec![LineRendition::Normal; usize::from(rows)];
+        paint(
+            &mut buffer,
+            area,
+            &view,
+            Palette::cadence_dark(),
+            &mut renditions,
+        );
+        let text = screen_text(&buffer);
+        for expected in [
+            " Set up Cadence ",
+            "› layout",
+            "numpad",
+            "minutes",
+            "Enter start",
+        ] {
+            assert!(
+                text.contains(expected),
+                "{columns}x{rows}: {expected}\n{text}"
+            );
+        }
+    }
+    Ok(())
+}

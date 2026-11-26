@@ -12,6 +12,7 @@ mod practice;
 mod presentation;
 mod review;
 pub mod settings;
+pub mod setup;
 mod storage;
 pub mod summary;
 pub mod view;
@@ -75,6 +76,9 @@ pub enum DomainOutcome {
     SessionSummary,
     /// Session stopped early.
     SessionAbandoned,
+    /// First-run setup was written and acknowledged (#78): the app builds
+    /// the store and plan from it before practice.
+    SetupComplete,
     /// Measurement was visibly invalidated and scoring stopped.
     MeasurementInvalid {
         /// Typed reason.
@@ -148,6 +152,8 @@ pub struct Engine {
     jobs: jobs::Jobs,
     /// Effective settings and the overlay (#79).
     settings: settings::SettingsState,
+    /// First-run setup, while it is shown (#78).
+    setup: Option<setup::Setup>,
     /// The group of the checkpoint whose acknowledgement is being consumed
     /// (#71): a follow-up dispatched now inherits it.
     ack_group: Option<u64>,
@@ -243,6 +249,7 @@ impl Engine {
             state_revision: 0,
             jobs: jobs::Jobs::default(),
             settings: settings::SettingsState::default(),
+            setup: None,
             ack_group: None,
             probe_paused: false,
             probe_pasted: false,
@@ -403,8 +410,11 @@ impl Engine {
             EventKind::SaveResult(result) => self.save_result(result, &mut t)?,
             EventKind::StartJob(kind) => t.job = self.jobs.start(kind),
             EventKind::JobResult { ticket, outcome } => {
-                if self.jobs.result(ticket, outcome) {
-                    self.settings_result(ticket.kind);
+                if self.jobs.result(ticket, outcome)
+                    && self.settings_result(ticket.kind)
+                    && self.setup.take().is_some()
+                {
+                    t.outcome = DomainOutcome::SetupComplete;
                 }
             }
             EventKind::RestartJobs => self.jobs.restart(),
@@ -412,6 +422,9 @@ impl Engine {
                 if self.storage.is_some() && !self.finishing {
                     self.checkpoint_due = true;
                 }
+            }
+            EventKind::Key(key) if self.setup.is_some() && !setup::passes_through(key) => {
+                self.setup_key(key, &mut t);
             }
             EventKind::Key(key) if self.settings.is_open() && key != Key::Interrupt => {
                 self.settings_key(key, &mut t);

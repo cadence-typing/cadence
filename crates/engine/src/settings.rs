@@ -69,7 +69,7 @@ impl Default for SettingsState {
 
 /// The next value of an editable setting in `direction` (+1 or -1), or
 /// `None` when the key is edited in the file only (lists).
-fn step(accepts: Accepts, current: &Setting, forward: bool) -> Option<Setting> {
+pub(crate) fn step(accepts: Accepts, current: &Setting, forward: bool) -> Option<Setting> {
     let cycle = |options: &[&str], now: &str| -> Option<String> {
         let len = options.len();
         let at = options.iter().position(|o| *o == now);
@@ -145,6 +145,15 @@ impl SettingsState {
         KEYS.iter()
             .position(|key| key.name == name)
             .and_then(|index| self.values.get(index))
+    }
+
+    pub(crate) const fn digest(&self) -> Option<ConfigDigest> {
+        self.digest
+    }
+
+    /// A write or reload is waiting for its acknowledgement.
+    pub(crate) const fn view_pending(&self) -> bool {
+        self.pending.is_some()
     }
 
     pub(crate) const fn is_open(&self) -> bool {
@@ -363,14 +372,17 @@ impl crate::Engine {
         }
     }
 
-    /// An admitted settings result: apply what takes effect now.
-    pub(crate) fn settings_result(&mut self, kind: JobKind) {
+    /// An admitted settings result: apply what takes effect now. Returns
+    /// whether it was a successful write.
+    pub(crate) fn settings_result(&mut self, kind: JobKind) -> bool {
         if !matches!(kind, JobKind::ConfigWrite | JobKind::ConfigReload) {
-            return;
+            return false;
         }
         let Some((_, outcome)) = self.jobs.consume(kind) else {
-            return;
+            return false;
         };
+        let written =
+            kind == JobKind::ConfigWrite && matches!(outcome, JobOutcome::Settings { .. });
         for name in self.settings.finish(kind, outcome) {
             if name == "display.text_size"
                 && let Some(Setting::Text(size)) = self.settings.value(name)
@@ -382,6 +394,7 @@ impl crate::Engine {
                 };
             }
         }
+        written
     }
 
     pub(crate) fn display_view(&self) -> crate::view::DisplayView {

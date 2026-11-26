@@ -16,6 +16,8 @@ use crate::theme::{Palette, SemanticRole as Role};
 const PANEL_COLUMNS: u16 = 72;
 /// Rows below the list: one blank, the status and the controls.
 const FOOTER_ROWS: u16 = 3;
+/// The top and bottom border.
+const BORDER_ROWS: u16 = 2;
 /// The key label column: the longest label (`decimal_separator`) and a gap.
 const LABEL_COLUMNS: usize = 18;
 /// The value column; longer values (lists) are cut and edited in the file.
@@ -35,15 +37,40 @@ fn first_row(cursor: usize, visible: usize, total: usize) -> usize {
         .min(last_start)
 }
 
+/// The settings overlay's title and controls.
+pub const SETTINGS: (&str, &str) = (
+    " Settings ",
+    "↑↓ choose · ←→ change · Enter save · r reload · Esc close",
+);
+/// First-run setup's title and controls (#78).
+pub const SETUP: (&str, &str) = (
+    " Set up Cadence ",
+    "↑↓ choose · ←→ change · Enter start (as shown)",
+);
+
 /// Paints the overlay into `area`.
-pub fn paint(buffer: &mut Buffer, area: Rect, view: &SettingsView, palette: Palette) {
+pub fn paint(
+    buffer: &mut Buffer,
+    area: Rect,
+    view: &SettingsView,
+    palette: Palette,
+    (title, controls): (&str, &str),
+) {
     let [panel] = Layout::horizontal([Constraint::Length(area.width.min(PANEL_COLUMNS))])
         .flex(Flex::Center)
         .areas(area);
+    // As tall as its rows, the footer and the border need, at most the body.
+    let wanted = u16::try_from(view.rows.len())
+        .unwrap_or(u16::MAX)
+        .saturating_add(FOOTER_ROWS)
+        .saturating_add(BORDER_ROWS);
+    let [panel] = Layout::vertical([Constraint::Length(wanted.min(panel.height))])
+        .flex(Flex::Center)
+        .areas(panel);
     Clear.render(panel, buffer);
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" Settings ")
+        .title(title)
         .border_style(style(palette, Role::Border, Role::Panel))
         .style(style(palette, Role::Text, Role::Panel));
     let inner = block.inner(panel);
@@ -101,10 +128,7 @@ pub fn paint(buffer: &mut Buffer, area: Rect, view: &SettingsView, palette: Pale
     Paragraph::new(vec![
         Line::default(),
         Line::styled(status, style(palette, Role::Warning, Role::Panel)),
-        Line::styled(
-            "↑↓ choose · ←→ change · Enter save · r reload · Esc close",
-            style(palette, Role::Muted, Role::Panel),
-        ),
+        Line::styled(controls, style(palette, Role::Muted, Role::Panel)),
     ])
     .wrap(Wrap { trim: true })
     .render(footer, buffer);

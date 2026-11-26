@@ -432,6 +432,10 @@ pub struct PreparedView {
     pub review: ReviewContext,
     /// The settings overlay, when open (#79).
     pub settings: Option<SettingsView>,
+    /// First-run setup, while shown (#78).
+    pub setup: Option<SettingsView>,
+    /// The numpad is switched off and the plan has no numpad phase (#78).
+    pub numpad_off: bool,
     /// The effective display settings, applied at once (#79).
     pub display: DisplayView,
 }

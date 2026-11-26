@@ -9,16 +9,14 @@ mod practice;
     reason = "a test driver over small bounded virtual times and counts"
 )]
 mod scripted_sessions;
+mod session;
 
 use std::error::Error;
 use std::process::ExitCode;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-use cadence_core::calendar::{Day, local_day};
 use cadence_core::{Layout, UtcDay};
 use cadence_data::{ProgressStore, StoreBootstrap};
 use cadence_engine::Engine;
-use cadence_runtime::SaveWorker;
 use cadence_trainer::{
     LearnerModel, Phase, PlanInputs, ProseBank, TrainerPolicy, WordPack, build_session_plan,
     parse_policy,
@@ -98,67 +96,15 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
         }
         cli::Command::Doctor => headless::doctor(options.profile.as_deref()),
         cli::Command::ConfigCheck(file) => config_check(file.as_deref()),
-        cli::Command::Practice => {
-            // The config file is read once, before the terminal starts; an
-            // invalid file stops here with its diagnostics (#76).
-            let loaded = load_config(None)?;
-            let options = apply_config(options.clone_for_practice(), &loaded.config);
-            // The overlay starts from the file's values with the flags laid
-            // over them, so a flag keeps winning until the file is edited.
-            let mut settings = cadence_runtime::config_worker::values(&loaded.config);
-            if options.theme_set {
-                for (key, value) in &mut settings {
-                    if *key == "display.theme" {
-                        *value = cadence_core::settings::Setting::Text(options.theme.key().into());
-                    }
-                }
-            }
-            // The wall clock and the local offset are read once, here, at
-            // session start; the proved calendar::local_day decides the day.
-            let now = i64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs())?;
-            let (offset, detected) = match options.utc_offset {
-                Some(seconds) => (seconds, true),
-                None => local_offset(),
-            };
-            let day = match local_day(now, offset) {
-                Day::Number(day) => day,
-                Day::OffsetOutOfRange | Day::Overflow => {
-                    return Err("the local date is outside the supported range".into());
-                }
-            };
-            let policy = parse_policy(POLICY.as_bytes())?;
-            // Store first: the plan is built from its evidence, before the
-            // terminal and the input/reduce/render loop start.
-            let (worker, bootstrap) = SaveWorker::open(
-                options.profile.clone(),
-                policy.learning.history_window(),
-                Some(options.layout),
-                score_affecting(&loaded.config),
-            )?;
-            let engine = build_engine(&options, &policy, &bootstrap, day)?
-                .with_layout(
-                    options.layout,
-                    cadence_core::progress::ContentClass::Standard,
-                )
-                .with_utc_offset(Some(offset.checked_div(60).ok_or("offset")?), detected)
-                .with_settings(&settings, loaded.digest);
-            let config = cadence_runtime::ConfigWorker::spawn(config_path(None))?;
-            practice::run(
-                engine,
-                worker,
-                config,
-                bootstrap,
-                day,
-                options.text_size.unwrap_or_default(),
-                options.theme.palette(),
-            )
-        }
+        cli::Command::Practice => session::run(&options),
     }
 }
 
 /// The settings a session's scores depend on, for the audit (#79): those
 /// the proved `settings::takes_effect` holds for the next session.
-fn score_affecting(config: &cadence_data::config::Config) -> Vec<(&'static str, String)> {
+pub(crate) fn score_affecting(
+    config: &cadence_data::config::Config,
+) -> Vec<(&'static str, String)> {
     config
         .effective()
         .into_iter()
@@ -170,7 +116,7 @@ fn score_affecting(config: &cadence_data::config::Config) -> Vec<(&'static str, 
 }
 
 /// The config file: the given path, else the XDG location.
-fn config_path(file: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
+pub(crate) fn config_path(file: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
     file.map(std::path::Path::to_path_buf).or_else(|| {
         cadence_data::config::path(
             std::env::var_os("XDG_CONFIG_HOME").as_deref(),
@@ -179,7 +125,7 @@ fn config_path(file: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
     })
 }
 
-fn load_config(
+pub(crate) fn load_config(
     file: Option<&std::path::Path>,
 ) -> Result<cadence_data::config_write::Loaded, Box<dyn Error>> {
     let Some(path) = config_path(file) else {
@@ -199,7 +145,10 @@ fn load_config(
 }
 
 /// Defaults, then the file, then flags: a flag keeps its meaning and wins.
-fn apply_config(mut options: cli::Options, config: &cadence_data::config::Config) -> cli::Options {
+pub(crate) fn apply_config(
+    mut options: cli::Options,
+    config: &cadence_data::config::Config,
+) -> cli::Options {
     if options.minutes.is_none() {
         options.minutes = config
             .integer("session.minutes")
@@ -217,6 +166,7 @@ fn apply_config(mut options: cli::Options, config: &cadence_data::config::Config
             _ => Some(cadence_engine::view::TextSize::Auto),
         };
     }
+    options.numpad = config.boolean("keyboard.numpad").unwrap_or(true);
     options.layout = config
         .text("keyboard.layout")
         .and_then(cadence_core::Layout::parse)
@@ -256,7 +206,7 @@ fn config_check(file: Option<&std::path::Path>) -> Result<(), Box<dyn Error>> {
 
 /// The local UTC offset (seconds east) at session start, and whether a
 /// local time zone was found; without one, days are counted in UTC.
-fn local_offset() -> (i32, bool) {
+pub(crate) fn local_offset() -> (i32, bool) {
     let detected = std::env::var_os("TZ").is_some_and(|tz| !tz.is_empty())
         || std::path::Path::new("/etc/localtime").exists();
     if !detected {
@@ -298,6 +248,9 @@ pub(crate) fn build_engine(
             .copied()
             .filter(|phase| *phase != selected && *phase != Phase::Review)
             .collect(),
+        // No numpad (#78): its phase is disabled and plan::allocate gives its
+        // seconds to the others.
+        None if !options.numpad => vec![Phase::Numpad],
         None => Vec::new(),
     };
     let seed = options

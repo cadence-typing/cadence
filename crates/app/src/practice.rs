@@ -7,99 +7,182 @@ use cadence_core::progress::Checkpoint;
 use cadence_core::{EventSeq, MonoTick};
 use cadence_data::StoreBootstrap;
 use cadence_engine::view::TextSize;
-use cadence_engine::{Engine, EventEnvelope, EventKind, Transition};
+use cadence_engine::{DomainOutcome, Engine, EventEnvelope, EventKind, Transition};
 use cadence_runtime::{ConfigWorker, SaveWorker, TerminalGuard, WriterError, elapsed_since};
 use cadence_tui::{Palette, paint};
 
 /// Timer-only repaints are capped; semantic keys/results repaint immediately.
 const TIMER_FRAME_INTERVAL: Duration = Duration::from_millis(100);
 
-pub fn run(
-    mut engine: Engine,
-    worker: SaveWorker,
-    config: ConfigWorker,
+/// An engine with its store, ready for the loop.
+pub struct Prepared {
+    /// The reducer.
+    pub engine: Engine,
+    /// The retained save writer.
+    pub worker: SaveWorker,
+    /// What the store held at startup.
+    pub bootstrap: StoreBootstrap,
+}
+
+/// The engine, its event sequence and its undispatched checkpoint.
+struct Owner {
+    engine: Engine,
+    seq: EventSeq,
+    dispatch: Option<Checkpoint>,
+}
+
+impl Owner {
+    const fn new(engine: Engine) -> Self {
+        Self {
+            engine,
+            seq: EventSeq::INITIAL,
+            dispatch: None,
+        }
+    }
+
+    fn apply(
+        &mut self,
+        at: MonoTick,
+        kind: EventKind,
+        config: &ConfigWorker,
+    ) -> Result<Transition, Box<dyn Error>> {
+        let next = self.seq.next()?;
+        let mut transition = self.engine.reduce(EventEnvelope {
+            seq: next,
+            at,
+            kind,
+        });
+        self.seq = next;
+        if let Some(checkpoint) = transition.checkpoint.take() {
+            if self.dispatch.is_some() {
+                return Err("invariant: an undispatched checkpoint would be overwritten".into());
+            }
+            self.dispatch = Some(checkpoint);
+        }
+        // A started settings job goes to the config worker (#79).
+        if let Some(ticket) = transition.job
+            && let Some(request) = self.engine.settings_request(ticket)
+        {
+            config.submit(ticket, request)?;
+        }
+        Ok(transition)
+    }
+}
+
+/// The start-up facts every engine receives before its first frame.
+fn begin(
+    owner: &mut Owner,
     bootstrap: StoreBootstrap,
-    day: i64,
-    text_size: TextSize,
-    palette: Palette,
+    (day, text_size): (i64, TextSize),
+    (terminal, origin): (&TerminalGuard, Instant),
+    config: &ConfigWorker,
 ) -> Result<(), Box<dyn Error>> {
-    let origin = Instant::now();
-    let mut seq = EventSeq::INITIAL;
-    let mut dispatch = None;
-    apply(
-        &mut engine,
-        &mut seq,
-        MonoTick::ORIGIN,
-        EventKind::SetTextSize(text_size),
-        &mut dispatch,
-        &config,
-    )?;
-    apply(
-        &mut engine,
-        &mut seq,
+    owner.apply(MonoTick::ORIGIN, EventKind::SetTextSize(text_size), config)?;
+    owner.apply(
         MonoTick::ORIGIN,
         EventKind::StorageReady {
             next_session: bootstrap.next_session,
             day,
             history: bootstrap.history,
         },
-        &mut dispatch,
-        &config,
+        config,
     )?;
-    let mut terminal = TerminalGuard::enter()?;
     let (columns, rows) = terminal.viewport()?;
-    apply(
-        &mut engine,
-        &mut seq,
+    owner.apply(
         elapsed_since(origin)?,
         EventKind::Resized { columns, rows },
-        &mut dispatch,
-        &config,
+        config,
     )?;
-    apply(
-        &mut engine,
-        &mut seq,
+    owner.apply(
         elapsed_since(origin)?,
         EventKind::SetTextSupport(terminal.text_support()),
-        &mut dispatch,
+        config,
+    )?;
+    Ok(())
+}
+
+pub fn run(
+    first: Prepared,
+    config: ConfigWorker,
+    (day, text_size): (i64, TextSize),
+    palette: Palette,
+    mut rebuild: impl FnMut() -> Result<Prepared, Box<dyn Error>>,
+) -> Result<(), Box<dyn Error>> {
+    let origin = Instant::now();
+    let Prepared {
+        engine,
+        mut worker,
+        bootstrap,
+    } = first;
+    let mut owner = Owner::new(engine);
+    let mut terminal = TerminalGuard::enter()?;
+    begin(
+        &mut owner,
+        bootstrap,
+        (day, text_size),
+        (&terminal, origin),
         &config,
     )?;
-    draw(&engine, &mut terminal, elapsed_since(origin)?, palette)?;
+    draw(
+        &owner.engine,
+        &mut terminal,
+        elapsed_since(origin)?,
+        palette,
+    )?;
     let mut last_frame = Instant::now();
 
     let outcome = loop {
-        dispatch_pending(&worker, &mut dispatch)?;
+        dispatch_pending(&worker, &mut owner.dispatch)?;
         // Bound result service to one retained terminal outcome per turn.
         if let Some(result) = worker.try_result()? {
-            let transition = apply(
-                &mut engine,
-                &mut seq,
+            let transition = owner.apply(
                 elapsed_since(origin)?,
                 EventKind::SaveResult(result),
-                &mut dispatch,
                 &config,
             )?;
             if transition.quit {
                 break transition.exit_failed;
             }
             if transition.dirty {
-                draw(&engine, &mut terminal, elapsed_since(origin)?, palette)?;
+                draw(
+                    &owner.engine,
+                    &mut terminal,
+                    elapsed_since(origin)?,
+                    palette,
+                )?;
                 last_frame = Instant::now();
             }
         }
         // A settings answer is a fact for the reducer, which admits it
         // through the proved ticket decision (#79).
         if let Some((ticket, outcome)) = config.try_result()? {
-            let transition = apply(
-                &mut engine,
-                &mut seq,
+            let transition = owner.apply(
                 elapsed_since(origin)?,
                 EventKind::JobResult { ticket, outcome },
-                &mut dispatch,
                 &config,
             )?;
+            if transition.outcome == DomainOutcome::SetupComplete {
+                // Setup is written (#78) and nothing was typed or saved: the
+                // store and plan are built again from the file.
+                worker.finish()?;
+                let next = rebuild()?;
+                worker = next.worker;
+                owner = Owner::new(next.engine);
+                begin(
+                    &mut owner,
+                    next.bootstrap,
+                    (day, text_size),
+                    (&terminal, origin),
+                    &config,
+                )?;
+            }
             if transition.dirty {
-                draw(&engine, &mut terminal, elapsed_since(origin)?, palette)?;
+                draw(
+                    &owner.engine,
+                    &mut terminal,
+                    elapsed_since(origin)?,
+                    palette,
+                )?;
                 last_frame = Instant::now();
             }
         }
@@ -107,19 +190,12 @@ pub fn run(
         // Timestamp immediately after read, before reduction and drawing.
         let at = elapsed_since(origin)?;
         let semantic = event.is_some();
-        let transition = apply(
-            &mut engine,
-            &mut seq,
-            at,
-            event.unwrap_or(EventKind::Tick),
-            &mut dispatch,
-            &config,
-        )?;
+        let transition = owner.apply(at, event.unwrap_or(EventKind::Tick), &config)?;
         if transition.quit {
             break transition.exit_failed;
         }
         if transition.dirty && (semantic || last_frame.elapsed() >= TIMER_FRAME_INTERVAL) {
-            draw(&engine, &mut terminal, at, palette)?;
+            draw(&owner.engine, &mut terminal, at, palette)?;
             last_frame = Instant::now();
         }
     };
@@ -136,39 +212,10 @@ pub fn run(
     }
     worker.finish()?;
     config.finish()?;
-    if let Some(line) = engine.recap() {
+    if let Some(line) = owner.engine.recap() {
         println!("{line}");
     }
     Ok(())
-}
-
-fn apply(
-    engine: &mut Engine,
-    seq: &mut EventSeq,
-    at: MonoTick,
-    kind: EventKind,
-    pending: &mut Option<Checkpoint>,
-    config: &ConfigWorker,
-) -> Result<Transition, Box<dyn Error>> {
-    let next = seq.next()?;
-    let mut transition = engine.reduce(EventEnvelope {
-        seq: next,
-        at,
-        kind,
-    });
-    *seq = next;
-    if let Some(checkpoint) = transition.checkpoint.take() {
-        if pending.is_some() {
-            return Err("invariant: an undispatched checkpoint would be overwritten".into());
-        }
-        *pending = Some(checkpoint);
-    }
-    if let Some(ticket) = transition.job
-        && let Some(request) = engine.settings_request(ticket)
-    {
-        config.submit(ticket, request)?;
-    }
-    Ok(transition)
 }
 
 fn dispatch_pending(

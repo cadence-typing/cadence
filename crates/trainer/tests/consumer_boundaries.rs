@@ -374,7 +374,12 @@ fn settings_effect_has_no_second_copy_in_the_engine() -> TestResult {
         settings.contains("effect(key.name)"),
         "the overlay asks the kernel"
     );
-    for copy in ["starts_with(\"display", "Kind::Theme", "Kind::Layout", "fn takes_effect"] {
+    for copy in [
+        "starts_with(\"display",
+        "Kind::Theme",
+        "Kind::Layout",
+        "fn takes_effect",
+    ] {
         assert!(!settings.contains(copy), "engine/settings.rs keeps {copy}");
     }
     Ok(())

@@ -50,6 +50,15 @@ impl Engine {
             active: self.active,
             notice,
             settings: self.settings.view(),
+            setup: self.setup_view(),
+            numpad_off: matches!(
+                self.settings.value("keyboard.numpad"),
+                Some(cadence_core::settings::Setting::Boolean(false))
+            ) && !self
+                .plan
+                .phases
+                .iter()
+                .any(|p| p.phase == cadence_trainer::Phase::Numpad),
             display: self.display_view(),
             history: self.history.clone(),
             text_size: self.text_size,

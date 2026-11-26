@@ -29,7 +29,7 @@ pub fn paint(
 ) {
     let area = area.intersection(buffer.area);
     // Under the settings overlay every row is normal size (#79).
-    let support = if view.settings.is_some() {
+    let support = if view.settings.is_some() || view.setup.is_some() {
         cadence_engine::view::TextSupport::NormalOnly
     } else {
         view.text_support
@@ -72,8 +72,14 @@ pub fn paint(
             ResolvedTextSize::Normal
         }
     };
-    if let Some(settings) = &view.settings {
-        crate::settings::paint(buffer, body, settings, palette);
+    if let Some(setup) = &view.setup {
+        // First run shows setup alone: the plan behind it is rebuilt from
+        // the answers.
+        Clear.render(body, buffer);
+        buffer.set_style(body, style(palette, Role::Text));
+        crate::settings::paint(buffer, body, setup, palette, crate::settings::SETUP);
+    } else if let Some(settings) = &view.settings {
+        crate::settings::paint(buffer, body, settings, palette, crate::settings::SETTINGS);
     }
     if let Some(message) = &view.notice {
         let role = if view.durability.is_failed() || view.mode == ViewMode::Invalid {

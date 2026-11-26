@@ -84,6 +84,8 @@ pub struct Options {
     pub theme_set: bool,
     /// The keyboard layout (config `keyboard.layout`, #77).
     pub layout: cadence_core::Layout,
+    /// A numpad is present (config `keyboard.numpad`, #78).
+    pub numpad: bool,
 }
 
 impl Options {
@@ -100,6 +102,7 @@ impl Options {
             utc_offset: None,
             theme_set: false,
             layout: cadence_core::Layout::Us,
+            numpad: true,
         }
     }
 
@@ -116,6 +119,7 @@ impl Options {
             utc_offset: self.utc_offset,
             theme_set: self.theme_set,
             layout: self.layout,
+            numpad: self.numpad,
         }
     }
 }
@@ -133,6 +137,7 @@ pub fn parse() -> Result<Options, String> {
         utc_offset: None,
         theme_set: false,
         layout: cadence_core::Layout::Us,
+        numpad: true,
     };
     let mut theme = None;
     let mut action = None;
