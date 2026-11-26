@@ -326,3 +326,31 @@ fn prose_volume_covers_the_phase() {
         prose.exercises.iter().map(|e| e.passage).collect();
     assert!(distinct.len() > 10);
 }
+
+/// #44: sampled slots draw without replacement: a cold-start words phase
+/// plans no word twice (60 exercises of a 25,000-word pack), and the
+/// warm-up repeats none within its core stream.
+#[test]
+fn cold_start_samples_without_replacement() {
+    let bank = prose(40);
+    let words = pack(25_000);
+    for seed in [1, 42, 7_777] {
+        let plan = build(&cold(), &words, &bank, seed, &[], 1_800).unwrap();
+        for wanted in [Phase::AdaptiveWords, Phase::WarmUp] {
+            let planned: Vec<WordId> = phase(&plan, wanted)
+                .exercises
+                .iter()
+                .flat_map(|exercise| exercise.words.iter().map(|word| word.id))
+                .collect();
+            let distinct: std::collections::HashSet<_> = planned.iter().collect();
+            assert_eq!(distinct.len(), planned.len(), "{wanted:?} seed {seed}");
+            if wanted == Phase::AdaptiveWords {
+                assert!(
+                    phase(&plan, wanted).exercises.len() >= 60,
+                    "{} exercises",
+                    phase(&plan, wanted).exercises.len()
+                );
+            }
+        }
+    }
+}

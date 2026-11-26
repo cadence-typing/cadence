@@ -7,7 +7,7 @@
 //!   tie-break. With no focus (cold start) they sample the target bands.
 //! * Review slots: due missed words, FIFO; otherwise a broad sample.
 //! * Broad slots: seeded sample of all bands, keeping vocabulary breadth.
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use cadence_core::alphabet::TrainingChar;
 use cadence_core::learning::{Skill, SkillKey};
@@ -61,6 +61,9 @@ pub(super) struct WordSelector<'a> {
     focus: Vec<(SkillKey, Stream)>,
     due: VecDeque<WordId>,
     session_counts: HashMap<WordId, u32>,
+    /// Every word planned by this selector (the phase), so a sampled slot
+    /// never repeats one while an unplanned word is admissible (#44).
+    planned: HashSet<WordId>,
     focus_turn: usize,
 }
 
@@ -94,6 +97,7 @@ impl<'a> WordSelector<'a> {
             focus,
             due: learner.due_words().iter().copied().collect(),
             session_counts: HashMap::new(),
+            planned: HashSet::new(),
             focus_turn: 0,
         }
     }
@@ -115,6 +119,7 @@ impl<'a> WordSelector<'a> {
             focus: Vec::new(),
             due: VecDeque::new(),
             session_counts: HashMap::new(),
+            planned: HashSet::new(),
             focus_turn: 0,
         }
     }
@@ -127,13 +132,13 @@ impl<'a> WordSelector<'a> {
             let chosen = match lane {
                 Lane::Target => match self.focused(&tracker, rng)? {
                     Some(word) => Some(word),
-                    None => self.sampled(&tracker, Lane::Target, rng)?,
+                    None => self.sampled(&tracker, Lane::Target)?,
                 },
                 Lane::Review => match self.due_review(&tracker) {
                     Some(word) => Some(word),
-                    None => self.sampled(&tracker, Lane::Review, rng)?,
+                    None => self.sampled(&tracker, Lane::Review)?,
                 },
-                Lane::Broad => self.sampled(&tracker, Lane::Broad, rng)?,
+                Lane::Broad => self.sampled(&tracker, Lane::Broad)?,
             };
             let word = chosen.ok_or(PlanError::NoEligibleCandidate { lane: *lane })?;
             let focus_id = self.focus_index(word.focus);
@@ -144,6 +149,7 @@ impl<'a> WordSelector<'a> {
                 let count = self.session_counts.entry(word.id).or_default();
                 *count = count.saturating_add(1);
             }
+            self.planned.insert(word.id);
             words.push(word);
         }
         Ok(words)
@@ -224,32 +230,81 @@ impl<'a> WordSelector<'a> {
         None
     }
 
-    /// Seeded sample: target lanes draw from target bands, others broadly.
+    /// Seeded sample without replacement (#44): the next admissible word
+    /// at the head of the already shuffled stream; the cursor moves past
+    /// it, so no word returns until the stream wraps. Target lanes draw from
+    /// the target bands, others broadly. Admissibility is the proved lane
+    /// decision; at most `maximum_candidates_per_slot` words are examined.
     fn sampled(
         &mut self,
         tracker: &QuotaTracker,
         lane: Lane,
-        rng: &mut PlanRng,
     ) -> Result<Option<PlannedWord>, PlanError> {
+        let bound = self.policy.selection.maximum_candidates_per_slot;
         let stream = if lane == Lane::Target {
             &self.targets
         } else {
             &self.broad
         };
-        let candidates = self.candidates(stream, tracker, lane, None, rng);
-        let selected = self.select(&candidates)?;
+        let len = stream.ids.len();
+        let mut found = None;
+        let mut fallback = None;
+        for offset in 0..bound.min(len) {
+            let index = stream
+                .cursor
+                .checked_add(offset)
+                .and_then(|i| i.checked_rem(len))
+                .ok_or_else(|| PlanError::Content("stream index overflow".into()))?;
+            let Some(id) = stream.ids.get(index).copied() else {
+                continue;
+            };
+            if self.pack.word(id).is_none() || !self.eligible(tracker, lane, None, id) {
+                continue;
+            }
+            if !self.planned.contains(&id) {
+                found = Some((index, id));
+                break;
+            }
+            // Planned earlier in the phase: only if nothing unplanned is
+            // admissible within the window (a small pack wraps).
+            fallback = fallback.or(Some((index, id)));
+        }
+        let found = found.or(fallback);
+        let Some((index, id)) = found else {
+            return Ok(None);
+        };
         let stream = if lane == Lane::Target {
             &mut self.targets
         } else {
             &mut self.broad
         };
-        stream.advance();
-        Ok(selected.map(|id| PlannedWord {
+        stream.cursor = index
+            .checked_add(1)
+            .and_then(|next| next.checked_rem(len))
+            .unwrap_or(0);
+        Ok(Some(PlannedWord {
             id,
             lane,
             focus: None,
             due_review: false,
         }))
+    }
+
+    /// Lane eligibility: the proved quota and cap decision, plus the
+    /// per-session cap on target words.
+    fn eligible(
+        &self,
+        tracker: &QuotaTracker,
+        lane: Lane,
+        focus_id: Option<u64>,
+        id: WordId,
+    ) -> bool {
+        let within_session = self.session_counts.get(&id).copied().unwrap_or(0)
+            < self
+                .policy
+                .learning
+                .maximum_target_word_occurrences_per_session;
+        tracker.word_admissible(id, lane, focus_id) && (lane != Lane::Target || within_session)
     }
 
     fn candidates(
@@ -267,10 +322,7 @@ impl<'a> WordSelector<'a> {
             .window(bound)
             .filter_map(|id| self.pack.word(id).map(|entry| (id, entry)))
             .map(|(id, entry)| {
-                let within_session = self.session_counts.get(&id).copied().unwrap_or(0)
-                    < learning.maximum_target_word_occurrences_per_session;
-                let eligible = tracker.word_admissible(id, lane, focus_id)
-                    && (lane != Lane::Target || within_session);
+                let eligible = self.eligible(tracker, lane, focus_id, id);
                 let inputs = if focus_id.is_some() {
                     let score = self.learner.word_score(&entry.units);
                     UtilityInputs {
