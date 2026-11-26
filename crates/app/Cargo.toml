@@ -24,3 +24,4 @@ cadence-trainer.workspace = true
 cadence-runtime.workspace = true
 cadence-tui.workspace = true
 cadence-data.workspace = true
+chrono.workspace = true

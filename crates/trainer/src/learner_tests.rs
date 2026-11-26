@@ -269,3 +269,32 @@ fn focus_is_independent_of_map_order() {
         assert_eq!(build(&reversed), first);
     }
 }
+
+/// #52: after a change of UTC offset a later session's local day can be
+/// one earlier; replay keeps (day, session) order and planning never fails.
+#[test]
+fn an_offset_change_between_sessions_keeps_replay_order() {
+    let word = WordId::new(7).unwrap();
+    let with_word = |id: u64, day_value: i64, errors: u64| {
+        let mut s = session(id, day_value, &[]);
+        s.learning.words.insert(
+            word,
+            WordTally {
+                attempts: 1,
+                errors,
+            },
+        );
+        s
+    };
+    // Session 2 (clean, on day 11) then session 3, recorded later but on
+    // local day 10 after travelling west.
+    let history = LearnerHistory {
+        sessions: vec![
+            with_word(1, 10, 1),
+            with_word(2, 11, 0),
+            with_word(3, 10, 0),
+        ],
+    };
+    let model = LearnerModel::from_history(&history, &policy(), day(12));
+    assert!(model.is_ok(), "{model:?}");
+}

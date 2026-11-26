@@ -231,6 +231,7 @@ impl Engine {
             status: self.status,
             tracks,
             active_micros: self.active.as_us(),
+            utc_offset_minutes: self.utc_offset_minutes,
         };
         let sequence = storage.sequence.next()?;
         let checkpoint = Checkpoint::new(

@@ -24,6 +24,7 @@ fn checkpoint(
         SessionProgress {
             profile: "default".into(),
             day: 20_000,
+            utc_offset_minutes: None,
             policy_digest: "policy-v1".into(),
             corpus_digest: "corpus-v1".into(),
             status,

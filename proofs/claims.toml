@@ -1215,3 +1215,51 @@ name = "overdue-inclusive"
 file = "crates/kernel/src/session.rs"
 before = "    elapsed_us > bound_us\n"
 after = "    elapsed_us >= bound_us\n"
+
+# ---- local-calendar days (crates/kernel/src/calendar.rs, #52)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/calendar.rs"
+function = "calendar::local_day"
+lean = "cadence_kernel.calendar.local_day"
+theorems = [
+  "Proofs.Calendar.local_day_spec",
+  "Proofs.Calendar.local_day_monotone",
+  "Proofs.Calendar.offset_bounded",
+]
+total = "Proofs.Calendar.local_day_spec"
+mutants = ["day-ignores-offset", "day-rounds-up", "offset-unbounded"]
+
+[[mutant]]
+name = "day-ignores-offset"
+file = "crates/kernel/src/calendar.rs"
+before = "    let local = match unix_seconds.checked_add(i64::from(offset_seconds)) {\n"
+after = "    let local = match unix_seconds.checked_add(0) {\n"
+
+[[mutant]]
+name = "day-rounds-up"
+file = "crates/kernel/src/calendar.rs"
+before = "    match local.checked_div(DAY_SECONDS) {\n"
+after = "    match (local + DAY_SECONDS - 1).checked_div(DAY_SECONDS) {\n"
+
+[[mutant]]
+name = "offset-unbounded"
+file = "crates/kernel/src/calendar.rs"
+before = "    if offset_seconds > MAX_OFFSET_SECONDS {\n"
+after = "    if offset_seconds > MAX_OFFSET_SECONDS + MAX_OFFSET_SECONDS {\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/calendar.rs"
+function = "calendar::days_ago"
+lean = "cadence_kernel.calendar.days_ago"
+theorems = ["Proofs.Calendar.days_ago_never_negative"]
+total = "Proofs.Calendar.days_ago_never_negative"
+mutants = ["days-ago-wraps"]
+
+[[mutant]]
+name = "days-ago-wraps"
+file = "crates/kernel/src/calendar.rs"
+before = "    if then >= today {\n        return 0;\n    }\n"
+after = "    if then > today {\n        return then - today - today + then;\n    }\n"

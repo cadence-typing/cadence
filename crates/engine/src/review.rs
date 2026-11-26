@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 use super::{Engine, Screen};
 use crate::summary::{SummaryMetrics, percent_label};
 use crate::view::{Baseline, RateUnit, ReviewContext, Slip};
+use cadence_core::calendar::days_ago;
 use cadence_core::learning::{KeyLane, Skill};
 use cadence_core::progress::{SessionRecap, Track};
 
@@ -12,10 +13,12 @@ use cadence_core::progress::{SessionRecap, Track};
 const SLIPS_SHOWN: usize = 3;
 
 impl Engine {
+    /// Whole days since an earlier session: the proved
+    /// `cadence_kernel::calendar::days_ago` (never negative).
     fn days_ago(&self, recap: &SessionRecap) -> i64 {
         self.storage
             .as_ref()
-            .map_or(0, |storage| storage.day().saturating_sub(recap.day).max(0))
+            .map_or(0, |storage| days_ago(storage.day(), recap.day))
     }
 
     /// The most recent session with typing, for the start screen.

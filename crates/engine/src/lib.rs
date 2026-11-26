@@ -132,6 +132,8 @@ pub struct Engine {
     /// The current phase's prepared list has wrapped to its start (#39;
     /// shown from #7).
     list_wrapped: bool,
+    /// The UTC offset in minutes the session's day is counted in (#52).
+    utc_offset_minutes: Option<i32>,
     phase_start: Micros,
     exercise_start: Micros,
     active: Micros,
@@ -200,6 +202,7 @@ impl Engine {
             opened: 0,
             last_credited: None,
             list_wrapped: false,
+            utc_offset_minutes: None,
             phase_start: Micros::ZERO,
             exercise_start: Micros::ZERO,
             active: Micros::ZERO,
@@ -221,6 +224,18 @@ impl Engine {
             interlude_opened: None,
             ended_early: false,
         })
+    }
+    /// Records the UTC offset (minutes) the session's day was counted in,
+    /// so it is saved with the session (#52). Set once, before the session;
+    /// without a detected local time zone the start screen says days are
+    /// counted in UTC.
+    #[must_use]
+    pub fn with_utc_offset(mut self, minutes: Option<i32>, detected: bool) -> Self {
+        self.utc_offset_minutes = minutes;
+        if !detected {
+            self.notice = Some("Days are counted in UTC (no local time zone found).".to_string());
+        }
+        self
     }
     /// Whether the current phase's prepared list has wrapped to its start:
     /// the last prepared exercise was finished and the first is served again.

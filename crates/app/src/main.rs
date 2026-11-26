@@ -7,6 +7,7 @@ use std::error::Error;
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use cadence_core::calendar::{Day, local_day};
 use cadence_core::{LayoutSupportsPound, UtcDay};
 use cadence_data::{ProgressStore, StoreBootstrap};
 use cadence_engine::Engine;
@@ -25,8 +26,6 @@ const POLICY: &str = include_str!("../../../policies/trainer-v2.toml");
 const MINIMUM_PASSAGES: usize = 2_000;
 /// Domain separation for the per-session plan seed.
 const SEED_DOMAIN: &[u8] = b"cadence-plan-seed-v1";
-/// UTC day partition; not used to measure intra-run cadence.
-const SECONDS_PER_DAY: u64 = 86_400;
 /// Minutes accepted at the CLI convert exactly into policy seconds.
 const SECONDS_PER_MINUTE: u64 = 60;
 /// Shipped vocabulary count lower bound from P-04, checked on normal startup.
@@ -76,18 +75,26 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
             Ok(())
         }
         cli::Command::Practice => {
-            let day = SystemTime::now()
-                .duration_since(UNIX_EPOCH)?
-                .as_secs()
-                .checked_div(SECONDS_PER_DAY)
-                .ok_or("invalid day conversion")?;
-            let day = i64::try_from(day)?;
+            // The wall clock and the local offset are read once, here, at
+            // session start; the proved calendar::local_day decides the day.
+            let now = i64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs())?;
+            let (offset, detected) = match options.utc_offset {
+                Some(seconds) => (seconds, true),
+                None => local_offset(),
+            };
+            let day = match local_day(now, offset) {
+                Day::Number(day) => day,
+                Day::OffsetOutOfRange | Day::Overflow => {
+                    return Err("the local date is outside the supported range".into());
+                }
+            };
             let policy = parse_policy(POLICY.as_bytes())?;
             // Store first: the plan is built from its evidence, before the
             // terminal and the input/reduce/render loop start.
             let (worker, bootstrap) =
                 SaveWorker::open(options.profile.clone(), policy.learning.history_window())?;
-            let engine = build_engine(&options, &policy, &bootstrap, day)?;
+            let engine = build_engine(&options, &policy, &bootstrap, day)?
+                .with_utc_offset(Some(offset.checked_div(60).ok_or("offset")?), detected);
             practice::run(
                 engine,
                 worker,
@@ -98,6 +105,17 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
             )
         }
     }
+}
+
+/// The local UTC offset (seconds east) at session start, and whether a
+/// local time zone was found; without one, days are counted in UTC.
+fn local_offset() -> (i32, bool) {
+    let detected = std::env::var_os("TZ").is_some_and(|tz| !tz.is_empty())
+        || std::path::Path::new("/etc/localtime").exists();
+    if !detected {
+        return (0, false);
+    }
+    (chrono::Local::now().offset().local_minus_utc(), true)
 }
 
 fn build_engine(

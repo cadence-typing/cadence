@@ -13,6 +13,7 @@
 //! `while` loops over `get`), and no panicking arithmetic or indexing.
 #![no_std]
 
+pub mod calendar;
 pub mod checkpoint;
 pub mod counters;
 pub mod cycle;

@@ -47,6 +47,8 @@ pub struct Options {
     pub seed: Option<u64>,
     pub text_size: Option<TextSize>,
     pub theme: Theme,
+    /// `--utc-offset +HH:MM`: overrides the detected local offset (seconds).
+    pub utc_offset: Option<i32>,
 }
 
 pub fn parse() -> Result<Options, String> {
@@ -59,6 +61,7 @@ pub fn parse() -> Result<Options, String> {
         seed: None,
         text_size: None,
         theme: Theme::Dark,
+        utc_offset: None,
     };
     let mut theme = None;
     let mut action = None;
@@ -137,6 +140,12 @@ pub fn parse() -> Result<Options, String> {
                     _ => return Err("--theme requires dark, light or terminal".into()),
                 });
             }
+            "--utc-offset" => {
+                if options.utc_offset.is_some() {
+                    return Err("duplicate --utc-offset".into());
+                }
+                options.utc_offset = Some(parse_offset(&value(&mut args, &arg)?)?);
+            }
             _ => return Err(format!("unknown argument {arg:?}; use --help")),
         }
     }
@@ -164,10 +173,12 @@ pub fn parse() -> Result<Options, String> {
             || options.track.is_some()
             || options.seed.is_some()
             || options.text_size.is_some()
+            || options.utc_offset.is_some()
             || theme.is_some())
     {
         return Err(
-            "--minutes, --track, --seed, --text-size and --theme apply only to practice".into(),
+            "--minutes, --track, --seed, --text-size, --theme and --utc-offset apply only to practice"
+                .into(),
         );
     }
     options.theme = theme.unwrap_or_default();
@@ -208,4 +219,49 @@ pub fn help() {
         Numpad entries require Enter; physical keypad origin is unverified.\n\
         Progress stays local. This preview is not formally qualified or signed."
     );
+}
+
+/// `+HH:MM` or `-HH:MM` (at most 18 hours) as seconds east of UTC.
+fn parse_offset(text: &str) -> Result<i32, String> {
+    let error = || "--utc-offset requires +HH:MM or -HH:MM, at most 18:00".to_string();
+    let (sign, rest) = match text.split_at_checked(1) {
+        Some(("+", rest)) => (1, rest),
+        Some(("-", rest)) => (-1, rest),
+        _ => return Err(error()),
+    };
+    let (hours, minutes) = rest.split_once(':').ok_or_else(error)?;
+    if hours.len() != 2 || minutes.len() != 2 {
+        return Err(error());
+    }
+    let hours: i32 = hours.parse().map_err(|_malformed| error())?;
+    let minutes: i32 = minutes.parse().map_err(|_malformed| error())?;
+    if minutes >= 60
+        || hours
+            .checked_mul(60)
+            .and_then(|h| h.checked_add(minutes))
+            .is_none_or(|t| t > 18 * 60)
+    {
+        return Err(error());
+    }
+    hours
+        .checked_mul(3600)
+        .and_then(|h| h.checked_add(minutes.checked_mul(60)?))
+        .and_then(|seconds| seconds.checked_mul(sign))
+        .ok_or_else(error)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_offset;
+
+    #[test]
+    fn offsets_parse_with_sign_and_bound() {
+        assert_eq!(parse_offset("+10:00"), Ok(36_000));
+        assert_eq!(parse_offset("-08:00"), Ok(-28_800));
+        assert_eq!(parse_offset("+05:30"), Ok(19_800));
+        assert_eq!(parse_offset("+18:00"), Ok(64_800));
+        for bad in ["10:00", "+18:01", "+1:00", "+10:60", "+aa:00", ""] {
+            assert!(parse_offset(bad).is_err(), "{bad}");
+        }
+    }
 }

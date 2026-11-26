@@ -60,7 +60,7 @@ pub(crate) fn load_session(
 ) -> Result<Option<StoredSession>, StoreError> {
     let id = sql_integer(session.get(), "session_id")?;
     let mut statement = connection.prepare(
-        "SELECT profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq
+        "SELECT profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq,utc_offset_minutes
          FROM sessions WHERE session_id=?1",
     )?;
     let mut rows = statement.query([id])?;
@@ -75,6 +75,7 @@ pub(crate) fn load_session(
         status: parse_status(&row.get::<_, String>(4)?)?,
         active_micros: read_integer(row.get(5)?, "active_micros")?,
         tracks: Vec::new(),
+        utc_offset_minutes: row.get(7)?,
     };
     let sequence = CommitSeq::from_raw(read_integer(row.get(6)?, "commit_seq")?);
     let mut statement = connection.prepare(

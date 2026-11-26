@@ -242,12 +242,13 @@ impl ProgressStore {
             [&progress.profile],
         )?;
         tx.execute(
-            "INSERT INTO sessions(session_id,profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8)
+            "INSERT INTO sessions(session_id,profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq,utc_offset_minutes)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)
              ON CONFLICT(session_id) DO UPDATE SET status=excluded.status,
                 active_micros=excluded.active_micros,commit_seq=excluded.commit_seq",
             params![session, progress.profile, progress.day, progress.policy_digest, progress.corpus_digest,
-                records::status_name(progress.status), sql_integer(progress.active_micros, "active_micros")?, sequence],
+                records::status_name(progress.status), sql_integer(progress.active_micros, "active_micros")?, sequence,
+                progress.utc_offset_minutes],
         )?;
         tx.execute("DELETE FROM session_tracks WHERE session_id=?1", [session])?;
         for track in &progress.tracks {

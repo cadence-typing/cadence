@@ -20,6 +20,64 @@ set_option maxRecDepth 2048
 
 namespace cadence_kernel
 
+/-- [cadence_kernel::calendar::MAX_OFFSET_SECONDS]
+    Source: 'crates/kernel/src/calendar.rs', lines 9:0-9:43
+    Visibility: public -/
+@[global_simps, irreducible]
+def calendar.MAX_OFFSET_SECONDS : Std.I32 := 64800#i32
+
+/-- [cadence_kernel::calendar::DAY_SECONDS]
+    Source: 'crates/kernel/src/calendar.rs', lines 12:0-12:36
+    Visibility: public -/
+@[global_simps, irreducible] def calendar.DAY_SECONDS : Std.I64 := 86400#i64
+
+/-- [cadence_kernel::calendar::Day]
+    Source: 'crates/kernel/src/calendar.rs', lines 16:0-23:1
+    Visibility: public -/
+@[discriminant isize]
+inductive calendar.Day where
+| Number : Std.I64 → calendar.Day
+| OffsetOutOfRange : calendar.Day
+| Overflow : calendar.Day
+
+/-- [cadence_kernel::calendar::local_day]:
+    Source: 'crates/kernel/src/calendar.rs', lines 28:0-46:1
+    Visibility: public -/
+def calendar.local_day
+  (unix_seconds : Std.I64) (offset_seconds : Std.I32) :
+  Result calendar.Day
+  := do
+  if offset_seconds > calendar.MAX_OFFSET_SECONDS
+  then ok calendar.Day.OffsetOutOfRange
+  else
+    let i ← -. calendar.MAX_OFFSET_SECONDS
+    if offset_seconds < i
+    then ok calendar.Day.OffsetOutOfRange
+    else
+      let i1 ← lift (core.convert.num.FromI64I32.from offset_seconds)
+      let o ← lift (I64.checked_add unix_seconds i1)
+      match o with
+      | none => ok calendar.Day.Overflow
+      | some t =>
+        if t < 0#i64
+        then ok calendar.Day.Overflow
+        else
+          let o1 ← lift (I64.checked_div t calendar.DAY_SECONDS)
+          match o1 with
+          | none => ok calendar.Day.Overflow
+          | some d => ok (calendar.Day.Number d)
+
+/-- [cadence_kernel::calendar::days_ago]:
+    Source: 'crates/kernel/src/calendar.rs', lines 51:0-56:1
+    Visibility: public -/
+def calendar.days_ago
+  (today : Std.I64) («then» : Std.I64) : Result Std.I64 := do
+  if «then» >= today
+  then ok 0#i64
+  else
+    let o ← lift (I64.checked_sub today «then»)
+    ok (core.option.Option.unwrap_or o core.num.I64.MAX)
+
 /-- [cadence_kernel::checkpoint::Receipt]
     Source: 'crates/kernel/src/checkpoint.rs', lines 9:0-16:1
     Visibility: public -/

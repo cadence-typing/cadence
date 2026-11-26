@@ -2,7 +2,7 @@
 rfc: "2026-11-26-local-calendar-days"
 title: "Review days are local-calendar days with a recorded offset"
 status: accepted
-implementation: not-started
+implementation: complete
 authors:
   - claude-fable (grooming agent)
 created: 2026-11-26
@@ -74,3 +74,4 @@ For the owner (#52 stays `needs-owner` until answered; work proceeds on the defa
 ## Decision log
 
 - 2026-11-26: accepted by default under the owner's 2026-11-26 rule; owner may amend.
+- 2026-11-26: implemented on the recommended default (option a). Deviations: `local_day` takes the UTC time as `i64` (the app converts) and refuses a local time before the epoch as `Overflow`; `days_ago` returns `i64` (the `u32` conversions have no Aeneas model). A local time zone is "found" when `TZ` is set or `/etc/localtime` exists; otherwise days are UTC and the start screen says so. `due_words` replays sessions in (day, session) order so an offset change cannot make planning fail.

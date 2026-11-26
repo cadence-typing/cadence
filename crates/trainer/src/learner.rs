@@ -323,7 +323,12 @@ fn due_words(
 ) -> Result<Vec<WordId>, CoreError> {
     let ladder = &policy.review.interval_days;
     let mut states: BTreeMap<WordId, ReviewState> = BTreeMap::new();
-    for session in sessions {
+    // Replay in (day, session) order: after a change of UTC offset a later
+    // session's local day can be earlier than the previous one's (#52); the
+    // ladder must still see non-decreasing days.
+    let mut ordered: Vec<(usize, &HistoricSession)> = sessions.iter().enumerate().collect();
+    ordered.sort_by_key(|(index, session)| (session.day, *index));
+    for (_, session) in ordered {
         let day = UtcDay::from_days_since_epoch(session.day)?;
         for (word, tally) in &session.learning.words {
             let state = states.get(word).copied().unwrap_or_else(ReviewState::fresh);

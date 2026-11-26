@@ -172,15 +172,21 @@ pub use cadence_kernel::progress::credit_once;
 pub struct SessionProgress {
     /// Bounded profile identity.
     pub profile: String,
-    /// Local calendar day supplied at startup.
+    /// Local calendar day at session start (`calendar::local_day`, #52);
+    /// a UTC day for sessions recorded before schema 4.
     pub day: i64,
+    /// The UTC offset in minutes the day was counted in; `None` for
+    /// sessions recorded before schema 4 (#52). In the digest only when
+    /// present, so earlier receipts keep their digests.
+    #[serde(default)]
+    pub utc_offset_minutes: Option<i32>,
     /// Frozen policy digest.
     pub policy_digest: String,
     /// Frozen corpus digest.
     pub corpus_digest: String,
     /// Session disposition.
     pub status: ProgressStatus,
-    /// At most five distinct tracks.
+    /// At most six distinct tracks.
     pub tracks: Vec<TrackProgress>,
     /// Total session-active duration.
     pub active_micros: u64,
@@ -193,7 +199,10 @@ impl SessionProgress {
         if [&self.profile, &self.policy_digest, &self.corpus_digest]
             .iter()
             .any(|s| s.is_empty() || s.len() > 256 || s.chars().any(char::is_control))
-            || self.tracks.len() > 5
+            || self.tracks.len() > 6
+            || self
+                .utc_offset_minutes
+                .is_some_and(|m| m.unsigned_abs() > 18 * 60)
             || self.active_micros > cadence_kernel::progress::COUNTER_MAXIMUM
         {
             return Err(invalid());
@@ -239,8 +248,10 @@ pub struct Checkpoint {
     pub learning: Option<SessionLearning>,
 }
 /// Tag separating the v1 progress encoding from the learning section. Track
-/// bytes are 0..=4, so this byte can never begin another track record.
+/// bytes are 0..=5, so this byte can never begin another track record.
 const LEARNING_SECTION_TAG: u8 = 0xFF;
+/// Tag of the optional UTC-offset section (#52), after the tracks.
+const OFFSET_SECTION_TAG: u8 = 0xFE;
 impl Checkpoint {
     /// Validates and hashes a canonical, unambiguous binary encoding.
     /// # Errors
@@ -282,6 +293,10 @@ impl Checkpoint {
             for v in t.values() {
                 h.update(v.to_le_bytes());
             }
+        }
+        if let Some(offset) = progress.utc_offset_minutes {
+            h.update([OFFSET_SECTION_TAG]);
+            h.update(offset.to_le_bytes());
         }
         if let Some(learning) = &learning {
             h.update([LEARNING_SECTION_TAG]);
