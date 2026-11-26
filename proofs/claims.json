@@ -22,7 +22,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
         "lean:first.settle": "fnv1a64:566c72e13b472466",
@@ -101,7 +101,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:first.FirstCounts": "fnv1a64:951749e3ebb35e0b",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -177,7 +177,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:first.FirstCounts": "fnv1a64:951749e3ebb35e0b",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -253,7 +253,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:counters.matched": "fnv1a64:2ad1792852f58d8d",
         "mutant:matched-ignores-position": "fnv1a64:0529f9d47b522232",
@@ -310,7 +310,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -431,7 +431,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -487,7 +487,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.fraction": "fnv1a64:49e76f9c2e339bbe",
@@ -527,7 +527,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.MICROSECONDS_PER_MINUTE": "fnv1a64:0e6d1d8a66fb2711",
@@ -611,7 +611,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.MICROSECONDS_PER_MINUTE": "fnv1a64:0e6d1d8a66fb2711",
@@ -673,7 +673,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:ratio.BASIS_POINTS_FULL": "fnv1a64:599654242e42c614",
         "lean:ratio.BasisPoints": "fnv1a64:bda07eef227211d5",
@@ -755,7 +755,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:time.Through": "fnv1a64:2c7a5df47aa92b14",
         "lean:time.segment_active": "fnv1a64:2f71d90c8f3e62f6",
@@ -832,7 +832,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:time.in_window": "fnv1a64:9d5f256c9926dafd",
         "mutant:window-deadline-inclusive": "fnv1a64:7838167070585533",
@@ -884,7 +884,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:checkpoint.Admission": "fnv1a64:730283b1519f480c",
         "lean:checkpoint.Receipt": "fnv1a64:7f7df42fddf3f375",
@@ -893,6 +893,7 @@
         "mutant:admit-equal-sequence-applies": "fnv1a64:8fa4ed5724773913",
         "mutant:admit-replay-applies": "fnv1a64:6a6a00f1c88b40ff",
         "proof:Proofs/Checkpoint.lean": "fnv1a64:cf7b0658242bb81a",
+        "proof:Proofs/Queue.lean": "fnv1a64:0c3175e6d165c74c",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
@@ -973,7 +974,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:progress.COUNTER_MAXIMUM": "fnv1a64:3224be1f2d07a607",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1019,7 +1020,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
         "lean:progress.ordered": "fnv1a64:3488d8720654b667",
@@ -1064,7 +1065,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
         "lean:progress.split_fits": "fnv1a64:d649c86921960f7a",
@@ -1114,7 +1115,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:progress.COUNTER_MAXIMUM": "fnv1a64:3224be1f2d07a607",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1213,7 +1214,10 @@
         "Proofs.Session.review_is_terminal_for_typing",
         "Proofs.Session.completed_only_after_last_phase",
         "Proofs.Session.running_only_by_start_resume_or_next",
-        "Proofs.Session.invalidate_admitted"
+        "Proofs.Session.invalidate_admitted",
+        "Proofs.Session.stall_stops_clock",
+        "Proofs.Session.stall_changes_no_outcome",
+        "Proofs.Session.caught_up_only_from_paused"
       ],
       "total": "Proofs.Session.clock_runs_only_running",
       "subsumes": [],
@@ -1221,23 +1225,29 @@
         "pause-keeps-clock",
         "review-resumes",
         "early-end-completes",
-        "invalidate-refused-when-saved"
+        "invalidate-refused-when-saved",
+        "stall-keeps-clock",
+        "stall-marks-unfinished",
+        "caught-up-from-review"
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:session.Clock": "fnv1a64:f0e1666bc976be48",
-        "lean:session.Event": "fnv1a64:a84c9741bcb0cc46",
+        "lean:session.Event": "fnv1a64:243e3aea21d0e7fd",
         "lean:session.Outcome": "fnv1a64:74b9ab8ff93db5d9",
         "lean:session.State": "fnv1a64:5abe4a7f4446de1c",
         "lean:session.Step": "fnv1a64:b4c0e56c3843831d",
-        "lean:session.step": "fnv1a64:b031af1f9af9f856",
+        "lean:session.step": "fnv1a64:541180546f161988",
+        "mutant:caught-up-from-review": "fnv1a64:6ce52fe92b0fc234",
         "mutant:early-end-completes": "fnv1a64:34b2dfedd9fe758d",
         "mutant:invalidate-refused-when-saved": "fnv1a64:6e56eda7c81b2528",
-        "mutant:pause-keeps-clock": "fnv1a64:312553b131199493",
-        "mutant:review-resumes": "fnv1a64:0cd299f1e52ac7d3",
-        "proof:Proofs/Session.lean": "fnv1a64:9c3d929dc7a71a43",
+        "mutant:pause-keeps-clock": "fnv1a64:8a116e76b49b527c",
+        "mutant:review-resumes": "fnv1a64:9ebe9bc7efa031e2",
+        "mutant:stall-keeps-clock": "fnv1a64:cd10caf8e753c572",
+        "mutant:stall-marks-unfinished": "fnv1a64:377d3ab2d40173e3",
+        "proof:Proofs/Session.lean": "fnv1a64:592eb03217e2a1f0",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
@@ -1280,6 +1290,40 @@
           "direct": [
             "Proofs.Session.invalidate_admitted"
           ]
+        },
+        {
+          "mutant": "stall-keeps-clock",
+          "status": "killed",
+          "broken": [
+            "Proofs.Session.clock_runs_only_running",
+            "Proofs.Session.stall_stops_clock"
+          ],
+          "direct": [
+            "Proofs.Session.clock_runs_only_running",
+            "Proofs.Session.stall_stops_clock"
+          ]
+        },
+        {
+          "mutant": "stall-marks-unfinished",
+          "status": "killed",
+          "broken": [
+            "Proofs.Session.stall_changes_no_outcome"
+          ],
+          "direct": [
+            "Proofs.Session.stall_changes_no_outcome"
+          ]
+        },
+        {
+          "mutant": "caught-up-from-review",
+          "status": "killed",
+          "broken": [
+            "Proofs.Session.caught_up_only_from_paused",
+            "Proofs.Session.review_is_terminal_for_typing"
+          ],
+          "direct": [
+            "Proofs.Session.caught_up_only_from_paused",
+            "Proofs.Session.review_is_terminal_for_typing"
+          ]
         }
       ]
     },
@@ -1300,7 +1344,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:progress.Merge": "fnv1a64:9618b5d2b3688a0a",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1357,7 +1401,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:progress.credit_once": "fnv1a64:31f0ee098efec42e",
         "mutant:credit-allows-equal": "fnv1a64:97d7b603ca0e68dd",
@@ -1395,7 +1439,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -1457,7 +1501,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
         "lean:first.settle": "fnv1a64:566c72e13b472466",
@@ -1497,7 +1541,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_insert": "fnv1a64:f7361bb3530d6e3a",
@@ -1536,7 +1580,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_deletion": "fnv1a64:b3e8154528cdf7a8",
@@ -1575,7 +1619,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_interrupt": "fnv1a64:f351f7f2c614224f",
@@ -1614,7 +1658,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.clean": "fnv1a64:14037ade3f2de508",
@@ -1653,7 +1697,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:ledger.complete": "fnv1a64:710ade383499c619",
         "mutant:complete-ignores-tail": "fnv1a64:045cbb98d4e9de86",
@@ -1691,7 +1735,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:plan.Sum": "fnv1a64:d5ddda56f46bb138",
         "lean:plan.total": "fnv1a64:d4470cfbce1e33e6",
@@ -1745,7 +1789,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:plan.after_pick": "fnv1a64:e406a69939dd8f95",
         "lean:plan.beats": "fnv1a64:94647b5915bbd1af",
@@ -1755,6 +1799,7 @@
         "mutant:tie-to-higher-index": "fnv1a64:802ca6c4f1b0d863",
         "proof:Proofs/Counters.lean": "fnv1a64:b6ef300200461336",
         "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
+        "proof:Proofs/Focus.lean": "fnv1a64:fd46ac0df61cce65",
         "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
         "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
         "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
@@ -1811,7 +1856,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:f0b2cb4abf1b167b",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
       "inputs": {
         "lean:plan.Allocation": "fnv1a64:f445157ba4906118",
         "lean:plan.Sum": "fnv1a64:d5ddda56f46bb138",
@@ -1899,7 +1944,1514 @@
           ]
         }
       ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/select.rs",
+      "function": "select::utility",
+      "lean": "cadence_kernel.select.utility",
+      "theorems": [
+        "Proofs.Select.utility_spec",
+        "Proofs.Select.utility_in_range",
+        "Proofs.Select.utility_monotone"
+      ],
+      "total": "Proofs.Select.utility_spec",
+      "subsumes": [],
+      "mutants": [
+        "utility-unnormalized",
+        "utility-subtracts-hesitation"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:select.BASIS": "fnv1a64:486c3a7696ffac07",
+        "lean:select.Terms": "fnv1a64:d4617d12709bf9d2",
+        "lean:select.add": "fnv1a64:55d2edbb043a5d50",
+        "lean:select.cap": "fnv1a64:7ff84885cb503f62",
+        "lean:select.mul": "fnv1a64:a67ec8448101ae63",
+        "lean:select.utility": "fnv1a64:e577ae90f008f922",
+        "mutant:utility-subtracts-hesitation": "fnv1a64:d98f8e32572f25c1",
+        "mutant:utility-unnormalized": "fnv1a64:3306884da2aef1eb",
+        "proof:Proofs/Counters.lean": "fnv1a64:b6ef300200461336",
+        "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
+        "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
+        "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
+        "proof:Proofs/Select.lean": "fnv1a64:f4d18d3ee065b69f",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "utility-unnormalized",
+          "status": "killed",
+          "broken": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal",
+            "Proofs.Select.scan_spec",
+            "Proofs.Select.utility_in_range",
+            "Proofs.Select.utility_monotone",
+            "Proofs.Select.utility_spec"
+          ],
+          "direct": [
+            "Proofs.Select.utility_spec"
+          ],
+          "dependent": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_loop_spec",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal",
+            "Proofs.Select.scan_spec",
+            "Proofs.Select.scan_step",
+            "Proofs.Select.utility_in_range",
+            "Proofs.Select.utility_monotone"
+          ]
+        },
+        {
+          "mutant": "utility-subtracts-hesitation",
+          "status": "killed",
+          "broken": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal",
+            "Proofs.Select.scan_spec",
+            "Proofs.Select.utility_in_range",
+            "Proofs.Select.utility_monotone",
+            "Proofs.Select.utility_spec"
+          ],
+          "direct": [
+            "Proofs.Select.utility_spec"
+          ],
+          "dependent": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_loop_spec",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal",
+            "Proofs.Select.scan_spec",
+            "Proofs.Select.scan_step",
+            "Proofs.Select.utility_in_range",
+            "Proofs.Select.utility_monotone"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/select.rs",
+      "function": "select::scan",
+      "lean": "cadence_kernel.select.scan",
+      "theorems": [
+        "Proofs.Select.scan_spec",
+        "Proofs.Select.scan_only_eligible",
+        "Proofs.Select.scan_optimal",
+        "Proofs.Select.scan_none_iff_no_eligible",
+        "Proofs.Select.scan_bounded"
+      ],
+      "total": "Proofs.Select.scan_spec",
+      "subsumes": [],
+      "mutants": [
+        "scan-ignores-eligibility",
+        "scan-keeps-first",
+        "scan-drops-best",
+        "scan-bound-off-by-one"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:select.BASIS": "fnv1a64:486c3a7696ffac07",
+        "lean:select.Candidate": "fnv1a64:b43a8b9c52d9dfb9",
+        "lean:select.Scan": "fnv1a64:a9d5650da792e127",
+        "lean:select.Terms": "fnv1a64:d4617d12709bf9d2",
+        "lean:select.add": "fnv1a64:55d2edbb043a5d50",
+        "lean:select.beats": "fnv1a64:8c44c28eb278e6ac",
+        "lean:select.cap": "fnv1a64:7ff84885cb503f62",
+        "lean:select.greater": "fnv1a64:dcb5895c878b911f",
+        "lean:select.mul": "fnv1a64:a67ec8448101ae63",
+        "lean:select.scan": "fnv1a64:e929643d611204ac",
+        "lean:select.scan_loop": "fnv1a64:6b92743fd3cfda08",
+        "lean:select.scan_loop.body": "fnv1a64:4e8dc582371f3eb0",
+        "lean:select.utility": "fnv1a64:e577ae90f008f922",
+        "mutant:scan-bound-off-by-one": "fnv1a64:504b1e331cf9cdb4",
+        "mutant:scan-drops-best": "fnv1a64:bcc143b82a296a55",
+        "mutant:scan-ignores-eligibility": "fnv1a64:949bfeebf5de5483",
+        "mutant:scan-keeps-first": "fnv1a64:782f3ded88d32493",
+        "proof:Proofs/Counters.lean": "fnv1a64:b6ef300200461336",
+        "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
+        "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
+        "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
+        "proof:Proofs/Select.lean": "fnv1a64:f4d18d3ee065b69f",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "scan-ignores-eligibility",
+          "status": "killed",
+          "broken": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal",
+            "Proofs.Select.scan_spec"
+          ],
+          "direct": [
+            "Proofs.Select.scan_loop_spec"
+          ],
+          "dependent": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal",
+            "Proofs.Select.scan_spec"
+          ]
+        },
+        {
+          "mutant": "scan-keeps-first",
+          "status": "killed",
+          "broken": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal",
+            "Proofs.Select.scan_spec"
+          ],
+          "direct": [
+            "Proofs.Select.beats_spec"
+          ],
+          "dependent": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_loop_spec",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal",
+            "Proofs.Select.scan_spec",
+            "Proofs.Select.scan_step"
+          ]
+        },
+        {
+          "mutant": "scan-drops-best",
+          "status": "killed",
+          "broken": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal",
+            "Proofs.Select.scan_spec"
+          ],
+          "direct": [
+            "Proofs.Select.scan_spec"
+          ],
+          "dependent": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal"
+          ]
+        },
+        {
+          "mutant": "scan-bound-off-by-one",
+          "status": "killed",
+          "broken": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal",
+            "Proofs.Select.scan_spec"
+          ],
+          "direct": [
+            "Proofs.Select.scan_spec"
+          ],
+          "dependent": [
+            "Proofs.Select.scan_bounded",
+            "Proofs.Select.scan_none_iff_no_eligible",
+            "Proofs.Select.scan_only_eligible",
+            "Proofs.Select.scan_optimal"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/lanes.rs",
+      "function": "lanes::admissible",
+      "lean": "cadence_kernel.lanes.admissible",
+      "theorems": [
+        "Proofs.Lanes.admissible_spec"
+      ],
+      "total": "Proofs.Lanes.admissible_spec",
+      "subsumes": [],
+      "mutants": [
+        "word-cap-ignored",
+        "focus-cap-ignored",
+        "consecutive-cap-ignored"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:lanes.Admit": "fnv1a64:3f01c5f05f8f71ed",
+        "lean:lanes.Facts": "fnv1a64:6cdce9a2adbbd6ae",
+        "lean:lanes.admissible": "fnv1a64:dea4a7402c48297a",
+        "mutant:consecutive-cap-ignored": "fnv1a64:6e96b6b330089824",
+        "mutant:focus-cap-ignored": "fnv1a64:0cc998df1d3908fa",
+        "mutant:word-cap-ignored": "fnv1a64:3e229a77e028a83f",
+        "proof:Proofs/Lanes.lean": "fnv1a64:aaf4fdef22bdb874",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "word-cap-ignored",
+          "status": "killed",
+          "broken": [
+            "Proofs.Lanes.admissible_spec",
+            "Proofs.Lanes.consecutive_cap",
+            "Proofs.Lanes.focus_cap",
+            "Proofs.Lanes.never_overrun",
+            "Proofs.Lanes.record_refuses_inadmissible",
+            "Proofs.Lanes.record_spec",
+            "Proofs.Lanes.word_cap"
+          ],
+          "direct": [
+            "Proofs.Lanes.admissible_spec"
+          ],
+          "dependent": [
+            "Proofs.Lanes.consecutive_cap",
+            "Proofs.Lanes.focus_cap",
+            "Proofs.Lanes.never_overrun",
+            "Proofs.Lanes.record_refuses_inadmissible",
+            "Proofs.Lanes.record_spec",
+            "Proofs.Lanes.word_cap"
+          ]
+        },
+        {
+          "mutant": "focus-cap-ignored",
+          "status": "killed",
+          "broken": [
+            "Proofs.Lanes.admissible_spec",
+            "Proofs.Lanes.consecutive_cap",
+            "Proofs.Lanes.focus_cap",
+            "Proofs.Lanes.never_overrun",
+            "Proofs.Lanes.record_refuses_inadmissible",
+            "Proofs.Lanes.record_spec",
+            "Proofs.Lanes.word_cap"
+          ],
+          "direct": [
+            "Proofs.Lanes.admissible_spec"
+          ],
+          "dependent": [
+            "Proofs.Lanes.consecutive_cap",
+            "Proofs.Lanes.focus_cap",
+            "Proofs.Lanes.never_overrun",
+            "Proofs.Lanes.record_refuses_inadmissible",
+            "Proofs.Lanes.record_spec",
+            "Proofs.Lanes.word_cap"
+          ]
+        },
+        {
+          "mutant": "consecutive-cap-ignored",
+          "status": "killed",
+          "broken": [
+            "Proofs.Lanes.admissible_spec",
+            "Proofs.Lanes.consecutive_cap",
+            "Proofs.Lanes.focus_cap",
+            "Proofs.Lanes.never_overrun",
+            "Proofs.Lanes.record_refuses_inadmissible",
+            "Proofs.Lanes.record_spec",
+            "Proofs.Lanes.word_cap"
+          ],
+          "direct": [
+            "Proofs.Lanes.admissible_spec"
+          ],
+          "dependent": [
+            "Proofs.Lanes.consecutive_cap",
+            "Proofs.Lanes.focus_cap",
+            "Proofs.Lanes.never_overrun",
+            "Proofs.Lanes.record_refuses_inadmissible",
+            "Proofs.Lanes.record_spec",
+            "Proofs.Lanes.word_cap"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/lanes.rs",
+      "function": "lanes::record",
+      "lean": "cadence_kernel.lanes.record",
+      "theorems": [
+        "Proofs.Lanes.record_spec",
+        "Proofs.Lanes.never_overrun",
+        "Proofs.Lanes.word_cap",
+        "Proofs.Lanes.focus_cap",
+        "Proofs.Lanes.consecutive_cap",
+        "Proofs.Lanes.record_refuses_inadmissible"
+      ],
+      "total": "Proofs.Lanes.record_spec",
+      "subsumes": [],
+      "mutants": [
+        "quota-off-by-one",
+        "record-always-ok"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:lanes.Admit": "fnv1a64:3f01c5f05f8f71ed",
+        "lean:lanes.Facts": "fnv1a64:6cdce9a2adbbd6ae",
+        "lean:lanes.Record": "fnv1a64:b3a833effd18732d",
+        "lean:lanes.admissible": "fnv1a64:dea4a7402c48297a",
+        "lean:lanes.record": "fnv1a64:e42cc893c3cf2489",
+        "mutant:quota-off-by-one": "fnv1a64:6da9777beed9bc8d",
+        "mutant:record-always-ok": "fnv1a64:8c1369f3d057db57",
+        "proof:Proofs/Lanes.lean": "fnv1a64:aaf4fdef22bdb874",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "quota-off-by-one",
+          "status": "killed",
+          "broken": [
+            "Proofs.Lanes.consecutive_cap",
+            "Proofs.Lanes.focus_cap",
+            "Proofs.Lanes.never_overrun",
+            "Proofs.Lanes.record_refuses_inadmissible",
+            "Proofs.Lanes.record_spec",
+            "Proofs.Lanes.word_cap"
+          ],
+          "direct": [
+            "Proofs.Lanes.record_spec"
+          ],
+          "dependent": [
+            "Proofs.Lanes.consecutive_cap",
+            "Proofs.Lanes.focus_cap",
+            "Proofs.Lanes.never_overrun",
+            "Proofs.Lanes.record_refuses_inadmissible",
+            "Proofs.Lanes.word_cap"
+          ]
+        },
+        {
+          "mutant": "record-always-ok",
+          "status": "killed",
+          "broken": [
+            "Proofs.Lanes.consecutive_cap",
+            "Proofs.Lanes.focus_cap",
+            "Proofs.Lanes.never_overrun",
+            "Proofs.Lanes.record_refuses_inadmissible",
+            "Proofs.Lanes.record_spec",
+            "Proofs.Lanes.word_cap"
+          ],
+          "direct": [
+            "Proofs.Lanes.record_spec"
+          ],
+          "dependent": [
+            "Proofs.Lanes.consecutive_cap",
+            "Proofs.Lanes.focus_cap",
+            "Proofs.Lanes.never_overrun",
+            "Proofs.Lanes.record_refuses_inadmissible",
+            "Proofs.Lanes.word_cap"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/lanes.rs",
+      "function": "lanes::complete",
+      "lean": "cadence_kernel.lanes.complete",
+      "theorems": [
+        "Proofs.Lanes.complete_block_exact"
+      ],
+      "total": "Proofs.Lanes.complete_block_exact",
+      "subsumes": [],
+      "mutants": [
+        "complete-allows-under"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:lanes.complete": "fnv1a64:5a502d324ca354fe",
+        "mutant:complete-allows-under": "fnv1a64:d68a99c96f53f42b",
+        "proof:Proofs/Lanes.lean": "fnv1a64:aaf4fdef22bdb874",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "complete-allows-under",
+          "status": "killed",
+          "broken": [
+            "Proofs.Lanes.complete_block_exact"
+          ],
+          "direct": [
+            "Proofs.Lanes.complete_block_exact"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/review.rs",
+      "function": "review::ladder_step",
+      "lean": "cadence_kernel.review.ladder_step",
+      "theorems": [
+        "Proofs.Review.ladder_step_spec",
+        "Proofs.Review.error_resets",
+        "Proofs.Review.due_is_future",
+        "Proofs.Review.early_clean_is_practice",
+        "Proofs.Review.promotion_needs_two_days",
+        "Proofs.Review.rung_bounded",
+        "Proofs.Review.rollback_refused"
+      ],
+      "total": "Proofs.Review.ladder_step_spec",
+      "subsumes": [],
+      "mutants": [
+        "error-keeps-rung",
+        "due-today",
+        "early-clean-counts",
+        "same-day-promotes",
+        "first-clean-promotes",
+        "rung-wraps",
+        "rollback-accepted"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:review.FIRST_RUNG": "fnv1a64:1d97894f178b26b5",
+        "lean:review.State": "fnv1a64:c16cb4d5d44b818f",
+        "lean:review.Step": "fnv1a64:692dab2ca78c8a8c",
+        "lean:review.Streak": "fnv1a64:f4b482d7cba4c787",
+        "lean:review.ladder_step": "fnv1a64:57158bd1507f7cc0",
+        "lean:review.next_rung": "fnv1a64:216400a0d569da70",
+        "lean:review.next_streak": "fnv1a64:a03138dd009d39bf",
+        "lean:review.promotes": "fnv1a64:a1cd6c37528994ef",
+        "lean:review.rolled_back": "fnv1a64:8ab1d68f6f420162",
+        "lean:review.valid_ladder": "fnv1a64:ff83b9efe542f76f",
+        "lean:review.valid_ladder_loop": "fnv1a64:7880dc44032f7c19",
+        "lean:review.valid_ladder_loop.body": "fnv1a64:4a2e7f13423e99d8",
+        "mutant:due-today": "fnv1a64:975222d19cc81725",
+        "mutant:early-clean-counts": "fnv1a64:09f21d01e0a95f6a",
+        "mutant:error-keeps-rung": "fnv1a64:74caa9862c22c2bd",
+        "mutant:first-clean-promotes": "fnv1a64:8d96b2c29927e51b",
+        "mutant:rollback-accepted": "fnv1a64:503683f696fc5991",
+        "mutant:rung-wraps": "fnv1a64:402f0b6b0d040129",
+        "mutant:same-day-promotes": "fnv1a64:4c7e4be5da390a96",
+        "proof:Proofs/Lanes.lean": "fnv1a64:aaf4fdef22bdb874",
+        "proof:Proofs/Review.lean": "fnv1a64:fd57d3852f97529d",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "error-keeps-rung",
+          "status": "killed",
+          "broken": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.ladder_step_spec",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ],
+          "direct": [
+            "Proofs.Review.ladder_step_spec"
+          ],
+          "dependent": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ]
+        },
+        {
+          "mutant": "due-today",
+          "status": "killed",
+          "broken": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.ladder_step_spec",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ],
+          "direct": [
+            "Proofs.Review.ladder_step_spec"
+          ],
+          "dependent": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ]
+        },
+        {
+          "mutant": "early-clean-counts",
+          "status": "killed",
+          "broken": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.ladder_step_spec",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ],
+          "direct": [
+            "Proofs.Review.ladder_step_spec"
+          ],
+          "dependent": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ]
+        },
+        {
+          "mutant": "same-day-promotes",
+          "status": "killed",
+          "broken": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.ladder_step_spec",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ],
+          "direct": [
+            "Proofs.Review.promotes_spec"
+          ],
+          "dependent": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.ladder_step_spec",
+            "Proofs.Review.promotes_spec.mvcgen_spec",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ]
+        },
+        {
+          "mutant": "first-clean-promotes",
+          "status": "killed",
+          "broken": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.ladder_step_spec",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ],
+          "direct": [
+            "Proofs.Review.promotes_spec"
+          ],
+          "dependent": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.ladder_step_spec",
+            "Proofs.Review.promotes_spec.mvcgen_spec",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ]
+        },
+        {
+          "mutant": "rung-wraps",
+          "status": "killed",
+          "broken": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.ladder_step_spec",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ],
+          "direct": [
+            "Proofs.Review.next_rung_spec"
+          ],
+          "dependent": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.ladder_step_spec",
+            "Proofs.Review.next_rung_spec.mvcgen_spec",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ]
+        },
+        {
+          "mutant": "rollback-accepted",
+          "status": "killed",
+          "broken": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.ladder_step_spec",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rung_bounded"
+          ],
+          "direct": [
+            "Proofs.Review.rolled_back_spec"
+          ],
+          "dependent": [
+            "Proofs.Review.due_is_future",
+            "Proofs.Review.early_clean_is_practice",
+            "Proofs.Review.error_resets",
+            "Proofs.Review.ladder_step_spec",
+            "Proofs.Review.promotion_needs_two_days",
+            "Proofs.Review.rollback_refused",
+            "Proofs.Review.rolled_back_spec.mvcgen_spec",
+            "Proofs.Review.rung_bounded"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/review.rs",
+      "function": "review::is_due",
+      "lean": "cadence_kernel.review.is_due",
+      "theorems": [
+        "Proofs.Review.is_due_spec"
+      ],
+      "total": "Proofs.Review.is_due_spec",
+      "subsumes": [],
+      "mutants": [
+        "due-strictly-after"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:review.is_due": "fnv1a64:12f534ead6bf7151",
+        "mutant:due-strictly-after": "fnv1a64:07be8c1bac26d759",
+        "proof:Proofs/Lanes.lean": "fnv1a64:aaf4fdef22bdb874",
+        "proof:Proofs/Review.lean": "fnv1a64:fd57d3852f97529d",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "due-strictly-after",
+          "status": "killed",
+          "broken": [
+            "Proofs.Review.is_due_spec"
+          ],
+          "direct": [
+            "Proofs.Review.is_due_spec"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/queue.rs",
+      "function": "queue::admit",
+      "lean": "cadence_kernel.queue.admit",
+      "theorems": [
+        "Proofs.Queue.admit_spec",
+        "Proofs.Queue.admit_no_duplicate",
+        "Proofs.Queue.admit_bounded",
+        "Proofs.Queue.per_word_bound"
+      ],
+      "total": "Proofs.Queue.admit_spec",
+      "subsumes": [],
+      "mutants": [
+        "admit-duplicate",
+        "capacity-off-by-one",
+        "per-word-ignored"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:queue.Admit": "fnv1a64:b9993c8cebfe79ac",
+        "lean:queue.admit": "fnv1a64:5483f4571dddb3fc",
+        "mutant:admit-duplicate": "fnv1a64:11540a6d6bde9e28",
+        "mutant:capacity-off-by-one": "fnv1a64:db22df1301d06330",
+        "mutant:per-word-ignored": "fnv1a64:be1f1f05b931690f",
+        "proof:Proofs/Checkpoint.lean": "fnv1a64:cf7b0658242bb81a",
+        "proof:Proofs/Queue.lean": "fnv1a64:0c3175e6d165c74c",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "admit-duplicate",
+          "status": "killed",
+          "broken": [
+            "Proofs.Queue.admit_bounded",
+            "Proofs.Queue.admit_no_duplicate",
+            "Proofs.Queue.admit_spec",
+            "Proofs.Queue.per_word_bound"
+          ],
+          "direct": [
+            "Proofs.Queue.admit_spec"
+          ],
+          "dependent": [
+            "Proofs.Queue.admit_bounded",
+            "Proofs.Queue.admit_no_duplicate",
+            "Proofs.Queue.per_word_bound"
+          ]
+        },
+        {
+          "mutant": "capacity-off-by-one",
+          "status": "killed",
+          "broken": [
+            "Proofs.Queue.admit_bounded",
+            "Proofs.Queue.admit_no_duplicate",
+            "Proofs.Queue.admit_spec",
+            "Proofs.Queue.per_word_bound"
+          ],
+          "direct": [
+            "Proofs.Queue.admit_spec"
+          ],
+          "dependent": [
+            "Proofs.Queue.admit_bounded",
+            "Proofs.Queue.admit_no_duplicate",
+            "Proofs.Queue.per_word_bound"
+          ]
+        },
+        {
+          "mutant": "per-word-ignored",
+          "status": "killed",
+          "broken": [
+            "Proofs.Queue.admit_bounded",
+            "Proofs.Queue.admit_no_duplicate",
+            "Proofs.Queue.admit_spec",
+            "Proofs.Queue.per_word_bound"
+          ],
+          "direct": [
+            "Proofs.Queue.admit_spec"
+          ],
+          "dependent": [
+            "Proofs.Queue.admit_bounded",
+            "Proofs.Queue.admit_no_duplicate",
+            "Proofs.Queue.per_word_bound"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/label.rs",
+      "function": "label::of",
+      "lean": "cadence_kernel.label.of",
+      "theorems": [
+        "Proofs.Label.fresh_iff_unseen",
+        "Proofs.Label.again_is_reinforcement"
+      ],
+      "total": "Proofs.Label.fresh_iff_unseen",
+      "subsumes": [],
+      "mutants": [
+        "repeat-shown-fresh",
+        "cycle-not-labelled",
+        "again-for-due"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:label.Facts": "fnv1a64:673a83a88df8c890",
+        "lean:label.Label": "fnv1a64:a8f209a2f1328d61",
+        "lean:label.of": "fnv1a64:2c4512b13efdb783",
+        "mutant:again-for-due": "fnv1a64:78625c32b832f9f2",
+        "mutant:cycle-not-labelled": "fnv1a64:cbb45ea4157f19ec",
+        "mutant:repeat-shown-fresh": "fnv1a64:abcb92d6baecc0d0",
+        "proof:Proofs/Label.lean": "fnv1a64:9e09766026f99240",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "repeat-shown-fresh",
+          "status": "killed",
+          "broken": [
+            "Proofs.Label.fresh_iff_unseen"
+          ],
+          "direct": [
+            "Proofs.Label.fresh_iff_unseen"
+          ]
+        },
+        {
+          "mutant": "cycle-not-labelled",
+          "status": "killed",
+          "broken": [
+            "Proofs.Label.fresh_iff_unseen"
+          ],
+          "direct": [
+            "Proofs.Label.fresh_iff_unseen"
+          ]
+        },
+        {
+          "mutant": "again-for-due",
+          "status": "killed",
+          "broken": [
+            "Proofs.Label.again_is_reinforcement"
+          ],
+          "direct": [
+            "Proofs.Label.again_is_reinforcement"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/cycle.rs",
+      "function": "cycle::advance",
+      "lean": "cadence_kernel.cycle.advance",
+      "theorems": [
+        "Proofs.Label.wrap_exact",
+        "Proofs.Label.advance_total"
+      ],
+      "total": "Proofs.Label.advance_total",
+      "subsumes": [],
+      "mutants": [
+        "wrap-off-by-one"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:cycle.Advance": "fnv1a64:9a97d15aacc4fae6",
+        "lean:cycle.advance": "fnv1a64:22e169fb75e3e53b",
+        "mutant:wrap-off-by-one": "fnv1a64:5cc6e391adbfe7e7",
+        "proof:Proofs/Label.lean": "fnv1a64:9e09766026f99240",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "wrap-off-by-one",
+          "status": "killed",
+          "broken": [
+            "Proofs.Label.wrap_exact"
+          ],
+          "direct": [
+            "Proofs.Label.wrap_exact"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/slots.rs",
+      "function": "slots::substitute",
+      "lean": "cadence_kernel.slots.substitute",
+      "theorems": [
+        "Proofs.Slots.substitute_spec",
+        "Proofs.Slots.never_displaces_due",
+        "Proofs.Slots.never_displaces_target",
+        "Proofs.Slots.no_duplicate_in_exercise"
+      ],
+      "total": "Proofs.Slots.substitute_spec",
+      "subsumes": [],
+      "mutants": [
+        "substitute-any-review",
+        "substitute-target",
+        "substitute-ignores-present"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:slots.SlotLane": "fnv1a64:0033687e7600967f",
+        "lean:slots.substitute": "fnv1a64:8d4897b2a012968e",
+        "mutant:substitute-any-review": "fnv1a64:669b1618656a37d9",
+        "mutant:substitute-ignores-present": "fnv1a64:b6143eae1878de55",
+        "mutant:substitute-target": "fnv1a64:db5e322350f04402",
+        "proof:Proofs/Slots.lean": "fnv1a64:554ec779852b5720",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "substitute-any-review",
+          "status": "killed",
+          "broken": [
+            "Proofs.Slots.never_displaces_due",
+            "Proofs.Slots.substitute_spec"
+          ],
+          "direct": [
+            "Proofs.Slots.never_displaces_due",
+            "Proofs.Slots.substitute_spec"
+          ]
+        },
+        {
+          "mutant": "substitute-target",
+          "status": "killed",
+          "broken": [
+            "Proofs.Slots.never_displaces_due",
+            "Proofs.Slots.never_displaces_target",
+            "Proofs.Slots.substitute_spec"
+          ],
+          "direct": [
+            "Proofs.Slots.never_displaces_due",
+            "Proofs.Slots.never_displaces_target",
+            "Proofs.Slots.substitute_spec"
+          ]
+        },
+        {
+          "mutant": "substitute-ignores-present",
+          "status": "killed",
+          "broken": [
+            "Proofs.Slots.no_duplicate_in_exercise",
+            "Proofs.Slots.substitute_spec"
+          ],
+          "direct": [
+            "Proofs.Slots.no_duplicate_in_exercise",
+            "Proofs.Slots.substitute_spec"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/focus.rs",
+      "function": "focus::decay_weight",
+      "lean": "cadence_kernel.focus.decay_weight",
+      "theorems": [
+        "Proofs.Focus.decay_total",
+        "Proofs.Focus.decay_weight_spec",
+        "Proofs.Focus.decay_one_at_zero",
+        "Proofs.Focus.decay_halves",
+        "Proofs.Focus.decay_antitone"
+      ],
+      "total": "Proofs.Focus.decay_total",
+      "subsumes": [],
+      "mutants": [
+        "decay-grows",
+        "decay-skips-halving"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:focus.WEIGHT_ONE": "fnv1a64:f041aae5636e8f91",
+        "lean:focus.decay_weight": "fnv1a64:ffcf647340cf1984",
+        "lean:focus.halved": "fnv1a64:72ab21220e0fc13d",
+        "lean:focus.halved_loop": "fnv1a64:d310a77a9bb6f39a",
+        "lean:focus.halved_loop.body": "fnv1a64:d97e9123eaa58091",
+        "mutant:decay-grows": "fnv1a64:021f35029c721daa",
+        "mutant:decay-skips-halving": "fnv1a64:305c5dc91c9c6a5e",
+        "proof:Proofs/Counters.lean": "fnv1a64:b6ef300200461336",
+        "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
+        "proof:Proofs/Focus.lean": "fnv1a64:fd46ac0df61cce65",
+        "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
+        "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "decay-grows",
+          "status": "killed",
+          "broken": [
+            "Proofs.Focus.decay_antitone",
+            "Proofs.Focus.decay_halves",
+            "Proofs.Focus.decay_one_at_zero",
+            "Proofs.Focus.decay_weight_spec"
+          ],
+          "direct": [
+            "Proofs.Focus.decay_weight_spec"
+          ],
+          "dependent": [
+            "Proofs.Focus.decay_antitone",
+            "Proofs.Focus.decay_halves",
+            "Proofs.Focus.decay_one_at_zero"
+          ]
+        },
+        {
+          "mutant": "decay-skips-halving",
+          "status": "killed",
+          "broken": [
+            "Proofs.Focus.decay_antitone",
+            "Proofs.Focus.decay_halves",
+            "Proofs.Focus.decay_one_at_zero",
+            "Proofs.Focus.decay_total",
+            "Proofs.Focus.decay_weight_spec"
+          ],
+          "direct": [
+            "Proofs.Focus.halved_loop_spec"
+          ],
+          "dependent": [
+            "Proofs.Focus.decay_antitone",
+            "Proofs.Focus.decay_halves",
+            "Proofs.Focus.decay_one_at_zero",
+            "Proofs.Focus.decay_total",
+            "Proofs.Focus.decay_weight_spec",
+            "Proofs.Focus.halved_spec"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/focus.rs",
+      "function": "focus::posterior_bp",
+      "lean": "cadence_kernel.focus.posterior_bp",
+      "theorems": [
+        "Proofs.Focus.posterior_total",
+        "Proofs.Focus.posterior_spec",
+        "Proofs.Focus.posterior_in_range",
+        "Proofs.Focus.posterior_prior_at_zero",
+        "Proofs.Focus.posterior_monotone_errors"
+      ],
+      "total": "Proofs.Focus.posterior_total",
+      "subsumes": [],
+      "mutants": [
+        "posterior-drops-prior"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
+        "lean:focus.WEIGHT_ONE": "fnv1a64:f041aae5636e8f91",
+        "lean:focus.posterior_bp": "fnv1a64:684c64d74e60b1e4",
+        "mutant:posterior-drops-prior": "fnv1a64:75db1e5d8742deb1",
+        "proof:Proofs/Counters.lean": "fnv1a64:b6ef300200461336",
+        "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
+        "proof:Proofs/Focus.lean": "fnv1a64:fd46ac0df61cce65",
+        "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
+        "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "posterior-drops-prior",
+          "status": "killed",
+          "broken": [
+            "Proofs.Focus.posterior_in_range",
+            "Proofs.Focus.posterior_monotone_errors",
+            "Proofs.Focus.posterior_prior_at_zero",
+            "Proofs.Focus.posterior_spec",
+            "Proofs.Focus.posterior_total"
+          ],
+          "direct": [
+            "Proofs.Focus.posterior_spec",
+            "Proofs.Focus.posterior_total"
+          ],
+          "dependent": [
+            "Proofs.Focus.posterior_in_range",
+            "Proofs.Focus.posterior_monotone_errors",
+            "Proofs.Focus.posterior_prior_at_zero"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/focus.rs",
+      "function": "focus::hesitation_bp",
+      "lean": "cadence_kernel.focus.hesitation_bp",
+      "theorems": [
+        "Proofs.Focus.hesitation_in_range",
+        "Proofs.Focus.hesitation_needs_samples"
+      ],
+      "total": "Proofs.Focus.hesitation_in_range",
+      "subsumes": [],
+      "mutants": [
+        "hesitation-ignores-minimum"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
+        "lean:focus.hesitation_bp": "fnv1a64:d4f9b13ad524db46",
+        "mutant:hesitation-ignores-minimum": "fnv1a64:b2efb52897d4544c",
+        "proof:Proofs/Counters.lean": "fnv1a64:b6ef300200461336",
+        "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
+        "proof:Proofs/Focus.lean": "fnv1a64:fd46ac0df61cce65",
+        "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
+        "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "hesitation-ignores-minimum",
+          "status": "killed",
+          "broken": [
+            "Proofs.Focus.hesitation_in_range",
+            "Proofs.Focus.hesitation_needs_samples"
+          ],
+          "direct": [
+            "Proofs.Focus.hesitation_in_range",
+            "Proofs.Focus.hesitation_needs_samples"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/focus.rs",
+      "function": "focus::qualifies",
+      "lean": "cadence_kernel.focus.qualifies",
+      "theorems": [
+        "Proofs.Focus.qualifies_spec",
+        "Proofs.Focus.signal_spec",
+        "Proofs.Focus.sparse_never_qualifies",
+        "Proofs.Focus.quiet_never_qualifies"
+      ],
+      "total": "Proofs.Focus.qualifies_spec",
+      "subsumes": [],
+      "mutants": [
+        "sparse-qualifies",
+        "threshold-inverted"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
+        "lean:focus.Candidate": "fnv1a64:d50854a69c29d3fb",
+        "lean:focus.Thresholds": "fnv1a64:8a12532b7c0cfb07",
+        "lean:focus.above": "fnv1a64:64680e1fe11ed491",
+        "lean:focus.qualifies": "fnv1a64:37a2e7b112eaebcd",
+        "lean:focus.signal": "fnv1a64:691cc67ce94c0257",
+        "lean:focus.weighted": "fnv1a64:b7b87a6c21aaca4e",
+        "mutant:sparse-qualifies": "fnv1a64:b6fc2b5c945b5123",
+        "mutant:threshold-inverted": "fnv1a64:d3b88441f935f792",
+        "proof:Proofs/Counters.lean": "fnv1a64:b6ef300200461336",
+        "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
+        "proof:Proofs/Focus.lean": "fnv1a64:fd46ac0df61cce65",
+        "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
+        "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "sparse-qualifies",
+          "status": "killed",
+          "broken": [
+            "Proofs.Focus.pick_maximal",
+            "Proofs.Focus.pick_sound",
+            "Proofs.Focus.pick_spec",
+            "Proofs.Focus.qualifies_spec",
+            "Proofs.Focus.quiet_never_qualifies",
+            "Proofs.Focus.sparse_never_qualifies"
+          ],
+          "direct": [
+            "Proofs.Focus.qualifies_spec",
+            "Proofs.Focus.quiet_never_qualifies",
+            "Proofs.Focus.sparse_never_qualifies"
+          ],
+          "dependent": [
+            "Proofs.Focus.pick_loop_spec",
+            "Proofs.Focus.pick_maximal",
+            "Proofs.Focus.pick_sound",
+            "Proofs.Focus.pick_spec",
+            "Proofs.Focus.pick_step"
+          ]
+        },
+        {
+          "mutant": "threshold-inverted",
+          "status": "killed",
+          "broken": [
+            "Proofs.Focus.pick_maximal",
+            "Proofs.Focus.pick_sound",
+            "Proofs.Focus.pick_spec",
+            "Proofs.Focus.qualifies_spec",
+            "Proofs.Focus.quiet_never_qualifies",
+            "Proofs.Focus.signal_spec"
+          ],
+          "direct": [
+            "Proofs.Focus.above_spec"
+          ],
+          "dependent": [
+            "Proofs.Focus.pick_loop_spec",
+            "Proofs.Focus.pick_maximal",
+            "Proofs.Focus.pick_sound",
+            "Proofs.Focus.pick_spec",
+            "Proofs.Focus.pick_step",
+            "Proofs.Focus.qualifies_spec",
+            "Proofs.Focus.quiet_never_qualifies",
+            "Proofs.Focus.signal_quiet",
+            "Proofs.Focus.signal_spec"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/focus.rs",
+      "function": "focus::pick",
+      "lean": "cadence_kernel.focus.pick",
+      "theorems": [
+        "Proofs.Focus.pick_spec",
+        "Proofs.Focus.pick_sound",
+        "Proofs.Focus.pick_maximal"
+      ],
+      "total": "Proofs.Focus.pick_spec",
+      "subsumes": [],
+      "mutants": [
+        "pick-ignores-chosen",
+        "pick-first-not-best"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
+        "lean:focus.Candidate": "fnv1a64:d50854a69c29d3fb",
+        "lean:focus.Thresholds": "fnv1a64:8a12532b7c0cfb07",
+        "lean:focus.above": "fnv1a64:64680e1fe11ed491",
+        "lean:focus.beats": "fnv1a64:117b53236e8a1012",
+        "lean:focus.pick": "fnv1a64:d64a931f68cdc0e3",
+        "lean:focus.pick_loop": "fnv1a64:aed314da478666de",
+        "lean:focus.pick_loop.body": "fnv1a64:b621f5d33420fa81",
+        "lean:focus.qualifies": "fnv1a64:37a2e7b112eaebcd",
+        "lean:focus.signal": "fnv1a64:691cc67ce94c0257",
+        "lean:focus.taken": "fnv1a64:1c1505a8149d4a8e",
+        "lean:focus.weighted": "fnv1a64:b7b87a6c21aaca4e",
+        "mutant:pick-first-not-best": "fnv1a64:396bee4a4c47295e",
+        "mutant:pick-ignores-chosen": "fnv1a64:7fd9f3f41accbea4",
+        "proof:Proofs/Counters.lean": "fnv1a64:b6ef300200461336",
+        "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
+        "proof:Proofs/Focus.lean": "fnv1a64:fd46ac0df61cce65",
+        "proof:Proofs/Ledger.lean": "fnv1a64:00aab5aea33c77b1",
+        "proof:Proofs/Plan.lean": "fnv1a64:eb40c451180f65f9",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "pick-ignores-chosen",
+          "status": "killed",
+          "broken": [
+            "Proofs.Focus.pick_maximal",
+            "Proofs.Focus.pick_sound",
+            "Proofs.Focus.pick_spec"
+          ],
+          "direct": [
+            "Proofs.Focus.pick_loop_spec",
+            "Proofs.Focus.pick_spec"
+          ],
+          "dependent": [
+            "Proofs.Focus.pick_maximal",
+            "Proofs.Focus.pick_sound"
+          ]
+        },
+        {
+          "mutant": "pick-first-not-best",
+          "status": "killed",
+          "broken": [
+            "Proofs.Focus.pick_maximal",
+            "Proofs.Focus.pick_sound",
+            "Proofs.Focus.pick_spec"
+          ],
+          "direct": [
+            "Proofs.Focus.beats_spec"
+          ],
+          "dependent": [
+            "Proofs.Focus.pick_loop_spec",
+            "Proofs.Focus.pick_maximal",
+            "Proofs.Focus.pick_sound",
+            "Proofs.Focus.pick_spec",
+            "Proofs.Focus.pick_step"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/evidence.rs",
+      "function": "evidence::pair_first_correct",
+      "lean": "cadence_kernel.evidence.pair_first_correct",
+      "theorems": [
+        "Proofs.Evidence.pair_correct_iff_both"
+      ],
+      "total": "Proofs.Evidence.pair_correct_iff_both",
+      "subsumes": [],
+      "mutants": [
+        "pair-ignores-previous"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:evidence.pair_first_correct": "fnv1a64:da49bcb3429347e7",
+        "lean:first.Slot": "fnv1a64:612131c91c8a4949",
+        "mutant:pair-ignores-previous": "fnv1a64:911cefc308fe61bc",
+        "proof:Proofs/Evidence.lean": "fnv1a64:6b01609094b5b9d3",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "pair-ignores-previous",
+          "status": "killed",
+          "broken": [
+            "Proofs.Evidence.pair_correct_iff_both"
+          ],
+          "direct": [
+            "Proofs.Evidence.pair_correct_iff_both"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/evidence.rs",
+      "function": "evidence::clean_interval",
+      "lean": "cadence_kernel.evidence.clean_interval",
+      "theorems": [
+        "Proofs.Evidence.interval_reason_exact",
+        "Proofs.Evidence.interval_timed_iff"
+      ],
+      "total": "Proofs.Evidence.interval_reason_exact",
+      "subsumes": [],
+      "mutants": [
+        "interval-crosses-pause",
+        "interval-zero-gap",
+        "interval-nonadjacent",
+        "interval-on-error",
+        "ceiling-off-by-one"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:evidence.Interval": "fnv1a64:45e981a88b5a441f",
+        "lean:evidence.Mark": "fnv1a64:c4adda42a9844404",
+        "lean:evidence.clean_interval": "fnv1a64:ea767227c5b1409f",
+        "mutant:ceiling-off-by-one": "fnv1a64:35c189c84be0c040",
+        "mutant:interval-crosses-pause": "fnv1a64:861de9a8111f527b",
+        "mutant:interval-nonadjacent": "fnv1a64:aa445ca2f132bec9",
+        "mutant:interval-on-error": "fnv1a64:a2d2d5422a0ef7fc",
+        "mutant:interval-zero-gap": "fnv1a64:dcd307f13ec4d87c",
+        "proof:Proofs/Evidence.lean": "fnv1a64:6b01609094b5b9d3",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "interval-crosses-pause",
+          "status": "killed",
+          "broken": [
+            "Proofs.Evidence.interval_reason_exact",
+            "Proofs.Evidence.interval_timed_iff"
+          ],
+          "direct": [
+            "Proofs.Evidence.interval_reason_exact"
+          ],
+          "dependent": [
+            "Proofs.Evidence.interval_timed_iff"
+          ]
+        },
+        {
+          "mutant": "interval-zero-gap",
+          "status": "killed",
+          "broken": [
+            "Proofs.Evidence.interval_reason_exact",
+            "Proofs.Evidence.interval_timed_iff"
+          ],
+          "direct": [
+            "Proofs.Evidence.interval_reason_exact"
+          ],
+          "dependent": [
+            "Proofs.Evidence.interval_timed_iff"
+          ]
+        },
+        {
+          "mutant": "interval-nonadjacent",
+          "status": "killed",
+          "broken": [
+            "Proofs.Evidence.interval_reason_exact",
+            "Proofs.Evidence.interval_timed_iff"
+          ],
+          "direct": [
+            "Proofs.Evidence.interval_reason_exact"
+          ],
+          "dependent": [
+            "Proofs.Evidence.interval_timed_iff"
+          ]
+        },
+        {
+          "mutant": "interval-on-error",
+          "status": "killed",
+          "broken": [
+            "Proofs.Evidence.interval_reason_exact",
+            "Proofs.Evidence.interval_timed_iff"
+          ],
+          "direct": [
+            "Proofs.Evidence.interval_reason_exact"
+          ],
+          "dependent": [
+            "Proofs.Evidence.interval_timed_iff"
+          ]
+        },
+        {
+          "mutant": "ceiling-off-by-one",
+          "status": "killed",
+          "broken": [
+            "Proofs.Evidence.interval_reason_exact",
+            "Proofs.Evidence.interval_timed_iff"
+          ],
+          "direct": [
+            "Proofs.Evidence.interval_reason_exact"
+          ],
+          "dependent": [
+            "Proofs.Evidence.interval_timed_iff"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/session.rs",
+      "function": "session::overdue",
+      "lean": "cadence_kernel.session.overdue",
+      "theorems": [
+        "Proofs.Session.overdue_spec"
+      ],
+      "total": "Proofs.Session.overdue_spec",
+      "subsumes": [],
+      "mutants": [
+        "overdue-inclusive"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:a23325d2e9026573",
+      "inputs": {
+        "lean:session.overdue": "fnv1a64:2fc58f54c8223027",
+        "mutant:overdue-inclusive": "fnv1a64:38807d8e5fe10591",
+        "proof:Proofs/Session.lean": "fnv1a64:592eb03217e2a1f0",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "overdue-inclusive",
+          "status": "killed",
+          "broken": [
+            "Proofs.Session.overdue_spec"
+          ],
+          "direct": [
+            "Proofs.Session.overdue_spec"
+          ]
+        }
+      ]
     }
   ],
-  "commit": "b373ff77a0562e0d2042baa65ba3ce973464a1cb"
+  "commit": "4da39a6db00cef95f20ba8100c12ae590ed50271"
 }

@@ -2,7 +2,7 @@
 rfc: "2026-11-26-practice-decisions-in-the-kernel"
 title: "Practice decisions in the kernel"
 status: accepted
-implementation: in-progress
+implementation: complete
 authors:
   - tknawara
   - claude-fable (review agent)
@@ -176,3 +176,4 @@ None blocking. Owner may amend: the interpolation used for decay, and the label 
 - 2026-11-26: accepted by default under the owner's 2026-11-26 rule; owner may amend.
 - 2026-11-26: regroomed. Milestone moved to 0.1.0-alpha.6. Queue admission split from #37 into #55; focus `qualifies`/`pick` split from #38 into #56; `slots::substitute` moved from #39 into #43; amended by the evidence and repeat-gap RFC (#54). Every kernel function lands with its production caller.
 - 2026-11-26: #34 (`plan::allocate`) implemented; `total`, `pick`, `shares`, `hand_out` are separate translated helpers, and the tie theorem is stated on `pick`.
+- 2026-11-26: implemented on `main` for 0.1.0-alpha.6: #34 `eff7694`, #35–#37 and #55 `52592de`, #38/#56 and #39/#43 `4a1cc1f`. Deviations: `select::scan` returns an index (the adapter maps it to the `WordId`, so an invalid id can no longer become "no candidate"); `lanes::record` refuses with the rule that failed; `review::ladder_step` takes the outcome day only (the "future completion" guard was vacuous with `today = day`); `focus::weighted` caps both factors at 10,000 instead of saturating (`saturating_mul` has no Aeneas model); `slots::substitute` also refuses a broad slot holding a due review; the engine offers every lane to it, target last.

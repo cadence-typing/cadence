@@ -1,6 +1,6 @@
 # Cadence implementation and feedback-build status
 
-`0.1.0-alpha.5` is an **unsigned development preview**, not a P8-qualified
+`0.1.0-alpha.6` is an **unsigned development preview**, not a P8-qualified
 release. Earlier commit messages overstated P0–P2 completion: passing tests,
 ASCII filtering, and documentation of intended proofs did not discharge the
 handover's proof, vocabulary-vetting, adaptation, or qualification obligations.
@@ -33,7 +33,9 @@ review); losing terminal focus or pasting pauses the same way, and a paste
 inserts nothing. F2 cycles Auto → Large → Normal. Ctrl-C during practice ends
 the session and shows the review (saved as unfinished); on the review, Enter
 saves and exits after the final acknowledgement and prints a one-line recap.
-On the start screen `q` or Ctrl-C quits without recording anything. A save failure pauses practice: `r` retries; an explicit
+On the start screen `q` or Ctrl-C quits without recording anything. A save
+not acknowledged within 2 seconds pauses practice ("Saving is slow; the clock
+is stopped") and resumes by itself when it completes. A save failure pauses practice: `r` retries; an explicit
 unsuccessful exit retains only acknowledged progress. Final flush has a
 10-second watchdog and returns non-success rather than hanging or claiming a
 save without an acknowledgement. The normal profile is
@@ -58,6 +60,37 @@ resume a mid-word exercise or claim an uninterrupted timing trial. Store schema
 2 safely refuses a populated historical draft schema 1 rather than inventing
 measurements or resetting it. Keep that file and use a new explicit profile
 for feedback if such a draft database exists.
+
+## Alpha.6 proved practice decisions
+
+[RFC: practice decisions in the kernel](docs/rfcs/2026-11-26-practice-decisions-in-the-kernel.md),
+[evidence and repeat-gap decisions](docs/rfcs/2026-11-26-evidence-and-repeat-gap-decisions.md),
+[slow save pauses practice](docs/rfcs/2026-11-26-slow-save-pauses-practice.md) and
+[release bundles from a tag](docs/rfcs/2026-11-26-release-bundles-from-a-tag.md).
+
+- **Every practice decision is a proved kernel function that production
+  calls.** Phase allocation (VK-03), candidate utility and the bounded scan
+  (VK-04), block quotas and caps (VK-05), the review ladder and reinforcement
+  admission (VK-06), integer focus selection (decay, posterior, hesitation,
+  qualification, pick), where a missed word is re-served, item labels and list
+  cycling, and evidence attribution. The proof gate and its mutants are in
+  [docs/TAUTEN.md](docs/TAUTEN.md).
+- **The feedback loop is modelled.** `models/FeedbackLoop.tla` (observe,
+  checkpoint, end or crash, replay through the ladder, plan, serve) is mapped
+  to production with six invariants, a liveness property and seven mutants;
+  the save protocol and session flow models gained the slow-save stall.
+- **Fixes.** A re-served miss no longer appears twice in one exercise or
+  displaces a due review (#43); sampled slots no longer repeat words within
+  minutes (#44); a transition counts as correct only when both keys were (#42);
+  a timing sample never spans a pause and a zero gap is not timed (#41); a slow
+  save pauses instead of invalidating the session (#51).
+- **Plans for a given seed changed** (#44 sampling, #38 integer focus); scores
+  are computed exactly as before.
+- **Releases are built in public CI from the tag** (#3): two clean builds must
+  produce identical checksums, and the Lean proof gate runs for the tagged
+  commit before the pre-release is published and test-installed.
+
+No schema change.
 
 ## Alpha.5 calm flow and honest results
 
@@ -189,7 +222,7 @@ this refresh.
 |---|---|---|
 | P0 / A-01, B-02 | in_progress | Pinned Rust image/toolchain, Cargo lock, musl C compiler, architecture feedback check. Proof-tool compatibility, full dependency/security audit and shared CI admission remain unqualified. |
 | P1 / L-02–03, VK-01–02 | implemented, behavior checked | `core/{ledger,metrics,session}`, `engine/{practice,presentation}`; scoring fixtures/properties and live corrected-entry smoke. The scoring decisions now live in `crates/kernel`, which production calls and which carries Lean theorems over its Aeneas translation (first-attempt write-once, counters, pace and accuracy arithmetic, active time, track validity, checkpoint admission); see [docs/TAUTEN.md](docs/TAUTEN.md) for each claim's badge. Ledger plumbing around the kernel stays tested. |
-| P2 / P-02–04, VK-03–06 | in_progress | `core/plan` (VK-03 allocation is the proved `kernel::plan::allocate`, #34), `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Pace hysteresis (`pace.rs`) and benchmark probes remain unwired; numeric tracks are not adapted; retention/benchmark comparisons and 20k vetted vocabulary acceptance remain unfinished. |
+| P2 / P-02–04, VK-03–06 | in_progress | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Pace hysteresis (`pace.rs`) and benchmark probes remain unwired; numeric tracks are not adapted; retention/benchmark comparisons and 20k vetted vocabulary acceptance remain unfinished. |
 | P3 / D-01–02, VP-01–03 | in_progress | `core/{progress,learning}`, `data/{store,schema,records,learning_rows,files,transfer}`, schema 3 with migration/round-trip/regression tests, `engine/storage`, `runtime/writer`. One retained writer/result slot, full-key admission, checkpoints, retry, lock, reopen, backup/export implemented. General job-registry/async planner, immutable observation chunks, full crash/storage campaigns and formal correspondence remain unfinished. |
 | P4 / H-01–04, VP-04–05 | pending | No shipped NDJSON driver, causal/durable barriers or replay. Shared cell/row-rendition capture is rendering evidence, not a completed headless protocol. |
 | P5 / U-01–05 | in_progress | `engine/{view,summary}`, `tui/{paint,stages,stages/results,stages/headlines,modeline,practice,native_text}` share cells plus native row metadata; `runtime/{presenter,text_protocol}` present and negotiate it. Reducer/summary regressions preserve correction history, weighted metrics, timing and resize pause. Full destinations/settings/layout setup, imports and editable themes remain unfinished. |
