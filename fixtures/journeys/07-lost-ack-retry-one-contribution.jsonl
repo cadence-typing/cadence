@@ -1,0 +1,23 @@
+{"build":"0.1.0-alpha.7","capabilities":{"keyboard":"normalized","terminal":"test-backend"},"clock":"virtual","record_content":true,"services":"fixture-or-profile","trace_version":1,"type":"header"}
+{"line":{"args":{"fixture_delivery":"manual","scenario":"scoring-cat"},"id":"1","op":"hello","v":1},"type":"request"}
+{"line":{"id":"1","ok":true,"result":{"clock":"virtual","event_seq":"2","limits":{"line_bytes":1048576,"response_cache":1024,"text_units":8192},"scenario":"scoring-cat","state_revision":"2","version":"0.1.0-alpha.7","view_digest":"b672d92652c56de007a38c58dcffeef5"},"v":1},"type":"response"}
+{"line":{"args":{"name":"StartDrill"},"id":"2","op":"action","v":1},"type":"request"}
+{"line":{"id":"2","ok":true,"result":{"event_seq":"3","state_revision":"3","view_digest":"52f604d0e87ed0d3a4d04c8f2a15cc30"},"v":1},"type":"response"}
+{"line":{"args":{"inter_key_microseconds":300000,"text":"cat"},"id":"3","op":"text","v":1},"type":"request"}
+{"line":{"id":"3","ok":true,"result":{"event_seq":"8","state_revision":"8","view_digest":"86ea56e7a424e75b5a4b2fefbc06e7c2"},"v":1},"type":"response"}
+{"line":{"args":{},"id":"4","op":"snapshot","v":1},"type":"request"}
+{"line":{"id":"4","ok":true,"result":{"active_micros":"600000","available_actions":["Pause"],"elapsed_micros":"600001","ended_early":false,"event_seq":"8","input_owner":"Practice","pending_jobs":["1"],"plan_basis":"cold_start","screen":"practice","state_revision":"8","tracks":[{"active_micros":"600000","attempt":{"attempted":"3","correct":"3"},"deletions":"0","first_pass":{"attempted":"3","correct":"3"},"track":"adaptive words"}],"view_digest":"86ea56e7a424e75b5a4b2fefbc06e7c2"},"v":1},"type":"response"}
+{"line":{"args":{"job_id":"1","variant":"failure"},"id":"5","op":"deliver","v":1},"type":"request"}
+{"line":{"id":"5","ok":true,"result":{"event_seq":"9","state_revision":"9","view_digest":"831b6897abaf68cef8f79296cb7bc375"},"v":1},"type":"response"}
+{"line":{"args":{},"id":"6","op":"snapshot","v":1},"type":"request"}
+{"line":{"id":"6","ok":true,"result":{"active_micros":"600000","available_actions":["Resume"],"elapsed_micros":"600001","ended_early":false,"event_seq":"9","input_owner":"Navigation","pending_jobs":[],"plan_basis":"cold_start","screen":"practice","state_revision":"9","tracks":[{"active_micros":"600000","attempt":{"attempted":"3","correct":"3"},"deletions":"0","first_pass":{"attempted":"3","correct":"3"},"track":"adaptive words"}],"view_digest":"831b6897abaf68cef8f79296cb7bc375"},"v":1},"type":"response"}
+{"line":{"args":{"key":"r","kind":"press","modifiers":[],"source":"unverified"},"id":"7","op":"key","v":1},"type":"request"}
+{"line":{"id":"7","ok":true,"result":{"event_seq":"10","state_revision":"10","view_digest":"d92fe591174213502ddb48f9c3cdb2cb"},"v":1},"type":"response"}
+{"line":{"args":{},"id":"8","op":"snapshot","v":1},"type":"request"}
+{"line":{"id":"8","ok":true,"result":{"active_micros":"600000","available_actions":["Resume"],"elapsed_micros":"600001","ended_early":false,"event_seq":"10","input_owner":"Navigation","pending_jobs":["2"],"plan_basis":"cold_start","screen":"practice","state_revision":"10","tracks":[{"active_micros":"600000","attempt":{"attempted":"3","correct":"3"},"deletions":"0","first_pass":{"attempted":"3","correct":"3"},"track":"adaptive words"}],"view_digest":"d92fe591174213502ddb48f9c3cdb2cb"},"v":1},"type":"response"}
+{"line":{"args":{"job_id":"2","variant":"duplicate"},"id":"9","op":"deliver","v":1},"type":"request"}
+{"line":{"id":"9","ok":true,"result":{"durable_commit_seq":"2","event_seq":"12","state_revision":"12","view_digest":"08484b32c0b88fe56b8248908238195d"},"v":1},"type":"response"}
+{"line":{"args":{},"id":"10","op":"snapshot","v":1},"type":"request"}
+{"line":{"id":"10","ok":true,"result":{"active_micros":"600000","available_actions":["Resume"],"durable_commit_seq":"2","elapsed_micros":"600001","ended_early":false,"event_seq":"12","input_owner":"Navigation","pending_jobs":[],"plan_basis":"cold_start","screen":"practice","state_revision":"12","tracks":[{"active_micros":"600000","attempt":{"attempted":"3","correct":"3"},"deletions":"0","first_pass":{"attempted":"3","correct":"3"},"track":"adaptive words"}],"view_digest":"08484b32c0b88fe56b8248908238195d"},"v":1},"type":"response"}
+{"line":{"args":{"flush":true},"id":"18446744073709551615","op":"quit","v":1},"type":"request"}
+{"line":{"id":"18446744073709551615","ok":true,"result":{"durable_commit_seq":"2","event_seq":"13","saved":true,"state_revision":"13","view_digest":"8159da123130bdee5989200a19c3d986"},"v":1},"type":"response"}

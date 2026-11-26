@@ -47,6 +47,7 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
     let (seed, seconds, targets): (u64, u64, Vec<String>) = match name {
         "scoring-cat" | "save-error" => (1, 60, vec!["cat".to_string()]),
         "numpad-small" => (3, 60, vec!["0123".to_string(), "4.56".to_string()]),
+        "row-and-pad" => (4, 30, vec!["room 1234".to_string()]),
         "daily-small" => (
             42,
             120,
@@ -54,10 +55,10 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
         ),
         other => return Err(format!("unknown scenario {other}")),
     };
-    let (kind, phase) = if name == "numpad-small" {
-        (ExerciseKind::Numpad, Phase::Numpad)
-    } else {
-        (ExerciseKind::Words, Phase::AdaptiveWords)
+    let (kind, phase) = match name {
+        "numpad-small" => (ExerciseKind::Numpad, Phase::Numpad),
+        "row-and-pad" => (ExerciseKind::NumberRow, Phase::NumberRow),
+        _ => (ExerciseKind::Words, Phase::AdaptiveWords),
     };
     let exercises = targets
         .iter()
@@ -85,11 +86,29 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
         probe: ProbePlan::NotDue,
         pace: Vec::new(),
         retired_due: 0,
-        phases: vec![PlannedPhase {
-            phase,
-            seconds,
-            exercises,
-        }],
+        phases: if name == "row-and-pad" {
+            // The same digits on the number row, then on the numpad (L-01).
+            let pad = cadence_core::validate_target("1234", LayoutSupportsPound::US)
+                .map_err(|error| error.to_string())?;
+            vec![
+                PlannedPhase {
+                    phase,
+                    seconds,
+                    exercises,
+                },
+                PlannedPhase {
+                    phase: Phase::Numpad,
+                    seconds,
+                    exercises: vec![PlannedExercise::plain(pad, ExerciseKind::Numpad)],
+                },
+            ]
+        } else {
+            vec![PlannedPhase {
+                phase,
+                seconds,
+                exercises,
+            }]
+        },
     })
 }
 

@@ -202,7 +202,7 @@ pub fn replay(trace: &str, host: &mut impl Host) -> Result<Vec<Map<String, Value
         let request = serde_json::to_vec(&record["line"]).unwrap_or_default();
         let actual: Value =
             serde_json::from_str(&protocol.handle(&request, host)).unwrap_or(Value::Null);
-        let actual = redact(&actual, record_content);
+        let mut actual = redact(&actual, record_content);
         let Some((response_number, response_text)) = lines.next() else {
             return Err(divergence(
                 number.saturating_add(1),
@@ -226,6 +226,15 @@ pub fn replay(trace: &str, host: &mut impl Host) -> Result<Vec<Map<String, Value
                 expected,
                 actual,
             ));
+        }
+        // The replaying build may be newer: its version is not a divergence
+        // (the header records the recording build).
+        if let (Some(recorded), Some(result)) = (
+            expected["line"]["result"]["version"].as_str(),
+            actual.get_mut("result").and_then(Value::as_object_mut),
+        ) && result.contains_key("version")
+        {
+            result.insert("version".into(), Value::String(recorded.to_string()));
         }
         if expected["line"] != actual {
             let path = first_difference(&expected["line"], &actual, "response").unwrap_or_default();

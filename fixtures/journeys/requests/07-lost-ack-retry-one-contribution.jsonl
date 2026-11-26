@@ -1,0 +1,10 @@
+{"v":1,"id":"1","op":"hello","args":{"scenario":"scoring-cat","fixture_delivery":"manual"}}
+{"v":1,"id":"2","op":"action","args":{"name":"StartDrill"}}
+{"v":1,"id":"3","op":"text","args":{"text":"cat","inter_key_microseconds":300000}}
+{"v":1,"id":"4","op":"snapshot","args":{}}
+{"v":1,"id":"5","op":"deliver","args":{"job_id":"1","variant":"failure"}}
+{"v":1,"id":"6","op":"snapshot","args":{}}
+{"v":1,"id":"7","op":"key","args":{"key":"r","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"8","op":"snapshot","args":{}}
+{"v":1,"id":"9","op":"deliver","args":{"job_id":"2","variant":"duplicate"}}
+{"v":1,"id":"10","op":"snapshot","args":{}}

@@ -1,0 +1,10 @@
+{"v":1,"id":"1","op":"hello","args":{"scenario":"row-and-pad"}}
+{"v":1,"id":"2","op":"action","args":{"name":"StartDrill"}}
+{"v":1,"id":"3","op":"text","args":{"text":"room 1234","inter_key_microseconds":300000}}
+{"v":1,"id":"4","op":"advance","args":{"microseconds":30000000}}
+{"v":1,"id":"5","op":"advance","args":{"microseconds":1000000}}
+{"v":1,"id":"6","op":"action","args":{"name":"NextPhase"}}
+{"v":1,"id":"7","op":"text","args":{"text":"1234","inter_key_microseconds":300000}}
+{"v":1,"id":"8","op":"key","args":{"key":"Enter","modifiers":[],"kind":"press","source":"numpad"}}
+{"v":1,"id":"9","op":"snapshot","args":{}}
+{"v":1,"id":"10","op":"quit","args":{"flush":true}}

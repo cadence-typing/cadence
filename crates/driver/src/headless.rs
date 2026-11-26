@@ -415,6 +415,7 @@ impl<S: Services> Headless<S> {
             ),
         );
         result.insert("available_actions".into(), json!(actions));
+        result.insert("ended_early".into(), json!(view.review.ended_early));
         if let Some(target) = target {
             result.insert("target_text".into(), json!(target));
         }
@@ -429,6 +430,10 @@ impl<S: Services> Headless<S> {
             self.columns,
             self.rows,
         );
+        // No frame leaves the driver without its cross-field invariants.
+        frame
+            .validate()
+            .map_err(|error| invalid(&format!("invalid frame: {error}")))?;
         let mut result = self.revisions();
         if format != "cells" {
             result.insert("text".into(), json!(frame.text()));

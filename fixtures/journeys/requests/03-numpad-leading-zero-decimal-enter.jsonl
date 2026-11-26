@@ -1,0 +1,11 @@
+{"v":1,"id":"1","op":"hello","args":{"scenario":"numpad-small"}}
+{"v":1,"id":"2","op":"action","args":{"name":"StartDrill"}}
+{"v":1,"id":"3","op":"snapshot","args":{"include_target_text":true}}
+{"v":1,"id":"4","op":"text","args":{"text":"0123","inter_key_microseconds":300000}}
+{"v":1,"id":"5","op":"snapshot","args":{"include_target_text":true}}
+{"v":1,"id":"6","op":"key","args":{"key":"Enter","modifiers":[],"kind":"press","source":"numpad"}}
+{"v":1,"id":"7","op":"snapshot","args":{"include_target_text":true}}
+{"v":1,"id":"8","op":"text","args":{"text":"4.56","inter_key_microseconds":300000}}
+{"v":1,"id":"9","op":"key","args":{"key":"Enter","modifiers":[],"kind":"press","source":"numpad"}}
+{"v":1,"id":"10","op":"snapshot","args":{"include_target_text":true}}
+{"v":1,"id":"11","op":"quit","args":{"flush":true}}

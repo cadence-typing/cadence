@@ -1,0 +1,12 @@
+{"v":1,"id":"1","op":"hello","args":{"scenario":"scoring-cat"}}
+{"v":1,"id":"2","op":"action","args":{"name":"StartDrill"}}
+{"v":1,"id":"3","op":"text","args":{"text":"ca","inter_key_microseconds":300000}}
+{"v":1,"id":"4","op":"resize","args":{"columns":20,"rows":6}}
+{"v":1,"id":"5","op":"capture","args":{"format":"both"}}
+{"v":1,"id":"6","op":"resize","args":{"columns":1,"rows":1}}
+{"v":1,"id":"7","op":"capture","args":{"format":"both"}}
+{"v":1,"id":"8","op":"resize","args":{"columns":100,"rows":32}}
+{"v":1,"id":"9","op":"key","args":{"key":"Escape","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"10","op":"text","args":{"text":"t","inter_key_microseconds":300000}}
+{"v":1,"id":"11","op":"snapshot","args":{}}
+{"v":1,"id":"12","op":"quit","args":{"flush":true}}

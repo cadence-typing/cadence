@@ -12,6 +12,7 @@ mod contracts;
 mod corpus;
 mod dist;
 mod gates;
+mod headless;
 mod notices;
 mod release;
 

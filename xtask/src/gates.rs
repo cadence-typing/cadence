@@ -8,6 +8,8 @@
 /// Implementation state of one required gate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GateState {
+    /// The gate's full check runs; passing it passes the gate.
+    Implemented,
     /// Feedback checks exist, but do not cover the full qualification row.
     Feedback(&'static str),
     /// Gate has no implementation yet; the field names the packet.
@@ -46,7 +48,7 @@ pub const GATES: &[Gate] = &[
     Gate {
         id: "headless",
         description: "required behavioural journeys and canonical cell frames",
-        state: GateState::Pending("P4"),
+        state: GateState::Implemented,
     },
     Gate {
         id: "pty-linux",
@@ -105,9 +107,7 @@ pub const GATES: &[Gate] = &[
     Gate {
         id: "corpus",
         description: "licensed pack manifests, count/quality/capacity, unseen benchmark inventory",
-        state: GateState::Feedback(
-            "alphabet/count checks are not vocabulary vetting or benchmark qualification",
-        ),
+        state: GateState::Implemented,
     },
 ];
 
@@ -115,6 +115,7 @@ pub const GATES: &[Gate] = &[
 pub fn list() -> Result<(), String> {
     for gate in GATES {
         let state = match gate.state {
+            GateState::Implemented => "implemented".to_string(),
             GateState::Feedback(reason) => format!("feedback only ({reason})"),
             GateState::Pending(packet) => format!("pending ({packet})"),
             GateState::Blocked(reason) => format!("BLOCKED ({reason})"),
@@ -135,6 +136,7 @@ pub fn run(id: Option<&str>) -> Result<(), String> {
         ));
     };
     match gate.state {
+        GateState::Implemented => dispatch_implemented(gate.id),
         GateState::Feedback(reason) => {
             dispatch_implemented(gate.id)?;
             Err(format!(
@@ -159,6 +161,7 @@ fn dispatch_implemented(id: &str) -> Result<(), String> {
         "quality" => crate::run_quality(),
         "corpus" => crate::corpus::check(),
         "model" => crate::run_models(),
+        "headless" => crate::headless::check(),
         other => Err(format!("gate {other} has no runner wired yet")),
     }
 }
