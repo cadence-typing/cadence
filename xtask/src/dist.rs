@@ -146,7 +146,7 @@ pub fn build_dist() -> Result<(), String> {
         "elf64_x86_64": true,
         "elf_interpreter": false,
         "elf_needed_libraries": [],
-        "limitations": ["no formal qualification/signature", "adaptive word targeting and spaced review are empirical hypotheses, not proven training gains", "numeric tracks remain cold-start drills", "interrupted sessions retain acknowledged progress, not a resumed uninterrupted trial"]
+        "limitations": ["no formal qualification/signature", "adaptive word targeting and spaced review are empirical hypotheses, not proven training gains", "interrupted sessions retain acknowledged progress, not a resumed uninterrupted trial"]
     });
     fs::write(
         bundle.join("manifest.json"),
