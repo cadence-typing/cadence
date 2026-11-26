@@ -53,3 +53,13 @@ Tests must use an explicit temporary profile. They never read or write your real
 - State what you verified and how, and what you did not verify.
 
 By contributing, you agree that your contribution is dual-licensed under [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT), at the user's option, like the rest of Cadence.
+
+## Releasing
+
+Releases are built in public CI from a tag (`.github/workflows/release.yml`, RFC [release bundles from a tag](docs/rfcs/2026-11-26-release-bundles-from-a-tag.md)):
+
+1. Set `[workspace.package] version` in `Cargo.toml` and rename `## [Unreleased]` in `CHANGELOG.md` to `## [VERSION] — Title (date)`; commit to `main`.
+2. Check locally: `cargo xtask release-check --tag vVERSION` (or run the `release` workflow by hand with `dry_run`).
+3. `git tag -a vVERSION -m "Cadence VERSION" && git push origin vVERSION`.
+4. The workflow checks the tag, runs the quality gate and builds the bundle twice (identical `SHA256SUMS` required), runs the Lean proof gate, publishes a pre-release and installs it in a clean container.
+5. A bad release is superseded by a new version; a tag is never moved and an asset is never replaced.

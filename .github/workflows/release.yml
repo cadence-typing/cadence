@@ -1,0 +1,164 @@
+name: release
+
+# Releases are built in public CI from a tag (#3, docs/rfcs/
+# 2026-11-26-release-bundles-from-a-tag.md): the tag rule, the quality gate
+# and the bundle built twice from clean checkouts (SHA256SUMS must match),
+# the Lean proof gate, then a pre-release and an install check. A
+# workflow_dispatch with dry_run builds and compares and publishes nothing.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build twice and compare; publish nothing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check-tag:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Resolve the tag (a dry run uses v + the workspace version)
+        id: tag
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="v$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Tag equals v + version, changelog section exists, commit is on main
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: cargo run --locked -q -p xtask -- release-check --tag "$TAG" > notes.md
+      - name: No release exists for the tag (assets are never overwritten)
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $TAG already exists" >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: notes
+          path: notes.md
+
+  build:
+    needs: check-tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        copy: [a, b]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Prepare gate image and locked dependencies (networked)
+        run: ./ci prepare
+      - name: Quality gate (offline)
+        run: ./ci quality
+      - name: Bundle (offline)
+        run: ./ci dist
+      - name: Record the gate image digest
+        run: docker image inspect cadence-gate:0.1.0-alpha.1 --format '{{.Id}}' > dist/gate-image.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-${{ matrix.copy }}
+          path: |
+            dist/SHA256SUMS
+            dist/cadence-linux-x86_64
+            dist/*.tar.gz
+            dist/gate-image.txt
+
+  compare:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
+      - name: The two builds are byte-identical
+        run: |
+          cat dist-a/SHA256SUMS dist-b/SHA256SUMS
+          cmp dist-a/SHA256SUMS dist-b/SHA256SUMS
+
+  proofs:
+    needs: check-tag
+    uses: ./.github/workflows/proofs.yml
+
+  publish:
+    if: github.ref_type == 'tag'
+    needs: [check-tag, compare, proofs]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist-a
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: notes
+      - name: Create the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check-tag.outputs.tag }}
+        run: |
+          {
+            cat notes.md
+            echo
+            echo "Unsigned development preview, built in public CI from $GITHUB_SHA."
+            echo "Gate image: $(cat dist/gate-image.txt). Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Two clean builds produced identical SHA256SUMS; the Lean proof gate passed for this commit."
+          } > release-notes.md
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease \
+            --title "Cadence ${TAG#v}" --notes-file release-notes.md \
+            dist/*.tar.gz dist/cadence-linux-x86_64 dist/SHA256SUMS
+
+  verify-published:
+    needs: [check-tag, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist-a
+          path: dist
+      - name: Install the published release in a clean, unprivileged container
+        env:
+          TAG: ${{ needs.check-tag.outputs.tag }}
+        run: |
+          expected=$(awk '$2 == "cadence-linux-x86_64" {print $1}' dist/SHA256SUMS)
+          docker run --rm -e TAG -e EXPECTED="$expected" -v "$PWD/install.sh:/install.sh:ro" debian:trixie-slim sh -euc '
+            apt-get update -qq && apt-get install -y -qq --no-install-recommends curl ca-certificates >/dev/null
+            useradd -m learner
+            su learner -c "sh /install.sh --version $TAG"
+            actual=$(sha256sum /home/learner/.local/bin/cadence | cut -d" " -f1)
+            test "$actual" = "$EXPECTED"
+            su learner -c "\$HOME/.local/bin/cadence --version"
+          '

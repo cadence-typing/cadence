@@ -13,13 +13,15 @@ on:
   schedule:
     - cron: "41 4 * * 1"
   workflow_dispatch:
+  # The release workflow (#3) runs this gate for the tagged commit.
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: proofs-${{ github.ref }}
-  cancel-in-progress: true
+  group: proofs-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 env:
   PROOFS_IMAGE: ghcr.io/tauten-dev/proofs-toolchain:lean-4.35.0-aeneas-c5eb4a2-charon-8cae8fd

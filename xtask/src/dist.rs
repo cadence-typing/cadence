@@ -155,16 +155,51 @@ pub fn build_dist() -> Result<(), String> {
     .map_err(|e| e.to_string())?;
     fs::write(bundle.join("RUN.txt"), "Run ./cadence. Enter starts; Esc pauses/resumes; Ctrl-C saves and quits.\nUse ./cadence --help for short sessions, individual tracks, private profiles, backup and export.\nThis is an unsigned development preview, not a formally qualified release.\nVerify cadence.sha256 with sha256sum --check before running.\n").map_err(|e| e.to_string())?;
 
+    // Reproducibility inputs (#3): the release workflow builds twice from
+    // clean checkouts and compares SHA256SUMS.
+    fs::write(
+        bundle.join("BUNDLE.txt"),
+        format!(
+            "Cadence {version} for {TARGET}: reproducibility inputs\n\
+             source commit: {source} (clean: {clean})\n\
+             Cargo.lock sha256: {lock}\n\
+             toolchain: rust-toolchain.toml {toolchain}\n\
+             gate image: built from docker/Dockerfile (its digest is in the release notes)\n\
+             policy sha256: {policy}\n\
+             words sha256: {words}\n\
+             prose sha256: {prose}\n\
+             archive entries: name order, mtime of the source commit, owner 0, gzip without a timestamp\n",
+            version = env!("CARGO_PKG_VERSION"),
+            lock = digest_file(&root.join("Cargo.lock"))?,
+            toolchain = digest_file(&root.join("rust-toolchain.toml"))?,
+            policy = digest_file(&root.join("policies/trainer-v2.toml"))?,
+            words = digest_file(&root.join("corpus/words-en-v1.tsv"))?,
+            prose = digest_file(&root.join("corpus/prose-en-v2.tsv"))?,
+        ),
+    )
+    .map_err(|e| e.to_string())?;
+    let mtime = command(
+        "git",
+        &[
+            OsStr::new("log"),
+            OsStr::new("-1"),
+            OsStr::new("--format=%ct"),
+        ],
+        &root,
+    )?;
+    let mtime = format!("--mtime=@{}", mtime.trim());
+
     let archive = dist.join(format!("{bundle_name}.tar.gz"));
     command(
         "tar",
         &[
             OsStr::new("--sort=name"),
-            OsStr::new("--mtime=@0"),
+            OsStr::new(&mtime),
             OsStr::new("--owner=0"),
             OsStr::new("--group=0"),
             OsStr::new("--numeric-owner"),
-            OsStr::new("-czf"),
+            OsStr::new("--use-compress-program=gzip -n"),
+            OsStr::new("-cf"),
             archive.as_os_str(),
             OsStr::new("-C"),
             dist.as_os_str(),

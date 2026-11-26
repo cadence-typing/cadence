@@ -13,10 +13,11 @@ mod corpus;
 mod dist;
 mod gates;
 mod notices;
+mod release;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let usage = "usage: cargo xtask <feedback|quality|boundary|verify-contracts|corpus-gate|dist|gate ID|gates>";
+    let usage = "usage: cargo xtask <feedback|quality|boundary|verify-contracts|corpus-gate|dist|release-check --tag TAG|gate ID|gates>";
     let Some(command) = args.first() else {
         eprintln!("{usage}");
         return ExitCode::FAILURE;
@@ -29,6 +30,7 @@ fn main() -> ExitCode {
         "gates" => gates::list(),
         "corpus-gate" => corpus::check(),
         "dist" => dist::build_dist(),
+        "release-check" => release::check(args.get(1..).unwrap_or(&[])),
         "gate" => gates::run(args.get(1).map(String::as_str)),
         other => {
             eprintln!("unknown command {other:?}\n{usage}");
