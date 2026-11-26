@@ -37,6 +37,8 @@ pub enum Command {
     },
     /// Machine-readable environment facts (#69).
     Doctor,
+    /// Validate a config file and print effective values (#76).
+    ConfigCheck(Option<PathBuf>),
 }
 
 /// Display palette (U-02); never affects targets or scoring.
@@ -69,6 +71,8 @@ pub struct Options {
     pub theme: Theme,
     /// `--utc-offset +HH:MM`: overrides the detected local offset (seconds).
     pub utc_offset: Option<i32>,
+    /// `--theme` was given (it then overrides the config file).
+    pub theme_set: bool,
 }
 
 impl Options {
@@ -83,6 +87,22 @@ impl Options {
             text_size: None,
             theme: Theme::Dark,
             utc_offset: None,
+            theme_set: false,
+        }
+    }
+
+    /// The practice settings of these options.
+    pub fn clone_for_practice(&self) -> Self {
+        Self {
+            command: Command::Practice,
+            profile: self.profile.clone(),
+            minutes: self.minutes,
+            track: self.track,
+            seed: self.seed,
+            text_size: self.text_size,
+            theme: self.theme,
+            utc_offset: self.utc_offset,
+            theme_set: self.theme_set,
         }
     }
 }
@@ -98,6 +118,7 @@ pub fn parse() -> Result<Options, String> {
         text_size: None,
         theme: Theme::Dark,
         utc_offset: None,
+        theme_set: false,
     };
     let mut theme = None;
     let mut action = None;
@@ -111,6 +132,7 @@ pub fn parse() -> Result<Options, String> {
     let mut read_only = false;
     let mut capture_dir = None;
     let mut trace = None;
+    let mut config_file = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--version" | "-V" => set_action(&mut action, "version")?,
@@ -119,6 +141,17 @@ pub fn parse() -> Result<Options, String> {
             "export" => set_action(&mut action, "export")?,
             "headless" => set_action(&mut action, "headless")?,
             "doctor" => set_action(&mut action, "doctor")?,
+            "config" => {
+                set_action(&mut action, "config")?;
+                if value(&mut args, &arg)? != "check" {
+                    return Err("usage: cadence config check [/absolute/config.toml]".into());
+                }
+            }
+            other
+                if action == Some("config") && config_file.is_none() && other.starts_with('/') =>
+            {
+                config_file = Some(absolute_path(other.to_string())?);
+            }
             "replay" => {
                 set_action(&mut action, "replay")?;
                 trace = Some(absolute_path(value(&mut args, &arg)?)?);
@@ -271,6 +304,7 @@ pub fn parse() -> Result<Options, String> {
                 capture_dir: capture_dir.take(),
             }
         }
+        Some("config") => Command::ConfigCheck(config_file.take()),
         Some("doctor") => {
             if !json {
                 return Err("doctor requires --json".into());
@@ -303,6 +337,7 @@ pub fn parse() -> Result<Options, String> {
                 .into(),
         );
     }
+    options.theme_set = theme.is_some();
     options.theme = theme.unwrap_or_default();
     Ok(options)
 }
@@ -337,6 +372,7 @@ pub fn help() {
         cadence export --output /absolute/new.json [--profile-dir PATH]\n\
         cadence headless --stdio|--script /absolute/requests.jsonl --profile-dir PATH|--ephemeral-profile\n\
         cadence doctor --json [--profile-dir PATH]\n\
+        cadence config check [/absolute/config.toml]\n\
         cadence replay /absolute/trace.jsonl --read-only [--capture-dir /absolute/dir]\n\n\
         Enter starts/continues. Esc pauses; while paused, e ends the session and shows the review.\n\
         Ctrl-C during practice also ends it and shows the review; Enter there saves and exits.\n\

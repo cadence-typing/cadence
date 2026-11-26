@@ -97,7 +97,11 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
             headless::replay(trace, capture_dir.as_deref())
         }
         cli::Command::Doctor => headless::doctor(options.profile.as_deref()),
+        cli::Command::ConfigCheck(file) => config_check(file.as_deref()),
         cli::Command::Practice => {
+            // The config file is read once, before the terminal starts; an
+            // invalid file stops here with its diagnostics (#76).
+            let options = apply_config(options.clone_for_practice(), &load_config(None)?);
             // The wall clock and the local offset are read once, here, at
             // session start; the proved calendar::local_day decides the day.
             let now = i64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs())?;
@@ -126,6 +130,84 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
                 options.text_size.unwrap_or_default(),
                 options.theme.palette(),
             )
+        }
+    }
+}
+
+/// The config file: the given path, else the XDG location.
+fn config_path(file: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
+    file.map(std::path::Path::to_path_buf).or_else(|| {
+        cadence_data::config::path(
+            std::env::var_os("XDG_CONFIG_HOME").as_deref(),
+            std::env::var_os("HOME").as_deref(),
+        )
+    })
+}
+
+fn load_config(
+    file: Option<&std::path::Path>,
+) -> Result<cadence_data::config::Config, Box<dyn Error>> {
+    let Some(path) = config_path(file) else {
+        return Ok(cadence_data::config::Config::default());
+    };
+    cadence_data::config::Config::load(&path).map_err(|errors| {
+        errors
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("\n")
+            .into()
+    })
+}
+
+/// Defaults, then the file, then flags: a flag keeps its meaning and wins.
+fn apply_config(mut options: cli::Options, config: &cadence_data::config::Config) -> cli::Options {
+    if options.minutes.is_none() {
+        options.minutes = config
+            .integer("session.minutes")
+            .filter(|_| {
+                config.source("session.minutes") == Some(cadence_data::config::Source::File)
+            })
+            .and_then(|m| u64::try_from(m).ok());
+    }
+    if options.text_size.is_none()
+        && config.source("display.text_size") == Some(cadence_data::config::Source::File)
+    {
+        options.text_size = match config.text("display.text_size") {
+            Some("large") => Some(cadence_engine::view::TextSize::Large),
+            Some("normal") => Some(cadence_engine::view::TextSize::Normal),
+            _ => Some(cadence_engine::view::TextSize::Auto),
+        };
+    }
+    if !options.theme_set
+        && config.source("display.theme") == Some(cadence_data::config::Source::File)
+    {
+        options.theme = match config.text("display.theme") {
+            Some("light") => cli::Theme::Light,
+            Some("terminal") => cli::Theme::Terminal,
+            _ => cli::Theme::Dark,
+        };
+    }
+    options
+}
+
+/// `cadence config check [FILE]`: effective values with their source, or
+/// the diagnostics (non-zero exit).
+fn config_check(file: Option<&std::path::Path>) -> Result<(), Box<dyn Error>> {
+    let path = config_path(file).ok_or("no config location: set HOME or XDG_CONFIG_HOME")?;
+    match cadence_data::config::Config::load(&path) {
+        Ok(config) => {
+            println!("# {}", path.display());
+            for (key, value, source) in config.effective() {
+                println!("{key} = {value}  # {source}");
+            }
+            Ok(())
+        }
+        Err(errors) => {
+            for error in &errors {
+                println!("{error}");
+            }
+            Err(format!("{} problem(s) in {}", errors.len(), path.display()).into())
         }
     }
 }

@@ -114,16 +114,8 @@ fn eight_sessions_show_one_probe_and_a_raised_and_lowered_goal()
 
 fn sessions(profile: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
     let policy = cadence_trainer::parse_policy(crate::POLICY.as_bytes())?;
-    let mut options = crate::cli::Options {
-        command: crate::cli::Command::Practice,
-        profile: None,
-        minutes: Some(5),
-        track: None,
-        seed: None,
-        text_size: None,
-        theme: crate::cli::Theme::Dark,
-        utc_offset: None,
-    };
+    let mut options = crate::cli::Options::defaults();
+    options.minutes = Some(5);
     let mut summary = Vec::new();
     let mut probes = 0;
     let mut raised = false;

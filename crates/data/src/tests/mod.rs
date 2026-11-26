@@ -1,6 +1,7 @@
 //! Hermetic persistence regressions; all filesystem tests use owned temporary profiles.
 
 mod checkpoints;
+mod config;
 mod disk;
 mod learning;
 mod schema;
