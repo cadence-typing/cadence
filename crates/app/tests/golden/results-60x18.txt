@@ -32,6 +32,6 @@
    60×#d6dce0/#0a0d10/
 16 normal | REVIEW  session review               │ 0:00 active │ saved 
    8×#85d0b4/#101418/bold+reverse 30×#d6dce0/#101418/ 1×#3a424a/#101418/ 13×#d6dce0/#101418/ 1×#3a424a/#101418/ 7×#7c868e/#101418/
-17 normal | Enter save & exit                                          
-   1×#7c868e/#0a0d10/ 17×#d6dce0/#0a0d10/ 42×#7c868e/#0a0d10/
+17 normal | Enter / Esc save & exit                                    
+   1×#7c868e/#0a0d10/ 23×#d6dce0/#0a0d10/ 36×#7c868e/#0a0d10/
 cursor visible=false column=0 row=0

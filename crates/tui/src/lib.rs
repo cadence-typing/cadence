@@ -9,6 +9,7 @@
 //! viewport; it is total for every nonzero bounded viewport including
 //! 1×1, without panic or out-of-bounds access.
 
+mod destinations;
 mod modeline;
 mod native_text;
 pub mod paint;

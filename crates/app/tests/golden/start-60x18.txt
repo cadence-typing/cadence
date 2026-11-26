@@ -1,7 +1,7 @@
-00 normal |  DAILY PRACTICE <version>  
-   38×#85d0b4/#0a0d10/bold 22×#7c868e/#0a0d10/
+00 normal |  TODAY   Train   Numpad <version>  
+   2×#d6dce0/#0a0d10/ 5×#85d0b4/#0a0d10/bold+underline 3×#d6dce0/#0a0d10/ 5×#7c868e/#0a0d10/ 3×#d6dce0/#0a0d10/ 6×#7c868e/#0a0d10/ 14×#d6dce0/#0a0d10/ 22×#7c868e/#0a0d10/
 01 normal |────────────────────────────────────────────────────────────
-   38×#85d0b4/#0a0d10/bold 22×#7c868e/#0a0d10/
+   38×#3a424a/#0a0d10/ 22×#7c868e/#0a0d10/
 02 normal |                                                            
    60×#d6dce0/#0a0d10/
 03 normal |                                                            
@@ -32,6 +32,6 @@
    60×#d6dce0/#0a0d10/
 16 normal | READY  today / baseline                │ 1:00 plan │ local 
    7×#85d0b4/#101418/bold+reverse 33×#d6dce0/#101418/ 1×#3a424a/#101418/ 11×#d6dce0/#101418/ 1×#3a424a/#101418/ 7×#7c868e/#101418/
-17 normal | Enter begin  q quit  F2 text size (AUTO)                   
+17 normal | Enter begin  q quit  ? help  Tab / → next screen           
    1×#7c868e/#0a0d10/ 11×#d6dce0/#0a0d10/ 48×#7c868e/#0a0d10/
 cursor visible=false column=0 row=0

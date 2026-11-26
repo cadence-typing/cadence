@@ -436,8 +436,27 @@ pub struct PreparedView {
     pub setup: Option<SettingsView>,
     /// The numpad is switched off and the plan has no numpad phase (#78).
     pub numpad_off: bool,
+    /// The bindings honoured now, from the command table (#80).
+    pub commands: &'static [crate::commands::Binding],
+    /// The help overlay, when open: the bindings of the state beneath (#80).
+    pub help: Option<&'static [crate::commands::Binding]>,
+    /// The selected destination outside practice (#80).
+    pub destination: DestinationView,
     /// The effective display settings, applied at once (#79).
     pub display: DisplayView,
+}
+
+/// The destination outside practice and its choices (#80).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DestinationView {
+    /// Today, Train or Numpad.
+    pub selected: crate::commands::Destination,
+    /// Train's tracks, in order.
+    pub tracks: &'static [&'static str],
+    /// The selected track.
+    pub track: usize,
+    /// Train's and Numpad's length in minutes.
+    pub minutes: u64,
 }
 
 /// The display settings the painter applies (#79).

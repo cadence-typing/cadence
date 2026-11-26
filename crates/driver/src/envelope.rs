@@ -352,20 +352,7 @@ fn operation(op: &str, args: &Args<'_>) -> Result<Operation, Rejection> {
         "action" => {
             args.only(&["name", "track", "theme"])?;
             Ok(Operation::Action {
-                name: args.required_choice(
-                    "name",
-                    &[
-                        "StartDailyPlan",
-                        "StartDrill",
-                        "Pause",
-                        "Resume",
-                        "NextPhase",
-                        "SetTheme",
-                        "ReloadSettings",
-                        "OpenSettings",
-                        "CloseOverlay",
-                    ],
-                )?,
+                name: args.required_choice("name", crate::headless::ACTION_NAMES)?,
                 track: args.choice(
                     "track",
                     &["words", "prose", "number_row", "numpad", "developer"],

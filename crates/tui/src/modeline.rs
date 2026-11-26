@@ -6,7 +6,7 @@
 
 use std::fmt::{self, Write};
 
-use cadence_engine::commands::{Action, bindings, paused_bindings};
+use cadence_engine::commands::Action;
 use cadence_engine::view::{Durability, PreparedView, RateUnit, ScreenView, ViewMode};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -226,8 +226,6 @@ fn hints(
     text_size: ResolvedTextSize,
 ) {
     buffer.set_style(area, style(palette, Role::Muted, Role::Background));
-    let enter_submits =
-        matches!(&view.screen, ScreenView::Practice { status, .. } if status.enter_submits);
     // Practice shows the size actually painted; other screens the preference.
     let size = if matches!(view.screen, ScreenView::Practice { .. }) {
         text_size.label()
@@ -237,11 +235,8 @@ fn hints(
     let mut x = area.x;
     let key_style = style(palette, Role::Text, Role::Background);
     let quiet_style = style(palette, Role::Muted, Role::Background);
-    let keys = if view.mode == ViewMode::Paused {
-        paused_bindings(view.pause_reason)
-    } else {
-        bindings(view.mode, enter_submits)
-    };
+    // Exactly what the reducer honours now (#80).
+    let keys = view.commands;
     for (index, binding) in keys.iter().enumerate() {
         let mut label = Label::new();
         if binding.action == Action::TextSize {

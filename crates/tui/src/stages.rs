@@ -34,6 +34,11 @@ pub(super) fn paint(
     }
     let area = centered_width(area, STAGE_MAX_WIDTH);
     match &view.screen {
+        ScreenView::Today { .. }
+            if view.destination.selected != cadence_engine::commands::Destination::Today =>
+        {
+            crate::destinations::paint(buffer, area, &view.destination, palette);
+        }
         ScreenView::Today { total_seconds } => {
             landing(buffer, area, view, *total_seconds, palette, native);
         }

@@ -2,7 +2,6 @@
 
 use std::ops::Range;
 
-use cadence_engine::commands::paused_bindings;
 use cadence_engine::view::{
     PauseReason, PreparedView, ScreenView, StatusFigures, TextSize, UnitSpan, ViewMode,
 };
@@ -211,7 +210,7 @@ fn paused_controls(buffer: &mut Buffer, area: Rect, view: &PreparedView, palette
         Some(PauseReason::SavingSlow) => "Saving is slow; the clock is stopped.",
         Some(PauseReason::Requested) | None => "The clock is stopped; your line is kept.",
     };
-    let keys = paused_bindings(view.pause_reason);
+    let keys = view.commands;
     let rows = u16::try_from(keys.len())
         .unwrap_or(u16::MAX)
         .saturating_add(4);

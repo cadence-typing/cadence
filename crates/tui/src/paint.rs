@@ -72,7 +72,9 @@ pub fn paint(
             ResolvedTextSize::Normal
         }
     };
-    if let Some(setup) = &view.setup {
+    if let Some(help) = view.help {
+        crate::destinations::help(buffer, body, help, palette);
+    } else if let Some(setup) = &view.setup {
         // First run shows setup alone: the plan behind it is rebuilt from
         // the answers.
         Clear.render(body, buffer);
@@ -119,6 +121,13 @@ fn header_bar(buffer: &mut Buffer, area: Rect, view: &PreparedView, palette: Pal
         .filter(|line| u16::try_from(line.width()).is_ok_and(|w| w <= left.width));
     if let Some(line) = route {
         Paragraph::new(line).render(left, buffer);
+    } else if view.mode == ViewMode::Ready && view.setup.is_none() {
+        // The start screen's destinations (#80).
+        Paragraph::new(crate::destinations::tabs(
+            view.destination.selected,
+            palette,
+        ))
+        .render(left, buffer);
     } else {
         Paragraph::new(label)
             .style(style(palette, Role::Focus).add_modifier(Modifier::BOLD))

@@ -29,10 +29,15 @@ fn prepare(
     policy: &TrainerPolicy,
     day: i64,
     offset: (i32, bool),
-    first_run: bool,
+    (first_run, track): (bool, Option<practice::Track>),
 ) -> Result<Prepared, Box<dyn Error>> {
     let loaded = crate::load_config(None)?;
-    let options = crate::apply_config(options.clone_for_practice(), &loaded.config);
+    let mut options = crate::apply_config(options.clone_for_practice(), &loaded.config);
+    // Train and Numpad (#80) are `--track` and `--minutes`, nothing else.
+    if let Some((phase, minutes)) = track {
+        options.track = Some(phase);
+        options.minutes = Some(minutes);
+    }
     // The overlay starts from the file's values with the flags laid over
     // them, so a flag keeps winning until the file is edited.
     let mut settings = cadence_runtime::config_worker::values(&loaded.config);
@@ -97,14 +102,14 @@ pub(crate) fn run(options: &cli::Options) -> Result<(), Box<dyn Error>> {
         }
     };
     let policy = crate::parse_policy(crate::POLICY.as_bytes())?;
-    let first = prepare(options, &policy, day, offset, first_run)?;
+    let first = prepare(options, &policy, day, offset, (first_run, None))?;
     let config = ConfigWorker::spawn(location)?;
     practice::run(
         first,
         config,
         (day, startup.text_size.unwrap_or_default()),
         startup.theme.palette(),
-        || prepare(options, &policy, day, offset, false),
+        |track| prepare(options, &policy, day, offset, (false, track)),
     )
 }
 

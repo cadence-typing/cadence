@@ -8,6 +8,7 @@ pub mod events;
 mod flow;
 pub mod jobs;
 mod learning;
+mod navigation;
 mod practice;
 mod presentation;
 mod review;
@@ -79,6 +80,14 @@ pub enum DomainOutcome {
     /// First-run setup was written and acknowledged (#78): the app builds
     /// the store and plan from it before practice.
     SetupComplete,
+    /// Train or Numpad asked for a single-track plan (#80): the app builds
+    /// it as for `--track` and begins it.
+    PlanRequested {
+        /// The track.
+        phase: Phase,
+        /// The session length in minutes.
+        minutes: u64,
+    },
     /// Measurement was visibly invalidated and scoring stopped.
     MeasurementInvalid {
         /// Typed reason.
@@ -154,6 +163,8 @@ pub struct Engine {
     settings: settings::SettingsState,
     /// First-run setup, while it is shown (#78).
     setup: Option<setup::Setup>,
+    /// Destinations and help (#80).
+    navigation: navigation::Navigation,
     /// The group of the checkpoint whose acknowledgement is being consumed
     /// (#71): a follow-up dispatched now inherits it.
     ack_group: Option<u64>,
@@ -250,6 +261,7 @@ impl Engine {
             jobs: jobs::Jobs::default(),
             settings: settings::SettingsState::default(),
             setup: None,
+            navigation: navigation::Navigation::default(),
             ack_group: None,
             probe_paused: false,
             probe_pasted: false,
@@ -397,7 +409,17 @@ impl Engine {
         }
         // Control and storage responses are never swallowed by a deadline.
         let boundary = self.advance_clock(at)?;
-        match envelope.kind {
+        // Outside typing and overlays a key is what the command table says
+        // it is (#80); a key the table does not bind keeps its meaning below.
+        let mut kind = envelope.kind;
+        if let EventKind::Key(key) = kind
+            && self.routes_commands(key)
+            && let Some(action) = commands::resolve(self.commands(), key)
+        {
+            kind = EventKind::Command(action);
+        }
+        match kind {
+            EventKind::Command(action) => self.perform(at, action, &mut t)?,
             EventKind::SetTextSize(size) => self.text_size = size,
             EventKind::SetTextSupport(support) => self.text_support = support,
             EventKind::Key(Key::ToggleTextSize) => self.text_size = self.text_size.next(),
@@ -429,29 +451,13 @@ impl Engine {
             EventKind::Key(key) if self.settings.is_open() && key != Key::Interrupt => {
                 self.settings_key(key, &mut t);
             }
-            EventKind::Key(Key::Content(c)) if c.get() == 's' && self.settings_openable() => {
-                self.settings.open();
-            }
             EventKind::Key(Key::Interrupt) => self.interrupt(at, &mut t)?,
             EventKind::Terminate => self.request_exit(at, &mut t)?,
-            EventKind::Key(Key::Content(c)) if self.screen == Screen::Today && c.get() == 'q' => {
-                self.request_exit(at, &mut t)?
-            }
-            EventKind::Key(Key::Enter | Key::Escape) if self.screen == Screen::Summary => {
-                self.request_exit(at, &mut t)?
-            }
             EventKind::PasteRejected if !self.finishing && !self.invalid => {
                 self.pause_for(at, PauseReason::PasteRejected)?;
             }
             EventKind::FocusLost if !self.finishing && !self.invalid => {
                 self.pause_for(at, PauseReason::FocusLost)?;
-            }
-            EventKind::Key(Key::Content(c))
-                if c.get() == 'r'
-                    && (self.session_state == SessionState::Paused
-                        || self.storage.as_ref().is_some_and(|s| s.failed.is_some())) =>
-            {
-                self.retry_save()
             }
             kind if !self.finishing && !self.invalid => {
                 if let Some(outcome) = boundary {
@@ -499,19 +505,6 @@ impl Engine {
     }
     fn apply_kind(&mut self, at: MonoTick, kind: EventKind) -> Result<DomainOutcome, CoreError> {
         match (&self.screen, kind) {
-            (Screen::Today, EventKind::Key(Key::Enter))
-                if self.viewport == ViewportState::Usable =>
-            {
-                self.screen = Screen::Practice;
-                self.transition(Some(at), SessionEvent::Start)?;
-                self.open_exercise(at)?;
-                Ok(DomainOutcome::SessionStarted)
-            }
-            (Screen::PhaseComplete { .. }, EventKind::Key(Key::Enter | Key::Escape))
-                if self.viewport == ViewportState::Usable && self.interlude_settled(at)? =>
-            {
-                self.advance_phase(at)
-            }
             (Screen::Practice, EventKind::Key(key)) => self.practice_key(at, key),
             _ => Ok(DomainOutcome::None),
         }

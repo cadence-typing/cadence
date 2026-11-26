@@ -204,15 +204,30 @@
           "properties": {
             "name": {
               "enum": [
+                "Begin",
                 "StartDailyPlan",
                 "StartDrill",
+                "Continue",
+                "NextPhase",
+                "Quit",
                 "Pause",
                 "Resume",
-                "NextPhase",
-                "SetTheme",
-                "ReloadSettings",
+                "EndAndReview",
+                "SaveAndExit",
+                "RetrySave",
+                "ForceExit",
+                "FinishInvalid",
+                "SubmitEntry",
+                "TextSize",
+                "NextDestination",
+                "PreviousDestination",
+                "Help",
+                "Settings",
                 "OpenSettings",
-                "CloseOverlay"
+                "NextTrack",
+                "PreviousTrack",
+                "Longer",
+                "Shorter"
               ]
             },
             "track": {

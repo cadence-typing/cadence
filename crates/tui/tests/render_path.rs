@@ -887,3 +887,59 @@ fn first_run_setup_renders_at_two_sizes() -> Result<(), Box<dyn std::error::Erro
     }
     Ok(())
 }
+
+/// #80: the destinations and help render at 60x18, 100x32 and 120x40.
+#[test]
+fn destinations_and_help_render_at_three_sizes() -> Result<(), Box<dyn std::error::Error>> {
+    let tab = EventKind::Key(Key::Tab);
+    let question = content('?');
+    let cases: [(&str, Vec<EventKind>, &[&str]); 4] = [
+        (
+            "today",
+            vec![],
+            &["TODAY", "Train", "Numpad", "Enter begin"],
+        ),
+        (
+            "train",
+            vec![tab.clone()],
+            &["TRAIN", "Train one track", "› warm-up", "Length 5:00"],
+        ),
+        (
+            "numpad",
+            vec![tab.clone(), tab],
+            &["NUMPAD", "Numpad practice", "Enter  Start"],
+        ),
+        (
+            "help",
+            vec![question],
+            &[" Help ", "begin", "next screen", "Esc or ? closes help"],
+        ),
+    ];
+    for (name, events, expected) in cases {
+        let mut engine = planned_engine("cat")?;
+        for (seq, kind) in (1_u64..).zip(events) {
+            engine.reduce(envelope(seq, seq, kind));
+        }
+        let view = engine.prepare(MonoTick::from_us(100));
+        for (columns, rows) in [(60_u16, 18_u16), (100, 32), (120, 40)] {
+            let mut buffer = Buffer::empty(Rect::new(0, 0, columns, rows));
+            let area = buffer.area;
+            let mut renditions = vec![LineRendition::Normal; usize::from(rows)];
+            paint(
+                &mut buffer,
+                area,
+                &view,
+                Palette::cadence_dark(),
+                &mut renditions,
+            );
+            let text = screen_text(&buffer);
+            for want in expected {
+                assert!(
+                    text.contains(want),
+                    "{name} {columns}x{rows}: {want}\n{text}"
+                );
+            }
+        }
+    }
+    Ok(())
+}

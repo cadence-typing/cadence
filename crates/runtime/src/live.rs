@@ -227,6 +227,8 @@ fn translate_key(key: KeyEvent) -> Key {
         KeyCode::Enter => Key::Enter,
         KeyCode::Esc => Key::Escape,
         KeyCode::F(2) => Key::ToggleTextSize,
+        KeyCode::Tab => Key::Tab,
+        KeyCode::BackTab => Key::BackTab,
         KeyCode::Up => Key::Arrow(Direction::Up),
         KeyCode::Down => Key::Arrow(Direction::Down),
         KeyCode::Left => Key::Arrow(Direction::Left),

@@ -56,6 +56,65 @@ pub struct Headless<S: Services> {
     next_job: u64,
 }
 
+/// Every headless action name, as `contracts/headless-request.schema.json`
+/// lists them (decision 0008): the command table's actions and the aliases
+/// recorded journeys use.
+pub const ACTION_NAMES: &[&str] = &[
+    "Begin",
+    "StartDailyPlan",
+    "StartDrill",
+    "Continue",
+    "NextPhase",
+    "Quit",
+    "Pause",
+    "Resume",
+    "EndAndReview",
+    "SaveAndExit",
+    "RetrySave",
+    "ForceExit",
+    "FinishInvalid",
+    "SubmitEntry",
+    "TextSize",
+    "NextDestination",
+    "PreviousDestination",
+    "Help",
+    "Settings",
+    "OpenSettings",
+    "NextTrack",
+    "PreviousTrack",
+    "Longer",
+    "Shorter",
+];
+
+/// A headless action's typed command. `StartDailyPlan` and `StartDrill`
+/// (journeys recorded before #80) are `Begin`; `NextPhase` is `Continue`.
+fn action_named(name: &str) -> Option<cadence_engine::commands::Action> {
+    use cadence_engine::commands::Action;
+    Some(match name {
+        "Begin" | "StartDailyPlan" | "StartDrill" => Action::Begin,
+        "Continue" | "NextPhase" => Action::Continue,
+        "Quit" => Action::Quit,
+        "Pause" => Action::Pause,
+        "Resume" => Action::Resume,
+        "EndAndReview" => Action::EndAndReview,
+        "SaveAndExit" => Action::SaveAndExit,
+        "RetrySave" => Action::RetrySave,
+        "ForceExit" => Action::ForceExit,
+        "FinishInvalid" => Action::FinishInvalid,
+        "SubmitEntry" => Action::SubmitEntry,
+        "TextSize" => Action::TextSize,
+        "NextDestination" => Action::NextDestination,
+        "PreviousDestination" => Action::PreviousDestination,
+        "Help" => Action::Help,
+        "Settings" | "OpenSettings" => Action::Settings,
+        "NextTrack" => Action::NextTrack,
+        "PreviousTrack" => Action::PreviousTrack,
+        "Longer" => Action::Longer,
+        "Shorter" => Action::Shorter,
+        _ => return None,
+    })
+}
+
 fn view_digest(text: &str) -> String {
     use sha2::{Digest, Sha256};
     Sha256::digest(text.as_bytes())
@@ -289,7 +348,9 @@ impl<S: Services> Headless<S> {
             "Right" => Key::Arrow(Direction::Right),
             "Up" => Key::Arrow(Direction::Up),
             "Down" => Key::Arrow(Direction::Down),
-            "Tab" | "Home" | "End" => Key::Other,
+            "Tab" => Key::Tab,
+            "BackTab" => Key::BackTab,
+            "Home" | "End" => Key::Other,
             "c" if control => Key::Interrupt,
             single => {
                 let mut chars = single.chars();
@@ -527,12 +588,15 @@ impl<S: Services> Host for Headless<S> {
                 Ok(self.revisions())
             }
             Operation::Action { name, .. } => {
-                let key = match name.as_str() {
-                    "StartDailyPlan" | "StartDrill" | "NextPhase" => Key::Enter,
-                    "Pause" | "Resume" => Key::Escape,
-                    _ => return Err(invalid("this action is not offered headless yet")),
-                };
-                self.finished |= self.send(EventKind::Key(key))?;
+                // The same typed command table the keys resolve through
+                // (#80): an action this state does not offer is refused.
+                let action =
+                    action_named(name).ok_or_else(|| invalid(&format!("unknown action {name}")))?;
+                let engine = self.engine.as_ref().ok_or_else(|| invalid("hello first"))?;
+                if !engine.offers(action) {
+                    return Err(invalid(&format!("{name} is not offered in this state")));
+                }
+                self.finished |= self.send(EventKind::Command(action))?;
                 Ok(self.revisions())
             }
             Operation::Snapshot {

@@ -25,6 +25,8 @@ pub(crate) fn passes_through(key: Key) -> bool {
         | Key::Escape
         | Key::Backspace
         | Key::ToggleTextSize
+        | Key::Tab
+        | Key::BackTab
         | Key::Other => false,
     }
 }
@@ -102,6 +104,8 @@ impl crate::Engine {
             | Key::Backspace
             | Key::Interrupt
             | Key::ToggleTextSize
+            | Key::Tab
+            | Key::BackTab
             | Key::Other => {}
         }
     }

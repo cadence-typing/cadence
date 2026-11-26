@@ -29,6 +29,10 @@ pub enum Key {
     ToggleTextSize,
     /// An arrow key: navigation in overlays (#79); never training input.
     Arrow(Direction),
+    /// Tab: the next destination outside practice (#80).
+    Tab,
+    /// Shift-Tab: the previous destination (#80).
+    BackTab,
     /// Any other non-training key (function keys, Tab) — admitted for
     /// accounting, interpreted per input owner.
     Other,
@@ -98,6 +102,10 @@ pub enum EventKind {
     },
     /// The screen that asked for jobs restarted (#75): a new epoch.
     RestartJobs,
+    /// A typed command (#80): what a key resolves to through the command
+    /// table, or a headless `action`. Refused unless the current state's
+    /// table offers it.
+    Command(crate::commands::Action),
 }
 
 /// The sequenced admission envelope: one ordered external event with its

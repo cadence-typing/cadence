@@ -356,6 +356,8 @@ impl crate::Engine {
             | Key::Backspace
             | Key::Interrupt
             | Key::ToggleTextSize
+            | Key::Tab
+            | Key::BackTab
             | Key::Other => {}
         }
     }

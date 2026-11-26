@@ -206,6 +206,8 @@ impl Engine {
                 | Key::Interrupt
                 | Key::ToggleTextSize
                 | Key::Arrow(_)
+                | Key::Tab
+                | Key::BackTab
                 | Key::Other => {}
             }
             return Ok(DomainOutcome::None);
@@ -289,6 +291,8 @@ impl Engine {
             | Key::Interrupt
             | Key::ToggleTextSize
             | Key::Arrow(_)
+            | Key::Tab
+            | Key::BackTab
             | Key::Other => {}
         }
         Ok(DomainOutcome::None)

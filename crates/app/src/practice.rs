@@ -11,6 +11,10 @@ use cadence_engine::{DomainOutcome, Engine, EventEnvelope, EventKind, Transition
 use cadence_runtime::{ConfigWorker, SaveWorker, TerminalGuard, WriterError, elapsed_since};
 use cadence_tui::{Palette, paint};
 
+/// A single-track plan Train or Numpad asked for (#80): the track and the
+/// length in minutes.
+pub type Track = (cadence_trainer::Phase, u64);
+
 /// Timer-only repaints are capped; semantic keys/results repaint immediately.
 const TIMER_FRAME_INTERVAL: Duration = Duration::from_millis(100);
 
@@ -106,7 +110,7 @@ pub fn run(
     config: ConfigWorker,
     (day, text_size): (i64, TextSize),
     palette: Palette,
-    mut rebuild: impl FnMut() -> Result<Prepared, Box<dyn Error>>,
+    mut rebuild: impl FnMut(Option<Track>) -> Result<Prepared, Box<dyn Error>>,
 ) -> Result<(), Box<dyn Error>> {
     let origin = Instant::now();
     let Prepared {
@@ -165,7 +169,7 @@ pub fn run(
                 // Setup is written (#78) and nothing was typed or saved: the
                 // store and plan are built again from the file.
                 worker.finish()?;
-                let next = rebuild()?;
+                let next = rebuild(None)?;
                 worker = next.worker;
                 owner = Owner::new(next.engine);
                 begin(
@@ -193,6 +197,34 @@ pub fn run(
         let transition = owner.apply(at, event.unwrap_or(EventKind::Tick), &config)?;
         if transition.quit {
             break transition.exit_failed;
+        }
+        if let DomainOutcome::PlanRequested { phase, minutes } = transition.outcome {
+            // Train or Numpad (#80): nothing was typed; the single-track plan
+            // is built exactly as for `--track`, and begins.
+            worker.finish()?;
+            let next = rebuild(Some((phase, minutes)))?;
+            worker = next.worker;
+            owner = Owner::new(next.engine);
+            begin(
+                &mut owner,
+                next.bootstrap,
+                (day, text_size),
+                (&terminal, origin),
+                &config,
+            )?;
+            owner.apply(
+                elapsed_since(origin)?,
+                EventKind::Command(cadence_engine::commands::Action::Begin),
+                &config,
+            )?;
+            draw(
+                &owner.engine,
+                &mut terminal,
+                elapsed_since(origin)?,
+                palette,
+            )?;
+            last_frame = Instant::now();
+            continue;
         }
         if transition.dirty && (semantic || last_frame.elapsed() >= TIMER_FRAME_INTERVAL) {
             draw(&owner.engine, &mut terminal, at, palette)?;

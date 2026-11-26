@@ -51,6 +51,9 @@ impl Engine {
             notice,
             settings: self.settings.view(),
             setup: self.setup_view(),
+            commands: self.commands(),
+            help: self.help_view(),
+            destination: self.destination_view(),
             numpad_off: matches!(
                 self.settings.value("keyboard.numpad"),
                 Some(cadence_core::settings::Setting::Boolean(false))
@@ -359,7 +362,7 @@ impl Engine {
             },
         }
     }
-    fn view_mode(&self) -> ViewMode {
+    pub(crate) fn view_mode(&self) -> ViewMode {
         if self.durability().is_failed() {
             ViewMode::SaveError
         } else if self.invalid {
