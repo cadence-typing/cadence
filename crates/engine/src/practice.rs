@@ -12,7 +12,7 @@ use cadence_trainer::{ExerciseKind, Phase};
 /// Mirrors runtime policy `maximum_extra_input_units` (trainer-v2.toml).
 const EXTRA_INPUT_UNITS: u32 = 128;
 /// One accumulator per distinct `Track` variant.
-pub(super) const TRACK_CAPACITY: usize = 5;
+pub(super) const TRACK_CAPACITY: usize = 6;
 
 impl Engine {
     pub(super) fn advance_clock(

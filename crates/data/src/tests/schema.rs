@@ -143,3 +143,92 @@ fn malformed_schema_version_and_unversioned_data_are_not_reset() -> TestResult {
     }
     Ok(())
 }
+
+/// #45: a populated schema-3 profile migrates to schema 4 with every
+/// session, receipt and digest intact, in one transaction.
+#[test]
+fn populated_schema_three_migrates_intact() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let saved = [
+        checkpoint(1, 1, ProgressStatus::Completed)?,
+        checkpoint(2, 3, ProgressStatus::Abandoned)?,
+    ];
+    let before = {
+        let mut store = ProgressStore::open_in(directory.path())?;
+        for checkpoint in &saved {
+            store.apply_checkpoint(checkpoint)?;
+        }
+        let history = store.session_history()?;
+        // Turn the file back into its schema-3 layout.
+        store.connection.execute_batch(
+            "ALTER TABLE sessions DROP COLUMN utc_offset_minutes;
+             UPDATE schema_info SET version=3 WHERE id=1;",
+        )?;
+        history
+    };
+    let store = ProgressStore::open_in(directory.path())?;
+    let version: i64 =
+        store
+            .connection
+            .query_row("SELECT version FROM schema_info", [], |row| row.get(0))?;
+    assert_eq!(version, 4);
+    assert_eq!(store.session_history()?, before);
+    let offsets: i64 = store.connection.query_row(
+        "SELECT COUNT(*) FROM sessions WHERE utc_offset_minutes IS NOT NULL",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(offsets, 0, "no backfill");
+    Ok(())
+}
+
+/// #45: a schema newer than this build (as schema 4 is for alpha.5) is
+/// refused, not migrated or reset.
+#[test]
+fn the_next_schema_is_refused() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    {
+        let store = ProgressStore::open_in(directory.path())?;
+        store
+            .connection
+            .execute_batch("UPDATE schema_info SET version=5 WHERE id=1;")?;
+    }
+    assert!(matches!(
+        ProgressStore::open_in(directory.path()),
+        Err(StoreError::SchemaTooNew {
+            found: 5,
+            supported: 4
+        })
+    ));
+    Ok(())
+}
+
+/// #45: a checkpoint with a `review` track round-trips.
+#[test]
+fn a_review_track_round_trips() -> TestResult {
+    use cadence_core::progress::{Track, TrackProgress};
+    let directory = tempfile::tempdir()?;
+    let mut store = ProgressStore::open_in(directory.path())?;
+    let base = checkpoint(1, 1, ProgressStatus::Running)?;
+    let mut progress = base.progress.clone();
+    progress.active_micros = 1_500_000;
+    progress.tracks.push(TrackProgress {
+        track: Track::Review,
+        first_correct: 9,
+        first_attempted: 10,
+        correct_attempts: 11,
+        content_attempts: 12,
+        deletions: 1,
+        overflow_attempts: 0,
+        correct_units: 9,
+        correct_digits: 0,
+        active_micros: 600_000,
+    });
+    let saved = super::rekey(&base, 1, progress)?;
+    store.apply_checkpoint(&saved)?;
+    assert_eq!(
+        store.session_history()?.first().map(|row| &row.checkpoint),
+        Some(&saved)
+    );
+    Ok(())
+}

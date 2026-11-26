@@ -327,5 +327,6 @@ const fn track_label(track: Track) -> &'static str {
         Track::NumberRow => "number row",
         Track::Numpad => "numpad",
         Track::Prose => "prose",
+        Track::Review => "review",
     }
 }

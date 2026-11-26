@@ -5,15 +5,19 @@
 //! An empty v1 can safely acquire those columns. Schema 3 (plan 0003) adds
 //! per-session learning evidence in new tables only; a populated schema 2
 //! migrates with those tables empty, because per-key evidence cannot be
-//! reconstructed from track totals. Every 0/1/2 -> 3 path is one
-//! transaction; no destructive reset path exists.
+//! reconstructed from track totals. Schema 4 (#45) admits the `review`
+//! track (track names are not constrained in SQL; the reader maps them) and
+//! adds the nullable `sessions.utc_offset_minutes` (written by #52); no row
+//! changes. Every 0/1/2/3 -> 4 path is one transaction; no destructive reset
+//! path exists. `word_outcomes` also holds warm-up and prose words from
+//! alpha.7 (columns unchanged).
 
 use rusqlite::{Connection, OptionalExtension};
 
 use crate::StoreError;
 
 /// Highest supported persistence schema version.
-pub const SUPPORTED_SCHEMA: i64 = 3;
+pub const SUPPORTED_SCHEMA: i64 = 4;
 
 pub(crate) fn inspect(connection: &Connection) -> Result<i64, StoreError> {
     let has_schema: bool = connection.query_row(
@@ -84,7 +88,12 @@ pub(crate) fn migrate(connection: &mut Connection, current: i64) -> Result<(), S
         return Ok(());
     }
     let tx = connection.transaction()?;
-    for (target, sql) in [(1, MIGRATION_V1), (2, MIGRATION_V2), (3, MIGRATION_V3)] {
+    for (target, sql) in [
+        (1, MIGRATION_V1),
+        (2, MIGRATION_V2),
+        (3, MIGRATION_V3),
+        (4, MIGRATION_V4),
+    ] {
         if current < target {
             tx.execute_batch(sql)
                 .map_err(|error| StoreError::Migration {
@@ -180,4 +189,11 @@ CREATE TABLE prose_seen (
     PRIMARY KEY(session_id,passage_id)
 );
 UPDATE schema_info SET version=3 WHERE id=1;
+";
+
+/// The closing review track and the session's UTC offset (#45, #52).
+const MIGRATION_V4: &str = "
+ALTER TABLE sessions ADD COLUMN utc_offset_minutes INTEGER NULL
+    CHECK(utc_offset_minutes IS NULL OR utc_offset_minutes BETWEEN -1440 AND 1440);
+UPDATE schema_info SET version=4 WHERE id=1;
 ";

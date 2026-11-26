@@ -20,6 +20,9 @@ struct PortableSession {
     progress: SessionProgress,
     /// Schema-3 evidence; absent for sessions recorded before it existed.
     learning: Option<PortableLearning>,
+    /// Schema 4: the local UTC offset in minutes the session's day was
+    /// counted in (#52); `null` when it was not recorded.
+    utc_offset_minutes: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -153,6 +156,19 @@ impl ProgressStore {
     /// # Errors
     /// Rejects corrupt data and existing outputs; reports encoding/write/sync failures.
     pub fn export_to(&self, destination: &Path) -> Result<(), StoreError> {
+        let mut offsets = std::collections::HashMap::new();
+        {
+            let mut statement = self
+                .connection
+                .prepare("SELECT session_id, utc_offset_minutes FROM sessions")?;
+            let rows = statement.query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?))
+            })?;
+            for row in rows {
+                let (session, offset) = row?;
+                offsets.insert(session, offset);
+            }
+        }
         let sessions = self
             .session_history()?
             .into_iter()
@@ -163,6 +179,9 @@ impl ProgressStore {
                     sequence: checkpoint.key.sequence.get(),
                     digest: checkpoint.key.digest.to_hex(),
                     learning: checkpoint.learning.as_ref().map(PortableLearning::new),
+                    utc_offset_minutes: i64::try_from(checkpoint.key.session.get())
+                        .ok()
+                        .and_then(|session| offsets.get(&session).copied().flatten()),
                     progress: checkpoint.progress,
                 }
             })

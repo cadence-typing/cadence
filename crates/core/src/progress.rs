@@ -22,6 +22,9 @@ pub enum Track {
     Numpad,
     /// Prose practice.
     Prose,
+    /// The typed closing review (schema 4, #45; recorded from #49). Kept
+    /// out of the session headline (#60).
+    Review,
 }
 impl Track {
     /// Stable byte in the checkpoint digest (declaration order of the v1
@@ -34,6 +37,7 @@ impl Track {
             Self::NumberRow => 2,
             Self::Numpad => 3,
             Self::Prose => 4,
+            Self::Review => 5,
         }
     }
 
@@ -46,6 +50,7 @@ impl Track {
             Self::NumberRow => "number row",
             Self::Numpad => "numpad",
             Self::Prose => "prose",
+            Self::Review => "review",
         }
     }
 }
