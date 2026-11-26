@@ -120,6 +120,8 @@ pub struct LearnerModel {
     /// The focus split by group (letters, then row, then numpad).
     focus_groups: Vec<(FocusGroup, Vec<SkillKey>)>,
     due_words: Vec<WordId>,
+    /// Each due word's ladder rung, parallel to `due_words` (#47).
+    due_rungs: Vec<usize>,
     passage_age: HashMap<PassageId, usize>,
 }
 
@@ -136,6 +138,7 @@ impl LearnerModel {
             focus: Vec::new(),
             focus_groups: Vec::new(),
             due_words: Vec::new(),
+            due_rungs: Vec::new(),
             passage_age: HashMap::new(),
         }
     }
@@ -200,7 +203,9 @@ impl LearnerModel {
             model.focus.extend(chosen.iter().copied());
             model.focus_groups.push((group, chosen));
         }
-        model.due_words = due_words(&history.sessions, policy, today)?;
+        let due = due_words(&history.sessions, policy, today)?;
+        model.due_words = due.iter().map(|(word, _)| *word).collect();
+        model.due_rungs = due.iter().map(|(_, rung)| *rung).collect();
         Ok(model)
     }
 
@@ -233,6 +238,14 @@ impl LearnerModel {
     #[must_use]
     pub fn due_words(&self) -> &[WordId] {
         &self.due_words
+    }
+
+    /// Due words with their ladder rung (0 = the 1-day rung), FIFO (#47).
+    pub fn due_with_rungs(&self) -> impl Iterator<Item = (WordId, usize)> + '_ {
+        self.due_words
+            .iter()
+            .copied()
+            .zip(self.due_rungs.iter().copied())
     }
 
     /// Sessions since a passage was last typed, within the no-repeat window.
@@ -382,7 +395,7 @@ fn due_words(
     sessions: &[HistoricSession],
     policy: &TrainerPolicy,
     today: UtcDay,
-) -> Result<Vec<WordId>, CoreError> {
+) -> Result<Vec<(WordId, usize)>, CoreError> {
     let ladder = &policy.review.interval_days;
     let mut states: BTreeMap<WordId, ReviewState> = BTreeMap::new();
     // Replay in (day, session) order: after a change of UTC offset a later
@@ -402,7 +415,8 @@ fn due_words(
         }
     }
     let mut due: Vec<(UtcDay, WordId)> = states
-        .into_iter()
+        .iter()
+        .map(|(word, state)| (*word, *state))
         .filter(|(_, state)| is_due(*state, today))
         .filter_map(|(word, state)| state.due.map(|due| (due, word)))
         .collect();
@@ -416,7 +430,10 @@ fn due_words(
     }
     let mut ordered = Vec::with_capacity(fifo.len());
     while let Some(entry) = fifo.serve_head() {
-        ordered.push(entry.word);
+        let rung = states
+            .get(&entry.word)
+            .map_or(0, |state| state.interval_index);
+        ordered.push((entry.word, rung));
     }
     Ok(ordered)
 }

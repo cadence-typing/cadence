@@ -724,3 +724,38 @@ fn a_numeric_miss_never_leaves_its_phase() -> TestResult {
     assert_eq!(numpad, ["111", "222", "333", "444"]);
     Ok(())
 }
+
+/// #47: a word missed in warm-up returns once in the words phase,
+/// labelled "again".
+#[test]
+fn a_warm_up_miss_returns_in_the_words_phase() -> TestResult {
+    let mut warm = words_exercise(&[("cat", 1, Lane::Target), ("dog", 2, Lane::Broad)])?;
+    warm.kind = ExerciseKind::WarmUp;
+    let phases = vec![
+        PlannedPhase {
+            phase: Phase::WarmUp,
+            seconds: 1,
+            exercises: vec![warm],
+        },
+        PlannedPhase {
+            phase: Phase::AdaptiveWords,
+            seconds: 60,
+            exercises: vec![
+                words_exercise(&[("sun", 3, Lane::Target), ("hat", 4, Lane::Review)])?,
+                words_exercise(&[("map", 5, Lane::Target), ("pen", 6, Lane::Review)])?,
+            ],
+        },
+    ];
+    let mut driver = Driver::new(engine(phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "c#at do")?;
+    // The warm-up's second passes; the interlude, then the words phase.
+    driver.send(at + 1_000_000, EventKind::Tick)?;
+    driver.key(at + 2_000_000, Key::Enter)?;
+    let at = at + 2_100_000;
+    assert_eq!(practice_text(&mut driver, at)?, "sun cat");
+    assert_eq!(context_line(&mut driver, at).as_deref(), Some("again: cat"));
+    let at = type_text(&mut driver, at, "sun cat")?;
+    assert_eq!(practice_text(&mut driver, at)?, "map pen", "returned once");
+    Ok(())
+}

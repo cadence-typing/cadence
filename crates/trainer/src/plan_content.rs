@@ -18,16 +18,30 @@ pub(super) fn exercises(
     rng: &mut PlanRng,
     phase: Phase,
     seconds: u64,
+    served_due: &mut std::collections::HashSet<cadence_core::WordId>,
 ) -> Result<Vec<PlannedExercise>, PlanError> {
     match phase {
         Phase::Review => Ok(Vec::new()),
         Phase::WarmUp => {
-            let selector = WordSelector::warm_up(policy, inputs.pack, inputs.learner, rng);
-            words(policy, selector, rng, seconds, ExerciseKind::WarmUp)
+            let mut selector = WordSelector::warm_up(policy, inputs.pack, inputs.learner, rng);
+            let mut exercises = words(policy, &mut selector, rng, seconds, ExerciseKind::WarmUp)?;
+            served_due.extend(selector.served_due().iter().copied());
+            // #47: say how many retention checks each warm-up exercise holds.
+            for exercise in &mut exercises {
+                let checks = exercise.words.iter().filter(|word| word.due_review).count();
+                if checks > 0 {
+                    exercise.caption = Some(format!(
+                        "Familiar words \u{b7} {checks} retention check{}",
+                        if checks == 1 { "" } else { "s" }
+                    ));
+                }
+            }
+            Ok(exercises)
         }
         Phase::AdaptiveWords => {
-            let selector = WordSelector::adaptive(policy, inputs.pack, inputs.learner, rng);
-            words(policy, selector, rng, seconds, ExerciseKind::Words)
+            let mut selector =
+                WordSelector::adaptive(policy, inputs.pack, inputs.learner, rng, served_due);
+            words(policy, &mut selector, rng, seconds, ExerciseKind::Words)
         }
         Phase::NumberRow | Phase::Numpad => {
             // One prepared entry per second, not one five-entry string per 20s.
@@ -88,7 +102,7 @@ fn content(message: &str) -> PlanError {
 
 fn words(
     policy: &TrainerPolicy,
-    mut selector: WordSelector<'_>,
+    selector: &mut WordSelector<'_>,
     rng: &mut PlanRng,
     seconds: u64,
     kind: ExerciseKind,

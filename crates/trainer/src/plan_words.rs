@@ -69,6 +69,8 @@ pub(super) struct WordSelector<'a> {
     last_target: HashMap<WordId, u32>,
     /// The ordinal of the block being selected.
     exercise: u32,
+    /// Due words this selector planned (a word is due in one phase only).
+    served_due: Vec<WordId>,
     focus_turn: usize,
 }
 
@@ -79,6 +81,7 @@ impl<'a> WordSelector<'a> {
         pack: &'a WordPack,
         learner: &'a LearnerModel,
         rng: &mut PlanRng,
+        already_due: &HashSet<WordId>,
     ) -> Self {
         let target_bands = target_bands(policy);
         // The words phase targets the letters group (#46).
@@ -101,11 +104,17 @@ impl<'a> WordSelector<'a> {
             )),
             targets: Stream::new(words_in(pack, target_bands, |_| true), rng),
             focus,
-            due: learner.due_words().iter().copied().collect(),
+            due: learner
+                .due_words()
+                .iter()
+                .copied()
+                .filter(|word| !already_due.contains(word))
+                .collect(),
             session_counts: HashMap::new(),
             planned: HashSet::new(),
             last_target: HashMap::new(),
             exercise: 0,
+            served_due: Vec::new(),
             focus_turn: 0,
         }
     }
@@ -125,11 +134,18 @@ impl<'a> WordSelector<'a> {
             broad: Stream::new(core.clone(), rng),
             targets: Stream::new(core, rng),
             focus: Vec::new(),
-            due: VecDeque::new(),
+            // Retention checks (#47): due words above the first rung; the
+            // first rung's words wait for the words phase.
+            due: learner
+                .due_with_rungs()
+                .filter(|(_, rung)| *rung >= 1)
+                .map(|(word, _)| word)
+                .collect(),
             session_counts: HashMap::new(),
             planned: HashSet::new(),
             last_target: HashMap::new(),
             exercise: 0,
+            served_due: Vec::new(),
             focus_turn: 0,
         }
     }
@@ -165,6 +181,11 @@ impl<'a> WordSelector<'a> {
         }
         self.exercise = self.exercise.saturating_add(1);
         Ok(words)
+    }
+
+    /// The due words this selector planned.
+    pub(super) fn served_due(&self) -> &[WordId] {
+        &self.served_due
     }
 
     /// The units of a block, space-separated.
@@ -231,6 +252,7 @@ impl<'a> WordSelector<'a> {
     fn due_review(&mut self, tracker: &QuotaTracker) -> Option<PlannedWord> {
         while let Some(id) = self.due.pop_front() {
             if self.pack.word(id).is_some() && tracker.word_admissible(id, Lane::Review, None) {
+                self.served_due.push(id);
                 return Some(PlannedWord {
                     id,
                     lane: Lane::Review,

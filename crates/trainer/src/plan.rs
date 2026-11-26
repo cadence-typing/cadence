@@ -242,8 +242,17 @@ pub fn build_session_plan(
         .map_err(|reason| PlanError::Infeasible { reason })?;
     let mut rng = PlanRng::seed_from_u64(seed);
     let mut phases = Vec::with_capacity(enabled.len());
+    // A due word is planned in one phase only (#47): warm-up first.
+    let mut served_due = std::collections::HashSet::new();
     for (((phase, _), _), seconds) in enabled.into_iter().zip(allocation) {
-        let exercises = crate::plan_content::exercises(policy, inputs, &mut rng, phase, seconds)?;
+        let exercises = crate::plan_content::exercises(
+            policy,
+            inputs,
+            &mut rng,
+            phase,
+            seconds,
+            &mut served_due,
+        )?;
         phases.push(PlannedPhase {
             phase,
             seconds,

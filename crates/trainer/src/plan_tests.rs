@@ -502,3 +502,90 @@ fn numeric_entries_follow_their_own_groups_focus() {
         );
     }
 }
+
+/// #47: due words above the first rung are warm-up retention checks, the
+/// first rung's words stay for the words phase, no word is due in both,
+/// and none is dropped when warm-up has too few review slots.
+#[test]
+fn retention_checks_go_to_warm_up_and_spill_into_words() {
+    let promoted: Vec<WordId> = (101..=112).map(|id| WordId::new(id).unwrap()).collect();
+    let fresh_miss = WordId::new(200).unwrap();
+    let session = |id: u64, day: i64, words: &[(WordId, u64)]| {
+        let mut learning = SessionLearning::new(PlanRecord {
+            seed: id,
+            mode: PlannerMode::ColdStart,
+            focus: Vec::new(),
+        });
+        for (word, errors) in words {
+            learning.words.insert(
+                *word,
+                WordTally {
+                    attempts: 1,
+                    errors: *errors,
+                },
+            );
+        }
+        HistoricSession {
+            session: SessionId::new(id).unwrap(),
+            day,
+            learning,
+        }
+    };
+    let all = |errors| promoted.iter().map(|w| (*w, errors)).collect::<Vec<_>>();
+    // Missed on day 10, clean on 11 and 12 (two days): rung 1, due day 15.
+    let history = LearnerHistory {
+        sessions: vec![
+            session(1, 10, &all(1)),
+            session(2, 11, &all(0)),
+            session(3, 12, &all(0)),
+            session(4, 14, &[(fresh_miss, 1)]),
+        ],
+    };
+    let learner = LearnerModel::from_history(
+        &history,
+        &policy(),
+        UtcDay::from_days_since_epoch(15).unwrap(),
+    )
+    .unwrap();
+    let rungs: std::collections::HashMap<WordId, usize> = learner.due_with_rungs().collect();
+    assert_eq!(rungs.get(&fresh_miss), Some(&0));
+    assert!(promoted.iter().all(|w| rungs.get(w) == Some(&1)));
+    let (words, bank) = (pack(3_000), prose(50));
+    let plan = build(&learner, &words, &bank, 5, &[], 300).unwrap();
+    let due_in = |wanted| -> Vec<WordId> {
+        phase(&plan, wanted)
+            .exercises
+            .iter()
+            .flat_map(|e| e.words.iter())
+            .filter(|w| w.due_review)
+            .map(|w| w.id)
+            .collect()
+    };
+    let (warm, adaptive) = (due_in(Phase::WarmUp), due_in(Phase::AdaptiveWords));
+    assert!(!warm.is_empty());
+    assert!(
+        warm.iter().all(|w| promoted.contains(w)),
+        "warm-up holds rung >= 1 only"
+    );
+    assert!(!warm.contains(&fresh_miss));
+    assert!(
+        adaptive.contains(&fresh_miss),
+        "rung 0 waits for the words phase"
+    );
+    assert!(
+        warm.iter().all(|w| !adaptive.contains(w)),
+        "due in one phase only"
+    );
+    for word in &promoted {
+        assert!(
+            warm.contains(word) || adaptive.contains(word),
+            "{} dropped",
+            word.get()
+        );
+    }
+    let caption = phase(&plan, Phase::WarmUp)
+        .exercises
+        .iter()
+        .find_map(|e| e.caption.clone());
+    assert!(caption.is_some_and(|c| c.starts_with("Familiar words · ")));
+}

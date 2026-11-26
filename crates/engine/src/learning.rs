@@ -359,7 +359,9 @@ impl Learning {
                 continue;
             }
             self.evidence.observe_word(word.id, flag.any_error)?;
-            if flag.any_error && exercise.kind == ExerciseKind::Words {
+            // Warm-up misses return in the words phase too (#47).
+            if flag.any_error && matches!(exercise.kind, ExerciseKind::Words | ExerciseKind::WarmUp)
+            {
                 self.enqueue(word.id, ledger.target(), end, length)?;
             }
         }
