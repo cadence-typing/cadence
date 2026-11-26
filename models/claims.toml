@@ -1,0 +1,65 @@
+# Living TLA+ model registry (RFC 2026-11-26-formal-gates-and-production-mapping, #28).
+#
+# `tools/tlc_gate.py` runs every model listed here: the positive `config`
+# must find no error, and each `[[model.mutant]]` must fail on exactly the
+# invariant it names. Run `tools/tlc_gate.py --update` after editing this
+# file; it rewrites `models/claims.json` (the committed snapshot) and the
+# protocol table in docs/TAUTEN.md, and refuses to record a model that lost
+# an invariant, mutant, production symbol or runtime test, or dropped from
+# `mapped`, unless an `[[amend]]` entry names the module with a reason.
+#
+# status = "mapped": the model describes shipped code. It needs
+#   `production_symbols` (resolved against the workspace by the gate),
+#   `runtime_tests` ("<package>::<test path>", resolved with
+#   `cargo test -- --list`) and at least one mutant. Badge: model-proved
+#   (bounded), never `proved`.
+# status = "design-probe": the model describes a design that production does
+#   not implement yet; it still runs, is never shown as mapped, and names what
+#   it is `blocked_on`.
+#
+# New living models go in `models/`. The three handover models stay in the
+# frozen, manifest-pinned `formal/` directory and are run from there unchanged.
+
+[[model]]
+module = "DurableCheckpoint"
+dir = "formal"
+config = "DurableCheckpoint.cfg"
+invariants = ["TypeOK", "AckIsDurable", "NoDoubleCredit"]
+status = "design-probe"
+blocked_on = "#30: the shipped save protocol is modelled by models/CheckpointSave.tla, which carries the production mapping"
+
+[[model.mutant]]
+config = "DurableCheckpoint-early-ack.cfg"
+violates = "AckIsDurable"
+
+[[model.mutant]]
+config = "DurableCheckpoint-double-credit.cfg"
+violates = "NoDoubleCredit"
+
+[[model]]
+module = "AsyncAdmission"
+dir = "formal"
+config = "AsyncAdmission.cfg"
+invariants = ["TypeOK", "AcceptedFresh", "AtMostOnce"]
+status = "design-probe"
+blocked_on = "#4: no job registry with epoch/request tickets is shipped"
+
+[[model.mutant]]
+config = "AsyncAdmission-no-epoch.cfg"
+violates = "AcceptedFresh"
+
+[[model.mutant]]
+config = "AsyncAdmission-no-pending.cfg"
+violates = "AtMostOnce"
+
+[[model]]
+module = "CausalBarrier"
+dir = "formal"
+config = "CausalBarrier.cfg"
+invariants = ["TypeOK", "NoEarlyReturn"]
+status = "design-probe"
+blocked_on = "#4: the headless driver and its barriers are not shipped"
+
+[[model.mutant]]
+config = "CausalBarrier-early-return.cfg"
+violates = "NoEarlyReturn"

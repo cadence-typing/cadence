@@ -57,8 +57,8 @@ fn run_feedback() -> Result<(), String> {
 }
 
 /// The `quality` gate: fmt, Clippy with warnings denied, workspace tests,
-/// architecture boundary check and handover-contract manifest
-/// verification (B-05).
+/// architecture boundary check, handover-contract manifest verification
+/// (B-05) and the TLC model gate (#28).
 fn run_quality() -> Result<(), String> {
     run("cargo", &["fmt", "--check"])?;
     run(
@@ -75,7 +75,26 @@ fn run_quality() -> Result<(), String> {
     run("cargo", &["test", "--workspace"])?;
     boundary::check()?;
     contracts::verify_manifest()?;
+    run_models()?;
     Ok(())
+}
+
+/// The TLC model gate (#28): the gate's own failure-mode tests, then every
+/// model in `models/claims.toml` with the pinned TLC. A missing tool fails.
+fn run_models() -> Result<(), String> {
+    run(
+        "python3",
+        &[
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tools",
+            "-p",
+            "test_*.py",
+        ],
+    )?;
+    run("python3", &["tools/tlc_gate.py"])
 }
 
 /// Runs a command, forwarding output; a nonzero exit is a gate failure.

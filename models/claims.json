@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "tool": "TLC 1.7.4",
+  "tool_sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+  "models": [
+    {
+      "module": "DurableCheckpoint",
+      "status": "design-probe",
+      "invariants": [
+        "AckIsDurable",
+        "NoDoubleCredit",
+        "TypeOK"
+      ],
+      "mutants": [
+        "DurableCheckpoint-double-credit.cfg violates NoDoubleCredit",
+        "DurableCheckpoint-early-ack.cfg violates AckIsDurable"
+      ],
+      "production_symbols": [],
+      "runtime_tests": [],
+      "constants": "MaxSeq = 3 AckAfterCommit = TRUE Idempotent = TRUE",
+      "sha256": {
+        "DurableCheckpoint.tla": "3bc858e533a0a8c7f49f041d54fb0342dbb988109a0ff2502be1e8b531546973",
+        "DurableCheckpoint.cfg": "a98bad523fa578650f466c46a6771564f08940d0e84a0aaaffb10c6cb8ff1a89",
+        "DurableCheckpoint-early-ack.cfg": "d2380f3fbb7797491ded65089bb2b651d427beaf2132665597c4c41023d90adb",
+        "DurableCheckpoint-double-credit.cfg": "c160013a64e63f61baae27216f3147914e728b8654a0e3d58a2eb17e654e18ed"
+      }
+    },
+    {
+      "module": "AsyncAdmission",
+      "status": "design-probe",
+      "invariants": [
+        "AcceptedFresh",
+        "AtMostOnce",
+        "TypeOK"
+      ],
+      "mutants": [
+        "AsyncAdmission-no-epoch.cfg violates AcceptedFresh",
+        "AsyncAdmission-no-pending.cfg violates AtMostOnce"
+      ],
+      "production_symbols": [],
+      "runtime_tests": [],
+      "constants": "MaxEpoch = 1 MaxRequest = 1 MaxAccepted = 4 CheckEpoch = TRUE CheckPending = TRUE",
+      "sha256": {
+        "AsyncAdmission.tla": "2de241519a89346308275d1361b8c99cb585ce2cdeba8ebba24fa7409ca4dc64",
+        "AsyncAdmission.cfg": "4314e17d936432b26421c76808f29b0912db3d297a0f8bab70ca588899174b01",
+        "AsyncAdmission-no-epoch.cfg": "3920e2d3704712fb7bc0044281e5ef41729c91c530d9f49ee9b400fd98cb0c9c",
+        "AsyncAdmission-no-pending.cfg": "3a652371c5b3ec470d5a4a54949fd8c1219470094c4fe2e1d1b7c74c55a6efa8"
+      }
+    },
+    {
+      "module": "CausalBarrier",
+      "status": "design-probe",
+      "invariants": [
+        "NoEarlyReturn",
+        "TypeOK"
+      ],
+      "mutants": [
+        "CausalBarrier-early-return.cfg violates NoEarlyReturn"
+      ],
+      "production_symbols": [],
+      "runtime_tests": [],
+      "constants": "Depth = 3 CountDeferred = TRUE",
+      "sha256": {
+        "CausalBarrier.tla": "55c83a20a9d00a7eebb5b53b6d612e5686941206c7c1cb4deb77c1f0a61b866f",
+        "CausalBarrier.cfg": "1dca3accfee8eec25775b527846f8a5e80a2c51e8cb787a5514c9d3359c1b142",
+        "CausalBarrier-early-return.cfg": "0ce715be5101a7a4adbdd555d11b7545e72a3ce9f3977e639870d89d23995412"
+      }
+    }
+  ]
+}

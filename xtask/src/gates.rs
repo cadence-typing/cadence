@@ -61,7 +61,9 @@ pub const GATES: &[Gate] = &[
     Gate {
         id: "model",
         description: "full TLA+ model inventory, stated bounds, named fault kills",
-        state: GateState::Pending("P7"),
+        state: GateState::Feedback(
+            "models/claims.toml runs with mutants, but no shipped protocol is mapped yet (#30, #31)",
+        ),
     },
     Gate {
         id: "prove",
@@ -156,6 +158,7 @@ fn dispatch_implemented(id: &str) -> Result<(), String> {
     match id {
         "quality" => crate::run_quality(),
         "corpus" => crate::corpus::check(),
+        "model" => crate::run_models(),
         other => Err(format!("gate {other} has no runner wired yet")),
     }
 }

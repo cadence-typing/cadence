@@ -2,7 +2,7 @@
 rfc: "2026-11-26-formal-gates-and-production-mapping"
 title: "Formal gates with production mappings"
 status: accepted
-implementation: not-started
+implementation: in-progress
 authors:
   - tknawara
   - claude-fable (review agent)
