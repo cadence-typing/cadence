@@ -1,12 +1,12 @@
 ---
 rfc: "2026-11-24-public-distribution"
 title: "Public distribution: install script, website and project process"
-status: draft
+status: accepted
 implementation: in-progress
 authors:
   - tknawara
 created: 2026-11-24
-updated: 2026-11-24
+updated: 2026-11-26
 issue: "https://github.com/cadence-typing/cadence/issues/1"
 milestone: "0.1.0-alpha.6"
 supersedes: []
@@ -82,3 +82,4 @@ Existing hand installs under `~/.local/lib/cadence/<version>-<sha>/` are left al
 ## Decision log
 
 - 2026-11-24: The owner chose the `cadence-typing` organization and asked for the repository to be made public once this work is done.
+- 2026-11-26: Accepted by default under the owner's rule adopted from Writfold (AGENTS.md, "Issues, milestones and RFCs"); the owner may amend. The org avatar upload remains on #1.

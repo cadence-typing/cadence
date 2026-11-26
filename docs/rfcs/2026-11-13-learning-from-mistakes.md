@@ -7,8 +7,8 @@ authors:
   - tknawara
 created: 2026-11-13
 updated: 2026-11-24
-issue: null
-milestone: null
+issue: "https://github.com/cadence-typing/cadence/issues/23"
+milestone: "0.1.0-alpha.4"
 supersedes: []
 superseded_by: []
 blocked_on: []

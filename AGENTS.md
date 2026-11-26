@@ -42,6 +42,14 @@ These rules express the owner's requested quality constraints for the future pro
 
 Maintain a compact status ledger mapping requirement IDs to implementation, tests, proof claims and receipts. Finish all authorised P0–P8 work; do not replace required behaviour with a TODO and describe the feature as complete. Report actual limitations and blocked gates precisely. Human-learning effectiveness is evaluated empirically; software proofs do not certify a guaranteed WPM gain.
 
+## Issues, milestones and RFCs (owner, 2026-11-26, adopted from Writfold)
+
+- **All remaining and future work is a GitHub issue in a milestone.** A commit that does it names the issue (`Refs #N`; `Closes #N` on the last). Work that landed before 2026-11-26 is recorded by closed `backfill` issues in the `0.1.0-dev (P0–P2)` and `0.1.0-alpha.1`…`alpha.5` milestones.
+- **RFCs** in `docs/rfcs/` ([process](docs/rfcs/README.md)) cover designs that are costly to reverse and any new or changed decision logic, with proof obligations listed first. **The owner accepts RFCs by default:** an agent marks one `accepted` with a decision-log line, implements it, and the owner reviews and amends afterwards. Do not stall work waiting for acceptance.
+- Close an issue only when its work is on `main` and gated; never close one to make a count.
+- **Lean proofs first.** Every decision the trainer makes (what counts as an error, a pace, a focus skill, a due review, a phase allocation, a repeat) lives in `crates/kernel`, is extracted with Charon/Aeneas and has its properties proved in Lean, and `cargo tauten proofs` passes (drift, `lake build`, axiom audit, mutants) before it is wired into the product. Existing tested-only decisions are backfilled with proofs. Parsers, IO, rendering and numeric plumbing stay tested-only, and each RFC says which parts those are.
+- **One TLC model per real protocol**, with mutant configurations that must fail, a named production mapping per claim in `formal/claims.json`, and the models run as a gate. A model whose claim has no production mapping is `pending`, never `proved`.
+
 ## Strictness profile (tauten)
 
 This workspace uses the tauten profile. `cargo tauten check` must pass before

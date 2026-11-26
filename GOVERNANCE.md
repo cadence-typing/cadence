@@ -1,6 +1,6 @@
 # Governance
 
-The owner ([@tknawara](https://github.com/tknawara)) decides Cadence's scope, accepts or declines work, sets release milestones, and decides what ships. Contributors and agents may report problems, draft RFCs, review proposals, and implement accepted work. **Only the owner can accept or reject an RFC.** Merging a draft, putting an issue in a milestone, or passing a gate does not accept a design.
+The owner ([@tknawara](https://github.com/tknawara)) decides Cadence's scope, accepts or declines work, sets release milestones, and decides what ships. Contributors and agents may report problems, draft RFCs, review proposals, and implement accepted work. **Only the owner can accept or reject an RFC.** Merging a draft, putting an issue in a milestone, or passing a gate does not accept a design. Since 2026-11-26 the owner accepts RFCs written by the project's agents by default: the agent marks the RFC `accepted` with a decision-log line saying so, and the owner reviews and amends afterwards ([AGENTS.md](AGENTS.md)). RFCs from other contributors still wait for the owner.
 
 [AGENTS.md](AGENTS.md) holds the engineering rules. No issue, RFC or milestone overrides it; changing those rules is itself an RFC.
 

@@ -1,12 +1,12 @@
 ---
 rfc: "2026-11-24-tauten-and-lean-kernel"
 title: "Adopt the tauten strictness profile and verify the scoring kernel in Lean"
-status: draft
-implementation: partial
+status: accepted
+implementation: complete
 authors:
   - tknawara
 created: 2026-11-24
-updated: 2026-11-24
+updated: 2026-11-26
 issue: "https://github.com/cadence-typing/cadence/issues/2"
 milestone: "0.1.0-alpha.6"
 supersedes: []
@@ -212,3 +212,4 @@ file for the pinned image. Lint exceptions in tests moved to `clippy.toml`
 
 - 2026-11-24: drafted on branch `tauten-lean`. Decision by the owner pending;
   status remains `draft`.
+- 2026-11-26: Accepted by default under the owner's rule adopted from Writfold (AGENTS.md, "Issues, milestones and RFCs"); the owner may amend. Delivered on `main`: 19 of 19 claims proved with all mutants killed (`791aaee`), proofs workflow green on `main`.

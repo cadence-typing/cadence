@@ -20,7 +20,7 @@ An ordinary bug fix that restores the existing contract needs only an issue and 
 1. Find or open the issue. The owner triages it; `needs-rfc` means the design must be reviewed before implementation.
 2. Copy [0000-template.md](0000-template.md) to `YYYY-MM-DD-kebab-title.md`. Use the drafting date, not a serial number, and keep the filename if the title changes. Link the issue both ways, label it `rfc`, and add a row to the registry below.
 3. For a scoring, timing or kernel change, write the **proof obligations before the design**: which shipped Rust decision changes, the Lean theorem over its Aeneas translation, the mutant that must break it, and what is only tested or assumed. An RFC cannot waive [AGENTS.md](../../AGENTS.md).
-4. Only the owner accepts or rejects a proposal; merging a draft is not acceptance. Record the decision and its rationale in the RFC's decision log. Keep rejected and superseded records, and link replacements in both directions.
+4. Only the owner accepts or rejects a proposal; merging a draft is not acceptance. RFCs written by the project's agents are accepted by default (owner, 2026-11-26): the agent sets `accepted` with a decision-log line, implements, and the owner amends afterwards. Record the decision and its rationale in the RFC's decision log. Keep rejected and superseded records, and link replacements in both directions.
 5. Implementation PRs use `Refs #N`, or `Closes #N` for the final delivered scope. Update the RFC's `implementation` field and its registry row in the same PR.
 
 ## Frontmatter
@@ -47,9 +47,9 @@ Creation order. New proposals use `—` in the Legacy column.
 
 | Legacy | RFC | Decision | Implementation | Tracking issue |
 |---|---|---|---|---|
-| plan/0001 | [Centered visual focus and large practice text](2026-10-19-visual-focus.md) | accepted (typography amended by the next row) | complete | — |
-| plan/0002 | [Smooth native 2× terminal text](2026-10-19-smooth-native-text.md) | accepted | complete | — |
-| plan/0003 | [Learn from mistakes; vary natural prose](2026-11-13-learning-from-mistakes.md) | accepted | complete | — |
-| plan/0004 | [Calm flow and results that answer "how did I do"](2026-11-14-calm-flow-and-honest-results.md) | accepted | complete | — |
-| — | [Public distribution: install script, website and project process](2026-11-24-public-distribution.md) | draft | in-progress | [#1](https://github.com/cadence-typing/cadence/issues/1) |
-| — | [Adopt tauten and prove the scoring kernel in Lean](2026-11-24-tauten-and-lean-kernel.md) | draft | in-progress | [#2](https://github.com/cadence-typing/cadence/issues/2) |
+| plan/0001 | [Centered visual focus and large practice text](2026-10-19-visual-focus.md) | accepted (typography amended by the next row) | complete | [#21](https://github.com/cadence-typing/cadence/issues/21) |
+| plan/0002 | [Smooth native 2× terminal text](2026-10-19-smooth-native-text.md) | accepted | complete | [#22](https://github.com/cadence-typing/cadence/issues/22) |
+| plan/0003 | [Learn from mistakes; vary natural prose](2026-11-13-learning-from-mistakes.md) | accepted | complete | [#23](https://github.com/cadence-typing/cadence/issues/23) |
+| plan/0004 | [Calm flow and results that answer "how did I do"](2026-11-14-calm-flow-and-honest-results.md) | accepted | complete | [#24](https://github.com/cadence-typing/cadence/issues/24) |
+| — | [Public distribution: install script, website and project process](2026-11-24-public-distribution.md) | accepted | in-progress | [#1](https://github.com/cadence-typing/cadence/issues/1) |
+| — | [Adopt tauten and prove the scoring kernel in Lean](2026-11-24-tauten-and-lean-kernel.md) | accepted | complete | [#2](https://github.com/cadence-typing/cadence/issues/2) |
