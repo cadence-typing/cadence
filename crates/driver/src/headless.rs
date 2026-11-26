@@ -32,6 +32,35 @@ pub trait Services {
     /// # Errors
     /// A failed save, reported to the engine as a save failure.
     fn save(&mut self, checkpoint: &Checkpoint) -> Result<(), String>;
+    /// Writes or reloads the settings, as the live config worker does
+    /// (#79); fixture scenarios may simulate an external edit.
+    fn settings(
+        &mut self,
+        request: &cadence_engine::settings::SettingsRequest,
+    ) -> cadence_engine::jobs::JobOutcome;
+    /// The newest `limit` sessions for Progress (#81).
+    ///
+    /// # Errors
+    /// Storage failures.
+    fn history(
+        &mut self,
+        limit: usize,
+    ) -> Result<Vec<cadence_core::progress::HistoryPoint>, String>;
+    /// The engine again after setup is written (`None`), or for a Train or
+    /// Numpad plan (#78, #80).
+    ///
+    /// # Errors
+    /// As [`Services::engine`].
+    fn rebuild(&mut self, track: Option<(cadence_engine::Phase, u64)>) -> Result<Engine, String>;
+    /// The settings file's text, for snapshots (#86).
+    fn config_text(&self) -> Option<String>;
+}
+
+/// A settings write held for `deliver` (#86).
+struct SettingsJob {
+    id: u64,
+    ticket: cadence_engine::jobs::JobTicket,
+    request: cadence_engine::settings::SettingsRequest,
 }
 
 /// A checkpoint save held for `deliver` (manual fixture delivery, #71).
@@ -53,6 +82,7 @@ pub struct Headless<S: Services> {
     /// Saves wait for `deliver` instead of completing at once.
     manual: bool,
     jobs: Vec<Job>,
+    settings_jobs: Vec<SettingsJob>,
     next_job: u64,
 }
 
@@ -141,6 +171,7 @@ impl<S: Services> Headless<S> {
             finished: false,
             manual: false,
             jobs: Vec::new(),
+            settings_jobs: Vec::new(),
             next_job: 1,
         }
     }
@@ -183,6 +214,8 @@ impl<S: Services> Headless<S> {
         mut transition: cadence_engine::Transition,
     ) -> Result<bool, (Code, String)> {
         let mut quit = transition.quit;
+        let job = transition.job;
+        let outcome = transition.outcome.clone();
         while let Some(checkpoint) = transition.checkpoint.take() {
             let group = transition.checkpoint_group.unwrap_or_else(|| {
                 self.engine
@@ -201,6 +234,82 @@ impl<S: Services> Headless<S> {
             }
             transition = self.complete(&checkpoint, true)?;
             quit |= transition.quit;
+        }
+        if let Some(ticket) = job {
+            quit |= self.service_job(ticket)?;
+        }
+        match outcome {
+            cadence_engine::DomainOutcome::SetupComplete => quit |= self.restart(None)?,
+            cadence_engine::DomainOutcome::PlanRequested { phase, minutes } => {
+                quit |= self.restart(Some((phase, minutes)))?;
+            }
+            cadence_engine::DomainOutcome::None
+            | cadence_engine::DomainOutcome::SessionStarted
+            | cadence_engine::DomainOutcome::PhaseStarted { .. }
+            | cadence_engine::DomainOutcome::ExerciseCompleted { .. }
+            | cadence_engine::DomainOutcome::PhaseDeadline { .. }
+            | cadence_engine::DomainOutcome::SessionSummary
+            | cadence_engine::DomainOutcome::SessionAbandoned
+            | cadence_engine::DomainOutcome::MeasurementInvalid { .. } => {}
+        }
+        Ok(quit)
+    }
+
+    /// A started worker job (#79, #81): settings writes wait for `deliver`
+    /// in manual delivery; everything else is answered at once, through the
+    /// same `JobResult` admission as live.
+    fn service_job(
+        &mut self,
+        ticket: cadence_engine::jobs::JobTicket,
+    ) -> Result<bool, (Code, String)> {
+        let engine = self.engine.as_ref().ok_or_else(|| invalid("hello first"))?;
+        let outcome = if let Some(request) = engine.settings_request(ticket) {
+            if self.manual {
+                let id = self.next_job;
+                self.next_job = self.next_job.saturating_add(1);
+                self.settings_jobs.push(SettingsJob {
+                    id,
+                    ticket,
+                    request,
+                });
+                return Ok(false);
+            }
+            self.services.settings(&request)
+        } else if let Some(limit) = engine.history_request(ticket) {
+            match self.services.history(limit) {
+                Ok(points) => cadence_engine::jobs::JobOutcome::History(points),
+                Err(reason) => cadence_engine::jobs::JobOutcome::Failed(reason),
+            }
+        } else {
+            return Ok(false);
+        };
+        self.send(EventKind::JobResult { ticket, outcome })
+    }
+
+    /// The engine again after setup or for a Train or Numpad plan, given the
+    /// same start-up facts as at `hello`; a requested plan begins at once.
+    fn restart(
+        &mut self,
+        track: Option<(cadence_engine::Phase, u64)>,
+    ) -> Result<bool, (Code, String)> {
+        let engine = self
+            .services
+            .rebuild(track)
+            .map_err(|error| invalid(&error))?;
+        self.engine = Some(engine);
+        let (next_session, day, history) =
+            self.services.storage().map_err(|error| invalid(&error))?;
+        let mut quit = self.send(EventKind::StorageReady {
+            next_session,
+            day,
+            history,
+        })?;
+        quit |= self.send(EventKind::Resized {
+            columns: self.columns,
+            rows: self.rows,
+        })?;
+        if track.is_some() {
+            quit |= self.send(EventKind::Command(cadence_engine::commands::Action::Begin))?;
         }
         Ok(quit)
     }
@@ -229,6 +338,32 @@ impl<S: Services> Headless<S> {
     fn deliver(&mut self, job_id: u64, variant: DeliverVariant) -> Result<(), (Code, String)> {
         if !self.manual {
             return Err(invalid("deliver is for manual fixture delivery only"));
+        }
+        if let Some(index) = self.settings_jobs.iter().position(|job| job.id == job_id) {
+            let job = self.settings_jobs.remove(index);
+            let outcome = match variant {
+                DeliverVariant::Success | DeliverVariant::Duplicate => {
+                    self.services.settings(&job.request)
+                }
+                DeliverVariant::Failure => cadence_engine::jobs::JobOutcome::Failed(
+                    "fixture failure: the settings write was refused".to_string(),
+                ),
+                DeliverVariant::StaleSuccess | DeliverVariant::StaleFailure => {
+                    return Err(invalid("a settings job is delivered as success or failure"));
+                }
+            };
+            self.finished |= self.send(EventKind::JobResult {
+                ticket: job.ticket,
+                outcome: outcome.clone(),
+            })?;
+            if variant == DeliverVariant::Duplicate {
+                // The same answer again: the proved ticket admission refuses it.
+                self.finished |= self.send(EventKind::JobResult {
+                    ticket: job.ticket,
+                    outcome,
+                })?;
+            }
+            return Ok(());
         }
         let index = self
             .jobs
@@ -452,6 +587,26 @@ impl<S: Services> Headless<S> {
         };
         let mut result = self.revisions();
         result.insert("screen".into(), json!(screen));
+        result.insert(
+            "destination".into(),
+            json!(view.destination.selected.label()),
+        );
+        result.insert("setup".into(), json!(view.setup.is_some()));
+        result.insert("settings_open".into(), json!(view.settings.is_some()));
+        result.insert("notice".into(), json!(view.notice));
+        result.insert("theme".into(), json!(view.display.theme));
+        result.insert(
+            "pending_settings_jobs".into(),
+            json!(
+                self.settings_jobs
+                    .iter()
+                    .map(|job| job.id.to_string())
+                    .collect::<Vec<_>>()
+            ),
+        );
+        if let Some(text) = self.services.config_text() {
+            result.insert("config_text".into(), json!(text));
+        }
         result.insert(
             "input_owner".into(),
             json!(format!("{:?}", engine.input_owner())),

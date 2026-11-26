@@ -67,7 +67,10 @@ pub fn values(config: &Config) -> Vec<(&'static str, cadence_core::settings::Set
         .collect()
 }
 
-fn answer(path: Option<&PathBuf>, request: SettingsRequest) -> JobOutcome {
+/// The answer to one settings request for the config file at `path`: the
+/// live worker and the headless driver's services both use this (#86).
+#[must_use]
+pub fn answer(path: Option<&PathBuf>, request: SettingsRequest) -> JobOutcome {
     let Some(path) = path else {
         return JobOutcome::Failed("no settings location: set HOME or XDG_CONFIG_HOME".into());
     };

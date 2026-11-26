@@ -38,7 +38,17 @@ pub fn check() -> Result<(), String> {
             binary.display()
         ));
     }
-    run_journeys(&binary, &root.join("fixtures/journeys"))
+    let journeys = root.join("fixtures/journeys");
+    run_journeys(&binary, &journeys)?;
+    let count = std::fs::read_dir(&journeys)
+        .map_err(|error| error.to_string())?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "jsonl"))
+        .count();
+    if count != JOURNEYS {
+        return Err(format!("{count} journeys, H-05 names {JOURNEYS}"));
+    }
+    tampered_traces_fail(&binary, &journeys.join("11-full-trace-replay.jsonl"))
 }
 
 /// Replays every `*.jsonl` journey in `dir` with `binary`.
@@ -79,6 +89,103 @@ pub fn run_journeys(binary: &std::path::Path, dir: &std::path::Path) -> Result<(
         );
     }
     println!("headless gate: {} journeys replayed", journeys.len());
+    Ok(())
+}
+
+/// The journeys H-05 names (`docs/06-headless-tests.md`).
+pub const JOURNEYS: usize = 12;
+
+/// Journey 11 (H-05): the full trace replays (above), and a copy with one
+/// counter changed, or one request and its response missing, fails at its
+/// first divergence.
+///
+/// # Errors
+/// A tampered trace that replays, or one that fails at the wrong line.
+pub fn tampered_traces_fail(
+    binary: &std::path::Path,
+    journey: &std::path::Path,
+) -> Result<(), String> {
+    let text = std::fs::read_to_string(journey)
+        .map_err(|error| format!("cannot read {}: {error}", journey.display()))?;
+    let mut lines: Vec<serde_json::Value> = text
+        .lines()
+        .map(serde_json::from_str)
+        .collect::<Result<_, _>>()
+        .map_err(|error| format!("{}: {error}", journey.display()))?;
+    // The first response reporting track counters.
+    let index = lines
+        .iter()
+        .position(|record| {
+            record
+                .pointer("/line/result/tracks/0/first_pass/correct")
+                .is_some_and(serde_json::Value::is_string)
+        })
+        .ok_or("journey 11 has no response with track counters")?;
+    let dir = std::env::temp_dir().join(format!("cadence-tamper-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    let replay = |name: &str, records: &[serde_json::Value]| -> Result<serde_json::Value, String> {
+        let path = dir.join(name);
+        let body: String = records.iter().map(|r| format!("{r}\n")).collect();
+        std::fs::write(&path, body).map_err(|error| error.to_string())?;
+        let output = Command::new(binary)
+            .arg("replay")
+            .arg(&path)
+            .arg("--read-only")
+            .output()
+            .map_err(|error| error.to_string())?;
+        if output.status.success() {
+            return Err(format!(
+                "the tampered trace {name} replayed without a divergence"
+            ));
+        }
+        serde_json::from_slice(&output.stdout).map_err(|error| format!("{name}: {error}"))
+    };
+    let mut changed = lines.clone();
+    if let Some(slot) = changed
+        .get_mut(index)
+        .and_then(|record| record.pointer_mut("/line/result/tracks/0/first_pass/correct"))
+    {
+        *slot = serde_json::json!("999999");
+    }
+    let report = replay("changed.jsonl", &changed)?;
+    let expected = index.saturating_add(1);
+    if report.get("diverged_at_line") != Some(&serde_json::json!(expected)) {
+        return Err(format!(
+            "a changed counter on line {expected} was reported as {report}"
+        ));
+    }
+    // Remove the last typed input before the counters (a request that
+    // changes state) and its response: the replay must diverge where the
+    // missing input would have counted.
+    let typed = lines
+        .iter()
+        .take(index)
+        .rposition(|record| {
+            record.get("type").and_then(serde_json::Value::as_str) == Some("request")
+                && matches!(
+                    record
+                        .pointer("/line/op")
+                        .and_then(serde_json::Value::as_str),
+                    Some("text" | "key")
+                )
+        })
+        .ok_or("journey 11 has no typed input before its counters")?;
+    lines.drain(typed..=typed.saturating_add(1));
+    let report = replay("missing.jsonl", &lines)?;
+    let at = report
+        .get("diverged_at_line")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+    let first = u64::try_from(typed).unwrap_or(u64::MAX);
+    if at < first {
+        return Err(format!(
+            "a missing request was reported before it: {report}"
+        ));
+    }
+    std::fs::remove_dir_all(&dir).map_err(|error| error.to_string())?;
+    println!(
+        "headless gate: tampered traces fail at their first divergence (lines {expected} and {at})"
+    );
     Ok(())
 }
 

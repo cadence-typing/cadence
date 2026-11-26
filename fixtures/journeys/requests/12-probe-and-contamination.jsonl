@@ -1,0 +1,18 @@
+{"v":1,"id":"1","op":"hello","args":{"scenario":"contamination"}}
+{"v":1,"id":"2","op":"resize","args":{"columns":100,"rows":32}}
+{"v":1,"id":"3","op":"key","args":{"key":"Tab","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"4","op":"key","args":{"key":"Tab","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"5","op":"key","args":{"key":"Tab","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"6","op":"snapshot","args":{}}
+{"v":1,"id":"7","op":"capture","args":{"format":"text"}}
+{"v":1,"id":"8","op":"key","args":{"key":"BackTab","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"9","op":"key","args":{"key":"BackTab","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"10","op":"key","args":{"key":"BackTab","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"11","op":"action","args":{"name":"Begin"}}
+{"v":1,"id":"12","op":"snapshot","args":{}}
+{"v":1,"id":"13","op":"text","args":{"text":"Probe text for measuring transfer.","inter_key_microseconds":200000}}
+{"v":1,"id":"14","op":"snapshot","args":{}}
+{"v":1,"id":"15","op":"key","args":{"key":"c","modifiers":["control"],"kind":"press","source":"unverified"}}
+{"v":1,"id":"16","op":"snapshot","args":{}}
+{"v":1,"id":"17","op":"capture","args":{"format":"text"}}
+{"v":1,"id":"18","op":"quit","args":{"flush":true}}

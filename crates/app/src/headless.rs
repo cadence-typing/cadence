@@ -45,7 +45,9 @@ const DAILY_SMALL: &[&str] = &[
 
 fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
     let (seed, seconds, targets): (u64, u64, Vec<String>) = match name {
-        "scoring-cat" | "save-error" => (1, 60, vec!["cat".to_string()]),
+        "scoring-cat" | "save-error" | "commented-config" | "config-conflict"
+        | "config-changes" => (1, 60, vec!["cat".to_string()]),
+        "contamination" => (5, 60, vec!["cat".to_string()]),
         "numpad-small" => (3, 60, vec!["0123".to_string(), "4.56".to_string()]),
         "row-and-pad" => (4, 30, vec!["room 1234".to_string()]),
         "daily-small" => (
@@ -83,10 +85,43 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
             reinforcements_per_word: 1,
             numeric_gap_entries: 0,
         },
-        probe: ProbePlan::NotDue,
+        probe: if name == "contamination" {
+            ProbePlan::Planned(cadence_trainer::PlannedProbe {
+                passage: cadence_core::PassageId::new(77).map_err(|e| e.to_string())?,
+                strata: 0b0101,
+                same_strata: true,
+            })
+        } else {
+            ProbePlan::NotDue
+        },
         pace: Vec::new(),
         retired_due: 0,
-        phases: if name == "row-and-pad" {
+        phases: if name == "contamination" {
+            // A transfer probe first (#86 journey 12), then words.
+            let probe =
+                cadence_core::validate_target("Probe text for measuring transfer.", Layout::Us)
+                    .map_err(|error| error.to_string())?;
+            vec![
+                PlannedPhase {
+                    phase: Phase::Probe,
+                    seconds: 30,
+                    exercises: vec![PlannedExercise {
+                        units: probe,
+                        kind: ExerciseKind::Probe,
+                        words: Vec::new(),
+                        passage: Some(cadence_core::PassageId::new(77).map_err(|e| e.to_string())?),
+                        caption: Some("Transfer probe".to_string()),
+                        target: None,
+                        spans: Vec::new(),
+                    }],
+                },
+                PlannedPhase {
+                    phase,
+                    seconds,
+                    exercises,
+                },
+            ]
+        } else if name == "row-and-pad" {
             // The same digits on the number row, then on the numpad (L-01).
             let pad = cadence_core::validate_target("1234", Layout::Us)
                 .map_err(|error| error.to_string())?;
@@ -112,29 +147,155 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
     })
 }
 
-/// The profile store behind a headless session.
+/// The commented config the `commented-config` and `config-conflict`
+/// scenarios start from (#86).
+const COMMENTED_CONFIG: &str = "# Cadence settings, edited by hand\n[display]\n# the colours\ntheme = \"dark\"   # dark, light or terminal\n\n[session]\nminutes = 15\n";
+
+/// The profile store and settings behind a headless session. The settings
+/// file is the profile's own `config.toml`, never the owner's.
 struct StoreServices {
     store: ProgressStore,
     day: i64,
+    /// `<profile>/config.toml`.
+    config: PathBuf,
     /// The `save-error` scenario: every save fails (a fixture fault).
     failing: bool,
+    /// The `config-conflict` scenario: the next write meets an external
+    /// edit (a fixture of the file system, not product logic).
+    edit_before_write: bool,
+    /// The `config-changes` scenario: the next reload meets an external,
+    /// invalid edit.
+    invalid_before_reload: bool,
+}
+
+impl StoreServices {
+    /// The settings now in the profile's file, applied to `engine`.
+    fn with_settings(&self, engine: Engine) -> Result<Engine, String> {
+        let loaded = cadence_data::config_write::reload(&self.config).map_err(|errors| {
+            errors
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("; ")
+        })?;
+        Ok(engine.with_settings(
+            &cadence_runtime::config_worker::values(&loaded.config),
+            loaded.digest,
+        ))
+    }
+
+    /// The daily plan for the profile's settings, or a Train or Numpad plan.
+    fn daily(&self, track: Option<(Phase, u64)>) -> Result<Engine, String> {
+        let policy = cadence_trainer::parse_policy(crate::POLICY.as_bytes())
+            .map_err(|error| error.to_string())?;
+        let bootstrap = self
+            .store
+            .bootstrap(policy.learning.history_window())
+            .map_err(|error| error.to_string())?;
+        let loaded = cadence_data::config_write::reload(&self.config).map_err(|errors| {
+            errors
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("; ")
+        })?;
+        let mut options = crate::apply_config(crate::cli::Options::defaults(), &loaded.config);
+        if let Some((phase, minutes)) = track {
+            options.track = Some(phase);
+            options.minutes = Some(minutes);
+        }
+        let engine = crate::build_engine(&options, &policy, &bootstrap, self.day)
+            .map_err(|error| error.to_string())?;
+        self.with_settings(engine)
+    }
+}
+
+/// Seeds the `contamination` scenario's history (#86): two standard live
+/// sessions, a synthetic one, an imported-text one and a standard one,
+/// oldest first.
+fn seed_contamination(store: &mut ProgressStore) -> Result<(), String> {
+    use cadence_core::progress::{
+        ContentClass, ProgressStatus, SessionProgress, Track, TrackProgress,
+    };
+    let session = |id: u64, class: ContentClass| -> Result<Checkpoint, String> {
+        Checkpoint::new(
+            SessionId::new(id).map_err(|e| e.to_string())?,
+            cadence_core::CommitSeq::from_raw(1),
+            SessionProgress {
+                profile: "default".into(),
+                day: 20_000_i64.saturating_add(i64::try_from(id).unwrap_or(0)),
+                utc_offset_minutes: None,
+                layout: Some(Layout::Us),
+                content_class: class,
+                pack_digest: (class == ContentClass::Imported).then(|| "ab".repeat(32)),
+                policy_digest: "policy-fixture".into(),
+                corpus_digest: "corpus-fixture".into(),
+                status: ProgressStatus::Completed,
+                active_micros: 60_000_000,
+                tracks: vec![TrackProgress {
+                    first_correct: 90,
+                    first_attempted: 100,
+                    correct_attempts: 100,
+                    content_attempts: 110,
+                    correct_units: 90,
+                    active_micros: 60_000_000,
+                    ..TrackProgress::empty(Track::Words)
+                }],
+            },
+            None,
+        )
+        .map_err(|e| e.to_string())
+    };
+    for (id, class, synthetic) in [
+        (1, ContentClass::Standard, false),
+        (2, ContentClass::Standard, false),
+        (3, ContentClass::Standard, true),
+        (4, ContentClass::Imported, false),
+        (5, ContentClass::Standard, false),
+    ] {
+        let checkpoint = session(id, class)?;
+        store
+            .apply_checkpoint(&checkpoint)
+            .map_err(|e| e.to_string())?;
+        if synthetic {
+            store
+                .mark_synthetic(checkpoint.key.session)
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
 }
 
 impl Services for StoreServices {
     fn engine(&mut self, scenario: Option<&str>) -> Result<Engine, String> {
         self.failing = scenario == Some("save-error");
+        self.edit_before_write = scenario == Some("config-conflict");
+        self.invalid_before_reload = scenario == Some("config-changes");
+        if matches!(
+            scenario,
+            Some("commented-config" | "config-conflict" | "config-changes")
+        ) {
+            std::fs::write(&self.config, COMMENTED_CONFIG).map_err(|error| error.to_string())?;
+        }
+        if scenario == Some("contamination") {
+            seed_contamination(&mut self.store)?;
+        }
         match scenario {
-            Some(name) => Engine::new_plan(scenario_plan(name)?).map_err(|error| error.to_string()),
+            Some(name) => {
+                let engine =
+                    Engine::new_plan(scenario_plan(name)?).map_err(|error| error.to_string())?;
+                self.with_settings(engine)
+            }
             None => {
-                let policy = cadence_trainer::parse_policy(crate::POLICY.as_bytes())
-                    .map_err(|error| error.to_string())?;
-                let bootstrap = self
-                    .store
-                    .bootstrap(policy.learning.history_window())
-                    .map_err(|error| error.to_string())?;
-                let options = crate::cli::Options::defaults();
-                crate::build_engine(&options, &policy, &bootstrap, self.day)
-                    .map_err(|error| error.to_string())
+                // The daily plan on a profile with no settings file is a
+                // first run (#78), exactly as live.
+                let first_run = !self.config.exists();
+                let engine = self.daily(None)?;
+                Ok(if first_run {
+                    engine.with_first_run()
+                } else {
+                    engine
+                })
             }
         }
     }
@@ -155,16 +316,70 @@ impl Services for StoreServices {
             .mark_synthetic(checkpoint.key.session)
             .map_err(|error| error.to_string())
     }
-}
 
-fn utc_day() -> Result<i64, Box<dyn Error>> {
-    let now = i64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs())?;
-    match cadence_core::calendar::local_day(now, 0) {
-        cadence_core::calendar::Day::Number(day) => Ok(day),
-        cadence_core::calendar::Day::OffsetOutOfRange | cadence_core::calendar::Day::Overflow => {
-            Err("the date is outside the supported range".into())
+    fn settings(
+        &mut self,
+        request: &cadence_engine::settings::SettingsRequest,
+    ) -> cadence_engine::jobs::JobOutcome {
+        if self.edit_before_write
+            && matches!(
+                request,
+                cadence_engine::settings::SettingsRequest::Write { .. }
+            )
+        {
+            self.edit_before_write = false;
+            let edited = format!("{COMMENTED_CONFIG}# edited in another window\n");
+            if let Err(error) = std::fs::write(&self.config, edited) {
+                return cadence_engine::jobs::JobOutcome::Failed(error.to_string());
+            }
+        }
+        if self.invalid_before_reload
+            && matches!(request, cadence_engine::settings::SettingsRequest::Reload)
+        {
+            self.invalid_before_reload = false;
+            if let Err(error) = std::fs::write(&self.config, "[session]\nminutes = 7\n") {
+                return cadence_engine::jobs::JobOutcome::Failed(error.to_string());
+            }
+        }
+        // The profile directory is host-specific: diagnostics name the file
+        // relative to it, so a journey replays identically anywhere.
+        match cadence_runtime::config_worker::answer(Some(&self.config), request.clone()) {
+            cadence_engine::jobs::JobOutcome::Failed(reason) => {
+                let profile = self
+                    .config
+                    .parent()
+                    .map(|dir| format!("{}/", dir.display()))
+                    .unwrap_or_default();
+                cadence_engine::jobs::JobOutcome::Failed(reason.replace(&profile, "<profile>/"))
+            }
+            other => other,
         }
     }
+
+    fn history(
+        &mut self,
+        limit: usize,
+    ) -> Result<Vec<cadence_core::progress::HistoryPoint>, String> {
+        self.store
+            .history_points(limit)
+            .map_err(|error| error.to_string())
+    }
+
+    fn rebuild(&mut self, track: Option<(Phase, u64)>) -> Result<Engine, String> {
+        self.daily(track)
+    }
+
+    fn config_text(&self) -> Option<String> {
+        std::fs::read_to_string(&self.config).ok()
+    }
+}
+
+/// The headless driver's calendar day: virtual, like its clock, so a
+/// journey (and the daily plan's seed) replays identically on any date.
+const VIRTUAL_DAY: i64 = 20_500;
+
+fn utc_day() -> Result<i64, Box<dyn Error>> {
+    Ok(VIRTUAL_DAY)
 }
 
 /// A fresh profile directory under the system temporary directory.
@@ -218,7 +433,10 @@ fn serve(
     let mut host = Headless::new(StoreServices {
         store,
         day: utc_day()?,
+        config: directory.join("config.toml"),
         failing: false,
+        edit_before_write: false,
+        invalid_before_reload: false,
     });
     let mut protocol = Protocol::new();
     let input: Box<dyn BufRead> = match script {
@@ -278,7 +496,10 @@ pub fn replay(trace: &Path, capture_dir: Option<&Path>) -> Result<(), Box<dyn Er
         let mut host = Headless::new(StoreServices {
             store,
             day: utc_day()?,
+            config: dir.join("config.toml"),
             failing: false,
+            edit_before_write: false,
+            invalid_before_reload: false,
         });
         Ok(cadence_driver::trace::replay(&text, &mut host).map_err(|d| d.report()))
     })();

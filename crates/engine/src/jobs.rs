@@ -116,6 +116,16 @@ impl Jobs {
         }
     }
 
+    /// One kind's requester restarted (#86): a new epoch for that kind
+    /// only, nothing pending, request ids start again.
+    pub fn restart_kind(&mut self, kind: JobKind) {
+        if let Some(slot) = self.slots.get_mut(kind.index()) {
+            slot.epoch = slot.epoch.saturating_add(1);
+            slot.pending = None;
+            slot.next_request = 0;
+        }
+    }
+
     /// Admits a result through the proved ticket decision; returns whether
     /// it was accepted.
     pub fn result(&mut self, ticket: JobTicket, outcome: JobOutcome) -> bool {

@@ -1,0 +1,16 @@
+{"v":1,"id":"1","op":"hello","args":{}}
+{"v":1,"id":"2","op":"resize","args":{"columns":100,"rows":32}}
+{"v":1,"id":"3","op":"snapshot","args":{}}
+{"v":1,"id":"4","op":"capture","args":{"format":"text"}}
+{"v":1,"id":"5","op":"key","args":{"key":"Right","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"6","op":"key","args":{"key":"Down","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"7","op":"key","args":{"key":"Down","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"8","op":"key","args":{"key":"Left","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"9","op":"capture","args":{"format":"text"}}
+{"v":1,"id":"10","op":"key","args":{"key":"Enter","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"11","op":"snapshot","args":{}}
+{"v":1,"id":"12","op":"capture","args":{"format":"text"}}
+{"v":1,"id":"13","op":"action","args":{"name":"Begin"}}
+{"v":1,"id":"14","op":"snapshot","args":{}}
+{"v":1,"id":"15","op":"capture","args":{"format":"text"}}
+{"v":1,"id":"16","op":"quit","args":{"flush":true}}

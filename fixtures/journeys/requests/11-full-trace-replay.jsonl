@@ -1,0 +1,13 @@
+{"v":1,"id":"1","op":"hello","args":{"scenario":"daily-small"}}
+{"v":1,"id":"2","op":"resize","args":{"columns":100,"rows":32}}
+{"v":1,"id":"3","op":"capture","args":{"format":"cells"}}
+{"v":1,"id":"4","op":"action","args":{"name":"Begin"}}
+{"v":1,"id":"5","op":"text","args":{"text":"street strong almost strinx","inter_key_microseconds":250000}}
+{"v":1,"id":"6","op":"key","args":{"key":"Backspace","modifiers":[],"kind":"press","source":"unverified"}}
+{"v":1,"id":"7","op":"text","args":{"text":"g first stream understand structure","inter_key_microseconds":250000}}
+{"v":1,"id":"8","op":"snapshot","args":{}}
+{"v":1,"id":"9","op":"capture","args":{"format":"cells"}}
+{"v":1,"id":"10","op":"key","args":{"key":"c","modifiers":["control"],"kind":"press","source":"unverified"}}
+{"v":1,"id":"11","op":"snapshot","args":{}}
+{"v":1,"id":"12","op":"capture","args":{"format":"both"}}
+{"v":1,"id":"13","op":"quit","args":{"flush":true}}

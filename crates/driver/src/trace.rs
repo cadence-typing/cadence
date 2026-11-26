@@ -53,7 +53,7 @@ pub fn redact(response: &Value, record_content: bool) -> Value {
     }
     let mut out = response.clone();
     if let Some(result) = out.get_mut("result").and_then(Value::as_object_mut) {
-        for field in ["text", "frame", "target_text"] {
+        for field in ["text", "frame", "target_text", "config_text"] {
             if let Some(value) = result.get(field) {
                 let sealed = json!({"sha256": digest(value)});
                 result.insert(field.to_string(), sealed);

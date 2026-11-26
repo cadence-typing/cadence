@@ -195,6 +195,8 @@ impl SettingsState {
     }
 
     pub(crate) fn open(&mut self) {
+        // The previous overlay's request, if any, is no longer waited on.
+        self.pending = None;
         self.overlay = Some(Overlay {
             cursor: 0,
             draft: self.values.clone(),

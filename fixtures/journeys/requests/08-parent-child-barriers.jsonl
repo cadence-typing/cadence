@@ -1,0 +1,16 @@
+{"v":1,"id":"1","op":"hello","args":{"scenario":"daily-small","fixture_delivery":"manual"}}
+{"v":1,"id":"2","op":"action","args":{"name":"Begin"}}
+{"v":1,"id":"3","op":"text","args":{"text":"street strong almost string","inter_key_microseconds":250000}}
+{"v":1,"id":"4","op":"snapshot","args":{}}
+{"v":1,"id":"5","op":"barrier","args":{"scope":"causal","through_event_seq":"30","watchdog_milliseconds":1000}}
+{"v":1,"id":"6","op":"deliver","args":{"job_id":"1","variant":"success"}}
+{"v":1,"id":"7","op":"snapshot","args":{}}
+{"v":1,"id":"8","op":"barrier","args":{"scope":"durable","through_event_seq":"30","watchdog_milliseconds":1000}}
+{"v":1,"id":"9","op":"deliver","args":{"job_id":"2","variant":"success"}}
+{"v":1,"id":"10","op":"snapshot","args":{}}
+{"v":1,"id":"11","op":"barrier","args":{"scope":"durable","through_event_seq":"30","watchdog_milliseconds":1000}}
+{"v":1,"id":"12","op":"deliver","args":{"job_id":"3","variant":"success"}}
+{"v":1,"id":"13","op":"snapshot","args":{}}
+{"v":1,"id":"14","op":"deliver","args":{"job_id":"4","variant":"success"}}
+{"v":1,"id":"15","op":"barrier","args":{"scope":"causal","through_event_seq":"30","watchdog_milliseconds":1000}}
+{"v":1,"id":"16","op":"quit","args":{"flush":true}}

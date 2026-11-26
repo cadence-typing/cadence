@@ -213,6 +213,10 @@ impl crate::Engine {
             Action::Help => self.navigation.help = !self.navigation.help,
             Action::Settings => {
                 if self.settings_openable() {
+                    // A reopened overlay is a new requester: a late answer
+                    // to the previous one is stale and changes nothing (#86).
+                    self.jobs.restart_kind(crate::jobs::JobKind::ConfigWrite);
+                    self.jobs.restart_kind(crate::jobs::JobKind::ConfigReload);
                     self.settings.open();
                 }
             }

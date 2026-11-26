@@ -24,7 +24,10 @@ use cadence_core::session::{
     SessionEvent, SessionState, SessionStep, TimingSegments, session_step,
 };
 use cadence_core::{CoreError, EventSeq, ExerciseId, FrameRevision, Micros, MonoTick};
-use cadence_trainer::{Phase, SessionPlan};
+/// The plan phases a Train or Numpad request names (#80), for hosts that
+/// rebuild the engine (the app, the headless driver).
+pub use cadence_trainer::Phase;
+use cadence_trainer::SessionPlan;
 pub use events::{Direction, EventEnvelope, EventKind, Key};
 use storage::Storage;
 pub use view::{
