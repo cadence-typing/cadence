@@ -2,7 +2,7 @@
 rfc: "2026-11-26-formal-gates-and-production-mapping"
 title: "Formal gates with production mappings"
 status: accepted
-implementation: in-progress
+implementation: complete
 authors:
   - tknawara
   - claude-fable (review agent)
@@ -111,3 +111,4 @@ None blocking. For the owner to amend if desired: whether `time::active_time` is
 ## Decision log
 
 - 2026-11-26: accepted by default under the owner's 2026-11-26 rule; owner may amend.
+- 2026-11-26: implemented on `main` (#28 `55775e1`, #29/#30 `b2b024c`, #31 `1a917ef`, #33 `085cad5`, #32 `c1599ac`). Deviations: the three handover models are registered as `design-probe` (not `DurableCheckpoint` as `mapped`); `time::active_time` was retired by amend; the ledger kernel takes scalars and the slot slice, so backspace cannot touch slots by signature; `credit_once` keys on a per-ledger sequence because the exercise counter does not advance at a deadline.
