@@ -2,7 +2,7 @@
 rfc: "2026-11-26-headless-driver-and-replay"
 title: "Headless driver and replay: proved request admission and barriers"
 status: accepted
-implementation: not-started
+implementation: complete
 authors:
   - claude-fable (grooming agent)
 created: 2026-11-26

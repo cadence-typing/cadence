@@ -205,7 +205,7 @@ them.
 | Durable acknowledgement ordering: an acknowledgement is never observed before the commit (`AckIsDurable`), single-flight dispatch, retry after failure, and a clean exit only after the final acknowledgement | model-proved (bounded) | `models/CheckpointSave.tla`, mapped to `engine::storage`, `SaveWorker`, `ProgressStore::apply_checkpoint` and `checkpoint::admit` (see *Protocol models*). Correspondence to the Rust is by review and the named runtime tests, not by proof. The kernel proves the credit decision (`admit`). |
 | Display rounding and formatting (`as_f64`, percent labels), the UI comparison with earlier sessions | tested | f64 is outside the kernel by construction. |
 | That a feasible allocation never ends in `Overflow` (`pick` always finds a phase because the leftover is below the phase count) | tested | `crates/core/src/plan.rs` compares the kernel with the sort-based largest-remainder rule on every small input. |
-| VL-01 fairness, VP-01/02/04/05 protocols, VR-01 replay equivalence | pending | Unchanged from `STATUS.md`; no Lean claim yet. |
+| VL-01 fairness, VP-01/02 protocols, VR-01 replay equivalence | pending | VP-04/VP-05 are now modelled (`HeadlessBarrier.tla`, `RequestCache.tla`) with their decisions proved (`barrier::{causal, durable}`, `request::{admit, revision_ok, evict}`); VR-01 replay is implemented and tested (six journeys), not proved. VL-01 and VP-01/02 have no Lean claim yet. |
 | That `cargo tauten check`'s findings are all the bugs there are | not-established | A finding is a departure from a profile, not a defect count (tauten's own benchmark: 0 of 120 sampled findings were reachable defects). |
 
 ### Trust boundary
@@ -253,18 +253,28 @@ summary line, the per-claim outcomes and the mutant results are copied below
 from that run (see the commit that adds `proofs/claims.json`).
 
 Command: `cargo +1.98.0 tauten proofs` (full level, every mutant), gating a
-snapshot of commit `aaee544` (the beta.1 kernel; later beta.1 commits change
-no kernel source); exit 0:
+snapshot of commit `eb290fd` (the beta.2 kernel and proofs; the release commit
+changes no kernel source or proof); exit 0:
 
 ```text
-tauten: gating a snapshot of commit aaee5447f4835e6105b24ca6703ce15412f9228e
+tauten: gating a snapshot of commit eb290fd
 tauten: proof gate exited with exit status: 0
-tauten: 57 of 57 claim(s) proved (recorded in proofs/claims.json)
+tauten: 62 of 62 claim(s) proved (recorded in proofs/claims.json)
 ```
 
-142 theorems; all 127 mutants were `killed`, each by the theorem it targets.
-Every claim has outcome `proved` and badge `proved`.
+152 theorems; all 128 mutants (distinct `[[mutant]]` entries) were `killed`,
+each by the theorem it targets. Every claim has outcome `proved` and badge
+`proved`. The first beta.2 run, on `a8ae584`, proved 61 of 62: it audited
+`request::evict` as not established because its named total theorem,
+`cache_bounded`, assumes `len <= cap`; `evict_iff_full` (no assumptions) is
+now the total theorem.
 
+The same commit passes the TLC gate (`tools/tlc_gate.py`: 8 models, 38
+configurations, every mutant failing on the invariant it names) and the
+headless gate (`cargo xtask gate headless`: 6 journeys replayed).
+
+The beta.1 run (`aaee544`): 57 of 57 claims, 142 theorems, all 120 mutants
+killed (its record said 127, counting a mutant once per claim it targets).
 The alpha.7 run (`5c30795`): 53 of 53 claims, 130 theorems, all 116 mutants
 killed. The alpha.6 run (`4da39a6`): 49 of 49 claims, 123 theorems, all 108 mutants
 killed. The run before (#32): 27 of 27 claims, all 48 mutants killed. The previous

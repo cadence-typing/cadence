@@ -4,6 +4,17 @@ User-visible changes per release. Design decisions live in the [RFC registry](do
 
 ## [Unreleased]
 
+## [0.1.0-beta.2] — A headless driver with replay (2026-11-26)
+
+Design: [RFC: headless driver and replay](docs/rfcs/2026-11-26-headless-driver-and-replay.md). For tools and tests; practice itself is unchanged.
+
+- `cadence headless --stdio` (or `--script FILE`) drives the same reducer as the terminal app over NDJSON requests, on a profile directory or a throwaway one (`--ephemeral-profile`). Requests carry an id; a repeated id with the same request returns the stored response and never applies twice, a reused id with a different request or an expired one is refused with a stable error code, and an expected `state_revision` that is stale is refused before anything changes. Sessions recorded this way are stored as synthetic and never count toward your history or comparisons. [#67](https://github.com/cadence-typing/cadence/issues/67), [#68](https://github.com/cadence-typing/cadence/issues/68), [#69](https://github.com/cadence-typing/cadence/issues/69)
+- `capture` returns the screen as cells, styles, row renditions and cursor, painted by the live renderer; golden frames pin the start, practice, numpad, results, save-error and too-small screens at two sizes. [#70](https://github.com/cadence-typing/cadence/issues/70)
+- Barriers: a causal barrier returns only when every job started by the request and its descendants has delivered; a durable barrier also waits for the save acknowledgement at or past the captured watermark. [#71](https://github.com/cadence-typing/cadence/issues/71)
+- `--record FILE` writes a trace (practice text sealed by digest unless `--record-content`), and `cadence replay FILE --read-only` re-executes it and reports the first diverging line and field. `cadence doctor --json` prints environment facts. [#72](https://github.com/cadence-typing/cadence/issues/72)
+- Six recorded journeys replay in CI (`cargo xtask gate headless`); see [docs/headless-debugging.md](docs/headless-debugging.md). [#73](https://github.com/cadence-typing/cadence/issues/73)
+- Request admission, revision checks, cache eviction and barrier readiness are proved kernel decisions, and `RequestCache.tla` and `HeadlessBarrier.tla` model the stream and barrier protocols. [#67](https://github.com/cadence-typing/cadence/issues/67), [#71](https://github.com/cadence-typing/cadence/issues/71)
+
 ## [0.1.0-beta.1] — Pace goals, transfer probes and a vetted word pack (2026-11-26)
 
 Design: [RFC: pace targets and benchmark probes](docs/rfcs/2026-11-26-pace-targets-and-benchmark-probes.md), [decision 0006](docs/decisions/0006-word-vetting.md).

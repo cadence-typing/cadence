@@ -1,0 +1,33 @@
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/tarek/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-virtualization-0.3.2/translation-config.toml`
+
+Caused by:
+  Permission denied (os error 13)
+warning: failed to auto-clean cache data
+
+failed to clean entries from the global cache
+
+Caused by:
+  failed to remove file `/home/tarek/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-virtualization-0.3.2/translation-config.toml`
+
+Caused by:
+  Permission denied (os error 13)
+   Compiling cadence-core v0.1.0-beta.2 (/tmp/claude-1000/-home-tarek/fce63ddf-920a-41cb-a2d1-db251d948a7f/scratchpad/wt-fix/crates/core)
+   Compiling cadence-trainer v0.1.0-beta.2 (/tmp/claude-1000/-home-tarek/fce63ddf-920a-41cb-a2d1-db251d948a7f/scratchpad/wt-fix/crates/trainer)
+   Compiling cadence-data v0.1.0-beta.2 (/tmp/claude-1000/-home-tarek/fce63ddf-920a-41cb-a2d1-db251d948a7f/scratchpad/wt-fix/crates/data)
+   Compiling cadence-engine v0.1.0-beta.2 (/tmp/claude-1000/-home-tarek/fce63ddf-920a-41cb-a2d1-db251d948a7f/scratchpad/wt-fix/crates/engine)
+   Compiling cadence-tui v0.1.0-beta.2 (/tmp/claude-1000/-home-tarek/fce63ddf-920a-41cb-a2d1-db251d948a7f/scratchpad/wt-fix/crates/tui)
+   Compiling cadence-runtime v0.1.0-beta.2 (/tmp/claude-1000/-home-tarek/fce63ddf-920a-41cb-a2d1-db251d948a7f/scratchpad/wt-fix/crates/runtime)
+   Compiling cadence-driver v0.1.0-beta.2 (/tmp/claude-1000/-home-tarek/fce63ddf-920a-41cb-a2d1-db251d948a7f/scratchpad/wt-fix/crates/driver)
+   Compiling cadence v0.1.0-beta.2 (/tmp/claude-1000/-home-tarek/fce63ddf-920a-41cb-a2d1-db251d948a7f/scratchpad/wt-fix/crates/app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.39s
+headless journey ok: 02-mistype-backspace-end-early.jsonl
+headless journey ok: 03-numpad-leading-zero-decimal-enter.jsonl
+headless journey ok: 04-row-and-pad-separate-histories.jsonl
+headless journey ok: 05-deadline-pause-resume-boundary-key.jsonl
+headless journey ok: 07-lost-ack-retry-one-contribution.jsonl
+headless journey ok: 10-tiny-resize-recovery.jsonl
+headless gate: 6 journeys replayed
