@@ -129,6 +129,9 @@ pub struct Engine {
     opened: u64,
     /// The last ledger sequence whose counters were merged into a track.
     last_credited: Option<u64>,
+    /// The current phase's prepared list has wrapped to its start (#39;
+    /// shown from #7).
+    list_wrapped: bool,
     phase_start: Micros,
     exercise_start: Micros,
     active: Micros,
@@ -196,6 +199,7 @@ impl Engine {
             session_state: SessionState::Ready,
             opened: 0,
             last_credited: None,
+            list_wrapped: false,
             phase_start: Micros::ZERO,
             exercise_start: Micros::ZERO,
             active: Micros::ZERO,
@@ -217,6 +221,12 @@ impl Engine {
             interlude_opened: None,
             ended_early: false,
         })
+    }
+    /// Whether the current phase's prepared list has wrapped to its start:
+    /// the last prepared exercise was finished and the first is served again.
+    #[must_use]
+    pub fn list_wrapped(&self) -> bool {
+        self.list_wrapped
     }
     /// Active practice alone owns printable characters.
     #[must_use]

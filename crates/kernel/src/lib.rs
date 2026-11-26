@@ -15,7 +15,11 @@
 
 pub mod checkpoint;
 pub mod counters;
+pub mod cycle;
+pub mod evidence;
 pub mod first;
+pub mod focus;
+pub mod label;
 pub mod lanes;
 pub mod ledger;
 pub mod plan;
@@ -25,4 +29,5 @@ pub mod ratio;
 pub mod review;
 pub mod select;
 pub mod session;
+pub mod slots;
 pub mod time;

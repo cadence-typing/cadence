@@ -122,6 +122,23 @@ def counters.deletion_step
   | none => ok counters.Step.Overflow
   | some deletions => ok (counters.Step.Counted { c with deletions })
 
+/-- [cadence_kernel::cycle::Advance]
+    Source: 'crates/kernel/src/cycle.rs', lines 7:0-12:1
+    Visibility: public -/
+structure cycle.Advance where
+  next : Std.Usize
+  wrapped : Bool
+
+/-- [cadence_kernel::cycle::advance]:
+    Source: 'crates/kernel/src/cycle.rs', lines 17:0-30:1
+    Visibility: public -/
+def cycle.advance
+  (index : Std.Usize) (count : Std.Usize) : Result cycle.Advance := do
+  let n ← lift (core.num.Usize.saturating_add index 1#usize)
+  if n >= count
+  then ok { next := 0#usize, wrapped := true }
+  else ok { next := n, wrapped := false }
+
 /-- [cadence_kernel::first::Slot]
     Source: 'crates/kernel/src/first.rs', lines 6:0-13:1
     Visibility: public -/
@@ -130,6 +147,75 @@ inductive first.Slot where
 | Open : first.Slot
 | Correct : first.Slot
 | Incorrect : first.Slot
+
+/-- [cadence_kernel::evidence::pair_first_correct]:
+    Source: 'crates/kernel/src/evidence.rs', lines 15:0-20:1
+    Visibility: public -/
+def evidence.pair_first_correct
+  (previous : first.Slot) (matched : Bool) : Result Bool := do
+  match previous with
+  | first.Slot.Open => ok false
+  | first.Slot.Correct => ok matched
+  | first.Slot.Incorrect => ok false
+
+/-- [cadence_kernel::evidence::Mark]
+    Source: 'crates/kernel/src/evidence.rs', lines 24:0-33:1
+    Visibility: public -/
+structure evidence.Mark where
+  present : Bool
+  position : Std.Usize
+  active_us : Std.U64
+  segment : Std.U64
+
+/-- [cadence_kernel::evidence::Interval]
+    Source: 'crates/kernel/src/evidence.rs', lines 37:0-54:1
+    Visibility: public -/
+@[discriminant isize]
+inductive evidence.Interval where
+| Timed : Std.U64 → evidence.Interval
+| NoAnchor : evidence.Interval
+| NotAdjacent : evidence.Interval
+| Error : evidence.Interval
+| CrossesPause : evidence.Interval
+| Unresolved : evidence.Interval
+| Backward : evidence.Interval
+| AboveCeiling : evidence.Interval
+
+/-- [cadence_kernel::evidence::clean_interval]:
+    Source: 'crates/kernel/src/evidence.rs', lines 59:0-95:1
+    Visibility: public -/
+def evidence.clean_interval
+  (mark : evidence.Mark) (position : Std.Usize) (matched : Bool)
+  (active_us : Std.U64) (segment : Std.U64) (ceiling_us : Std.U64) :
+  Result evidence.Interval
+  := do
+  if mark.present
+  then
+    let o ← lift (Usize.checked_add mark.position 1#usize)
+    let adjacent ←
+      match o with
+      | none => ok false
+      | some next => ok (next = position)
+    if adjacent
+    then
+      if matched
+      then
+        if mark.segment != segment
+        then ok evidence.Interval.CrossesPause
+        else
+          let o1 ← lift (U64.checked_sub active_us mark.active_us)
+          match o1 with
+          | none => ok evidence.Interval.Backward
+          | some gap =>
+            if gap = 0#u64
+            then ok evidence.Interval.Unresolved
+            else
+              if gap > ceiling_us
+              then ok evidence.Interval.AboveCeiling
+              else ok (evidence.Interval.Timed gap)
+      else ok evidence.Interval.Error
+    else ok evidence.Interval.NotAdjacent
+  else ok evidence.Interval.NoAnchor
 
 /-- [cadence_kernel::first::settle]:
     Source: 'crates/kernel/src/first.rs', lines 19:0-31:1
@@ -219,6 +305,365 @@ def first.count_first_loop
 def first.count_first
   (slots : Slice first.Slot) : Result first.FirstCounts := do
   first.count_first_loop slots 0#usize 0#usize 0#usize
+
+/-- [cadence_kernel::focus::WEIGHT_ONE]
+    Source: 'crates/kernel/src/focus.rs', lines 14:0-14:35
+    Visibility: public -/
+@[global_simps, irreducible] def focus.WEIGHT_ONE : Std.U64 := 65536#u64
+
+/-- [cadence_kernel::focus::BASIS]
+    Source: 'crates/kernel/src/focus.rs', lines 17:0-17:30
+    Visibility: public -/
+@[global_simps, irreducible] def focus.BASIS : Std.U64 := 10000#u64
+
+/-- [cadence_kernel::focus::halved]: loop body 0:
+    Source: 'crates/kernel/src/focus.rs', lines 24:4-27:5
+    Visibility: public -/
+@[rust_loop_body]
+def focus.halved_loop.body
+  (halvings : Std.U64) (base : Std.U64) (i : Std.U64) :
+  Result (ControlFlow (Std.U64 × Std.U64) Std.U64)
+  := do
+  if i < halvings
+  then
+    if base > 0#u64
+    then
+      let o ← lift (U64.checked_div base 2#u64)
+      let base1 ← lift (core.option.Option.unwrap_or o 0#u64)
+      let i1 ← lift (core.num.U64.saturating_add i 1#u64)
+      ok (cont (base1, i1))
+    else ok (done base)
+  else ok (done base)
+
+/-- [cadence_kernel::focus::halved]: loop 0:
+    Source: 'crates/kernel/src/focus.rs', lines 24:4-27:5
+    Visibility: public -/
+@[rust_loop]
+def focus.halved_loop
+  (halvings : Std.U64) (base : Std.U64) (i : Std.U64) : Result Std.U64 := do
+  loop
+    (fun (base1, i1) => focus.halved_loop.body halvings base1 i1)
+    (base, i)
+
+/-- [cadence_kernel::focus::halved]:
+    Source: 'crates/kernel/src/focus.rs', lines 21:0-29:1
+    Visibility: public -/
+@[reducible]
+def focus.halved (halvings : Std.U64) : Result Std.U64 := do
+  focus.halved_loop halvings focus.WEIGHT_ONE 0#u64
+
+/-- [cadence_kernel::focus::decay_weight]:
+    Source: 'crates/kernel/src/focus.rs', lines 35:0-56:1
+    Visibility: public -/
+def focus.decay_weight
+  (age : Std.U64) (half_life : Std.U64) : Result Std.U64 := do
+  let o ← lift (U64.checked_div age half_life)
+  match o with
+  | none => ok 0#u64
+  | some k =>
+    let o1 ← lift (U64.checked_rem age half_life)
+    match o1 with
+    | none => ok 0#u64
+    | some r =>
+      let o2 ← lift (U64.checked_mul half_life 2#u64)
+      match o2 with
+      | none => ok 0#u64
+      | some s =>
+        let o3 ← lift (U64.checked_sub s r)
+        match o3 with
+        | none => ok 0#u64
+        | some l =>
+          let i ← focus.halved k
+          let o4 ← lift (U64.checked_mul i l)
+          match o4 with
+          | none => ok 0#u64
+          | some scaled =>
+            let o5 ← lift (U64.checked_div scaled s)
+            ok (core.option.Option.unwrap_or o5 0#u64)
+
+/-- [cadence_kernel::focus::posterior_bp]:
+    Source: 'crates/kernel/src/focus.rs', lines 63:0-87:1
+    Visibility: public -/
+def focus.posterior_bp
+  (errors : Std.U64) (attempts : Std.U64) (alpha : Std.U64) (beta : Std.U64) :
+  Result Std.U64
+  := do
+  let o ← lift (U64.checked_mul alpha focus.WEIGHT_ONE)
+  match o with
+  | none => ok 0#u64
+  | some p =>
+    let o1 ← lift (U64.checked_add alpha beta)
+    match o1 with
+    | none => ok 0#u64
+    | some t =>
+      let o2 ← lift (U64.checked_mul t focus.WEIGHT_ONE)
+      match o2 with
+      | none => ok 0#u64
+      | some p1 =>
+        let o3 ← lift (U64.checked_add errors p)
+        match o3 with
+        | none => ok 0#u64
+        | some n =>
+          let o4 ← lift (U64.checked_mul n focus.BASIS)
+          match o4 with
+          | none => ok 0#u64
+          | some m =>
+            let o5 ← lift (U64.checked_add attempts p1)
+            match o5 with
+            | none => ok 0#u64
+            | some d =>
+              let o6 ← lift (U64.checked_div m d)
+              ok (core.option.Option.unwrap_or o6 0#u64)
+
+/-- [cadence_kernel::focus::uncertainty_bp]:
+    Source: 'crates/kernel/src/focus.rs', lines 93:0-109:1
+    Visibility: public -/
+def focus.uncertainty_bp
+  (attempts : Std.U64) (alpha : Std.U64) (beta : Std.U64) :
+  Result Std.U64
+  := do
+  let o ← lift (U64.checked_add alpha beta)
+  match o with
+  | none => ok focus.BASIS
+  | some t =>
+    let o1 ← lift (U64.checked_mul t focus.WEIGHT_ONE)
+    match o1 with
+    | none => ok focus.BASIS
+    | some p =>
+      let o2 ← lift (U64.checked_mul p focus.BASIS)
+      match o2 with
+      | none => ok focus.BASIS
+      | some n =>
+        let o3 ← lift (U64.checked_add attempts p)
+        match o3 with
+        | none => ok 0#u64
+        | some d =>
+          let o4 ← lift (U64.checked_div n d)
+          ok (core.option.Option.unwrap_or o4 focus.BASIS)
+
+/-- [cadence_kernel::focus::hesitation_bp]:
+    Source: 'crates/kernel/src/focus.rs', lines 115:0-143:1
+    Visibility: public -/
+def focus.hesitation_bp
+  (skill_timed : Std.U64) (skill_micros : Std.U64) (group_timed : Std.U64)
+  (group_micros : Std.U64) (minimum : Std.U64) :
+  Result Std.U64
+  := do
+  if skill_timed < minimum
+  then ok 0#u64
+  else
+    let o ← lift (U64.checked_div skill_micros skill_timed)
+    match o with
+    | none => ok 0#u64
+    | some m =>
+      let o1 ← lift (U64.checked_div group_micros group_timed)
+      match o1 with
+      | none => ok 0#u64
+      | some m1 =>
+        let o2 ← lift (U64.checked_mul m focus.BASIS)
+        match o2 with
+        | none => ok focus.BASIS
+        | some n =>
+          let o3 ← lift (U64.checked_div n m1)
+          match o3 with
+          | none => ok 0#u64
+          | some r =>
+            let excess ← lift (core.num.U64.saturating_sub r focus.BASIS)
+            if excess > focus.BASIS
+            then ok focus.BASIS
+            else ok excess
+
+/-- [cadence_kernel::focus::Candidate]
+    Source: 'crates/kernel/src/focus.rs', lines 147:0-158:1
+    Visibility: public -/
+structure focus.Candidate where
+  attempts : Std.U64
+  errors : Std.U64
+  posterior : Std.U64
+  group_rate : Std.U64
+  hesitation : Std.U64
+
+/-- [cadence_kernel::focus::Thresholds]
+    Source: 'crates/kernel/src/focus.rs', lines 162:0-173:1
+    Visibility: public -/
+structure focus.Thresholds where
+  attempts : Std.U64
+  excess : Std.U64
+  hesitation : Std.U64
+  weight_error : Std.U64
+  weight_hesitation : Std.U64
+
+/-- [cadence_kernel::focus::weighted]:
+    Source: 'crates/kernel/src/focus.rs', lines 178:0-182:1
+    Visibility: public -/
+def focus.weighted (weight : Std.U64) (value : Std.U64) : Result Std.U64 := do
+  let w ← if weight > focus.BASIS
+            then ok focus.BASIS
+            else ok weight
+  let v ← if value > focus.BASIS
+            then ok focus.BASIS
+            else ok value
+  let o ← lift (U64.checked_mul w v)
+  ok (core.option.Option.unwrap_or o 0#u64)
+
+/-- [cadence_kernel::focus::above]:
+    Source: 'crates/kernel/src/focus.rs', lines 186:0-188:1
+    Visibility: public -/
+def focus.above (value : Std.U64) (threshold : Std.U64) : Result Std.U64 := do
+  if value >= threshold
+  then ok value
+  else ok 0#u64
+
+/-- [cadence_kernel::focus::signal]:
+    Source: 'crates/kernel/src/focus.rs', lines 194:0-203:1
+    Visibility: public -/
+def focus.signal
+  (c : focus.Candidate) (t : focus.Thresholds) : Result Std.U64 := do
+  let excess ←
+    if c.errors > 0#u64
+    then ok (core.num.U64.saturating_sub c.posterior c.group_rate)
+    else ok 0#u64
+  let i ← focus.above excess t.excess
+  let e ← focus.weighted t.weight_error i
+  let i1 ← focus.above c.hesitation t.hesitation
+  let h ← focus.weighted t.weight_hesitation i1
+  ok (core.num.U64.saturating_add e h)
+
+/-- [cadence_kernel::focus::qualifies]:
+    Source: 'crates/kernel/src/focus.rs', lines 208:0-210:1
+    Visibility: public -/
+def focus.qualifies
+  (c : focus.Candidate) (t : focus.Thresholds) : Result Bool := do
+  if c.attempts >= t.attempts
+  then let i ← focus.signal c t
+       ok (i > 0#u64)
+  else ok false
+
+/-- [cadence_kernel::focus::taken]:
+    Source: 'crates/kernel/src/focus.rs', lines 215:0-220:1
+    Visibility: public -/
+def focus.taken (chosen : Slice Bool) (i : Std.Usize) : Result Bool := do
+  let o ←
+    core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice Bool) chosen i
+  match o with
+  | none => ok true
+  | some b => ok b
+
+/-- [cadence_kernel::focus::beats]:
+    Source: 'crates/kernel/src/focus.rs', lines 225:0-230:1
+    Visibility: public -/
+def focus.beats
+  (best : Option Std.Usize) (best_signal : Std.U64) (s : Std.U64) :
+  Result Bool
+  := do
+  match best with
+  | none => ok true
+  | some _ => ok (s > best_signal)
+
+/-- [cadence_kernel::focus::pick]: loop body 0:
+    Source: 'crates/kernel/src/focus.rs', lines 239:4-248:5
+    Visibility: public -/
+@[rust_loop_body]
+def focus.pick_loop.body
+  (candidates : Slice focus.Candidate) (chosen : Slice Bool)
+  (t : focus.Thresholds) (i : Std.Usize) (best : Option Std.Usize)
+  (best_signal : Std.U64) :
+  Result (ControlFlow (Std.Usize × (Option Std.Usize) × Std.U64) (Option
+    Std.Usize))
+  := do
+  let i1 := Slice.len candidates
+  if i < i1
+  then
+    let o ←
+      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice
+        focus.Candidate) candidates i
+    let (best1, best_signal1) ←
+      match o with
+      | none => ok (best, best_signal)
+      | some c =>
+        do
+        let s ← focus.signal c t
+        let b ← focus.taken chosen i
+        if b
+        then ok (best, best_signal)
+        else
+          let b1 ← focus.qualifies c t
+          if b1
+          then
+            let b2 ← focus.beats best best_signal s
+            if b2
+            then ok (some i, s)
+            else ok (best, best_signal)
+          else ok (best, best_signal)
+    let i2 ← lift (core.num.Usize.saturating_add i 1#usize)
+    ok (cont (i2, best1, best_signal1))
+  else ok (done best)
+
+/-- [cadence_kernel::focus::pick]: loop 0:
+    Source: 'crates/kernel/src/focus.rs', lines 239:4-248:5
+    Visibility: public -/
+@[rust_loop]
+def focus.pick_loop
+  (candidates : Slice focus.Candidate) (chosen : Slice Bool)
+  (t : focus.Thresholds) (i : Std.Usize) (best : Option Std.Usize)
+  (best_signal : Std.U64) :
+  Result (Option Std.Usize)
+  := do
+  loop
+    (fun (i1, best1, best_signal1) => focus.pick_loop.body candidates chosen t
+      i1 best1 best_signal1)
+    (i, best, best_signal)
+
+/-- [cadence_kernel::focus::pick]:
+    Source: 'crates/kernel/src/focus.rs', lines 235:0-250:1
+    Visibility: public -/
+@[reducible]
+def focus.pick
+  (candidates : Slice focus.Candidate) (chosen : Slice Bool)
+  (t : focus.Thresholds) :
+  Result (Option Std.Usize)
+  := do
+  focus.pick_loop candidates chosen t 0#usize none 0#u64
+
+/-- [cadence_kernel::label::Facts]
+    Source: 'crates/kernel/src/label.rs', lines 12:0-23:1
+    Visibility: public -/
+structure label.Facts where
+  served_before : Std.U32
+  reinforcement : Bool
+  due_review : Bool
+  wrapped : Bool
+  recent_passage : Bool
+
+/-- [cadence_kernel::label::Label]
+    Source: 'crates/kernel/src/label.rs', lines 27:0-36:1
+    Visibility: public -/
+@[discriminant isize]
+inductive label.Label where
+| Fresh : label.Label
+| Again : label.Label
+| DueReview : label.Label
+| Repeat : label.Label
+
+/-- [cadence_kernel::label::of]:
+    Source: 'crates/kernel/src/label.rs', lines 40:0-50:1
+    Visibility: public -/
+def label.of (f : label.Facts) : Result label.Label := do
+  if f.reinforcement
+  then ok label.Label.Again
+  else
+    if f.due_review
+    then ok label.Label.DueReview
+    else
+      if f.served_before > 0#u32
+      then ok label.Label.Repeat
+      else
+        if f.wrapped
+        then ok label.Label.Repeat
+        else
+          if f.recent_passage
+          then ok label.Label.Repeat
+          else ok label.Label.Fresh
 
 /-- [cadence_kernel::lanes::Facts]
     Source: 'crates/kernel/src/lanes.rs', lines 12:0-33:1
@@ -1756,6 +2201,31 @@ def session.step
       ok (session.Step.Move session.State.Saved session.Clock.Keep
         session.Outcome.Unchanged)
     | session.State.Saved => ok session.Step.Refused
+
+/-- [cadence_kernel::slots::SlotLane]
+    Source: 'crates/kernel/src/slots.rs', lines 10:0-17:1
+    Visibility: public -/
+@[discriminant isize]
+inductive slots.SlotLane where
+| Target : slots.SlotLane
+| Review : slots.SlotLane
+| Broad : slots.SlotLane
+
+/-- [cadence_kernel::slots::substitute]:
+    Source: 'crates/kernel/src/slots.rs', lines 23:0-29:1
+    Visibility: public -/
+def slots.substitute
+  (lane : slots.SlotLane) (due_review : Bool) (present : Bool) :
+  Result Bool
+  := do
+  match lane with
+  | slots.SlotLane.Target => ok false
+  | slots.SlotLane.Review => if due_review
+                             then ok false
+                             else ok (¬ present)
+  | slots.SlotLane.Broad => if due_review
+                            then ok false
+                            else ok (¬ present)
 
 /-- [cadence_kernel::time::Through]
     Source: 'crates/kernel/src/time.rs', lines 11:0-18:1

@@ -71,6 +71,23 @@ start_from = [
     "cadence_kernel::review::ladder_step",
     "cadence_kernel::review::is_due",
     "cadence_kernel::queue::admit",
+    "cadence_kernel::label::of",
+    "cadence_kernel::cycle::advance",
+    "cadence_kernel::slots::substitute",
+    "cadence_kernel::focus::halved",
+    "cadence_kernel::focus::decay_weight",
+    "cadence_kernel::focus::posterior_bp",
+    "cadence_kernel::focus::uncertainty_bp",
+    "cadence_kernel::focus::hesitation_bp",
+    "cadence_kernel::focus::weighted",
+    "cadence_kernel::focus::above",
+    "cadence_kernel::focus::signal",
+    "cadence_kernel::focus::qualifies",
+    "cadence_kernel::focus::taken",
+    "cadence_kernel::focus::beats",
+    "cadence_kernel::focus::pick",
+    "cadence_kernel::evidence::pair_first_correct",
+    "cadence_kernel::evidence::clean_interval",
 ]
 
 # Stated locally, not inherited: the proof gate translates this crate in a

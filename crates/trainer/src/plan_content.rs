@@ -2,6 +2,7 @@
 //! [`crate::plan_words`]; prose rotates through passages not typed within the
 //! no-repeat window, labelling any unavoidable repeat. Numeric phases remain
 //! seeded cold-start drills. The engine records exhaustion when it cycles.
+use cadence_core::label;
 use std::cmp::Reverse;
 
 use crate::numeric::{number_row_exercise, numpad_exercise};
@@ -115,7 +116,17 @@ fn prose(
             .source(passage)
             .ok_or_else(|| content("passage source missing"))?;
         let mut caption = format!("{} \u{2014} {}", source.title, source.author);
-        if let Some(sessions) = inputs.learner.passage_age(passage.id) {
+        let age = inputs.learner.passage_age(passage.id);
+        // Whether the passage is shown as a repeat is the proved
+        // `cadence_kernel::label::of`.
+        let shown = label::of(label::Facts {
+            served_before: 0,
+            reinforcement: false,
+            due_review: false,
+            wrapped: false,
+            recent_passage: age.is_some(),
+        });
+        if let (label::Label::Repeat, Some(sessions)) = (shown, age) {
             let ago = sessions.saturating_add(1);
             caption.push_str(&format!(
                 " \u{b7} repeat, typed {ago} session{} ago",

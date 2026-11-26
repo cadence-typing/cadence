@@ -6,7 +6,7 @@ use cadence_core::learning::{PlannerMode, Skill, SkillKey};
 use cadence_core::ledger::AttemptLedger;
 use cadence_core::progress::Track;
 use cadence_core::session::SessionState;
-use cadence_core::{Micros, MonoTick};
+use cadence_core::{Micros, MonoTick, label};
 use cadence_trainer::{Lane, Phase};
 impl Engine {
     /// Builds a view without I/O, state mutation or advancing the clock.
@@ -133,7 +133,23 @@ impl Engine {
         if !focus.is_empty() {
             parts.push(format!("Targeting {}", focus.join(" \u{b7} ")));
         }
-        if words.iter().any(|word| word.due_review) {
+        // Each slot's label is the proved `cadence_kernel::label::of`: a
+        // review-lane slot whose word differs from the planned one is a
+        // reinforcement (`Again`), a planned due review is `DueReview`.
+        let labels: Vec<label::Label> = words
+            .iter()
+            .zip(exercise.words.iter().map(|w| w.id))
+            .map(|(word, planned)| {
+                label::of(label::Facts {
+                    served_before: 0,
+                    reinforcement: word.lane == Lane::Review && word.id != planned,
+                    due_review: word.due_review,
+                    wrapped: false,
+                    recent_passage: false,
+                })
+            })
+            .collect();
+        if labels.contains(&label::Label::DueReview) {
             parts.push("due review".to_string());
         }
         // Name the re-served words exactly as they appear in the target.
@@ -144,8 +160,8 @@ impl Engine {
                 ledger
                     .target()
                     .split(|unit| unit.get() == ' ')
-                    .zip(words.iter().zip(exercise.words.iter().map(|w| w.id)))
-                    .filter(|(_, (word, planned))| word.lane == Lane::Review && word.id != *planned)
+                    .zip(labels.iter())
+                    .filter(|(_, label)| **label == label::Label::Again)
                     .map(|(units, _)| units.iter().map(|unit| unit.get()).collect())
                     .collect()
             })

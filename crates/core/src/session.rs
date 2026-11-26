@@ -40,6 +40,10 @@ pub struct TimingSegments {
     last: Option<MonoTick>,
     /// Whether any content has started this phase.
     started: bool,
+    /// Ordinal of the current segment: rises at every pause, so two keys
+    /// with the same ordinal were typed without a pause between them
+    /// (L-03; `cadence_kernel::evidence::clean_interval`).
+    ordinal: u64,
 }
 
 impl Default for TimingSegments {
@@ -57,6 +61,7 @@ impl TimingSegments {
             completed: Micros::ZERO,
             last: None,
             started: false,
+            ordinal: 0,
         }
     }
 
@@ -83,7 +88,14 @@ impl TimingSegments {
         let total = self.active_through(at)?;
         self.completed = total;
         self.segment_start = None;
+        self.ordinal = self.ordinal.saturating_add(1);
         Ok(())
+    }
+
+    /// The current segment's ordinal (see the field).
+    #[must_use]
+    pub const fn segment_ordinal(&self) -> u64 {
+        self.ordinal
     }
 
     /// Resume opens a fresh contiguous segment.

@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, VecDeque};
 use cadence_core::alphabet::TrainingChar;
 use cadence_core::learning::{KeyLane, SessionLearning, Skill, SkillKey};
 use cadence_core::ledger::Slot;
-use cadence_core::{CoreError, Micros, WordId, queue};
+use cadence_core::{CoreError, Micros, WordId, evidence, queue, slots};
 use cadence_trainer::{Adaptation, ExerciseKind, Lane, PlannedExercise, PlannedWord};
 
 use super::invalid;
@@ -20,6 +20,8 @@ use super::invalid;
 struct KeyMark {
     position: usize,
     active: Micros,
+    /// The timing segment it was typed in (`TimingSegments::segment_ordinal`).
+    segment: u64,
 }
 
 /// A missed word waiting to be served again this session.
@@ -41,6 +43,14 @@ pub(super) struct Learning {
     pub(super) words: Vec<PlannedWord>,
 }
 
+fn slot_lane(lane: Lane) -> slots::SlotLane {
+    match lane {
+        Lane::Target => slots::SlotLane::Target,
+        Lane::Review => slots::SlotLane::Review,
+        Lane::Broad => slots::SlotLane::Broad,
+    }
+}
+
 impl Learning {
     pub(super) fn new(evidence: SessionLearning, adaptation: Adaptation) -> Self {
         Self {
@@ -58,13 +68,21 @@ impl Learning {
         self.mark = None;
     }
 
-    /// Records a first attempt at `position` of `target`, typed at `active`.
+    /// Records a first attempt at `position` of `target`, typed at `active`
+    /// in timing segment `segment`; `previous` is the first outcome of the
+    /// position before it.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one call site passes the ledger facts the kernel decides from"
+    )]
     pub(super) fn first_attempt(
         &mut self,
         target: &[TrainingChar],
         position: usize,
         matched: bool,
+        previous: Slot,
         active: Micros,
+        segment: u64,
         lane: KeyLane,
     ) -> Result<(), CoreError> {
         let unit = *target
@@ -78,24 +96,55 @@ impl Learning {
             !matched,
             None,
         )?;
-        if let Some(previous) = position.checked_sub(1).and_then(|p| target.get(p)) {
-            let interval = match self.mark {
-                Some(mark) if matched && mark.position.checked_add(1) == Some(position) => active
-                    .checked_sub(mark.active)
-                    .ok()
-                    .filter(|gap| gap.as_us() <= self.adaptation.hesitation_ceiling.as_us()),
-                _ => None,
+        if let Some(previous_unit) = position.checked_sub(1).and_then(|p| target.get(p)) {
+            // The kernel decides both (L-02, L-03): the transition is
+            // correct only if both keys were, and its interval is a sample
+            // only when adjacent, matched, unpaused, positive and in range.
+            let anchor = self.mark.map_or(
+                evidence::Mark {
+                    present: false,
+                    position: 0,
+                    active_us: 0,
+                    segment: 0,
+                },
+                |mark| evidence::Mark {
+                    present: true,
+                    position: mark.position,
+                    active_us: mark.active.as_us(),
+                    segment: mark.segment,
+                },
+            );
+            let interval = match evidence::clean_interval(
+                anchor,
+                position,
+                matched,
+                active.as_us(),
+                segment,
+                self.adaptation.hesitation_ceiling.as_us(),
+            ) {
+                evidence::Interval::Timed(gap) => Some(Micros::from_us(gap)),
+                evidence::Interval::NoAnchor
+                | evidence::Interval::NotAdjacent
+                | evidence::Interval::Error
+                | evidence::Interval::CrossesPause
+                | evidence::Interval::Unresolved
+                | evidence::Interval::Backward
+                | evidence::Interval::AboveCeiling => None,
             };
             self.evidence.observe_skill(
                 SkillKey {
                     lane,
-                    skill: Skill::Bigram(*previous, unit),
+                    skill: Skill::Bigram(*previous_unit, unit),
                 },
-                !matched,
+                !evidence::pair_first_correct(previous, matched),
                 interval,
             )?;
         }
-        self.mark = matched.then_some(KeyMark { position, active });
+        self.mark = matched.then_some(KeyMark {
+            position,
+            active,
+            segment,
+        });
         Ok(())
     }
 
@@ -118,12 +167,36 @@ impl Learning {
         if pieces.len() != self.words.len() {
             return Err(invalid("word slots do not match the target"));
         }
-        for (slot, piece) in self.words.iter_mut().zip(pieces.iter_mut()) {
-            if slot.lane != Lane::Review {
+        // Place each queued word with the proved
+        // `cadence_kernel::slots::substitute`: a review slot that is not a
+        // due review first, then a broad slot; never a target slot or a due
+        // review, and never a word already in the exercise (it stays queued
+        // for the next exercise). Each slot is replaced at most once.
+        let mut replaced = vec![false; self.words.len()];
+        let mut waiting = VecDeque::with_capacity(self.queue.len());
+        while let Some(next) = self.queue.pop_front() {
+            let present = self.words.iter().any(|slot| slot.id == next.word);
+            let fits = |wanted: Lane| {
+                self.words.iter().zip(&replaced).position(|(slot, done)| {
+                    !done
+                        && slot.lane == wanted
+                        && slots::substitute(slot_lane(slot.lane), slot.due_review, present)
+                })
+            };
+            // Every lane is offered; the kernel refuses target slots.
+            let Some(index) = fits(Lane::Review)
+                .or_else(|| fits(Lane::Broad))
+                .or_else(|| fits(Lane::Target))
+            else {
+                waiting.push_back(next);
                 continue;
-            }
-            let Some(next) = self.queue.pop_front() else {
-                break;
+            };
+            let (Some(slot), Some(piece), Some(done)) = (
+                self.words.get_mut(index),
+                pieces.get_mut(index),
+                replaced.get_mut(index),
+            ) else {
+                return Err(invalid("substituted slot outside the exercise"));
             };
             *slot = PlannedWord {
                 id: next.word,
@@ -132,8 +205,10 @@ impl Learning {
                 due_review: false,
             };
             *piece = next.units;
+            *done = true;
             self.evidence.note_reinforcement()?;
         }
+        self.queue = waiting;
         let space = exercise
             .units
             .iter()

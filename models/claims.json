@@ -184,6 +184,7 @@
         "cadence_engine::learning::{open, close, enqueue}",
         "cadence_kernel::queue::admit",
         "cadence_kernel::review::ladder_step",
+        "cadence_kernel::slots::substitute",
         "cadence_trainer::learner::due_words"
       ],
       "runtime_tests": [
@@ -191,8 +192,10 @@
         "cadence-data::tests::learning::learning_round_trips_and_history_returns_the_newest_window",
         "cadence-engine::a_full_reinforcement_queue_only_forgoes_the_repetition",
         "cadence-engine::a_missed_word_returns_once_in_a_later_review_slot",
+        "cadence-engine::a_queued_word_already_in_the_exercise_waits_for_the_next_one",
         "cadence-engine::a_queued_word_is_not_queued_twice",
         "cadence-engine::an_exhausted_word_is_not_queued_again",
+        "cadence-engine::due_reviews_keep_their_slots_and_a_broad_slot_is_used",
         "cadence-trainer::plan::tests::due_missed_words_fill_review_slots_first",
         "cadence-trainer::review::tests::clean_before_due_is_practice",
         "cadence-trainer::review::tests::same_day_clean_does_not_promote",

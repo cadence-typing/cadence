@@ -208,7 +208,73 @@ fn pauses_are_excluded_from_intervals() -> TestResult {
     driver.typed(9_100_000, 'a')?;
     let learning = driver.finish(10 * SECOND)?;
     let ca = tally(&learning, bigram('c', 'a', KeyLane::Main)?);
-    assert_eq!((ca.timed, ca.timed_micros), (1, 150_000));
+    // L-03: a pair crossing a pause is excluded from timing (#41). Before
+    // #41 this recorded the 50 ms before and 100 ms after the pause as one
+    // 150 ms interval.
+    assert_eq!((ca.attempts, ca.timed, ca.timed_micros), (1, 0, 0));
+    Ok(())
+}
+
+/// #41: focus loss pauses practice and also separates the pair.
+#[test]
+fn focus_loss_is_excluded_from_intervals() -> TestResult {
+    let mut driver = Driver::new(words_engine()?)?;
+    driver.key(0, Key::Enter)?;
+    driver.typed(SECOND, 'c')?;
+    driver.send(1_050_000, EventKind::FocusLost)?;
+    driver.key(9 * SECOND, Key::Escape)?;
+    driver.typed(9_100_000, 'a')?;
+    let learning = driver.finish(10 * SECOND)?;
+    let ca = tally(&learning, bigram('c', 'a', KeyLane::Main)?);
+    assert_eq!((ca.attempts, ca.timed, ca.timed_micros), (1, 0, 0));
+    Ok(())
+}
+
+/// #41: two keys at the same tick are insufficient timing resolution: the
+/// attempt counts, no interval is recorded.
+#[test]
+fn keys_at_the_same_tick_record_no_interval() -> TestResult {
+    let mut driver = Driver::new(words_engine()?)?;
+    driver.key(0, Key::Enter)?;
+    driver.typed(SECOND, 'c')?;
+    driver.typed(SECOND, 'a')?;
+    let learning = driver.finish(2 * SECOND)?;
+    let ca = tally(&learning, bigram('c', 'a', KeyLane::Main)?);
+    assert_eq!((ca.attempts, ca.errors, ca.timed), (1, 0, 0));
+    Ok(())
+}
+
+/// #42 (L-02): a transition is first-correct only if both keys were. `c` is
+/// a first-attempt error corrected by Backspace; the transition `ca` counts
+/// as an error although `a` was right.
+#[test]
+fn a_transition_out_of_a_missed_key_is_an_error() -> TestResult {
+    let mut driver = Driver::new(words_engine()?)?;
+    driver.key(0, Key::Enter)?;
+    driver.typed(SECOND, 'x')?;
+    driver.key(1_100_000, Key::Backspace)?;
+    driver.typed(1_200_000, 'c')?;
+    driver.typed(1_300_000, 'a')?;
+    let learning = driver.finish(2 * SECOND)?;
+    let main = KeyLane::Main;
+    let c = tally(
+        &learning,
+        SkillKey {
+            lane: main,
+            skill: Skill::Unit(unit('c')?),
+        },
+    );
+    let a = tally(
+        &learning,
+        SkillKey {
+            lane: main,
+            skill: Skill::Unit(unit('a')?),
+        },
+    );
+    let ca = tally(&learning, bigram('c', 'a', main)?);
+    assert_eq!((c.attempts, c.errors), (1, 1));
+    assert_eq!((a.attempts, a.errors), (1, 0));
+    assert_eq!((ca.attempts, ca.errors), (1, 1));
     Ok(())
 }
 
@@ -421,5 +487,109 @@ fn a_queued_word_is_not_queued_twice() -> TestResult {
             errors: 2
         })
     );
+    Ok(())
+}
+
+/// #39: `wrapped` becomes true exactly when the last prepared exercise of a
+/// phase is finished.
+#[test]
+fn the_list_wraps_exactly_after_its_last_exercise() -> TestResult {
+    let mut driver = Driver::new(words_engine()?)?;
+    driver.key(0, Key::Enter)?;
+    assert!(!driver.engine.list_wrapped());
+    let at = type_text(&mut driver, SECOND, "cat dog")?;
+    assert!(!driver.engine.list_wrapped(), "one of two exercises done");
+    let at = type_text(&mut driver, at, "sun hat")?;
+    assert!(
+        driver.engine.list_wrapped(),
+        "the last exercise was finished"
+    );
+    assert_eq!(
+        practice_text(&mut driver, at)?,
+        "cat dog",
+        "the list starts over"
+    );
+    Ok(())
+}
+
+fn exercise_with_due(slots: &[(&str, u64, Lane, bool)]) -> Result<PlannedExercise, Error> {
+    let mut exercise = words_exercise(
+        &slots
+            .iter()
+            .map(|(word, id, lane, _)| (*word, *id, *lane))
+            .collect::<Vec<_>>(),
+    )?;
+    for (planned, (_, _, _, due)) in exercise.words.iter_mut().zip(slots) {
+        planned.due_review = *due;
+    }
+    Ok(exercise)
+}
+
+fn phase_of(exercises: Vec<PlannedExercise>) -> Vec<PlannedPhase> {
+    vec![PlannedPhase {
+        phase: Phase::AdaptiveWords,
+        seconds: 60,
+        exercises,
+    }]
+}
+
+/// #43: a queued word already planned in the next exercise is not placed
+/// there (no duplicate); it stays queued for the exercise after.
+#[test]
+fn a_queued_word_already_in_the_exercise_waits_for_the_next_one() -> TestResult {
+    let mut driver = Driver::new(engine(phase_of(vec![
+        words_exercise(&[("cat", 1, Lane::Target), ("dog", 2, Lane::Broad)])?,
+        words_exercise(&[("cat", 1, Lane::Target), ("hat", 4, Lane::Review)])?,
+        words_exercise(&[("sun", 3, Lane::Target), ("pen", 6, Lane::Review)])?,
+    ]))?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "c#at dog")?;
+    assert_eq!(practice_text(&mut driver, at)?, "cat hat", "no second cat");
+    let at = type_text(&mut driver, at, "cat hat")?;
+    assert_eq!(
+        practice_text(&mut driver, at)?,
+        "sun cat",
+        "still queued, served next"
+    );
+    Ok(())
+}
+
+/// #43: due reviews keep their slots; the queued word takes a broad slot.
+#[test]
+fn due_reviews_keep_their_slots_and_a_broad_slot_is_used() -> TestResult {
+    let mut driver = Driver::new(engine(phase_of(vec![
+        words_exercise(&[("cat", 1, Lane::Target), ("dog", 2, Lane::Broad)])?,
+        exercise_with_due(&[
+            ("sun", 3, Lane::Review, true),
+            ("map", 5, Lane::Review, true),
+            ("hat", 4, Lane::Broad, false),
+        ])?,
+    ]))?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "c#at dog")?;
+    assert_eq!(practice_text(&mut driver, at)?, "sun map cat");
+    Ok(())
+}
+
+/// #43: with no admissible slot nothing changes and the word stays queued.
+#[test]
+fn with_no_admissible_slot_the_exercise_is_unchanged() -> TestResult {
+    let mut driver = Driver::new(engine(phase_of(vec![
+        words_exercise(&[("cat", 1, Lane::Target), ("dog", 2, Lane::Broad)])?,
+        exercise_with_due(&[
+            ("sun", 3, Lane::Target, false),
+            ("hat", 4, Lane::Review, true),
+        ])?,
+        words_exercise(&[("map", 5, Lane::Target), ("pen", 6, Lane::Review)])?,
+    ]))?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "c#at dog")?;
+    assert_eq!(
+        practice_text(&mut driver, at)?,
+        "sun hat",
+        "due review kept"
+    );
+    let at = type_text(&mut driver, at, "sun hat")?;
+    assert_eq!(practice_text(&mut driver, at)?, "map cat");
     Ok(())
 }

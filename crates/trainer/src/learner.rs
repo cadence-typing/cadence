@@ -9,8 +9,13 @@
 //!   uncertain, never "mastered".
 //! * Due words: the spaced-review ladder replayed over recorded word
 //!   outcomes, served FIFO by due day.
+//!
+//! All arithmetic is integer: evidence is fixed point (one undecayed
+//! attempt weighs `focus::WEIGHT_ONE`) and every number that ranks a focus
+//! comes from the proved `cadence_kernel::focus` functions (#38, #56).
 use std::collections::{BTreeMap, HashMap};
 
+use cadence_core::focus::{self, WEIGHT_ONE};
 use cadence_core::learning::{
     HistoricSession, KeyLane, LearnerHistory, PlannerMode, Skill, SkillKey,
 };
@@ -20,23 +25,38 @@ use crate::policy::TrainerPolicy;
 use crate::review::{DueQueue, ReviewState, is_due, ladder_step};
 
 /// Timed samples a skill needs before its hesitation is compared.
-const MINIMUM_TIMED_SAMPLES: f64 = 3.0;
+const MINIMUM_TIMED_SAMPLES: u64 = 3;
 
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+/// Recency-weighted evidence in fixed point (`WEIGHT_ONE` per undecayed
+/// sample). Sums saturate: they are far below `u64::MAX` for any history
+/// the window admits.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 struct Evidence {
-    attempts: f64,
-    errors: f64,
-    timed: f64,
-    timed_micros: f64,
+    attempts: u64,
+    errors: u64,
+    timed: u64,
+    timed_micros: u64,
 }
 
 impl Evidence {
-    fn add(&mut self, weight: f64, tally: cadence_core::learning::SkillTally) {
-        self.attempts += weight * as_f64(tally.attempts);
-        self.errors += weight * as_f64(tally.errors);
-        self.timed += weight * as_f64(tally.timed);
-        self.timed_micros += weight * as_f64(tally.timed_micros);
+    fn add(&mut self, weight: u64, tally: cadence_core::learning::SkillTally) {
+        let weighted = |value: u64| weight.saturating_mul(value);
+        self.attempts = self.attempts.saturating_add(weighted(tally.attempts));
+        self.errors = self.errors.saturating_add(weighted(tally.errors));
+        self.timed = self.timed.saturating_add(weighted(tally.timed));
+        self.timed_micros = self
+            .timed_micros
+            .saturating_add(weighted(tally.timed_micros));
     }
+}
+
+/// A kernel basis-point value as `BasisPoints` (the kernel keeps it within
+/// `0..=10_000`).
+fn bp(value: u64) -> BasisPoints {
+    u16::try_from(value.min(focus::BASIS))
+        .ok()
+        .and_then(|v| BasisPoints::new(v).ok())
+        .unwrap_or(BasisPoints::MAX)
 }
 
 /// Utility inputs derived for one skill.
@@ -55,10 +75,12 @@ pub struct SkillScore {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LearnerModel {
     skills: HashMap<SkillKey, Evidence>,
-    lane_mean_interval: HashMap<KeyLane, f64>,
-    lane_error_rate: HashMap<KeyLane, f64>,
-    prior_alpha: f64,
-    prior_beta: f64,
+    /// Per lane: weighted timed samples and their weighted microseconds.
+    lane_timing: HashMap<KeyLane, (u64, u64)>,
+    /// Per lane: observed first-attempt error rate (basis points).
+    lane_error_rate: HashMap<KeyLane, u64>,
+    prior_alpha: u64,
+    prior_beta: u64,
     focus: Vec<SkillKey>,
     due_words: Vec<WordId>,
     passage_age: HashMap<PassageId, usize>,
@@ -70,10 +92,10 @@ impl LearnerModel {
     pub fn cold(policy: &TrainerPolicy) -> Self {
         Self {
             skills: HashMap::new(),
-            lane_mean_interval: HashMap::new(),
+            lane_timing: HashMap::new(),
             lane_error_rate: HashMap::new(),
-            prior_alpha: as_f64(policy.statistics.error_prior_alpha),
-            prior_beta: as_f64(policy.statistics.error_prior_beta),
+            prior_alpha: policy.statistics.error_prior_alpha,
+            prior_beta: policy.statistics.error_prior_beta,
             focus: Vec::new(),
             due_words: Vec::new(),
             passage_age: HashMap::new(),
@@ -92,7 +114,7 @@ impl LearnerModel {
         let mut model = Self::cold(policy);
         let learning = &policy.learning;
         let count = history.sessions.len();
-        let half_life = f64::from(learning.half_life_sessions);
+        let half_life = u64::from(learning.half_life_sessions);
         let mut lane_totals: HashMap<KeyLane, Evidence> = HashMap::new();
         for (index, session) in history.sessions.iter().enumerate() {
             let age = count.saturating_sub(index).saturating_sub(1);
@@ -108,22 +130,24 @@ impl LearnerModel {
             if age >= learning.history_sessions {
                 continue;
             }
-            let weight = 0.5_f64.powf(as_f64_usize(age) / half_life);
+            let weight = focus::decay_weight(u64::try_from(age).unwrap_or(u64::MAX), half_life);
             for (key, tally) in &session.learning.skills {
                 model.skills.entry(*key).or_default().add(weight, *tally);
                 lane_totals.entry(key.lane).or_default().add(weight, *tally);
             }
         }
         for (lane, total) in &lane_totals {
-            if total.timed > 0.0 {
+            if total.timed > 0 {
                 model
-                    .lane_mean_interval
-                    .insert(*lane, total.timed_micros / total.timed);
+                    .lane_timing
+                    .insert(*lane, (total.timed, total.timed_micros));
             }
-            if total.attempts > 0.0 {
-                model
-                    .lane_error_rate
-                    .insert(*lane, total.errors / total.attempts);
+            if let Some(rate) = total
+                .errors
+                .checked_mul(focus::BASIS)
+                .and_then(|scaled| scaled.checked_div(total.attempts))
+            {
+                model.lane_error_rate.insert(*lane, rate);
             }
         }
         model.focus = model.choose_focus(policy);
@@ -163,18 +187,31 @@ impl LearnerModel {
     #[must_use]
     pub fn score(&self, key: SkillKey) -> SkillScore {
         let evidence = self.skills.get(&key).copied().unwrap_or_default();
-        let prior = self.prior_alpha + self.prior_beta;
-        let posterior = (evidence.errors + self.prior_alpha) / (evidence.attempts + prior);
-        let hesitation = match self.lane_mean_interval.get(&key.lane) {
-            Some(mean) if evidence.timed >= MINIMUM_TIMED_SAMPLES && *mean > 0.0 => {
-                evidence.timed_micros / evidence.timed / mean - 1.0
-            }
-            _ => 0.0,
-        };
+        let hesitation =
+            self.lane_timing
+                .get(&key.lane)
+                .map_or(0, |(group_timed, group_micros)| {
+                    focus::hesitation_bp(
+                        evidence.timed,
+                        evidence.timed_micros,
+                        *group_timed,
+                        *group_micros,
+                        MINIMUM_TIMED_SAMPLES.saturating_mul(WEIGHT_ONE),
+                    )
+                });
         SkillScore {
-            error: basis_points(posterior),
-            hesitation: basis_points(hesitation),
-            uncertainty: basis_points(prior / (evidence.attempts + prior)),
+            error: bp(focus::posterior_bp(
+                evidence.errors,
+                evidence.attempts,
+                self.prior_alpha,
+                self.prior_beta,
+            )),
+            hesitation: bp(hesitation),
+            uncertainty: bp(focus::uncertainty_bp(
+                evidence.attempts,
+                self.prior_alpha,
+                self.prior_beta,
+            )),
         }
     }
 
@@ -210,50 +247,49 @@ impl LearnerModel {
 
     /// Ranks letter skills by error excess over the lane rate and relative
     /// hesitation, each counted only above its policy threshold, so noise
-    /// never becomes a focus. A key already explained by a chosen transition
-    /// into it is skipped in favour of another skill.
+    /// never becomes a focus (the proved `focus::pick`, candidates in key
+    /// order so map iteration order cannot matter). A key already explained
+    /// by a chosen transition into it is skipped in favour of another skill.
     fn choose_focus(&self, policy: &TrainerPolicy) -> Vec<SkillKey> {
         let learning = &policy.learning;
-        let minimum = f64::from(learning.minimum_focus_attempts);
-        let weights = &policy.weights;
-        let above = |value: BasisPoints, threshold: BasisPoints| {
-            if value >= threshold {
-                u64::from(value.get())
-            } else {
-                0
-            }
+        let thresholds = focus::Thresholds {
+            attempts: u64::from(learning.minimum_focus_attempts).saturating_mul(WEIGHT_ONE),
+            excess: u64::from(learning.focus_minimum_error_excess.get()),
+            hesitation: u64::from(learning.focus_minimum_hesitation.get()),
+            weight_error: u64::from(policy.weights.error.get()),
+            weight_hesitation: u64::from(policy.weights.hesitation.get()),
         };
-        let mut ranked: Vec<(u64, SkillKey)> = self
+        let mut keys: Vec<SkillKey> = self
             .skills
+            .keys()
+            .filter(|key| key.lane == KeyLane::Main && is_word_skill(key.skill))
+            .copied()
+            .collect();
+        keys.sort();
+        let candidates: Vec<focus::Candidate> = keys
             .iter()
-            .filter(|(key, evidence)| {
-                key.lane == KeyLane::Main
-                    && is_word_skill(key.skill)
-                    && evidence.attempts >= minimum
-            })
-            .filter_map(|(key, evidence)| {
+            .map(|key| {
+                let evidence = self.skills.get(key).copied().unwrap_or_default();
                 let score = self.score(*key);
-                let lane_rate = self.lane_error_rate.get(&key.lane).copied().unwrap_or(0.0);
-                let excess = if evidence.errors > 0.0 {
-                    basis_points(f64::from(score.error.get()) / 10_000.0 - lane_rate)
-                } else {
-                    BasisPoints::ZERO
-                };
-                let value = u64::from(weights.error.get())
-                    .saturating_mul(above(excess, learning.focus_minimum_error_excess))
-                    .saturating_add(u64::from(weights.hesitation.get()).saturating_mul(above(
-                        score.hesitation,
-                        learning.focus_minimum_hesitation,
-                    )));
-                (value > 0).then_some((value, *key))
+                focus::Candidate {
+                    attempts: evidence.attempts,
+                    errors: evidence.errors,
+                    posterior: u64::from(score.error.get()),
+                    group_rate: self.lane_error_rate.get(&key.lane).copied().unwrap_or(0),
+                    hesitation: u64::from(score.hesitation.get()),
+                }
             })
             .collect();
-        ranked.sort_by(|left, right| right.0.cmp(&left.0).then(left.1.cmp(&right.1)));
+        let mut taken = vec![false; candidates.len()];
         let mut chosen: Vec<SkillKey> = Vec::with_capacity(learning.focus_skill_count);
-        for (_, key) in ranked {
-            if chosen.len() >= learning.focus_skill_count {
+        while chosen.len() < learning.focus_skill_count {
+            let Some(index) = focus::pick(&candidates, &taken, thresholds) else {
                 break;
-            }
+            };
+            let (Some(flag), Some(key)) = (taken.get_mut(index), keys.get(index)) else {
+                break;
+            };
+            *flag = true;
             let explained = match key.skill {
                 Skill::Unit(unit) => chosen
                     .iter()
@@ -261,7 +297,7 @@ impl LearnerModel {
                 Skill::Bigram(..) => false,
             };
             if !explained {
-                chosen.push(key);
+                chosen.push(*key);
             }
         }
         chosen
@@ -316,39 +352,6 @@ fn due_words(
         ordered.push(entry.word);
     }
     Ok(ordered)
-}
-
-/// Converts a clamped ratio in `0.0..=1.0` to basis points.
-#[expect(
-    clippy::as_conversions,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    reason = "the value is clamped to 0..=10000 and rounded before the cast"
-)]
-fn basis_points(ratio: f64) -> BasisPoints {
-    if !ratio.is_finite() {
-        return BasisPoints::ZERO;
-    }
-    let scaled = (ratio.clamp(0.0, 1.0) * 10_000.0).round() as u16;
-    BasisPoints::new(scaled).unwrap_or(BasisPoints::MAX)
-}
-
-/// Counts are far below 2^52; model arithmetic is approximate by design.
-#[expect(
-    clippy::as_conversions,
-    reason = "no lossless integer to f64 conversion exists; counts are far below 2^52"
-)]
-const fn as_f64(value: u64) -> f64 {
-    value as f64
-}
-
-/// Session ages are bounded by the history window.
-#[expect(
-    clippy::as_conversions,
-    reason = "no lossless integer to f64 conversion exists; ages are bounded by the history window"
-)]
-const fn as_f64_usize(value: usize) -> f64 {
-    value as f64
 }
 
 #[cfg(test)]

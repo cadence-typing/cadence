@@ -15,3 +15,7 @@ import Proofs.Select
 import Proofs.Lanes
 import Proofs.Review
 import Proofs.Queue
+import Proofs.Label
+import Proofs.Slots
+import Proofs.Focus
+import Proofs.Evidence

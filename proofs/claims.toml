@@ -917,3 +917,255 @@ name = "per-word-ignored"
 file = "crates/kernel/src/queue.rs"
 before = "    if served_for_word >= per_word_limit {\n"
 after = "    if served_for_word > per_word_limit {\n"
+
+# ---- labels and list cycling (crates/kernel/src/{label,cycle}.rs, #39)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/label.rs"
+function = "label::of"
+lean = "cadence_kernel.label.of"
+theorems = ["Proofs.Label.fresh_iff_unseen", "Proofs.Label.again_is_reinforcement"]
+total = "Proofs.Label.fresh_iff_unseen"
+mutants = ["repeat-shown-fresh", "cycle-not-labelled", "again-for-due"]
+
+[[mutant]]
+name = "repeat-shown-fresh"
+file = "crates/kernel/src/label.rs"
+before = "    } else if f.served_before > 0 || f.wrapped || f.recent_passage {\n"
+after = "    } else if f.served_before > 0 || f.wrapped {\n"
+
+[[mutant]]
+name = "cycle-not-labelled"
+file = "crates/kernel/src/label.rs"
+before = "    } else if f.served_before > 0 || f.wrapped || f.recent_passage {\n"
+after = "    } else if f.served_before > 0 || f.recent_passage {\n"
+
+[[mutant]]
+name = "again-for-due"
+file = "crates/kernel/src/label.rs"
+before = "    if f.reinforcement {\n"
+after = "    if f.reinforcement || f.due_review {\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/cycle.rs"
+function = "cycle::advance"
+lean = "cadence_kernel.cycle.advance"
+theorems = ["Proofs.Label.wrap_exact", "Proofs.Label.advance_total"]
+total = "Proofs.Label.advance_total"
+mutants = ["wrap-off-by-one"]
+
+[[mutant]]
+name = "wrap-off-by-one"
+file = "crates/kernel/src/cycle.rs"
+before = "    if n >= count {\n"
+after = "    if n > count {\n"
+
+# ---- re-serving slots (crates/kernel/src/slots.rs, #43)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/slots.rs"
+function = "slots::substitute"
+lean = "cadence_kernel.slots.substitute"
+theorems = [
+  "Proofs.Slots.substitute_spec",
+  "Proofs.Slots.never_displaces_due",
+  "Proofs.Slots.never_displaces_target",
+  "Proofs.Slots.no_duplicate_in_exercise",
+]
+total = "Proofs.Slots.substitute_spec"
+mutants = ["substitute-any-review", "substitute-target", "substitute-ignores-present"]
+
+[[mutant]]
+name = "substitute-any-review"
+file = "crates/kernel/src/slots.rs"
+before = "        SlotLane::Review => !due_review && !present,\n"
+after = "        SlotLane::Review => !present,\n"
+
+[[mutant]]
+name = "substitute-target"
+file = "crates/kernel/src/slots.rs"
+before = "        SlotLane::Target => false,\n"
+after = "        SlotLane::Target => !present,\n"
+
+[[mutant]]
+name = "substitute-ignores-present"
+file = "crates/kernel/src/slots.rs"
+before = "        SlotLane::Broad => !due_review && !present,\n"
+after = "        SlotLane::Broad => !due_review,\n"
+
+# ---- focus selection in integers (crates/kernel/src/focus.rs, #38, #56)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/focus.rs"
+function = "focus::decay_weight"
+lean = "cadence_kernel.focus.decay_weight"
+theorems = [
+  "Proofs.Focus.decay_total",
+  "Proofs.Focus.decay_weight_spec",
+  "Proofs.Focus.decay_one_at_zero",
+  "Proofs.Focus.decay_halves",
+  "Proofs.Focus.decay_antitone",
+]
+total = "Proofs.Focus.decay_total"
+mutants = ["decay-grows", "decay-skips-halving"]
+
+[[mutant]]
+name = "decay-grows"
+file = "crates/kernel/src/focus.rs"
+before = "    let left = match span.checked_sub(rem) {\n"
+after = "    let left = match span.checked_add(rem) {\n"
+
+[[mutant]]
+name = "decay-skips-halving"
+file = "crates/kernel/src/focus.rs"
+before = "        base = base.checked_div(2).unwrap_or(0);\n"
+after = "        base = base.checked_div(1).unwrap_or(0);\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/focus.rs"
+function = "focus::posterior_bp"
+lean = "cadence_kernel.focus.posterior_bp"
+theorems = [
+  "Proofs.Focus.posterior_total",
+  "Proofs.Focus.posterior_spec",
+  "Proofs.Focus.posterior_in_range",
+  "Proofs.Focus.posterior_prior_at_zero",
+  "Proofs.Focus.posterior_monotone_errors",
+]
+total = "Proofs.Focus.posterior_total"
+mutants = ["posterior-drops-prior"]
+
+[[mutant]]
+name = "posterior-drops-prior"
+file = "crates/kernel/src/focus.rs"
+before = "    let numerator = match errors.checked_add(prior_errors) {\n"
+after = "    let numerator = match errors.checked_add(prior_errors - prior_errors) {\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/focus.rs"
+function = "focus::hesitation_bp"
+lean = "cadence_kernel.focus.hesitation_bp"
+theorems = ["Proofs.Focus.hesitation_in_range", "Proofs.Focus.hesitation_needs_samples"]
+total = "Proofs.Focus.hesitation_in_range"
+mutants = ["hesitation-ignores-minimum"]
+
+[[mutant]]
+name = "hesitation-ignores-minimum"
+file = "crates/kernel/src/focus.rs"
+before = "    if skill_timed < minimum {\n"
+after = "    if skill_timed < minimum && minimum == u64::MAX {\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/focus.rs"
+function = "focus::qualifies"
+lean = "cadence_kernel.focus.qualifies"
+theorems = [
+  "Proofs.Focus.qualifies_spec",
+  "Proofs.Focus.signal_spec",
+  "Proofs.Focus.sparse_never_qualifies",
+  "Proofs.Focus.quiet_never_qualifies",
+]
+total = "Proofs.Focus.qualifies_spec"
+mutants = ["sparse-qualifies", "threshold-inverted"]
+
+[[mutant]]
+name = "sparse-qualifies"
+file = "crates/kernel/src/focus.rs"
+before = "    c.attempts >= t.attempts && signal(c, t) > 0\n"
+after = "    c.attempts >= t.attempts.saturating_sub(1) && signal(c, t) > 0\n"
+
+[[mutant]]
+name = "threshold-inverted"
+file = "crates/kernel/src/focus.rs"
+before = "    if value >= threshold { value } else { 0 }\n"
+after = "    if value <= threshold { value } else { 0 }\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/focus.rs"
+function = "focus::pick"
+lean = "cadence_kernel.focus.pick"
+theorems = ["Proofs.Focus.pick_spec", "Proofs.Focus.pick_sound", "Proofs.Focus.pick_maximal"]
+total = "Proofs.Focus.pick_spec"
+mutants = ["pick-ignores-chosen", "pick-first-not-best"]
+
+[[mutant]]
+name = "pick-ignores-chosen"
+file = "crates/kernel/src/focus.rs"
+before = "            if !taken(chosen, i) && qualifies(*c, t) && beats(best, best_signal, s) {\n"
+after = "            if qualifies(*c, t) && beats(best, best_signal, s) {\n"
+
+[[mutant]]
+name = "pick-first-not-best"
+file = "crates/kernel/src/focus.rs"
+before = "        Some(_) => s > best_signal,\n"
+after = "        Some(_) => s > best_signal && best_signal == u64::MAX,\n"
+
+# ---- learner evidence attribution (crates/kernel/src/evidence.rs, #42, #41)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/evidence.rs"
+function = "evidence::pair_first_correct"
+lean = "cadence_kernel.evidence.pair_first_correct"
+theorems = ["Proofs.Evidence.pair_correct_iff_both"]
+total = "Proofs.Evidence.pair_correct_iff_both"
+mutants = ["pair-ignores-previous"]
+
+[[mutant]]
+name = "pair-ignores-previous"
+file = "crates/kernel/src/evidence.rs"
+before = "        Slot::Open | Slot::Incorrect => false,\n"
+after = "        Slot::Open | Slot::Incorrect => matched,\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/evidence.rs"
+function = "evidence::clean_interval"
+lean = "cadence_kernel.evidence.clean_interval"
+theorems = ["Proofs.Evidence.interval_reason_exact", "Proofs.Evidence.interval_timed_iff"]
+total = "Proofs.Evidence.interval_reason_exact"
+mutants = [
+  "interval-crosses-pause",
+  "interval-zero-gap",
+  "interval-nonadjacent",
+  "interval-on-error",
+  "ceiling-off-by-one",
+]
+
+[[mutant]]
+name = "interval-crosses-pause"
+file = "crates/kernel/src/evidence.rs"
+before = "    if mark.segment != segment {\n"
+after = "    if mark.segment != segment && segment == u64::MAX {\n"
+
+[[mutant]]
+name = "interval-zero-gap"
+file = "crates/kernel/src/evidence.rs"
+before = "            if gap == 0 {\n"
+after = "            if gap == 0 && ceiling_us == u64::MAX {\n"
+
+[[mutant]]
+name = "interval-nonadjacent"
+file = "crates/kernel/src/evidence.rs"
+before = "        Some(next) => next == position,\n"
+after = "        Some(next) => next <= position,\n"
+
+[[mutant]]
+name = "interval-on-error"
+file = "crates/kernel/src/evidence.rs"
+before = "    if !matched {\n"
+after = "    if !matched && segment == u64::MAX {\n"
+
+[[mutant]]
+name = "ceiling-off-by-one"
+file = "crates/kernel/src/evidence.rs"
+before = "            } else if gap > ceiling_us {\n"
+after = "            } else if gap > ceiling_us.saturating_add(1) {\n"

@@ -13,7 +13,10 @@
 
 pub mod alphabet;
 pub mod error;
+pub mod evidence;
+pub mod focus;
 pub mod id;
+pub mod label;
 pub mod lanes;
 pub mod learning;
 pub mod ledger;
@@ -25,6 +28,7 @@ pub mod queue;
 pub mod review;
 pub mod select;
 pub mod session;
+pub mod slots;
 pub mod tick;
 pub mod units;
 

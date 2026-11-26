@@ -1,5 +1,6 @@
 //! Practice timing, bounded ledger updates and fixed-track accumulation.
 use super::{DomainOutcome, Engine, Key, Screen, invalid};
+use cadence_core::label::advance as cycle_advance;
 use cadence_core::learning::KeyLane;
 use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent, Slot};
 use cadence_core::metrics::{correct_digits, first_pass_accuracy};
@@ -155,6 +156,7 @@ impl Engine {
             .checked_add(1)
             .ok_or_else(|| invalid("phase index exhausted"))?;
         self.exercise_index = 0;
+        self.list_wrapped = false;
         self.phase_start = self.active;
         self.interlude_opened = None;
         let Some(phase) = self.plan.phases.get(self.phase_index) else {
@@ -243,8 +245,18 @@ impl Engine {
                         let position = usize::try_from(p.get()).map_err(|_unrepresentable| {
                             invalid("unit index outside address space")
                         })?;
-                        self.learning
-                            .first_attempt(target, position, matched, active, lane)?;
+                        let previous = position
+                            .checked_sub(1)
+                            .and_then(|before| {
+                                self.ledger
+                                    .as_ref()
+                                    .and_then(|l| l.first_outcomes().get(before).copied())
+                            })
+                            .unwrap_or(Slot::Open);
+                        let segment = self.timing.segment_ordinal();
+                        self.learning.first_attempt(
+                            target, position, matched, previous, active, segment, lane,
+                        )?;
                     }
                     Applied::Content { .. }
                     | Applied::Deleted
@@ -284,11 +296,11 @@ impl Engine {
             .ok_or_else(|| invalid("missing phase"))?
             .exercises
             .len();
-        let next_index = self
-            .exercise_index
-            .checked_add(1)
-            .ok_or_else(|| invalid("exercise index exhausted"))?;
-        self.exercise_index = if next_index == count { 0 } else { next_index };
+        // The proved `cadence_kernel::cycle::advance`: the next prepared
+        // exercise, or the first again when the list is exhausted.
+        let advance = cycle_advance(self.exercise_index, count);
+        self.exercise_index = advance.next;
+        self.list_wrapped = self.list_wrapped || advance.wrapped;
         self.open_exercise(at)?;
         self.checkpoint_due = true;
         Ok(DomainOutcome::ExerciseCompleted {

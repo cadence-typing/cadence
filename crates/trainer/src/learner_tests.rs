@@ -229,3 +229,43 @@ fn a_key_explained_by_a_focused_transition_is_skipped() {
     assert_eq!(model.focus().first(), Some(&bigram("er")));
     assert!(!model.focus().contains(&r));
 }
+
+/// #56: the focus list does not depend on hash-map iteration order: models
+/// built from the same history (each with its own randomly seeded maps)
+/// and from the same skills in another session order agree.
+#[test]
+fn focus_is_independent_of_map_order() {
+    let skills = [
+        ("th", tally(40, 9, 0, 0)),
+        ("he", tally(40, 9, 0, 0)),
+        ("er", tally(40, 8, 0, 0)),
+        ("re", tally(40, 8, 0, 0)),
+        ("an", tally(40, 7, 0, 0)),
+        ("nd", tally(40, 7, 0, 0)),
+        ("ou", tally(40, 6, 0, 0)),
+        ("st", tally(40, 6, 0, 0)),
+        ("in", tally(400, 0, 0, 0)),
+        ("on", tally(400, 0, 0, 0)),
+        ("at", tally(400, 0, 0, 0)),
+    ];
+    let mut reversed = skills;
+    reversed.reverse();
+    let build = |skills: &[(&str, SkillTally)]| {
+        LearnerModel::from_history(
+            &LearnerHistory {
+                sessions: vec![session(1, 10, skills)],
+            },
+            &policy(),
+            day(10),
+        )
+        .unwrap()
+        .focus()
+        .to_vec()
+    };
+    let first = build(&skills);
+    assert_eq!(first.len(), 6);
+    for _ in 0..16 {
+        assert_eq!(build(&skills), first);
+        assert_eq!(build(&reversed), first);
+    }
+}
