@@ -6,7 +6,7 @@
 
 use std::fmt::{self, Write};
 
-use cadence_engine::commands::{Action, bindings};
+use cadence_engine::commands::{Action, bindings, paused_bindings};
 use cadence_engine::view::{Durability, PreparedView, RateUnit, ScreenView, ViewMode};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -237,7 +237,12 @@ fn hints(
     let mut x = area.x;
     let key_style = style(palette, Role::Text, Role::Background);
     let quiet_style = style(palette, Role::Muted, Role::Background);
-    for (index, binding) in bindings(view.mode, enter_submits).iter().enumerate() {
+    let keys = if view.mode == ViewMode::Paused {
+        paused_bindings(view.pause_reason)
+    } else {
+        bindings(view.mode, enter_submits)
+    };
+    for (index, binding) in keys.iter().enumerate() {
         let mut label = Label::new();
         if binding.action == Action::TextSize {
             label.set(format_args!(

@@ -74,6 +74,11 @@ const PAUSED: &[Binding] = &[
     bind("e", "end session & review", Action::EndAndReview),
     bind("F2", "text size", Action::TextSize),
 ];
+/// A slow save's pause (#51) resumes by itself; Esc does not resume it.
+const STALLED: &[Binding] = &[
+    bind("e", "end session & review", Action::EndAndReview),
+    bind("F2", "text size", Action::TextSize),
+];
 const NEXT: &[Binding] = &[
     bind("Enter", "continue", Action::Continue),
     bind("Ctrl-C", "end & review", Action::EndAndReview),
@@ -89,6 +94,22 @@ const INVALID: &[Binding] = &[bind(
     Action::FinishInvalid,
 )];
 
+/// Bindings honoured while paused for `reason`: a slow save's pause offers
+/// no resume, because it ends when the save catches up.
+#[must_use]
+pub const fn paused_bindings(reason: Option<crate::view::PauseReason>) -> &'static [Binding] {
+    match reason {
+        Some(crate::view::PauseReason::SavingSlow) => STALLED,
+        Some(
+            crate::view::PauseReason::Requested
+            | crate::view::PauseReason::FocusLost
+            | crate::view::PauseReason::PasteRejected
+            | crate::view::PauseReason::TooSmall,
+        )
+        | None => PAUSED,
+    }
+}
+
 /// Bindings honoured in `mode`, most important first.
 #[must_use]
 pub const fn bindings(mode: ViewMode, enter_submits: bool) -> &'static [Binding] {
@@ -102,5 +123,21 @@ pub const fn bindings(mode: ViewMode, enter_submits: bool) -> &'static [Binding]
         ViewMode::Saving => &[],
         ViewMode::SaveError => SAVE_ERROR,
         ViewMode::Invalid => INVALID,
+    }
+}
+
+#[cfg(test)]
+mod stall_tests {
+    use super::*;
+    use crate::view::PauseReason;
+
+    /// #51: a slow save's pause offers no resume; other pauses do.
+    #[test]
+    fn a_stall_offers_no_resume() {
+        let stalled = paused_bindings(Some(PauseReason::SavingSlow));
+        assert!(stalled.iter().all(|b| b.action != Action::Resume));
+        assert!(stalled.iter().any(|b| b.action == Action::EndAndReview));
+        let requested = paused_bindings(Some(PauseReason::Requested));
+        assert!(requested.iter().any(|b| b.action == Action::Resume));
     }
 }
