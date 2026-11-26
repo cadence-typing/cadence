@@ -303,6 +303,39 @@
         "HeadlessBarrier-child-after-drain.cfg": "3aade514f12ad98ddd631b530accd96b46662efdf9d2657e6e31f6bfe1f01fc1",
         "HeadlessBarrier-ack-below-watermark.cfg": "5536280cad66935ab57ebe0d657cbac4ef514415f0bd050615753dd792a4c12d"
       }
+    },
+    {
+      "module": "WorkerResults",
+      "status": "mapped",
+      "invariants": [
+        "AcceptedFresh",
+        "AtMostOnce",
+        "CompletionRetained",
+        "TypeOK"
+      ],
+      "properties": [],
+      "mutants": [
+        "WorkerResults-drop-full-slot.cfg violates CompletionRetained",
+        "WorkerResults-no-epoch.cfg violates AcceptedFresh",
+        "WorkerResults-no-pending.cfg violates AtMostOnce"
+      ],
+      "production_symbols": [
+        "cadence_engine::jobs::{start, restart, result, consume}",
+        "cadence_kernel::ticket::admit"
+      ],
+      "runtime_tests": [
+        "cadence-engine::a_duplicate_result_applies_once",
+        "cadence-engine::a_storm_of_stale_results_leaves_the_table_bounded",
+        "cadence-engine::late_results_from_an_older_epoch_change_nothing"
+      ],
+      "constants": "MaxEpoch = 2 MaxRequests = 3 EpochGuard = TRUE PendingGuard = TRUE RetainGuard = TRUE",
+      "sha256": {
+        "WorkerResults.tla": "662694651fe8906925d487b6f08d98bfcae9eceeb98a883cc7539002451b5f8b",
+        "WorkerResults.cfg": "4528e1a4bc5c8e6e9ffeeb661380255b4a3c4be08879e774d90aaf658285baf4",
+        "WorkerResults-no-epoch.cfg": "f332906c45ea7074be514a088211d19aa0fb81532fbbdb92046d630ff2ed418e",
+        "WorkerResults-no-pending.cfg": "c4278336d4c15448e79303981be07b09bac30aeadc853483ea62900e7651f3cc",
+        "WorkerResults-drop-full-slot.cfg": "5a8934df1e93a5599152e08d28f2161fdd506fb002a257aabfbef17a0b1f4e69"
+      }
     }
   ]
 }

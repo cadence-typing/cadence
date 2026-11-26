@@ -1457,6 +1457,33 @@ file = "crates/kernel/src/barrier.rs"
 before = "            if has_ack && acked_seq >= watermark_seq {\n"
 after = "            if has_ack {\n"
 
+# ---- worker result tickets (crates/kernel/src/ticket.rs, #75)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ticket.rs"
+function = "ticket::admit"
+lean = "cadence_kernel.ticket.admit"
+theorems = [
+  "Proofs.Ticket.accept_iff_fresh",
+  "Proofs.Ticket.at_most_once",
+  "Proofs.Ticket.stale_error_never_replaces",
+]
+total = "Proofs.Ticket.accept_iff_fresh"
+mutants = ["no-epoch-check", "no-pending-check"]
+
+[[mutant]]
+name = "no-epoch-check"
+file = "crates/kernel/src/ticket.rs"
+before = "    if result_epoch != current_epoch {\n        return Admit::StaleEpoch;\n    }\n"
+after = ""
+
+[[mutant]]
+name = "no-pending-check"
+file = "crates/kernel/src/ticket.rs"
+before = "    if !has_pending || pending_request != result_request {\n        return Admit::NotPending;\n    }\n"
+after = ""
+
 # ---- local-calendar days (crates/kernel/src/calendar.rs, #52)
 
 [[claim]]

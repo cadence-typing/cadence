@@ -72,6 +72,17 @@ pub enum EventKind {
     /// A durable barrier asks for a checkpoint of the current state (#71);
     /// nothing else changes.
     CheckpointRequested,
+    /// Start a ticketed worker job (#75); the ticket is in the transition.
+    StartJob(crate::jobs::JobKind),
+    /// A worker's result, admitted through `ticket::admit` (#75).
+    JobResult {
+        /// The ticket it answers.
+        ticket: crate::jobs::JobTicket,
+        /// What happened.
+        outcome: crate::jobs::JobOutcome,
+    },
+    /// The screen that asked for jobs restarted (#75): a new epoch.
+    RestartJobs,
 }
 
 /// The sequenced admission envelope: one ordered external event with its

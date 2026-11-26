@@ -35,6 +35,7 @@ pub mod select;
 pub mod session;
 pub mod slots;
 pub mod tick;
+pub mod ticket;
 pub mod units;
 
 pub use alphabet::{AlphabetError, LayoutSupportsPound, TrainingChar, validate_target};

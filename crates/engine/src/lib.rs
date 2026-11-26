@@ -6,6 +6,7 @@
 pub mod commands;
 pub mod events;
 mod flow;
+pub mod jobs;
 mod learning;
 mod practice;
 mod presentation;
@@ -90,6 +91,8 @@ pub struct Transition {
     pub outcome: DomainOutcome,
     /// At most one outstanding full cumulative checkpoint.
     pub checkpoint: Option<Checkpoint>,
+    /// A ticketed job started by this event (#75).
+    pub job: Option<jobs::JobTicket>,
     /// The causal group of the dispatched checkpoint (#71): the event that
     /// caused it, or, for a follow-up dispatched when an acknowledgement is
     /// consumed, its parent's group.
@@ -105,6 +108,7 @@ impl Transition {
             outcome,
             checkpoint: None,
             checkpoint_group: None,
+            job: None,
             exit_failed: false,
         }
     }
@@ -139,6 +143,8 @@ pub struct Engine {
     list_wrapped: bool,
     /// Admitted events so far (#69): rises on every admitted event.
     state_revision: u64,
+    /// Ticketed worker jobs (#75).
+    jobs: jobs::Jobs,
     /// The group of the checkpoint whose acknowledgement is being consumed
     /// (#71): a follow-up dispatched now inherits it.
     ack_group: Option<u64>,
@@ -228,6 +234,7 @@ impl Engine {
             last_credited: None,
             list_wrapped: false,
             state_revision: 0,
+            jobs: jobs::Jobs::default(),
             ack_group: None,
             probe_paused: false,
             probe_pasted: false,
@@ -295,6 +302,12 @@ impl Engine {
     #[must_use]
     pub const fn state_revision(&self) -> u64 {
         self.state_revision
+    }
+
+    /// The ticketed job table (#75).
+    #[must_use]
+    pub const fn jobs(&self) -> &jobs::Jobs {
+        &self.jobs
     }
 
     /// The newest dispatched checkpoint sequence and the newest
@@ -365,6 +378,11 @@ impl Engine {
                 history,
             } => self.storage_ready(next_session, day, history)?,
             EventKind::SaveResult(result) => self.save_result(result, &mut t)?,
+            EventKind::StartJob(kind) => t.job = self.jobs.start(kind),
+            EventKind::JobResult { ticket, outcome } => {
+                self.jobs.result(ticket, outcome);
+            }
+            EventKind::RestartJobs => self.jobs.restart(),
             EventKind::CheckpointRequested => {
                 if self.storage.is_some() && !self.finishing {
                     self.checkpoint_due = true;

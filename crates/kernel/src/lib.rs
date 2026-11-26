@@ -35,4 +35,5 @@ pub mod review;
 pub mod select;
 pub mod session;
 pub mod slots;
+pub mod ticket;
 pub mod time;

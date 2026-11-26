@@ -2869,6 +2869,33 @@ def slots.substitute
                             then ok false
                             else ok (¬ present)
 
+/-- [cadence_kernel::ticket::Admit]
+    Source: 'crates/kernel/src/ticket.rs', lines 11:0-18:1
+    Visibility: public -/
+@[discriminant isize]
+inductive ticket.Admit where
+| Accept : ticket.Admit
+| StaleEpoch : ticket.Admit
+| NotPending : ticket.Admit
+
+/-- [cadence_kernel::ticket::admit]:
+    Source: 'crates/kernel/src/ticket.rs', lines 23:0-37:1
+    Visibility: public -/
+def ticket.admit
+  (result_epoch : Std.U64) (result_request : Std.U64) (current_epoch : Std.U64)
+  (pending_request : Std.U64) (has_pending : Bool) :
+  Result ticket.Admit
+  := do
+  if result_epoch != current_epoch
+  then ok ticket.Admit.StaleEpoch
+  else
+    if has_pending
+    then
+      if pending_request != result_request
+      then ok ticket.Admit.NotPending
+      else ok ticket.Admit.Accept
+    else ok ticket.Admit.NotPending
+
 /-- [cadence_kernel::time::Through]
     Source: 'crates/kernel/src/time.rs', lines 11:0-18:1
     Visibility: public -/

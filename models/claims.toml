@@ -42,7 +42,7 @@ dir = "formal"
 config = "AsyncAdmission.cfg"
 invariants = ["TypeOK", "AcceptedFresh", "AtMostOnce"]
 status = "design-probe"
-blocked_on = "#75: no job registry with epoch/request tickets is shipped"
+blocked_on = "superseded for production by models/WorkerResults.tla (#75); kept as the handover's design probe"
 
 [[model.mutant]]
 config = "AsyncAdmission-no-epoch.cfg"
@@ -317,4 +317,36 @@ violates = "ChildBeforeDrain"
 [[model.mutant]]
 config = "HeadlessBarrier-ack-below-watermark.cfg"
 violates = "DurableCoversWatermark"
+
+# Worker results (VP-01, VP-02, #75): epoch and request tickets, one
+# retained result slot per kind, restart with request ids reused. The
+# decision is the proved cadence_kernel::ticket::admit, called by the
+# engine's job table for every non-save worker result.
+[[model]]
+module = "WorkerResults"
+dir = "models"
+config = "WorkerResults.cfg"
+invariants = ["TypeOK", "AcceptedFresh", "AtMostOnce", "CompletionRetained"]
+status = "mapped"
+production_symbols = [
+  "cadence_kernel::ticket::admit",
+  "cadence_engine::jobs::{start, restart, result, consume}",
+]
+runtime_tests = [
+  "cadence-engine::late_results_from_an_older_epoch_change_nothing",
+  "cadence-engine::a_duplicate_result_applies_once",
+  "cadence-engine::a_storm_of_stale_results_leaves_the_table_bounded",
+]
+
+[[model.mutant]]
+config = "WorkerResults-no-epoch.cfg"
+violates = "AcceptedFresh"
+
+[[model.mutant]]
+config = "WorkerResults-no-pending.cfg"
+violates = "AtMostOnce"
+
+[[model.mutant]]
+config = "WorkerResults-drop-full-slot.cfg"
+violates = "CompletionRetained"
 

@@ -3,6 +3,7 @@
 import Proofs.TautenAssumption
 import Proofs.TautenMachine
 import Proofs.Checkpoint
+import Proofs.Ticket
 import Proofs.Time
 import Proofs.First
 import Proofs.Counters
