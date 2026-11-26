@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Fetches the pinned word-vetting sources (decision 0006, #8) into
-target/corpus-sources/, verifying each SHA-256. Run by `./ci prepare`
-(networked); every other step is offline."""
+$CADENCE_CORPUS_SOURCES (an absolute path), else target/corpus-sources/,
+verifying each SHA-256. Run by `./ci prepare` (networked), where the source
+tree is read-only and the sources go to the build cache; every other step
+is offline."""
 import hashlib
+import os
 import pathlib
 import sys
 import urllib.request
@@ -22,7 +25,11 @@ SOURCES = [
 
 
 def main() -> int:
-    root = pathlib.Path(__file__).resolve().parents[2] / "target" / "corpus-sources"
+    configured = os.environ.get("CADENCE_CORPUS_SOURCES", "")
+    if configured and pathlib.Path(configured).is_absolute():
+        root = pathlib.Path(configured)
+    else:
+        root = pathlib.Path(__file__).resolve().parents[2] / "target" / "corpus-sources"
     root.mkdir(parents=True, exist_ok=True)
     for name, url, digest in SOURCES:
         path = root / name
