@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use cadence_core::alphabet::TrainingChar;
 use cadence_core::learning::{Skill, SkillKey};
-use cadence_core::{BasisPoints, WordId};
+use cadence_core::{BasisPoints, WordId, lanes};
 use rand::seq::SliceRandom;
 
 use crate::candidate::{Candidate, UtilityInputs, scan_select};
@@ -64,6 +64,11 @@ pub(super) struct WordSelector<'a> {
     /// Every word planned by this selector (the phase), so a sampled slot
     /// never repeats one while an unplanned word is admissible (#44).
     planned: HashSet<WordId>,
+    /// The exercise (block) ordinal of each target word's last use, for
+    /// the proved repeat gap (#58).
+    last_target: HashMap<WordId, u32>,
+    /// The ordinal of the block being selected.
+    exercise: u32,
     focus_turn: usize,
 }
 
@@ -99,6 +104,8 @@ impl<'a> WordSelector<'a> {
             due: learner.due_words().iter().copied().collect(),
             session_counts: HashMap::new(),
             planned: HashSet::new(),
+            last_target: HashMap::new(),
+            exercise: 0,
             focus_turn: 0,
         }
     }
@@ -121,6 +128,8 @@ impl<'a> WordSelector<'a> {
             due: VecDeque::new(),
             session_counts: HashMap::new(),
             planned: HashSet::new(),
+            last_target: HashMap::new(),
+            exercise: 0,
             focus_turn: 0,
         }
     }
@@ -149,10 +158,12 @@ impl<'a> WordSelector<'a> {
             if word.lane == Lane::Target {
                 let count = self.session_counts.entry(word.id).or_default();
                 *count = count.saturating_add(1);
+                self.last_target.insert(word.id, self.exercise);
             }
             self.planned.insert(word.id);
             words.push(word);
         }
+        self.exercise = self.exercise.saturating_add(1);
         Ok(words)
     }
 
@@ -292,7 +303,7 @@ impl<'a> WordSelector<'a> {
     }
 
     /// Lane eligibility: the proved quota and cap decision, plus the
-    /// per-session cap on target words.
+    /// per-session cap on target words and the proved repeat gap (#58).
     fn eligible(
         &self,
         tracker: &QuotaTracker,
@@ -305,7 +316,15 @@ impl<'a> WordSelector<'a> {
                 .policy
                 .learning
                 .maximum_target_word_occurrences_per_session;
-        tracker.word_admissible(id, lane, focus_id) && (lane != Lane::Target || within_session)
+        let last = self.last_target.get(&id).copied();
+        let gap = lanes::gap_admissible(
+            last.is_some(),
+            last.unwrap_or(0),
+            self.exercise,
+            self.policy.learning.minimum_exercises_between_word_repeats,
+        );
+        tracker.word_admissible(id, lane, focus_id)
+            && (lane != Lane::Target || (within_session && gap))
     }
 
     fn candidates(

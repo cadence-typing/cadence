@@ -825,6 +825,22 @@ def lanes.complete
        else ok false
   else ok false
 
+/-- [cadence_kernel::lanes::gap_admissible]:
+    Source: 'crates/kernel/src/lanes.rs', lines 137:0-150:1
+    Visibility: public -/
+def lanes.gap_admissible
+  (served_before : Bool) (last_exercise : Std.U32) (current_exercise : Std.U32)
+  (minimum_gap : Std.U32) :
+  Result Bool
+  := do
+  if served_before
+  then
+    let o ← lift (U32.checked_add last_exercise minimum_gap)
+    match o with
+    | none => ok false
+    | some earliest => ok (current_exercise >= earliest)
+  else ok true
+
 /-- [cadence_kernel::ledger::Insert]
     Source: 'crates/kernel/src/ledger.rs', lines 12:0-28:1
     Visibility: public -/

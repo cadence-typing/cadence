@@ -146,4 +146,30 @@ theorem complete_block_exact (t tq r rq b bq : U32) :
   unfold lanes.complete
   split_ifs <;> simp_all [WP.spec_ok]
 
+/-- A target word may recur exactly when it was not served before, or the
+current exercise is at least the minimum gap after its last one (#58).
+Total. -/
+theorem repeat_gap_spec (served : Bool) (last current gap : U32) :
+    lanes.gap_admissible served last current gap ⦃ r =>
+      (r = true ↔ served = false ∨ last.val + gap.val ≤ current.val) ⦄ := by
+  unfold lanes.gap_admissible
+  cases served with
+  | false => simp [WP.spec_ok]
+  | true =>
+    simp only [Bool.not_true, Bool.false_eq_true, ↓reduceIte, lift, bind_ok]
+    have h := U32.checked_add_bv_spec last gap
+    cases e : U32.checked_add last gap with
+    | none =>
+      rw [e] at h
+      simp only [e, WP.spec_ok]
+      simp at h ⊢
+      have : current.val ≤ U32.max := by scalar_tac
+      omega
+    | some t =>
+      rw [e] at h
+      obtain ⟨_, ht, _⟩ := h
+      simp only [e, WP.spec_ok]
+      simp only [decide_eq_true_eq, false_or, Bool.true_eq_false]
+      constructor <;> intro hh <;> scalar_tac
+
 end Proofs.Lanes

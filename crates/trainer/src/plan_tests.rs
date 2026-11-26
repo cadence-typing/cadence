@@ -354,3 +354,57 @@ fn cold_start_samples_without_replacement() {
         }
     }
 }
+
+/// #58: with policy v3 a target word does not recur within 4 exercises of
+/// a 60-exercise adaptive words phase.
+#[test]
+fn target_words_keep_their_repeat_gap() {
+    let v3 =
+        crate::policy::parse_policy(include_bytes!("../../../policies/trainer-v3.toml")).unwrap();
+    let learner = weak_on("wb", &[], 10);
+    let (words, bank) = (pack(25_000), prose(40));
+    for seed in [1, 42] {
+        let plan = build_session_plan(
+            &v3,
+            PlanInputs {
+                pack: &words,
+                prose: &bank,
+                learner: &learner,
+            },
+            seed,
+            &[],
+            1_800,
+        )
+        .unwrap();
+        let exercises = &phase(&plan, Phase::AdaptiveWords).exercises;
+        assert!(exercises.len() >= 60);
+        let mut last: std::collections::HashMap<WordId, usize> = std::collections::HashMap::new();
+        for (index, exercise) in exercises.iter().enumerate() {
+            for word in exercise.words.iter().filter(|w| w.lane == Lane::Target) {
+                if let Some(previous) = last.insert(word.id, index) {
+                    assert!(
+                        index - previous >= 4,
+                        "seed {seed}: word {} in exercises {previous} and {index}",
+                        word.id.get()
+                    );
+                }
+            }
+        }
+        assert_eq!(
+            plan,
+            build_session_plan(
+                &v3,
+                PlanInputs {
+                    pack: &words,
+                    prose: &bank,
+                    learner: &learner,
+                },
+                seed,
+                &[],
+                1_800,
+            )
+            .unwrap(),
+            "deterministic"
+        );
+    }
+}

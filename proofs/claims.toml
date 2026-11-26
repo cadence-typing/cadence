@@ -1263,3 +1263,26 @@ name = "days-ago-wraps"
 file = "crates/kernel/src/calendar.rs"
 before = "    if then >= today {\n        return 0;\n    }\n"
 after = "    if then > today {\n        return then - today - today + then;\n    }\n"
+
+# ---- target-word repeat gap (crates/kernel/src/lanes.rs, #58)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/lanes.rs"
+function = "lanes::gap_admissible"
+lean = "cadence_kernel.lanes.gap_admissible"
+theorems = ["Proofs.Lanes.repeat_gap_spec"]
+total = "Proofs.Lanes.repeat_gap_spec"
+mutants = ["gap-off-by-one", "gap-ignored"]
+
+[[mutant]]
+name = "gap-off-by-one"
+file = "crates/kernel/src/lanes.rs"
+before = "        Some(earliest) => current_exercise >= earliest,\n"
+after = "        Some(earliest) => current_exercise >= earliest.saturating_sub(1),\n"
+
+[[mutant]]
+name = "gap-ignored"
+file = "crates/kernel/src/lanes.rs"
+before = "    if !served_before {\n        return true;\n    }\n"
+after = "    if !served_before || minimum_gap > 0 {\n        return true;\n    }\n"

@@ -66,6 +66,7 @@ start_from = [
     "cadence_kernel::lanes::admissible",
     "cadence_kernel::lanes::record",
     "cadence_kernel::lanes::complete",
+    "cadence_kernel::lanes::gap_admissible",
     "cadence_kernel::review::valid_ladder",
     "cadence_kernel::review::rolled_back",
     "cadence_kernel::review::next_streak",

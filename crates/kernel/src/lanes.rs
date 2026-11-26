@@ -129,3 +129,22 @@ pub fn complete(
 ) -> bool {
     target == target_quota && review == review_quota && broad == broad_quota
 }
+
+/// Whether a target word may recur in exercise `current_exercise` (#58):
+/// a word not served before always may; one last served in
+/// `last_exercise` only `minimum_gap` exercises later (never on overflow).
+#[must_use]
+pub fn gap_admissible(
+    served_before: bool,
+    last_exercise: u32,
+    current_exercise: u32,
+    minimum_gap: u32,
+) -> bool {
+    if !served_before {
+        return true;
+    }
+    match last_exercise.checked_add(minimum_gap) {
+        None => false,
+        Some(earliest) => current_exercise >= earliest,
+    }
+}
