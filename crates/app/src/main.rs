@@ -1,6 +1,7 @@
 //! CLI composition: offline content, reducer, retained writer and shared paint.
 
 mod cli;
+mod headless;
 mod practice;
 #[cfg(test)]
 #[expect(
@@ -28,7 +29,7 @@ const WORDS: &str = include_str!("../../../corpus/words-en-v2.tsv");
 const PROSE: &str = include_str!("../../../corpus/prose-en-v2.tsv");
 const PROSE_SOURCES: &str = include_str!("../../../corpus/prose-sources-v2.tsv");
 const PROBES: &str = include_str!("../../../corpus/benchmark-en-v1.tsv");
-const POLICY: &str = include_str!("../../../policies/trainer-v4.toml");
+pub(crate) const POLICY: &str = include_str!("../../../policies/trainer-v4.toml");
 /// Shipped prose lower bound (plan 0003): enough for a long no-repeat window.
 const MINIMUM_PASSAGES: usize = 2_000;
 /// Domain separation for the per-session plan seed.
@@ -81,6 +82,10 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
             println!("Progress exported: {}", destination.display());
             Ok(())
         }
+        cli::Command::Headless { script, ephemeral } => {
+            headless::run(options.profile.as_deref(), script.as_deref(), *ephemeral)
+        }
+        cli::Command::Doctor => headless::doctor(options.profile.as_deref()),
         cli::Command::Practice => {
             // The wall clock and the local offset are read once, here, at
             // session start; the proved calendar::local_day decides the day.
@@ -125,7 +130,7 @@ fn local_offset() -> (i32, bool) {
     (chrono::Local::now().offset().local_minus_utc(), true)
 }
 
-fn build_engine(
+pub(crate) fn build_engine(
     options: &cli::Options,
     policy: &TrainerPolicy,
     bootstrap: &StoreBootstrap,

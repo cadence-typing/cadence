@@ -1,0 +1,356 @@
+//! The headless host (H-01, H-02, #69): requests drive the same
+//! `Engine::reduce` and the same `cadence-tui` paint as live mode (rule 5).
+//! Time is a virtual clock: `key` arrives at the current tick, `text`
+//! advances `inter_key_microseconds` before each later unit (delivering due
+//! clock events first), `advance` moves the clock. Saves go through a
+//! service the composition root provides (a fixture or the profile store)
+//! and are acknowledged in the reducer before the request answers.
+
+use cadence_core::progress::{Checkpoint, HistorySummary, SaveResult};
+use cadence_core::{LayoutSupportsPound, MonoTick, SessionId, TrainingChar};
+use cadence_engine::{Engine, EventEnvelope, EventKind, Key, ScreenView};
+use serde_json::{Map, Value, json};
+
+use crate::envelope::{Code, Operation, Request};
+use crate::protocol::Host;
+
+/// What the composition root provides: scenarios and durable saves.
+pub trait Services {
+    /// The engine for a named fixture scenario, or the real daily plan.
+    ///
+    /// # Errors
+    /// An unknown scenario or content failure.
+    fn engine(&mut self, scenario: Option<&str>) -> Result<Engine, String>;
+    /// Startup storage facts: the next session id, the local day, history.
+    ///
+    /// # Errors
+    /// Storage failures.
+    fn storage(&mut self) -> Result<(SessionId, i64, HistorySummary), String>;
+    /// Saves a checkpoint durably; synthetic provenance is the service's.
+    ///
+    /// # Errors
+    /// A failed save, reported to the engine as a save failure.
+    fn save(&mut self, checkpoint: &Checkpoint) -> Result<(), String>;
+}
+
+/// The headless host.
+pub struct Headless<S: Services> {
+    services: S,
+    engine: Option<Engine>,
+    now_us: u64,
+    columns: u16,
+    rows: u16,
+    durable_seq: Option<u64>,
+    finished: bool,
+}
+
+fn invalid(message: &str) -> (Code, String) {
+    (Code::InvalidArgument, message.to_string())
+}
+
+impl<S: Services> Headless<S> {
+    /// A host before `hello`.
+    pub const fn new(services: S) -> Self {
+        Self {
+            services,
+            engine: None,
+            now_us: 1,
+            columns: 100,
+            rows: 32,
+            durable_seq: None,
+            finished: false,
+        }
+    }
+
+    /// Whether `quit` finished the session.
+    #[must_use]
+    pub const fn finished(&self) -> bool {
+        self.finished
+    }
+
+    /// The engine, after `hello`.
+    #[must_use]
+    pub const fn engine(&self) -> Option<&Engine> {
+        self.engine.as_ref()
+    }
+
+    /// Sends one event through the shared reducer; a checkpoint is saved
+    /// by the service and its result admitted before returning.
+    fn send(&mut self, kind: EventKind) -> Result<bool, (Code, String)> {
+        let at = MonoTick::from_us(self.now_us);
+        let engine = self.engine.as_mut().ok_or_else(|| invalid("hello first"))?;
+        let seq = engine
+            .consumed_events()
+            .next()
+            .map_err(|error| invalid(&error.to_string()))?;
+        let transition = engine.reduce(EventEnvelope { seq, at, kind });
+        let quit = transition.quit;
+        if let Some(checkpoint) = transition.checkpoint {
+            let result = self.services.save(&checkpoint);
+            if result.is_ok() {
+                self.durable_seq = Some(checkpoint.key.sequence.get());
+            }
+            let engine = self.engine.as_mut().ok_or_else(|| invalid("hello first"))?;
+            let seq = engine
+                .consumed_events()
+                .next()
+                .map_err(|error| invalid(&error.to_string()))?;
+            let ack = engine.reduce(EventEnvelope {
+                seq,
+                at,
+                kind: EventKind::SaveResult(SaveResult {
+                    key: checkpoint.key,
+                    result,
+                }),
+            });
+            return Ok(quit || ack.quit);
+        }
+        Ok(quit)
+    }
+
+    fn key(&mut self, name: &str, modifiers: &[String]) -> Result<Option<Key>, (Code, String)> {
+        let control = modifiers.iter().any(|m| m == "control");
+        let key = match name {
+            "Enter" => Key::Enter,
+            "Escape" => Key::Escape,
+            "Backspace" => Key::Backspace,
+            "F2" => Key::ToggleTextSize,
+            "Tab" | "Left" | "Right" | "Up" | "Down" | "Home" | "End" => Key::Other,
+            "c" if control => Key::Interrupt,
+            single => {
+                let mut chars = single.chars();
+                match (chars.next(), chars.next()) {
+                    (Some(c), None) if !control => Key::Content(
+                        TrainingChar::new(c, LayoutSupportsPound::US)
+                            .map_err(|error| invalid(&error.to_string()))?,
+                    ),
+                    _ => return Err(invalid("unsupported key")),
+                }
+            }
+        };
+        Ok(Some(key))
+    }
+
+    fn advance(&mut self, microseconds: u64) -> Result<(), (Code, String)> {
+        self.now_us = self
+            .now_us
+            .checked_add(microseconds)
+            .ok_or_else(|| invalid("virtual clock overflow"))?;
+        Ok(())
+    }
+
+    fn revisions(&self) -> Map<String, Value> {
+        let mut result = Map::new();
+        if let Some(engine) = &self.engine {
+            result.insert(
+                "state_revision".into(),
+                json!(engine.state_revision().to_string()),
+            );
+            result.insert(
+                "event_seq".into(),
+                json!(engine.consumed_events().get().to_string()),
+            );
+        } else {
+            result.insert("state_revision".into(), json!("0"));
+            result.insert("event_seq".into(), json!("0"));
+        }
+        if let Some(durable) = self.durable_seq {
+            result.insert("durable_commit_seq".into(), json!(durable.to_string()));
+        }
+        result
+    }
+
+    fn snapshot(&self, include_target: bool) -> Result<Map<String, Value>, (Code, String)> {
+        let engine = self.engine.as_ref().ok_or_else(|| invalid("hello first"))?;
+        let view = engine.prepare(MonoTick::from_us(self.now_us));
+        let screen = match &view.screen {
+            ScreenView::Today { .. } => "today",
+            ScreenView::Practice { .. } => "practice",
+            ScreenView::PhaseComplete { .. } => "phase_complete",
+            ScreenView::Summary => "summary",
+        };
+        let target = match &view.screen {
+            ScreenView::Practice { spans, .. } if include_target => Some(
+                spans
+                    .iter()
+                    .filter_map(|span| match *span {
+                        cadence_engine::UnitSpan::Correct { unit } => Some(unit),
+                        cadence_engine::UnitSpan::Wrong { expected, .. }
+                        | cadence_engine::UnitSpan::Cursor { expected }
+                        | cadence_engine::UnitSpan::Upcoming { expected } => Some(expected),
+                        cadence_engine::UnitSpan::Extra { .. } => None,
+                    })
+                    .collect::<String>(),
+            ),
+            ScreenView::Today { .. }
+            | ScreenView::Practice { .. }
+            | ScreenView::PhaseComplete { .. }
+            | ScreenView::Summary => None,
+        };
+        let tracks: Vec<Value> = engine
+            .track_totals()
+            .map_err(|error| invalid(&error.to_string()))?
+            .iter()
+            .map(|t| {
+                json!({
+                    "track": t.track.label(),
+                    "first_pass": {"correct": t.first_correct.to_string(), "attempted": t.first_attempted.to_string()},
+                    "attempt": {"correct": t.correct_attempts.to_string(), "attempted": t.content_attempts.to_string()},
+                    "deletions": t.deletions.to_string(),
+                    "active_micros": t.active_micros.to_string(),
+                })
+            })
+            .collect();
+        let actions: Vec<&str> = match &view.screen {
+            ScreenView::Today { .. } => vec!["StartDailyPlan"],
+            ScreenView::Practice { paused: true, .. } => vec!["Resume"],
+            ScreenView::Practice { .. } => vec!["Pause"],
+            ScreenView::PhaseComplete { .. } => vec!["NextPhase"],
+            ScreenView::Summary => vec![],
+        };
+        let mut result = self.revisions();
+        result.insert("screen".into(), json!(screen));
+        result.insert(
+            "input_owner".into(),
+            json!(format!("{:?}", engine.input_owner())),
+        );
+        result.insert(
+            "active_micros".into(),
+            json!(view.active.as_us().to_string()),
+        );
+        result.insert("elapsed_micros".into(), json!(self.now_us.to_string()));
+        result.insert("tracks".into(), Value::Array(tracks));
+        result.insert(
+            "plan_basis".into(),
+            json!(if view.learning.adaptive {
+                "adaptive"
+            } else {
+                "cold_start"
+            }),
+        );
+        result.insert("pending_jobs".into(), json!([]));
+        result.insert("available_actions".into(), json!(actions));
+        if let Some(target) = target {
+            result.insert("target_text".into(), json!(target));
+        }
+        Ok(result)
+    }
+
+    fn capture(&self, format: &str) -> Result<Map<String, Value>, (Code, String)> {
+        let engine = self.engine.as_ref().ok_or_else(|| invalid("hello first"))?;
+        let frame = crate::capture::capture(
+            engine,
+            MonoTick::from_us(self.now_us),
+            self.columns,
+            self.rows,
+        );
+        let mut result = self.revisions();
+        if format != "cells" {
+            result.insert("text".into(), json!(frame.text()));
+        }
+        if format != "text" {
+            result.insert("frame".into(), frame.to_json());
+        }
+        Ok(result)
+    }
+}
+
+impl<S: Services> Host for Headless<S> {
+    fn state_revision(&self) -> u64 {
+        self.engine.as_ref().map_or(0, Engine::state_revision)
+    }
+
+    fn apply(&mut self, request: &Request) -> Result<Map<String, Value>, (Code, String)> {
+        match &request.op {
+            Operation::Hello { scenario, .. } => {
+                let engine = self
+                    .services
+                    .engine(scenario.as_deref())
+                    .map_err(|error| invalid(&error))?;
+                self.engine = Some(engine);
+                let (next_session, day, history) =
+                    self.services.storage().map_err(|error| invalid(&error))?;
+                self.send(EventKind::StorageReady {
+                    next_session,
+                    day,
+                    history,
+                })?;
+                self.send(EventKind::Resized {
+                    columns: self.columns,
+                    rows: self.rows,
+                })?;
+                let mut result = self.revisions();
+                result.insert("version".into(), json!(env!("CARGO_PKG_VERSION")));
+                result.insert("clock".into(), json!("virtual"));
+                result.insert("scenario".into(), json!(scenario));
+                result.insert("limits".into(), json!({"line_bytes": crate::envelope::MAXIMUM_LINE_BYTES, "text_units": crate::envelope::MAXIMUM_TEXT_UNITS, "response_cache": crate::protocol::CACHE_CAPACITY}));
+                Ok(result)
+            }
+            Operation::Key {
+                key,
+                modifiers,
+                kind,
+                ..
+            } => {
+                if kind != "release"
+                    && let Some(key) = self.key(key, modifiers)?
+                {
+                    self.finished |= self.send(EventKind::Key(key))?;
+                }
+                Ok(self.revisions())
+            }
+            Operation::Text {
+                text,
+                inter_key_microseconds,
+            } => {
+                for (index, unit) in text.chars().enumerate() {
+                    if index > 0 {
+                        self.advance(*inter_key_microseconds)?;
+                        self.send(EventKind::Tick)?;
+                    }
+                    let unit = TrainingChar::new(unit, LayoutSupportsPound::US)
+                        .map_err(|error| invalid(&error.to_string()))?;
+                    self.send(EventKind::Key(Key::Content(unit)))?;
+                }
+                Ok(self.revisions())
+            }
+            Operation::Advance { microseconds } => {
+                self.advance(*microseconds)?;
+                self.send(EventKind::Tick)?;
+                Ok(self.revisions())
+            }
+            Operation::Resize { columns, rows } => {
+                self.columns = *columns;
+                self.rows = *rows;
+                self.send(EventKind::Resized {
+                    columns: *columns,
+                    rows: *rows,
+                })?;
+                Ok(self.revisions())
+            }
+            Operation::Action { name, .. } => {
+                let key = match name.as_str() {
+                    "StartDailyPlan" | "StartDrill" | "NextPhase" => Key::Enter,
+                    "Pause" | "Resume" => Key::Escape,
+                    _ => return Err(invalid("this action is not offered headless yet")),
+                };
+                self.finished |= self.send(EventKind::Key(key))?;
+                Ok(self.revisions())
+            }
+            Operation::Snapshot {
+                include_target_text,
+            } => self.snapshot(*include_target_text),
+            Operation::Capture { format } => self.capture(format),
+            Operation::Barrier { .. } | Operation::Deliver { .. } => {
+                Err(invalid("barriers and fixture delivery land with #71"))
+            }
+            Operation::Quit => {
+                self.finished |= self.send(EventKind::Terminate)?;
+                self.finished = true;
+                let mut result = self.revisions();
+                result.insert("saved".into(), json!(self.durable_seq.is_some()));
+                Ok(result)
+            }
+        }
+    }
+}

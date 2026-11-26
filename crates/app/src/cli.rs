@@ -17,6 +17,15 @@ pub enum Command {
     Backup(PathBuf),
     /// Portable progress export to a new output file.
     Export(PathBuf),
+    /// The headless NDJSON driver (#69): requests from stdin or a script.
+    Headless {
+        /// The request script; `None` reads stdin.
+        script: Option<PathBuf>,
+        /// Use a fresh temporary profile, removed at exit.
+        ephemeral: bool,
+    },
+    /// Machine-readable environment facts (#69).
+    Doctor,
 }
 
 /// Display palette (U-02); never affects targets or scoring.
@@ -51,6 +60,22 @@ pub struct Options {
     pub utc_offset: Option<i32>,
 }
 
+impl Options {
+    /// Practice with every setting left to the pinned policy.
+    pub fn defaults() -> Self {
+        Self {
+            command: Command::Practice,
+            profile: None,
+            minutes: None,
+            track: None,
+            seed: None,
+            text_size: None,
+            theme: Theme::Dark,
+            utc_offset: None,
+        }
+    }
+}
+
 pub fn parse() -> Result<Options, String> {
     let mut args = std::env::args().skip(1);
     let mut options = Options {
@@ -66,12 +91,27 @@ pub fn parse() -> Result<Options, String> {
     let mut theme = None;
     let mut action = None;
     let mut output = None;
+    let mut script = None;
+    let mut stdio = false;
+    let mut ephemeral = false;
+    let mut json = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--version" | "-V" => set_action(&mut action, "version")?,
             "--help" | "-h" => set_action(&mut action, "help")?,
             "backup" => set_action(&mut action, "backup")?,
             "export" => set_action(&mut action, "export")?,
+            "headless" => set_action(&mut action, "headless")?,
+            "doctor" => set_action(&mut action, "doctor")?,
+            "--stdio" => stdio = true,
+            "--ephemeral-profile" => ephemeral = true,
+            "--json" => json = true,
+            "--script" => {
+                if script.is_some() {
+                    return Err("duplicate --script".into());
+                }
+                script = Some(absolute_path(value(&mut args, &arg)?)?);
+            }
             "--profile-dir" => {
                 if options.profile.is_some() {
                     return Err("duplicate --profile-dir".into());
@@ -163,8 +203,37 @@ pub fn parse() -> Result<Options, String> {
                 .take()
                 .ok_or("export requires --output /absolute/new.json")?,
         ),
+        Some("headless") => {
+            if stdio == script.is_some() {
+                return Err("headless requires exactly one of --stdio or --script FILE".into());
+            }
+            if ephemeral == options.profile.is_some() {
+                return Err(
+                    "headless requires exactly one of --profile-dir PATH or --ephemeral-profile"
+                        .into(),
+                );
+            }
+            Command::Headless {
+                script: script.take(),
+                ephemeral,
+            }
+        }
+        Some("doctor") => {
+            if !json {
+                return Err("doctor requires --json".into());
+            }
+            Command::Doctor
+        }
         Some(_) => return Err("unsupported command".into()),
     };
+    if !matches!(options.command, Command::Headless { .. })
+        && (stdio || ephemeral || script.is_some())
+    {
+        return Err("--stdio, --script and --ephemeral-profile are only valid for headless".into());
+    }
+    if json && !matches!(options.command, Command::Doctor) {
+        return Err("--json is only valid for doctor".into());
+    }
     if output.is_some() {
         return Err("--output is only valid for backup/export".into());
     }
@@ -212,7 +281,9 @@ pub fn help() {
         cadence [--profile-dir /absolute/private/profile] [--seed INTEGER] [--text-size auto|large|normal]\n\
         cadence [--theme dark|light|terminal] [--utc-offset +HH:MM]\n\
         cadence backup --output /absolute/new.sqlite3 [--profile-dir PATH]\n\
-        cadence export --output /absolute/new.json [--profile-dir PATH]\n\n\
+        cadence export --output /absolute/new.json [--profile-dir PATH]\n\
+        cadence headless --stdio|--script /absolute/requests.jsonl --profile-dir PATH|--ephemeral-profile\n\
+        cadence doctor --json [--profile-dir PATH]\n\n\
         Enter starts/continues. Esc pauses; while paused, e ends the session and shows the review.\n\
         Ctrl-C during practice also ends it and shows the review; Enter there saves and exits.\n\
         F2 cycles text size. Losing focus or pasting pauses practice; nothing is inserted.\n\

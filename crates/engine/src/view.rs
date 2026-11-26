@@ -394,6 +394,10 @@ pub enum ScreenView {
 pub struct PreparedView {
     /// Revision of this prepared lineage.
     pub revision: FrameRevision,
+    /// Admitted events so far (#69).
+    pub state_revision: u64,
+    /// The last admitted event sequence (#69).
+    pub event_seq: u64,
     /// The screen content.
     pub screen: ScreenView,
     /// Session active-time figure included in this preparation.

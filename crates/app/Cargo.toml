@@ -24,4 +24,9 @@ cadence-trainer.workspace = true
 cadence-runtime.workspace = true
 cadence-tui.workspace = true
 cadence-data.workspace = true
+cadence-driver.workspace = true
+serde_json.workspace = true
 chrono.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -44,6 +44,8 @@ impl Engine {
         };
         PreparedView {
             revision: self.revision,
+            state_revision: self.state_revision,
+            event_seq: self.consumed.get(),
             screen,
             active: self.active,
             notice,

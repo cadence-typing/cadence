@@ -132,6 +132,8 @@ pub struct Engine {
     /// The current phase's prepared list has wrapped to its start (#39;
     /// shown from #7).
     list_wrapped: bool,
+    /// Admitted events so far (#69): rises on every admitted event.
+    state_revision: u64,
     /// Practice paused during the transfer probe (#64).
     probe_paused: bool,
     /// A paste was refused during the transfer probe (#64).
@@ -217,6 +219,7 @@ impl Engine {
             opened: 0,
             last_credited: None,
             list_wrapped: false,
+            state_revision: 0,
             probe_paused: false,
             probe_pasted: false,
             utc_offset_minutes: None,
@@ -277,9 +280,32 @@ impl Engine {
     pub const fn consumed_events(&self) -> EventSeq {
         self.consumed
     }
+
+    /// The state revision (#69): the number of admitted events, which a
+    /// headless request's `expected_state_revision` is checked against.
+    #[must_use]
+    pub const fn state_revision(&self) -> u64 {
+        self.state_revision
+    }
+
+    /// Exact track totals now, including the open exercise (#69 snapshot).
+    ///
+    /// # Errors
+    /// Refuses counter overflow.
+    pub fn track_totals(&self) -> Result<Vec<cadence_core::progress::TrackProgress>, CoreError> {
+        let mut tracks = self.tracks.clone();
+        if let Some(open) = self.current_progress()? {
+            practice::merge_track(&mut tracks, open)?;
+        }
+        Ok(tracks)
+    }
     /// Applies one sequenced event, with no I/O or background mutation.
     pub fn reduce(&mut self, envelope: EventEnvelope) -> Transition {
+        let before = self.consumed;
         let result = self.reduce_checked(envelope);
+        if self.consumed != before {
+            self.state_revision = self.state_revision.saturating_add(1);
+        }
         let mut transition = match result {
             Ok(t) => t,
             Err(e) => self.invalidate(e),

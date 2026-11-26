@@ -12,6 +12,8 @@
 //! Status: protocol and drivers land with P4; ordered admission (`stream`,
 //! #67) is the first part.
 
+pub mod capture;
 pub mod envelope;
+pub mod headless;
 pub mod protocol;
 pub mod stream;

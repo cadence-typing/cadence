@@ -49,25 +49,60 @@ fn each_rejection_class_has_its_code_and_mutates_nothing() {
     let cases: [(&[u8], &str); 11] = [
         (b"{not json", "MalformedJson"),
         (b"[1,2]", "MalformedJson"),
-        (br#"{"v":2,"id":"5","op":"snapshot","args":{}}"#, "UnsupportedVersion"),
-        (br#"{"v":1,"id":"05","op":"snapshot","args":{}}"#, "InvalidId"),
-        (br#"{"v":1,"id":"99999999999999999999","op":"snapshot","args":{}}"#, "InvalidId"),
-        (br#"{"v":1,"id":"5","op":"snapshot","args":{},"extra":1}"#, "UnknownField"),
-        (br#"{"v":1,"id":"5","op":"teleport","args":{}}"#, "UnknownOperation"),
-        (br#"{"v":1,"id":"5","op":"capture","args":{"format":"pdf"}}"#, "InvalidArgument"),
-        (br#"{"v":1,"id":"5","op":"snapshot","args":{"zoom":1}}"#, "UnknownField"),
-        (br#"{"v":1,"id":"5","op":"resize","args":{"columns":0,"rows":10}}"#, "InvalidArgument"),
-        (br#"{"v":1,"id":"5","op":"text","args":{"text":"a\tb","inter_key_microseconds":1}}"#, "InvalidArgument"),
+        (
+            br#"{"v":2,"id":"5","op":"snapshot","args":{}}"#,
+            "UnsupportedVersion",
+        ),
+        (
+            br#"{"v":1,"id":"05","op":"snapshot","args":{}}"#,
+            "InvalidId",
+        ),
+        (
+            br#"{"v":1,"id":"99999999999999999999","op":"snapshot","args":{}}"#,
+            "InvalidId",
+        ),
+        (
+            br#"{"v":1,"id":"5","op":"snapshot","args":{},"extra":1}"#,
+            "UnknownField",
+        ),
+        (
+            br#"{"v":1,"id":"5","op":"teleport","args":{}}"#,
+            "UnknownOperation",
+        ),
+        (
+            br#"{"v":1,"id":"5","op":"capture","args":{"format":"pdf"}}"#,
+            "InvalidArgument",
+        ),
+        (
+            br#"{"v":1,"id":"5","op":"snapshot","args":{"zoom":1}}"#,
+            "UnknownField",
+        ),
+        (
+            br#"{"v":1,"id":"5","op":"resize","args":{"columns":0,"rows":10}}"#,
+            "InvalidArgument",
+        ),
+        (
+            br#"{"v":1,"id":"5","op":"text","args":{"text":"a\tb","inter_key_microseconds":1}}"#,
+            "InvalidArgument",
+        ),
     ];
     let mut protocol = Protocol::new();
     let mut host = Counter::default();
     hello(&mut protocol, &mut host);
     for (line, expected) in cases {
         let response = protocol.handle(line, &mut host);
-        assert_eq!(code(&response).as_deref(), Some(expected), "{}", String::from_utf8_lossy(line));
+        assert_eq!(
+            code(&response).as_deref(),
+            Some(expected),
+            "{}",
+            String::from_utf8_lossy(line)
+        );
     }
     let long = vec![b' '; 1024 * 1024 + 1];
-    assert_eq!(code(&protocol.handle(&long, &mut host)).as_deref(), Some("LineTooLong"));
+    assert_eq!(
+        code(&protocol.handle(&long, &mut host)).as_deref(),
+        Some("LineTooLong")
+    );
     assert_eq!(host.applied, 1, "only hello applied");
     assert_eq!(protocol.cached(), 1);
 }
@@ -103,8 +138,11 @@ fn repeats_replay_conflict_or_expire() {
     assert_eq!(code(&expired).as_deref(), Some("RequestExpired"));
     let applied = host.applied;
     let stale = protocol.handle(
-        format!(r#"{{"v":1,"id":"5000","op":"snapshot","args":{{}},"expected_state_revision":"{}"}}"#, applied - 1)
-            .as_bytes(),
+        format!(
+            r#"{{"v":1,"id":"5000","op":"snapshot","args":{{}},"expected_state_revision":"{}"}}"#,
+            applied - 1
+        )
+        .as_bytes(),
         &mut host,
     );
     assert_eq!(code(&stale).as_deref(), Some("StaleState"));

@@ -65,11 +65,14 @@ version = "0.1.0-beta.1"
 dependencies = [
  "cadence-core",
  "cadence-data",
+ "cadence-driver",
  "cadence-engine",
  "cadence-runtime",
  "cadence-trainer",
  "cadence-tui",
  "chrono",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

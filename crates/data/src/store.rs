@@ -119,7 +119,19 @@ impl ProgressStore {
     /// # Errors
     /// Rejects corrupt rows and exhausted identity space rather than clamping either.
     pub fn bootstrap(&self, learner_window: usize) -> Result<StoreBootstrap, StoreError> {
-        let sessions = self.session_history()?;
+        let all = self.session_history()?;
+        // Synthetic (headless) sessions never enter history, learning,
+        // comparisons or probes (#69); they only reserve their ids.
+        let synthetic = self.synthetic_sessions()?;
+        let newest_id = all
+            .iter()
+            .map(|s| s.checkpoint.key.session.get())
+            .max()
+            .unwrap_or(0);
+        let sessions: Vec<StoredSession> = all
+            .into_iter()
+            .filter(|s| !synthetic.contains(&s.checkpoint.key.session.get()))
+            .collect();
         let mut history = HistorySummary::default();
         let mut maximum = 0_u64;
         let mut probes = ProbeHistory::default();
@@ -208,9 +220,12 @@ impl ProgressStore {
                 day.max(checkpoint.progress.day)
             }));
         }
-        let next = maximum.checked_add(1).ok_or(StoreError::IntegerRange {
-            field: "next session",
-        })?;
+        let next = maximum
+            .max(newest_id)
+            .checked_add(1)
+            .ok_or(StoreError::IntegerRange {
+                field: "next session",
+            })?;
         sql_integer(next, "next session")?;
         let next_session =
             SessionId::new(next).map_err(|error| StoreError::Corrupt(error.to_string()))?;
@@ -221,6 +236,36 @@ impl ProgressStore {
             probes,
             pace_targets,
         })
+    }
+
+    /// Marks a session as synthetic (a headless-driver session, #69): it is
+    /// kept, exported with its provenance, and never read back as history.
+    ///
+    /// # Errors
+    /// SQL failures; an unknown session is refused.
+    pub fn mark_synthetic(&mut self, session: SessionId) -> Result<(), StoreError> {
+        let changed = self.connection.execute(
+            "UPDATE sessions SET provenance='synthetic' WHERE session_id=?1",
+            [sql_integer(session.get(), "session")?],
+        )?;
+        if changed == 0 {
+            return Err(StoreError::Corrupt(
+                "no such session to mark synthetic".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn synthetic_sessions(&self) -> Result<std::collections::HashSet<u64>, StoreError> {
+        let mut statement = self
+            .connection
+            .prepare("SELECT session_id FROM sessions WHERE provenance='synthetic'")?;
+        let rows = statement.query_map([], |row| row.get::<_, i64>(0))?;
+        let mut ids = std::collections::HashSet::new();
+        for row in rows {
+            ids.insert(crate::error::read_integer(row?, "session")?);
+        }
+        Ok(ids)
     }
 
     /// Applies a validated cumulative checkpoint atomically, or returns its exact prior receipt.
