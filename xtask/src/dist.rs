@@ -123,6 +123,7 @@ pub fn build_dist() -> Result<(), String> {
         "words-en-v1.tsv",
         "prose-en-v2.tsv",
         "prose-sources-v2.tsv",
+        "benchmark-en-v1.tsv",
     ] {
         fs::copy(root.join("corpus").join(name), corpus.join(name))
             .map_err(|e| format!("mandatory corpus notice/content {name}: {e}"))?;
@@ -142,6 +143,7 @@ pub fn build_dist() -> Result<(), String> {
         "policy_sha256": digest_file(&root.join("policies/trainer-v3.toml"))?,
         "corpus_sha256": digest_file(&root.join("corpus/words-en-v1.tsv"))?,
         "prose_sha256": digest_file(&root.join("corpus/prose-en-v2.tsv"))?,
+        "probes_sha256": digest_file(&root.join("corpus/benchmark-en-v1.tsv"))?,
         "binary_sha256": binary_hash,
         "elf64_x86_64": true,
         "elf_interpreter": false,

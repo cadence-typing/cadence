@@ -400,7 +400,9 @@ impl Learning {
         if !self.prose_spans.is_empty() {
             self.close_prose(ledger)?;
         }
+        // A probe passage is recorded as the probe (#64), not as prose seen.
         if let Some(passage) = exercise.passage
+            && exercise.kind != ExerciseKind::Probe
             && ledger.first_attempted().get() > 0
         {
             self.evidence.observe_passage(passage)?;

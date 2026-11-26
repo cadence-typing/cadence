@@ -66,6 +66,7 @@ fn build(
         pack,
         prose: bank,
         learner,
+        probes: None,
     };
     build_session_plan(&policy(), inputs, seed, disabled, budget)
 }
@@ -370,6 +371,7 @@ fn target_words_keep_their_repeat_gap() {
                 pack: &words,
                 prose: &bank,
                 learner: &learner,
+                probes: None,
             },
             seed,
             &[],
@@ -398,6 +400,7 @@ fn target_words_keep_their_repeat_gap() {
                     pack: &words,
                     prose: &bank,
                     learner: &learner,
+                    probes: None,
                 },
                 seed,
                 &[],
@@ -466,6 +469,7 @@ fn numeric_entries_follow_their_own_groups_focus() {
                 pack: &words,
                 prose: &bank,
                 learner,
+                probes: None,
             },
             9,
             &[],
@@ -662,4 +666,90 @@ fn the_closing_review_has_a_substitutable_fallback() {
         );
         assert_eq!(plan.phases.last().map(|p| p.phase), Some(Phase::Review));
     }
+}
+
+fn probe_bank(words: &WordPack, count: usize) -> crate::probe::ProbeBank {
+    let text: String = (0..count)
+        .map(|n| {
+            let body = format!("Probe {n} says the quiet river runs past the mill. ").repeat(24);
+            format!("probe-{n:03}\t{}\n", body.trim_end())
+        })
+        .collect();
+    crate::probe::ProbeBank::from_tsv(&text, words, 1).unwrap()
+}
+
+/// #64: the seventh completed session with prose gets a probe carved out of
+/// prose (seconds still sum to the allocation), the eighth (after it was
+/// recorded) does not, a profile that has seen every passage gets none and
+/// says so, and the prose phase never serves a probe passage.
+#[test]
+fn the_seventh_completed_session_gets_a_probe() {
+    use cadence_core::learning::ProbeHistory;
+    let (words, bank) = (pack(3_000), prose(50));
+    let probes = probe_bank(&words, 2);
+    let plan_with = |history: &ProbeHistory| {
+        build_session_plan(
+            &policy(),
+            PlanInputs {
+                pack: &words,
+                prose: &bank,
+                learner: &cold(),
+                probes: Some(ProbeInputs {
+                    bank: &probes,
+                    history,
+                }),
+            },
+            5,
+            &[],
+            900,
+        )
+        .unwrap()
+    };
+    let sixth = plan_with(&ProbeHistory {
+        completed_with_prose_since: 6,
+        ..ProbeHistory::default()
+    });
+    assert_eq!(sixth.probe, ProbePlan::NotDue);
+    let seventh = plan_with(&ProbeHistory {
+        completed_with_prose_since: 7,
+        ..ProbeHistory::default()
+    });
+    let ProbePlan::Planned(planned) = seventh.probe else {
+        panic!("probe expected, got {:?}", seventh.probe);
+    };
+    assert_eq!(planned.passage, probes.passages()[0].id);
+    assert_eq!(seventh.phases.iter().map(|p| p.seconds).sum::<u64>(), 900);
+    let probe_phase = phase(&seventh, Phase::Probe);
+    assert_eq!(probe_phase.seconds, 120);
+    assert_eq!(probe_phase.exercises[0].kind, ExerciseKind::Probe);
+    let prose_phase = phase(&seventh, Phase::Prose);
+    assert_eq!(
+        prose_phase.seconds + 120,
+        phase(&sixth, Phase::Prose).seconds
+    );
+    let probe_ids: Vec<_> = probes.passages().iter().map(|p| Some(p.id)).collect();
+    assert!(
+        prose_phase
+            .exercises
+            .iter()
+            .all(|e| !probe_ids.contains(&e.passage))
+    );
+    // After the probe was recorded the count restarts: the eighth has none.
+    let mut shown = std::collections::BTreeSet::new();
+    shown.insert(planned.passage);
+    let eighth = plan_with(&ProbeHistory {
+        shown: shown.clone(),
+        last_comparable_strata: Some(planned.strata),
+        completed_with_prose_since: 0,
+    });
+    assert_eq!(eighth.probe, ProbePlan::NotDue);
+    // Every passage shown: due, but none, and the plan says so.
+    shown.insert(probes.passages()[1].id);
+    let exhausted = plan_with(&ProbeHistory {
+        shown,
+        last_comparable_strata: None,
+        completed_with_prose_since: 9,
+    });
+    assert_eq!(exhausted.probe, ProbePlan::NoPassage);
+    assert!(exhausted.phases.iter().all(|p| p.phase != Phase::Probe));
 }

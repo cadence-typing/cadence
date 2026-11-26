@@ -154,11 +154,15 @@ impl Engine {
         if self.status != ProgressStatus::Completed {
             t.outcome = DomainOutcome::SessionAbandoned;
         }
+        let in_probe = self.in_probe();
         self.transition(Some(at), SessionEvent::Finish)?;
         if let Some(ledger) = self.ledger.as_mut() {
             ledger.mark_interrupted();
         }
         self.record_exercise()?;
+        if in_probe {
+            self.record_probe(false, true)?;
+        }
         self.finishing = true;
         self.checkpoint_due = true;
         if self.storage.is_none() {

@@ -228,6 +228,88 @@ pub struct SessionLearning {
     pub passages: BTreeSet<PassageId>,
     /// Missed words re-served later in the same session.
     pub reinforced: u64,
+    /// The transfer probe shown this session, if any (schema 5, #64).
+    pub probe: Option<ProbeRecord>,
+}
+
+/// Why a probe result is or is not comparable (#64, #65).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ProbeReason {
+    /// Every condition held.
+    Comparable,
+    /// The probe window was not typed to its end.
+    CutShort,
+    /// Practice paused during the probe.
+    Paused,
+    /// The session ended during the probe.
+    EndedEarly,
+    /// A paste was refused during the probe.
+    Pasted,
+    /// The session was synthetic (headless driver).
+    Synthetic,
+    /// The passage's strata class differs from the previous comparable
+    /// probe's.
+    OtherStrata,
+}
+
+impl ProbeReason {
+    /// Stable persisted key.
+    #[must_use]
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Comparable => "comparable",
+            Self::CutShort => "cut_short",
+            Self::Paused => "paused",
+            Self::EndedEarly => "ended_early",
+            Self::Pasted => "pasted",
+            Self::Synthetic => "synthetic",
+            Self::OtherStrata => "other_strata",
+        }
+    }
+
+    /// Parses a persisted key.
+    #[must_use]
+    pub fn parse(key: &str) -> Option<Self> {
+        [
+            Self::Comparable,
+            Self::CutShort,
+            Self::Paused,
+            Self::EndedEarly,
+            Self::Pasted,
+            Self::Synthetic,
+            Self::OtherStrata,
+        ]
+        .into_iter()
+        .find(|reason| reason.key() == key)
+    }
+
+    const fn digest_tag(self) -> u8 {
+        match self {
+            Self::Comparable => 0,
+            Self::CutShort => 1,
+            Self::Paused => 2,
+            Self::EndedEarly => 3,
+            Self::Pasted => 4,
+            Self::Synthetic => 5,
+            Self::OtherStrata => 6,
+        }
+    }
+}
+
+/// A transfer probe shown in a session (#64): retired for the profile once
+/// recorded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProbeRecord {
+    /// The probe passage.
+    pub passage: PassageId,
+    /// Its strata class (bit set: punctuation, capitals, long words,
+    /// common words).
+    pub strata: u8,
+    /// Whether the result may be compared with earlier probes
+    /// (`benchmark::comparable`).
+    pub comparable: bool,
+    /// Why, or why not.
+    pub reason: ProbeReason,
 }
 
 impl SessionLearning {
@@ -240,6 +322,7 @@ impl SessionLearning {
             words: BTreeMap::new(),
             passages: BTreeSet::new(),
             reinforced: 0,
+            probe: None,
         }
     }
 
@@ -332,6 +415,9 @@ impl SessionLearning {
             || self.words.len() > MAXIMUM_SESSION_WORDS
             || self.passages.len() > MAXIMUM_SESSION_PASSAGES
             || self.plan.focus.len() > MAXIMUM_FOCUS_SKILLS
+            || self.probe.is_some_and(|probe| {
+                probe.strata > 0x0F || probe.comparable != (probe.reason == ProbeReason::Comparable)
+            })
             || !self.skills.values().all(|tally| tally.valid())
             || !self
                 .words
@@ -350,6 +436,7 @@ impl SessionLearning {
         self.plan == old.plan
             && self.reinforced >= old.reinforced
             && old.passages.is_subset(&self.passages)
+            && (old.probe.is_none() || old.probe == self.probe)
             && old.skills.iter().all(|(key, tally)| {
                 self.skills
                     .get(key)
@@ -394,7 +481,29 @@ impl SessionLearning {
             hash.update(passage.get().to_le_bytes());
         }
         hash.update(self.reinforced.to_le_bytes());
+        // Only when present, so earlier receipts keep their digests.
+        if let Some(probe) = self.probe {
+            hash.update([0xFD]);
+            hash.update(probe.passage.get().to_le_bytes());
+            hash.update([
+                probe.strata,
+                u8::from(probe.comparable),
+                probe.reason.digest_tag(),
+            ]);
+        }
     }
+}
+
+/// What the profile's history says about transfer probes (#64), read at
+/// startup from every saved session.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ProbeHistory {
+    /// Probe passages already shown: retired for this profile.
+    pub shown: BTreeSet<PassageId>,
+    /// The strata class of the latest comparable probe.
+    pub last_comparable_strata: Option<u8>,
+    /// Completed sessions that typed prose since the last probe.
+    pub completed_with_prose_since: u64,
 }
 
 /// One past session's evidence, as read back at startup.

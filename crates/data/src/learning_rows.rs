@@ -3,7 +3,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cadence_core::learning::{
-    KeyLane, PlanRecord, PlannerMode, SessionLearning, Skill, SkillKey, SkillTally, WordTally,
+    KeyLane, PlanRecord, PlannerMode, ProbeReason, ProbeRecord, SessionLearning, Skill, SkillKey,
+    SkillTally, WordTally,
 };
 use cadence_core::{PassageId, WordId};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
@@ -11,7 +12,8 @@ use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use crate::StoreError;
 use crate::error::{read_integer, sql_integer};
 
-const TABLES: [&str; 5] = [
+const TABLES: [&str; 6] = [
+    "benchmark_probes",
     "plan_focus",
     "skill_observations",
     "word_outcomes",
@@ -83,6 +85,19 @@ pub(crate) fn save(
         tx.prepare_cached("INSERT INTO prose_seen(session_id,passage_id) VALUES (?1,?2)")?;
     for passage in &learning.passages {
         passages.execute(params![session, hex(passage.get())])?;
+    }
+    if let Some(probe) = learning.probe {
+        tx.prepare_cached(
+            "INSERT INTO benchmark_probes(session_id,passage_id,strata,comparable,reason) \
+             VALUES (?1,?2,?3,?4,?5)",
+        )?
+        .execute(params![
+            session,
+            hex(probe.passage.get()),
+            format!("{:02x}", probe.strata),
+            i64::from(probe.comparable),
+            probe.reason.key()
+        ])?;
     }
     Ok(())
 }
@@ -158,6 +173,30 @@ pub(crate) fn load(
             .map_err(|error| StoreError::Corrupt(error.to_string()))?;
         passages.insert(id);
     }
+    let probe = connection
+        .prepare_cached(
+            "SELECT passage_id,strata,comparable,reason FROM benchmark_probes WHERE session_id=?1",
+        )?
+        .query_row([session], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .optional()?
+        .map(|(passage, strata, comparable, reason)| {
+            Ok::<_, StoreError>(ProbeRecord {
+                passage: PassageId::new(unhex(&passage)?)
+                    .map_err(|error| StoreError::Corrupt(error.to_string()))?,
+                strata: u8::from_str_radix(&strata, 16)
+                    .map_err(|error| corrupt(&format!("probe strata: {error}")))?,
+                comparable: comparable != 0,
+                reason: ProbeReason::parse(&reason).ok_or_else(|| corrupt("probe reason"))?,
+            })
+        })
+        .transpose()?;
     let learning = SessionLearning {
         plan: PlanRecord {
             seed: unhex(&seed)?,
@@ -168,6 +207,7 @@ pub(crate) fn load(
         words,
         passages,
         reinforced: read_integer(reinforced, "reinforced")?,
+        probe,
     };
     learning
         .validate()

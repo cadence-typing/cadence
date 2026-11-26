@@ -75,6 +75,13 @@ impl Engine {
         }
         self.transition(Some(at), SessionEvent::Pause)?;
         self.pause_reason = Some(reason);
+        if self.in_probe() {
+            if reason == PauseReason::PasteRejected {
+                self.probe_pasted = true;
+            } else {
+                self.probe_paused = true;
+            }
+        }
         self.checkpoint_due = true;
         Ok(())
     }
@@ -112,11 +119,15 @@ impl Engine {
     /// plan is persisted as abandoned, never as completed.
     pub(super) fn end_early(&mut self, at: MonoTick) -> Result<DomainOutcome, CoreError> {
         let was_completed = self.status == ProgressStatus::Completed;
+        let in_probe = self.in_probe();
         self.transition(Some(at), SessionEvent::EndEarly)?;
         if let Some(ledger) = self.ledger.as_mut() {
             ledger.mark_interrupted();
         }
         self.record_exercise()?;
+        if in_probe {
+            self.record_probe(false, true)?;
+        }
         let outcome = if was_completed {
             DomainOutcome::SessionSummary
         } else {

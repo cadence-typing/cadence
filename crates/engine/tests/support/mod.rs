@@ -52,6 +52,7 @@ pub fn engine(phases: Vec<PlannedPhase>) -> Result<Engine, CoreError> {
             reinforcements_per_word: 1,
             numeric_gap_entries: 0,
         },
+        probe: cadence_trainer::ProbePlan::NotDue,
         phases,
     })
 }

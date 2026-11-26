@@ -127,14 +127,65 @@ pub fn check() -> Result<(), String> {
         ));
     }
 
+    // Transfer probes (#64): digest, count, alphabet, length, unique keys,
+    // and no sentence shared with the practice prose bank.
+    let probe_text = std::fs::read_to_string(root.join("corpus/benchmark-en-v1.tsv"))
+        .map_err(|error| format!("cannot read probe bank: {error}"))?;
+    let recorded_probes = manifest
+        .get("benchmark")
+        .and_then(|benchmark| benchmark.get("sha256"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or("manifest benchmark.sha256 missing")?;
+    let actual_probes = cadence_trainer::corpus::digest_of(probe_text.as_bytes()).to_hex();
+    if recorded_probes != actual_probes {
+        return Err(format!(
+            "probe digest mismatch: manifest {recorded_probes}, actual {actual_probes}"
+        ));
+    }
+    let probes = cadence_trainer::probe::ProbeBank::from_tsv(
+        &probe_text,
+        &pack,
+        cadence_trainer::probe::MINIMUM_PROBES,
+    )
+    .map_err(|error| format!("probe bank invalid: {error}"))?;
+    let sentences = |text: &str| -> Vec<String> {
+        let mut out = Vec::new();
+        let mut current = String::new();
+        for c in text.chars() {
+            current.push(c);
+            if matches!(c, '.' | '!' | '?') {
+                let sentence = current.trim().to_lowercase();
+                if sentence.len() > 20 {
+                    out.push(sentence);
+                }
+                current.clear();
+            }
+        }
+        out
+    };
+    let practice: std::collections::HashSet<String> = prose_text
+        .lines()
+        .filter_map(|line| line.split_once('\t').map(|(_, text)| text))
+        .flat_map(sentences)
+        .collect();
+    for line in probe_text.lines() {
+        let (key, text) = line.split_once('\t').unwrap_or((line, ""));
+        if let Some(shared) = sentences(text).into_iter().find(|s| practice.contains(s)) {
+            return Err(format!(
+                "probe {key} shares a sentence with the practice bank: {shared}"
+            ));
+        }
+    }
+
     // Licence notice present.
     if !root.join("corpus/NOTICE").is_file() {
         return Err("corpus/NOTICE missing (licence attribution is mandatory)".to_string());
     }
 
     println!(
-        "corpus gate: {words} words (core {core}, common {common}, tail {tail}), digest {actual}; prose {} passages, {prose_units} units",
-        bank.passages().len()
+        "corpus gate: {words} words (core {core}, common {common}, tail {tail}), digest {actual}; prose {} passages, {prose_units} units; {} transfer probes",
+        bank.passages().len(),
+        probes.passages().len()
     );
     Ok(())
 }

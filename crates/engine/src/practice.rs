@@ -1,7 +1,7 @@
 //! Practice timing, bounded ledger updates and fixed-track accumulation.
 use super::{DomainOutcome, Engine, Key, Screen, invalid};
 use cadence_core::label::advance as cycle_advance;
-use cadence_core::learning::KeyLane;
+use cadence_core::learning::{KeyLane, ProbeReason, ProbeRecord};
 use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent, Slot};
 use cadence_core::metrics::{correct_digits, first_pass_accuracy};
 use cadence_core::progress::{Track, TrackProgress, credit_once};
@@ -58,6 +58,9 @@ impl Engine {
             self.timing.end_phase(boundary)?;
             self.active = deadline;
             self.record_exercise()?;
+            if phase == Phase::Probe {
+                self.record_probe(true, false)?;
+            }
             if phase == Phase::Review {
                 // The closing review's deadline opens the results (#49).
                 self.screen = Screen::Summary;
@@ -331,6 +334,63 @@ pub(super) fn merge_track(
     }
     Ok(())
 }
+impl Engine {
+    /// Whether practice is in the transfer probe's phase (#64).
+    pub(super) fn in_probe(&self) -> bool {
+        self.plan
+            .phases
+            .get(self.phase_index)
+            .is_some_and(|p| p.phase == Phase::Probe)
+            && matches!(self.screen, Screen::Practice)
+    }
+
+    /// Records the shown probe once, with whether it may be compared
+    /// (the proved `benchmark::comparable`): the probe passage is retired
+    /// for the profile from then on.
+    pub(super) fn record_probe(
+        &mut self,
+        completed_window: bool,
+        ended_early: bool,
+    ) -> Result<(), CoreError> {
+        let Some(planned) = self.plan.probe.planned() else {
+            return Ok(());
+        };
+        if self.learning.evidence.probe.is_some() {
+            return Ok(());
+        }
+        let facts = cadence_core::benchmark::Facts {
+            completed_window,
+            paused: self.probe_paused,
+            ended_early,
+            pasted: self.probe_pasted,
+            synthetic: false,
+            same_layout: true,
+            same_strata: planned.same_strata,
+        };
+        let comparable = cadence_core::benchmark::comparable(facts);
+        let reason = if comparable {
+            ProbeReason::Comparable
+        } else if ended_early {
+            ProbeReason::EndedEarly
+        } else if facts.paused {
+            ProbeReason::Paused
+        } else if facts.pasted {
+            ProbeReason::Pasted
+        } else if !completed_window {
+            ProbeReason::CutShort
+        } else {
+            ProbeReason::OtherStrata
+        };
+        self.learning.evidence.probe = Some(ProbeRecord {
+            passage: planned.passage,
+            strata: planned.strata,
+            comparable,
+            reason,
+        });
+        Ok(())
+    }
+}
+
 pub(super) const fn track_kind(kind: ExerciseKind) -> Track {
     match kind {
         ExerciseKind::WarmUp => Track::WarmUp,
@@ -338,6 +398,7 @@ pub(super) const fn track_kind(kind: ExerciseKind) -> Track {
         ExerciseKind::NumberRow => Track::NumberRow,
         ExerciseKind::Numpad => Track::Numpad,
         ExerciseKind::Prose => Track::Prose,
+        ExerciseKind::Probe => Track::Benchmark,
     }
 }
 pub(super) fn track_phase(phase: Phase) -> Result<Track, CoreError> {
@@ -348,6 +409,7 @@ pub(super) fn track_phase(phase: Phase) -> Result<Track, CoreError> {
         Phase::Numpad => Ok(Track::Numpad),
         Phase::Prose => Ok(Track::Prose),
         Phase::Review => Ok(Track::Review),
+        Phase::Probe => Ok(Track::Benchmark),
     }
 }
 

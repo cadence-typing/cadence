@@ -27,6 +27,9 @@ pub enum Phase {
     Prose,
     /// Findings and next-session focus (not extra typing).
     Review,
+    /// A transfer probe carved out of the prose phase (#64); never in a
+    /// policy's `phase_order`.
+    Probe,
 }
 
 impl Phase {
@@ -40,6 +43,7 @@ impl Phase {
             Self::Numpad => "numpad",
             Self::Prose => "prose",
             Self::Review => "review",
+            Self::Probe => "probe",
         }
     }
 }

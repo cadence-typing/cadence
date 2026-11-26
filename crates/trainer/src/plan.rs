@@ -47,6 +47,8 @@ pub enum ExerciseKind {
     Numpad,
     /// Natural prose transfer.
     Prose,
+    /// A transfer probe on unseen text (#64).
+    Probe,
 }
 
 impl ExerciseKind {
@@ -59,6 +61,7 @@ impl ExerciseKind {
             Self::NumberRow => "number row",
             Self::Numpad => "numpad",
             Self::Prose => "prose",
+            Self::Probe => "transfer probe",
         }
     }
 }
@@ -142,6 +145,51 @@ pub struct Adaptation {
     pub numeric_gap_entries: u32,
 }
 
+/// The transfer probe a plan carries (#64).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlannedProbe {
+    /// The probe passage.
+    pub passage: PassageId,
+    /// Its strata class.
+    pub strata: u8,
+    /// Whether the class matches the previous comparable probe's (or there
+    /// is none).
+    pub same_strata: bool,
+}
+
+/// Whether this session carries a transfer probe (#64).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ProbePlan {
+    /// No probe is due (or probes are off).
+    #[default]
+    NotDue,
+    /// A probe is due but every probe passage was shown: none, and the
+    /// start screen says so.
+    NoPassage,
+    /// This session's probe.
+    Planned(PlannedProbe),
+}
+
+impl ProbePlan {
+    /// The planned probe, if any.
+    #[must_use]
+    pub const fn planned(self) -> Option<PlannedProbe> {
+        match self {
+            Self::Planned(probe) => Some(probe),
+            Self::NotDue | Self::NoPassage => None,
+        }
+    }
+}
+
+/// Probe content and history for the planner (#64).
+#[derive(Debug, Clone, Copy)]
+pub struct ProbeInputs<'a> {
+    /// The probe bank.
+    pub bank: &'a crate::probe::ProbeBank,
+    /// What the profile's history says about probes.
+    pub history: &'a cadence_core::learning::ProbeHistory,
+}
+
 /// Separates the prose stream from the other phases' (#48).
 const PROSE_STREAM: u64 = 0x5052_4f53_455f_5631;
 
@@ -154,6 +202,8 @@ pub struct PlanInputs<'a> {
     pub prose: &'a ProseBank,
     /// Startup learner model.
     pub learner: &'a LearnerModel,
+    /// Transfer probes; `None` disables them (tests, synthetic plans).
+    pub probes: Option<ProbeInputs<'a>>,
 }
 
 /// One planned phase with its exact seconds and exercise queue.
@@ -182,6 +232,8 @@ pub struct SessionPlan {
     pub adaptation: Adaptation,
     /// Phases in policy order (disabled phases omitted).
     pub phases: Vec<PlannedPhase>,
+    /// The transfer probe decision for this session (#64).
+    pub probe: ProbePlan,
 }
 
 /// Plan construction failures.
@@ -283,6 +335,7 @@ pub fn build_session_plan(
         });
     }
 
+    let probe = split_for_probe(policy, inputs, &mut phases);
     let mut corpus = inputs.pack.digest().as_bytes().to_vec();
     corpus.extend_from_slice(inputs.prose.digest().as_bytes());
     Ok(SessionPlan {
@@ -301,6 +354,64 @@ pub fn build_session_plan(
             numeric_gap_entries: policy.learning.numeric_reinforcement_gap_entries,
         },
         phases,
+        probe,
+    })
+}
+
+/// On a due probe (`benchmark::due`), the prose phase becomes a probe phase
+/// of `probe_seconds` (at most the prose allocation) followed by the
+/// remaining prose; the phase seconds still sum to the allocation.
+fn split_for_probe(
+    policy: &TrainerPolicy,
+    inputs: PlanInputs<'_>,
+    phases: &mut Vec<PlannedPhase>,
+) -> ProbePlan {
+    let Some(probes) = inputs.probes else {
+        return ProbePlan::NotDue;
+    };
+    let Some(index) = phases.iter().position(|p| p.phase == Phase::Prose) else {
+        return ProbePlan::NotDue;
+    };
+    let chosen = probes.bank.choose(probes.history);
+    match cadence_core::benchmark::due(
+        probes.history.completed_with_prose_since,
+        u64::from(policy.benchmark.every_completed_sessions),
+        chosen.is_some(),
+    ) {
+        cadence_core::benchmark::Due::NotYet => return ProbePlan::NotDue,
+        cadence_core::benchmark::Due::NoPassage => return ProbePlan::NoPassage,
+        cadence_core::benchmark::Due::Probe => {}
+    }
+    let (Some((passage, same_strata)), Some(prose)) = (chosen, phases.get_mut(index)) else {
+        return ProbePlan::NotDue;
+    };
+    let probe_seconds = policy.benchmark.probe_seconds.min(prose.seconds);
+    let rest = prose.seconds.saturating_sub(probe_seconds);
+    prose.seconds = rest;
+    let probe_phase = PlannedPhase {
+        phase: Phase::Probe,
+        seconds: probe_seconds,
+        exercises: vec![PlannedExercise {
+            units: passage.units.clone(),
+            kind: ExerciseKind::Probe,
+            words: Vec::new(),
+            passage: Some(passage.id),
+            caption: Some("Transfer probe \u{b7} unseen text \u{b7} not practice".to_string()),
+            target: None,
+            spans: Vec::new(),
+        }],
+    };
+    if rest == 0 {
+        if let Some(slot) = phases.get_mut(index) {
+            *slot = probe_phase;
+        }
+    } else {
+        phases.insert(index, probe_phase);
+    }
+    ProbePlan::Planned(PlannedProbe {
+        passage: passage.id,
+        strata: passage.strata,
+        same_strata,
     })
 }
 

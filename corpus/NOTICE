@@ -109,3 +109,10 @@ benchmark material.
 
 SHA-256 of prose-en-v2.tsv: 23abc1b2e003f503ea62a42efe23235bb3c7e889ae42015bfceb84987e64ca3e
 SHA-256 of prose-sources-v2.tsv: 3b325213c3e9995feade598f0bae6972c6dc3231fd6cb6f8fc9b462780d43be7
+
+Transfer probes (benchmark-en-v1.tsv, #64): 60 passages purpose-written for
+Cadence, licensed Apache-2.0 OR MIT like the code. They are measurement
+material, never served as practice, and share no sentence with the practice
+prose bank.
+
+SHA-256 of benchmark-en-v1.tsv: 1bc7e61fe4ba791689ac965615f2bbf9a51e77b747669511789d9c9faa0da321

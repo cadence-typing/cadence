@@ -27,6 +27,8 @@ pub(super) fn exercises(
         // session's misses; this is the fallback when none are left —
         // leftover due words, then focus targets, then core words. Every
         // slot is a non-due review slot, so every slot is substitutable.
+        // Probes are carved out of prose after allocation (#64).
+        Phase::Probe => Ok(Vec::new()),
         Phase::Review => {
             let mut selector =
                 WordSelector::adaptive(policy, inputs.pack, inputs.learner, rng, served_due);

@@ -20,6 +20,7 @@ mod plan_words;
 pub mod policy;
 mod policy_parse;
 mod policy_validation;
+pub mod probe;
 pub mod prose;
 pub mod review;
 
@@ -32,8 +33,8 @@ pub use learning_policy::LearningPolicy;
 pub use numeric::{DigitSource, NumericError, number_row_exercise, numpad_exercise};
 pub use plan::{
     Adaptation, ExerciseKind, PlanError, PlanInputs, PlanRng, PlannedExercise, PlannedPhase,
-    PlannedWord, SessionPlan, WordSpan, build_session_plan, completed_with_prose, pace_decision,
-    probe_due,
+    PlannedProbe, PlannedWord, ProbeInputs, ProbePlan, SessionPlan, WordSpan, build_session_plan,
+    completed_with_prose, pace_decision, probe_due,
 };
 pub use policy::{
     Lane, PacePolicy, Phase, PolicyError, ReviewPolicy, SelectionPolicy, SessionPolicy,

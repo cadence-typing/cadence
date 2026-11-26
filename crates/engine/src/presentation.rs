@@ -125,7 +125,7 @@ impl Engine {
             Phase::AdaptiveWords => "letters",
             Phase::NumberRow => "number row",
             Phase::Numpad => "numpad",
-            Phase::WarmUp | Phase::Prose | Phase::Review => return None,
+            Phase::WarmUp | Phase::Prose | Phase::Review | Phase::Probe => return None,
         };
         self.target_groups()
             .into_iter()
@@ -439,6 +439,7 @@ fn phase_label(phase: Phase) -> &'static str {
         Phase::Numpad => "numpad",
         Phase::Prose => "prose",
         Phase::Review => "review",
+        Phase::Probe => "probe",
     }
 }
 
@@ -463,5 +464,9 @@ fn phase_purpose(phase: Phase, mode: PlannerMode, targets: Option<&str>) -> Stri
         (Phase::Numpad, None) => "Exact entries. Leading zeros count.".to_string(),
         (Phase::Prose, _) => "Not targeted: this measures how accuracy carries into sentences. Slips here feed your closing review and tomorrow's words.".to_string(),
         (Phase::Review, _) => "Retype this session's misses; not in the headline.".to_string(),
+        (Phase::Probe, _) => {
+            "Unseen text, measured once: how your skill carries over. Not practice; not in the headline."
+                .to_string()
+        }
     }
 }

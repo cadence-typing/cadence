@@ -29,6 +29,7 @@ fn shipped_startup_replays_many_seeds_and_obeys_caps() -> TestResult {
                 pack: &pack,
                 prose: &prose,
                 learner: &learner,
+                probes: None,
             },
             seed,
             &[],
@@ -41,7 +42,8 @@ fn shipped_startup_replays_many_seeds_and_obeys_caps() -> TestResult {
                 PlanInputs {
                     pack: &pack,
                     prose: &prose,
-                    learner: &learner
+                    learner: &learner,
+                    probes: None,
                 },
                 seed,
                 &[],
@@ -118,6 +120,7 @@ fn caps_are_filtered_before_ranking_with_smallest_legal_scan() -> TestResult {
                 pack: &pack,
                 prose: &prose,
                 learner: &learner,
+                probes: None,
             },
             seed,
             &[Phase::Numpad, Phase::NumberRow, Phase::Prose],
@@ -156,6 +159,7 @@ fn all_cli_track_presets_keep_exact_budget() -> TestResult {
                     pack: &pack,
                     prose: &prose,
                     learner: &learner,
+                    probes: None,
                 },
                 7,
                 &disabled,
@@ -320,7 +324,7 @@ fn pace_has_no_second_copy_in_the_trainer() -> TestResult {
             "PaceDecision",
             "fn pace_decision_inner",
             "fn comparable(",
-            "Due::Probe =>",
+            "fn due(",
         ] {
             assert!(!text.contains(copy), "{name} keeps {copy}");
         }

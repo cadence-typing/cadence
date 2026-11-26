@@ -225,5 +225,15 @@
         "passages": 150
       }
     ]
+  },
+  "benchmark": {
+    "file": "benchmark-en-v1.tsv",
+    "passages": 60,
+    "minimum_units": 1000,
+    "licence": "Apache-2.0 OR MIT",
+    "origin": "purpose-written for Cadence transfer probes (#64); never served as practice",
+    "strata": "bit set computed by trainer::probe::strata: punctuation >= 35 per mille of units, capitals >= 40 per mille of letters, mean word length >= 4.7 letters, core-band words >= 600 per mille",
+    "checks": "xtask corpus: count, alphabet, length, unique keys, no sentence shared with the practice prose bank",
+    "sha256": "1bc7e61fe4ba791689ac965615f2bbf9a51e77b747669511789d9c9faa0da321"
   }
 }

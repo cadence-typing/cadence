@@ -241,3 +241,66 @@ fn a_mixed_focus_list_round_trips() -> TestResult {
     assert_eq!(loaded, Some(focus));
     Ok(())
 }
+
+/// #64: a probe record round-trips through `benchmark_probes` and the
+/// bootstrap derives the shown passages, the last comparable strata and the
+/// completed sessions with prose since the probe.
+#[test]
+fn a_probe_record_round_trips_and_feeds_the_probe_history() -> TestResult {
+    use cadence_core::learning::{ProbeReason, ProbeRecord};
+    use cadence_core::progress::{Track, TrackProgress};
+    let directory = tempfile::tempdir()?;
+    let probe = ProbeRecord {
+        passage: PassageId::new(9_001)?,
+        strata: 0b0101,
+        comparable: true,
+        reason: ProbeReason::Comparable,
+    };
+    {
+        let mut store = ProgressStore::open_in(directory.path())?;
+        for session in 1..=4 {
+            let base = checkpoint(session, 1, ProgressStatus::Completed)?;
+            let mut progress = base.progress.clone();
+            progress.active_micros = progress.active_micros.saturating_add(1_000_000);
+            progress.tracks.push(TrackProgress {
+                first_correct: 10,
+                first_attempted: 10,
+                correct_attempts: 10,
+                content_attempts: 10,
+                correct_units: 10,
+                active_micros: 1_000_000,
+                ..TrackProgress::empty(Track::Prose)
+            });
+            let keyed = rekey(&base, 1, progress)?;
+            let mut evidence = learning(session, 10)?;
+            if session == 2 {
+                evidence.probe = Some(probe);
+            }
+            let with = cadence_core::progress::Checkpoint::new(
+                keyed.key.session,
+                keyed.key.sequence,
+                keyed.progress,
+                Some(evidence),
+            )?;
+            store.apply_checkpoint(&with)?;
+        }
+    }
+    let store = ProgressStore::open_in(directory.path())?;
+    let bootstrap = store.bootstrap(10)?;
+    assert_eq!(
+        bootstrap
+            .learner
+            .sessions
+            .iter()
+            .find(|s| s.session.get() == 2)
+            .and_then(|s| s.learning.probe),
+        Some(probe)
+    );
+    assert!(bootstrap.probes.shown.contains(&probe.passage));
+    assert_eq!(bootstrap.probes.last_comparable_strata, Some(0b0101));
+    assert_eq!(
+        bootstrap.probes.completed_with_prose_since, 2,
+        "sessions 3 and 4"
+    );
+    Ok(())
+}

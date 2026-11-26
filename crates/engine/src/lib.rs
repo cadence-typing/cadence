@@ -132,6 +132,10 @@ pub struct Engine {
     /// The current phase's prepared list has wrapped to its start (#39;
     /// shown from #7).
     list_wrapped: bool,
+    /// Practice paused during the transfer probe (#64).
+    probe_paused: bool,
+    /// A paste was refused during the transfer probe (#64).
+    probe_pasted: bool,
     /// The UTC offset in minutes the session's day is counted in (#52).
     utc_offset_minutes: Option<i32>,
     phase_start: Micros,
@@ -191,6 +195,9 @@ impl Engine {
             cadence_core::learning::SessionLearning::new(plan.record.clone()),
             plan.adaptation,
         );
+        let notice = (plan.probe == cadence_trainer::ProbePlan::NoPassage).then(|| {
+            "A transfer probe is due, but every probe passage has been typed.".to_string()
+        });
         Ok(Self {
             plan,
             learning,
@@ -204,6 +211,8 @@ impl Engine {
             opened: 0,
             last_credited: None,
             list_wrapped: false,
+            probe_paused: false,
+            probe_pasted: false,
             utc_offset_minutes: None,
             phase_start: Micros::ZERO,
             exercise_start: Micros::ZERO,
@@ -213,7 +222,7 @@ impl Engine {
             last_at: None,
             revision: FrameRevision::INITIAL,
             invalid: false,
-            notice: None,
+            notice,
             history: HistorySummary::default(),
             storage: None,
             status: ProgressStatus::Running,

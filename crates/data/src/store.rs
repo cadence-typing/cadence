@@ -8,9 +8,10 @@ use std::path::Path;
 use std::time::Duration;
 
 use cadence_core::SessionId;
-use cadence_core::learning::{HistoricSession, LearnerHistory};
+use cadence_core::learning::{HistoricSession, LearnerHistory, ProbeHistory};
 use cadence_core::progress::{
     Checkpoint, HistorySummary, ProgressStatus, RECENT_SESSION_CAPACITY, SaveKey, SessionRecap,
+    Track,
 };
 use cadence_kernel::checkpoint::{Admission, Receipt, admit};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
@@ -32,6 +33,8 @@ pub struct StoreBootstrap {
     pub history: HistorySummary,
     /// The most recent sessions' learning evidence, oldest first.
     pub learner: LearnerHistory,
+    /// Shown probes, the last comparable strata and sessions since a probe.
+    pub probes: ProbeHistory,
 }
 
 /// Receipt returned only after the transaction has committed durably.
@@ -117,6 +120,26 @@ impl ProgressStore {
         let sessions = self.session_history()?;
         let mut history = HistorySummary::default();
         let mut maximum = 0_u64;
+        let mut probes = ProbeHistory::default();
+        for session in &sessions {
+            let checkpoint = &session.checkpoint;
+            if let Some(probe) = checkpoint.learning.as_ref().and_then(|l| l.probe) {
+                probes.shown.insert(probe.passage);
+                if probe.comparable {
+                    probes.last_comparable_strata = Some(probe.strata);
+                }
+                probes.completed_with_prose_since = 0;
+            } else if checkpoint.progress.status == ProgressStatus::Completed
+                && checkpoint
+                    .progress
+                    .tracks
+                    .iter()
+                    .any(|t| t.track == Track::Prose && t.first_attempted > 0)
+            {
+                probes.completed_with_prose_since =
+                    probes.completed_with_prose_since.saturating_add(1);
+            }
+        }
         let mut learner: Vec<HistoricSession> = sessions
             .iter()
             .rev()
@@ -176,6 +199,7 @@ impl ProgressStore {
             next_session,
             history,
             learner: LearnerHistory { sessions: learner },
+            probes,
         })
     }
 

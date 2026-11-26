@@ -49,6 +49,7 @@ fn words_engine(
             reinforcements_per_word: 1,
             numeric_gap_entries: 0,
         },
+        probe: cadence_trainer::ProbePlan::NotDue,
         phases: vec![cadence_trainer::PlannedPhase {
             phase: cadence_trainer::Phase::AdaptiveWords,
             seconds: 60,
@@ -550,6 +551,7 @@ fn targeted_engine(
             reinforcements_per_word: 1,
             numeric_gap_entries: 0,
         },
+        probe: cadence_trainer::ProbePlan::NotDue,
         phases: planned,
     })?)
 }

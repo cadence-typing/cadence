@@ -25,6 +25,7 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
             reinforcements_per_word: 1,
             numeric_gap_entries: 0,
         },
+        probe: cadence_trainer::ProbePlan::NotDue,
         phases: vec![
             PlannedPhase {
                 phase: Phase::AdaptiveWords,

@@ -60,6 +60,7 @@ fn engine(phases: Vec<PlannedPhase>) -> Result<Engine, Error> {
             reinforcements_per_word: 1,
             numeric_gap_entries: 0,
         },
+        probe: cadence_trainer::ProbePlan::NotDue,
         phases,
     })?)
 }
@@ -362,6 +363,7 @@ fn engine_with(capacity: usize, per_word: u32, phases: Vec<PlannedPhase>) -> Res
             reinforcements_per_word: per_word,
             numeric_gap_entries: 0,
         },
+        probe: cadence_trainer::ProbePlan::NotDue,
         phases,
     })?)
 }
@@ -614,6 +616,7 @@ fn numeric_engine(gap: u32, phases: Vec<PlannedPhase>) -> Result<Engine, Error> 
             reinforcements_per_word: 1,
             numeric_gap_entries: gap,
         },
+        probe: cadence_trainer::ProbePlan::NotDue,
         phases,
     })?)
 }
@@ -1092,5 +1095,116 @@ fn a_targeted_numeric_entry_names_its_target() -> TestResult {
         None,
         "untargeted entry"
     );
+    Ok(())
+}
+
+fn probe_engine() -> Result<Engine, Error> {
+    let text = "Probe text for measuring transfer.";
+    Ok(Engine::new_plan(SessionPlan {
+        budget_seconds: 120,
+        policy_digest: ContentDigest::from_bytes([1; 32]),
+        corpus_digest: ContentDigest::from_bytes([2; 32]),
+        record: PlanRecord {
+            seed: 9,
+            mode: PlannerMode::Adaptive,
+            focus: Vec::new(),
+        },
+        adaptation: Adaptation {
+            hesitation_ceiling: Micros::from_us(1_500_000),
+            reinforcement_capacity: 8,
+            reinforcements_per_word: 1,
+            numeric_gap_entries: 0,
+        },
+        phases: vec![
+            PlannedPhase {
+                phase: Phase::Probe,
+                seconds: 2,
+                exercises: vec![PlannedExercise {
+                    units: cadence_core::validate_target(text, LayoutSupportsPound::US)?,
+                    kind: ExerciseKind::Probe,
+                    words: Vec::new(),
+                    passage: Some(cadence_core::PassageId::new(77)?),
+                    caption: Some("Transfer probe".to_string()),
+                    target: None,
+                    spans: Vec::new(),
+                }],
+            },
+            numeric_phase(
+                ExerciseKind::Prose,
+                Phase::Prose,
+                60,
+                &["The rest of the prose."],
+            )?,
+        ],
+        probe: cadence_trainer::ProbePlan::Planned(cadence_trainer::PlannedProbe {
+            passage: cadence_core::PassageId::new(77)?,
+            strata: 0b0101,
+            same_strata: true,
+        }),
+    })?)
+}
+
+/// #64: a probe typed through its window without a pause is recorded as
+/// comparable, on the benchmark track, and not as prose seen.
+#[test]
+fn a_whole_probe_is_recorded_comparable() -> TestResult {
+    use cadence_core::learning::{ProbeReason, ProbeRecord};
+    let mut driver = Driver::new(probe_engine()?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "Probe text for")?;
+    driver.send(at + 2_000_000, EventKind::Tick)?;
+    let tracks = driver
+        .last
+        .as_ref()
+        .ok_or("checkpoint")?
+        .progress
+        .tracks
+        .clone();
+    assert!(
+        tracks
+            .iter()
+            .any(|t| t.track == Track::Benchmark && t.first_attempted > 0)
+    );
+    let learning = driver.finish(at + 3_000_000)?;
+    assert_eq!(
+        learning.probe,
+        Some(ProbeRecord {
+            passage: cadence_core::PassageId::new(77)?,
+            strata: 0b0101,
+            comparable: true,
+            reason: ProbeReason::Comparable,
+        })
+    );
+    assert!(learning.passages.is_empty(), "a probe is not prose seen");
+    Ok(())
+}
+
+/// #64: a paused probe is stored and marked not comparable; one ended early
+/// says so.
+#[test]
+fn an_interrupted_probe_is_not_comparable() -> TestResult {
+    use cadence_core::learning::ProbeReason;
+    let mut driver = Driver::new(probe_engine()?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "Probe")?;
+    driver.key(at, Key::Escape)?;
+    driver.key(at + 100_000, Key::Escape)?;
+    let at = type_text(&mut driver, at + 200_000, " text")?;
+    driver.send(at + 2_000_000, EventKind::Tick)?;
+    let learning = driver.finish(at + 3_000_000)?;
+    let probe = learning.probe.ok_or("probe recorded")?;
+    assert!(!probe.comparable);
+    assert_eq!(probe.reason, ProbeReason::Paused);
+
+    let mut driver = Driver::new(probe_engine()?)?;
+    driver.key(0, Key::Enter)?;
+    let at = type_text(&mut driver, SECOND, "Probe")?;
+    driver.key(at, Key::Interrupt)?;
+    let probe = driver
+        .last
+        .as_ref()
+        .and_then(|c| c.learning.as_ref())
+        .and_then(|l| l.probe);
+    assert_eq!(probe.map(|p| p.reason), Some(ProbeReason::EndedEarly));
     Ok(())
 }

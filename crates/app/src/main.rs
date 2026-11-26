@@ -21,6 +21,7 @@ use cadence_trainer::{
 const WORDS: &str = include_str!("../../../corpus/words-en-v1.tsv");
 const PROSE: &str = include_str!("../../../corpus/prose-en-v2.tsv");
 const PROSE_SOURCES: &str = include_str!("../../../corpus/prose-sources-v2.tsv");
+const PROBES: &str = include_str!("../../../corpus/benchmark-en-v1.tsv");
 const POLICY: &str = include_str!("../../../policies/trainer-v3.toml");
 /// Shipped prose lower bound (plan 0003): enough for a long no-repeat window.
 const MINIMUM_PASSAGES: usize = 2_000;
@@ -127,6 +128,11 @@ fn build_engine(
     // Content and learner work finish before the hot input/reducer/render path.
     let pack = WordPack::from_tsv(WORDS, MINIMUM_WORDS, LayoutSupportsPound::US)?;
     let prose = ProseBank::from_tsv(PROSE, PROSE_SOURCES, MINIMUM_PASSAGES)?;
+    let probes = cadence_trainer::probe::ProbeBank::from_tsv(
+        PROBES,
+        &pack,
+        cadence_trainer::probe::MINIMUM_PROBES,
+    )?;
     let learner = LearnerModel::from_history(
         &bootstrap.learner,
         policy,
@@ -155,6 +161,10 @@ fn build_engine(
         pack: &pack,
         prose: &prose,
         learner: &learner,
+        probes: Some(cadence_trainer::ProbeInputs {
+            bank: &probes,
+            history: &bootstrap.probes,
+        }),
     };
     let plan = build_session_plan(policy, inputs, seed, &disabled, budget)?;
     Ok(Engine::new_plan(plan)?)
