@@ -220,6 +220,110 @@ def first.count_first
   (slots : Slice first.Slot) : Result first.FirstCounts := do
   first.count_first_loop slots 0#usize 0#usize 0#usize
 
+/-- [cadence_kernel::ledger::Insert]
+    Source: 'crates/kernel/src/ledger.rs', lines 12:0-28:1
+    Visibility: public -/
+@[discriminant isize]
+inductive ledger.Insert where
+| Rejected : ledger.Insert
+| Overflow : ledger.Insert
+| Counted : counters.Counters → Bool → Bool → ledger.Insert
+
+/-- [cadence_kernel::ledger::insert]:
+    Source: 'crates/kernel/src/ledger.rs', lines 34:0-59:1
+    Visibility: public -/
+def ledger.insert
+  (c : counters.Counters) (buffer_len : Std.Usize) (target_len : Std.Usize)
+  (allowance : Std.Usize) (same : Bool) :
+  Result ledger.Insert
+  := do
+  let o ← lift (Usize.checked_add target_len allowance)
+  match o with
+  | none => ok ledger.Insert.Rejected
+  | some bound =>
+    if buffer_len >= bound
+    then ok ledger.Insert.Rejected
+    else
+      let s ← counters.content_step c (buffer_len < target_len) same
+      match s with
+      | counters.Step.Counted next =>
+        let b ← counters.matched (buffer_len < target_len) same
+        ok (ledger.Insert.Counted next b (buffer_len < target_len))
+      | counters.Step.Overflow => ok ledger.Insert.Overflow
+
+/-- [cadence_kernel::ledger::settle_at]:
+    Source: 'crates/kernel/src/ledger.rs', lines 63:0-67:1
+    Visibility: public -/
+def ledger.settle_at
+  (slots : Slice first.Slot) (position : Std.Usize) (matched : Bool) :
+  Result (Slice first.Slot)
+  := do
+  let (o, get_mut_back) ←
+    core.slice.Slice.get_mut (core.slice.index.SliceIndexUsizeSlice first.Slot)
+      slots position
+  match o with
+  | none => ok (get_mut_back none)
+  | some slot =>
+    let slot1 ← first.settle slot matched
+    ok (get_mut_back (some slot1))
+
+/-- [cadence_kernel::ledger::WordFlags]
+    Source: 'crates/kernel/src/ledger.rs', lines 72:0-81:1
+    Visibility: public -/
+structure ledger.WordFlags where
+  any_error : Bool
+  any_deletion : Bool
+  interrupted : Bool
+  pasted : Bool
+
+/-- [cadence_kernel::ledger::flags_after_insert]:
+    Source: 'crates/kernel/src/ledger.rs', lines 85:0-92:1
+    Visibility: public -/
+def ledger.flags_after_insert
+  (f : ledger.WordFlags) (matched : Bool) : Result ledger.WordFlags := do
+  if f.any_error
+  then ok f
+  else ok { f with any_error := (¬ matched) }
+
+/-- [cadence_kernel::ledger::flags_after_deletion]:
+    Source: 'crates/kernel/src/ledger.rs', lines 96:0-103:1
+    Visibility: public -/
+def ledger.flags_after_deletion
+  (f : ledger.WordFlags) : Result ledger.WordFlags := do
+  ok { f with any_deletion := true }
+
+/-- [cadence_kernel::ledger::flags_after_interrupt]:
+    Source: 'crates/kernel/src/ledger.rs', lines 107:0-114:1
+    Visibility: public -/
+def ledger.flags_after_interrupt
+  (f : ledger.WordFlags) : Result ledger.WordFlags := do
+  ok { f with interrupted := true }
+
+/-- [cadence_kernel::ledger::clean]:
+    Source: 'crates/kernel/src/ledger.rs', lines 118:0-120:1
+    Visibility: public -/
+def ledger.clean (f : ledger.WordFlags) : Result Bool := do
+  if f.any_error
+  then ok false
+  else
+    if f.any_deletion
+    then ok false
+    else if f.interrupted
+         then ok false
+         else ok (¬ f.pasted)
+
+/-- [cadence_kernel::ledger::complete]:
+    Source: 'crates/kernel/src/ledger.rs', lines 126:0-128:1
+    Visibility: public -/
+def ledger.complete
+  (buffer_len : Std.Usize) (target_len : Std.Usize)
+  (correct_visible : Std.Usize) :
+  Result Bool
+  := do
+  if buffer_len = target_len
+  then ok (correct_visible = target_len)
+  else ok false
+
 /-- [cadence_kernel::progress::COUNTER_MAXIMUM]
     Source: 'crates/kernel/src/progress.rs', lines 5:0-5:59
     Visibility: public -/

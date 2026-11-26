@@ -16,8 +16,12 @@
 use crate::CoreError;
 use crate::alphabet::TrainingChar;
 use crate::units::{TextUnitIndex, UnitCount};
-use cadence_kernel::counters::{Counters, Step, content_step, deletion_step, matched};
-use cadence_kernel::first::{count_first, settle};
+use cadence_kernel::counters::{Counters, Step, deletion_step};
+use cadence_kernel::first::count_first;
+use cadence_kernel::ledger::{
+    Insert, clean, complete, flags_after_deletion, flags_after_insert, flags_after_interrupt,
+    insert, settle_at,
+};
 
 pub use cadence_kernel::first::Slot;
 
@@ -61,29 +65,10 @@ impl LedgerCounters {
     }
 }
 
-/// Per-word/entry flags for the current attempt (L-02): any error,
-/// deletion, interruption or paste marks the word non-clean.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct WordFlags {
-    /// Any first-incorrect or incorrect insertion in this word.
-    pub any_error: bool,
-    /// Any deletion event while this word was being typed.
-    pub any_deletion: bool,
-    /// Measurement was interrupted (paste, overload, quit) during this
-    /// word.
-    pub interrupted: bool,
-    /// A paste event contributed to this word.
-    pub pasted: bool,
-}
-
-impl WordFlags {
-    /// Whether the word was typed without any error, deletion,
-    /// interruption or paste.
-    #[must_use]
-    pub const fn is_clean(self) -> bool {
-        !(self.any_error || self.any_deletion || self.interrupted || self.pasted)
-    }
-}
+/// Per-word/entry flags for the current attempt (L-02): the kernel's
+/// sticky flags; any error, deletion, interruption or paste marks the word
+/// non-clean.
+pub use cadence_kernel::ledger::WordFlags;
 
 /// Result of applying one input event to the ledger.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -255,7 +240,7 @@ impl AttemptLedger {
     pub fn mark_interrupted(&mut self) {
         self.measurement_interrupted = true;
         if let Some(flags) = self.tail_word_flags_mut() {
-            flags.interrupted = true;
+            *flags = flags_after_interrupt(*flags);
         }
     }
 
@@ -267,24 +252,34 @@ impl AttemptLedger {
     pub fn apply(&mut self, event: LedgerEvent) -> Result<Applied, CoreError> {
         match event {
             LedgerEvent::Content(character) => {
-                let bound = self
-                    .target
-                    .len()
-                    .checked_add(widen(self.allowance.get())?)
-                    .ok_or(CoreError::CapacityExhausted {
-                        limit: "typed buffer capacity",
-                    })?;
-                if self.buffer.len() >= bound {
-                    self.measurement_interrupted = true;
-                    if let Some(flags) = self.tail_word_flags_mut() {
-                        flags.interrupted = true;
-                    }
-                    return Ok(Applied::RejectedOverBound);
-                }
                 let position = self.buffer.len();
                 let expected = self.target.get(position).copied();
-                let matched = matched(expected.is_some(), expected == Some(character));
-                let index = if expected.is_some() {
+                // The kernel decides admission under the bound, the position,
+                // the match and the counters before anything mutates.
+                let (counters, matched, in_target) = match insert(
+                    self.counters.inner,
+                    position,
+                    self.target.len(),
+                    widen(self.allowance.get())?,
+                    expected == Some(character),
+                ) {
+                    Insert::Rejected => {
+                        self.mark_interrupted();
+                        return Ok(Applied::RejectedOverBound);
+                    }
+                    Insert::Overflow => {
+                        return Err(CoreError::IdExhaustion {
+                            kind: "ledger counter",
+                            reason: "counter exhausted",
+                        });
+                    }
+                    Insert::Counted {
+                        counters,
+                        matched,
+                        in_target,
+                    } => (counters, matched, in_target),
+                };
+                let index = if in_target {
                     Some(
                         TextUnitIndex::new(u32::try_from(position).map_err(
                             |_unrepresentable| CoreError::CapacityExhausted {
@@ -300,39 +295,14 @@ impl AttemptLedger {
                 } else {
                     None
                 };
-                // The kernel refuses on overflow before anything mutates.
-                self.counters.inner = match content_step(
-                    self.counters.inner,
-                    expected.is_some(),
-                    expected == Some(character),
-                ) {
-                    Step::Counted(counters) => counters,
-                    Step::Overflow => {
-                        return Err(CoreError::IdExhaustion {
-                            kind: "ledger counter",
-                            reason: "counter exhausted",
-                        });
-                    }
-                };
+                self.counters.inner = counters;
                 self.buffer.push(character);
-                if expected.is_none() {
-                    if let Some(flags) = self.tail_word_flags_mut() {
-                        flags.any_error = true;
-                    }
-                    return Ok(Applied::Content {
-                        position: None,
-                        matched: false,
-                    });
-                }
-                // Write-once: the kernel keeps a settled slot unchanged.
-                if let Some(slot) = self.first_outcome.get_mut(position) {
-                    *slot = settle(*slot, matched);
-                }
-                if !matched
-                    && let Some(index) = self.word_index_at(position)
-                    && let Some(flags) = self.word_flags.get_mut(index)
+                // Write-once: the kernel settles only the slot at `position`.
+                settle_at(&mut self.first_outcome, position, matched);
+                if let Some(word) = self.word_index_at(position)
+                    && let Some(flags) = self.word_flags.get_mut(word)
                 {
-                    flags.any_error = true;
+                    *flags = flags_after_insert(*flags, matched);
                 }
                 Ok(Applied::Content {
                     position: index,
@@ -352,7 +322,7 @@ impl AttemptLedger {
                 // Deletion flags the word being edited (the word at the
                 // tail before removal).
                 if let Some(flags) = self.tail_word_flags_mut() {
-                    flags.any_deletion = true;
+                    *flags = flags_after_deletion(*flags);
                 }
                 if self.buffer.pop().is_some() {
                     Ok(Applied::Deleted)
@@ -381,7 +351,7 @@ impl AttemptLedger {
                     }
                 };
                 if let Some(flags) = self.tail_word_flags_mut() {
-                    flags.any_deletion = true;
+                    *flags = flags_after_deletion(*flags);
                 }
                 let new_len = self.buffer.len().saturating_sub(removed);
                 self.buffer.truncate(new_len);
@@ -394,13 +364,16 @@ impl AttemptLedger {
     /// units at an unfinished slice).
     #[must_use]
     pub fn correct_visible_units(&self) -> UnitCount {
-        let count = self
-            .buffer
+        UnitCount::from_len(self.matching_positions())
+    }
+
+    /// Buffer positions whose unit equals the target unit there.
+    fn matching_positions(&self) -> usize {
+        self.buffer
             .iter()
             .zip(self.target.iter())
             .filter(|(typed, expected)| typed == expected)
-            .count();
-        UnitCount::from_len(count)
+            .count()
     }
 
     /// First-attempted expected positions (slots with an assigned
@@ -419,7 +392,11 @@ impl AttemptLedger {
     /// Whether the buffer exactly equals the target.
     #[must_use]
     pub fn is_complete(&self) -> bool {
-        self.buffer == self.target
+        complete(
+            self.buffer.len(),
+            self.target.len(),
+            self.matching_positions(),
+        )
     }
 
     /// Whether the whole attempt was typed cleanly: complete, no error,
@@ -427,7 +404,7 @@ impl AttemptLedger {
     #[must_use]
     pub fn is_clean_completion(&self) -> bool {
         self.is_complete()
-            && self.word_flags.iter().all(|flags| flags.is_clean())
+            && self.word_flags.iter().all(|flags| clean(*flags))
             && self.counters.inner.overflow == 0
             && !self.measurement_interrupted
     }

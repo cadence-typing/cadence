@@ -85,6 +85,9 @@ function below is called by production code; there is no second copy.
 | `time::segment_active` | `TimingSegments::active_through` (`crates/core/src/session.rs`), hence `pause`, `end_phase` and the engine's phase clock |
 | `time::in_window` | `Micros::within_half_open`, called by `Engine::advance_clock` to decide whether active time is still inside the phase (A-05) |
 | `progress::track_valid` (with `in_range`, `ordered`, `split_fits`) | `SessionProgress::validate`, before a checkpoint is built or a stored one decoded |
+| `ledger::insert`, `ledger::settle_at` | `AttemptLedger::apply` for every content key: admission under the bound, position inside the target, counters, and the write-once slot write |
+| `ledger::flags_after_insert`, `flags_after_deletion`, `flags_after_interrupt`, `clean` | `AttemptLedger::apply`, `mark_interrupted`, `is_clean_completion` (per-word flags) |
+| `ledger::complete` | `AttemptLedger::is_complete` |
 | `progress::merge` | `TrackProgress::add`, hence `engine::practice::merge_track` for every exercise credited to a track |
 | `progress::credit_once` | `Engine::record_exercise`: an exercise's ledger is credited only if newer than every credited one, else a typed error |
 | `session::step` | `Engine::transition` (`crates/engine/src/flow.rs`), the only writer of the session state, and `Engine::invalidate`; the engine carries out its clock command and status consequence |
@@ -117,6 +120,11 @@ axioms. The audit admits only `propext`, `Classical.choice` and `Quot.sound`.
 | `ratio::digits_per_minute` | `Ratio.digits_per_minute_spec` | Same for the numpad rate. Total. | `digits-minute-is-ten-seconds`, `digits-denominator-off-by-one` | proved |
 | `ratio::basis_points` | `Ratio.basis_points_spec`, `accuracy_in_range`, `accuracy_computed` | `floor(num*10000/den)`; a ratio of a count to a count at least as large is never over 100% and never `OverFull`; computed whenever `num*10000` fits `u64`. Total. | `basis-allows-over-full`, `basis-remainder-not-quotient`, `basis-full-is-9999` | proved |
 | `time::segment_active` | `Time.segment_active_spec`, `segment_active_closed`, `segment_active_monotone` | Completed active time plus the open segment's `now - start`, exactly, in unbounded arithmetic; `Backward` exactly when `now` precedes the open segment, `Overflow` exactly when the sum exceeds `u64::MAX`; with no open segment (paused) it is the completed total; a later clock reading never gives less active time. Total. | `segment-ignores-open`, `segment-saturates`, `segment-backward-is-zero` | proved |
+| `ledger::insert` | `Ledger.insert_spec`, `over_bound_rejects` | A key is admitted only below `target + allowance`, so the buffer never exceeds it; at or past the bound it is refused and nothing is counted; it lands inside the target iff the buffer is shorter than the target; only a key inside the target matches. Total. | `bound-off-by-one`, `past-target-counts-as-inside` | proved |
+| `ledger::settle_at` | `Ledger.first_write_once` | Over the whole slot vector: the length is kept, no other slot changes, and a settled slot never changes. Total. | `settle-at-overwrites` | proved |
+| `ledger::flags_after_*` | `Ledger.word_flag_sticky` | No step clears a set flag; an unmatched key always marks an error; a deletion and an interruption always set their flag. | `flag-clears-on-correction`, `deletion-not-flagged`, `interrupt-not-flagged` | proved |
+| `ledger::clean` | `Ledger.clean_spec` | Clean iff no flag is set. Total. | `clean-ignores-paste` | proved |
+| `ledger::complete` | `Ledger.complete_iff_exact` | Complete iff the buffer has the target's length and every position matches; a matching prefix with extra input is not complete. Total. | `complete-ignores-tail` | proved |
 | `progress::merge` | `Progress.merge_exact`, `merge_keeps_valid` | Each of the nine counters is the exact sum, or `Overflow` exactly when some sum exceeds `u64::MAX`; nothing is dropped, saturated or partly merged. Merging two ordered tracks stays ordered and within split. Total. | `merge-drops-deletions`, `merge-saturates` | proved |
 | `progress::credit_once` | `Progress.credit_once_spec` | An exercise is credited iff it is newer than every credited one: never twice. Total. | `credit-allows-equal` | proved |
 | `session::step` | `Session.clock_runs_only_running`, `review_is_terminal_for_typing`, `completed_only_after_last_phase`, `running_only_by_start_resume_or_next`, `invalidate_admitted` | Over every state and event: leaving `Running` stops the clock and only entering `Running` resumes it; from the review, finishing or saved no event leads back to typing; only the last typing deadline or reaching the review completes a session (ending early or exiting never does); typing starts only by start, resume or the next phase; an invalid measurement is admitted everywhere. Total. | `pause-keeps-clock`, `review-resumes`, `early-end-completes`, `invalidate-refused-when-saved` | proved |
@@ -135,7 +143,7 @@ them.
 
 | Property | Badge | State |
 |---|---|---|
-| The ledger calls `settle` for every insertion and Backspace never touches the slots (`AttemptLedger::apply` plumbing, the buffer, per-word flags) | tested | `crates/core/tests/ledger_properties.rs` (write-once, correction cannot erase first errors, counters monotone) and the fixtures. Proving the whole `apply` would need a bigger, Aeneas-translatable ledger in the kernel. |
+| That `AttemptLedger::apply` passes the buffer length as the position, the right `same`, the number of matching positions and the right word index to the ledger kernel; the buffer push/pop and the character comparison | tested | `crates/core/tests/ledger_properties.rs` and the scoring fixtures. Every decision in the step is proved (`ledger::*`); this is the plumbing around it. |
 | The store reads the receipt and latest sequence correctly, the SQL transaction is atomic, the receipt insert and the session update commit together | tested | `crates/data/src/tests/checkpoints.rs` and `disk.rs`. The kernel only decides from facts it is given. |
 | Durable acknowledgement ordering: an acknowledgement is never observed before the commit (`AckIsDurable`), single-flight dispatch, retry after failure, and a clean exit only after the final acknowledgement | model-proved (bounded) | `models/CheckpointSave.tla`, mapped to `engine::storage`, `SaveWorker`, `ProgressStore::apply_checkpoint` and `checkpoint::admit` (see *Protocol models*). Correspondence to the Rust is by review and the named runtime tests, not by proof. The kernel proves the credit decision (`admit`). |
 | Display rounding and formatting (`as_f64`, percent labels), the UI comparison with earlier sessions | tested | f64 is outside the kernel by construction. |
@@ -184,13 +192,13 @@ summary line, the per-claim outcomes and the mutant results are copied below
 from that run (see the commit that adds `proofs/claims.json`).
 
 Command: `cargo +1.98.0 tauten proofs --live` (full level, every mutant),
-gating the working tree of the commit that records this run (#33); exit 0:
+gating the working tree of the commit that records this run (#32); exit 0:
 
 ```text
-tauten: 20 of 20 claim(s) proved (recorded in proofs/claims.json)
+tauten: 27 of 27 claim(s) proved (recorded in proofs/claims.json)
 ```
 
-All 40 mutants were `killed`, each by the theorem it targets. The previous
+All 48 mutants were `killed`, each by the theorem it targets. The previous
 run (#29, 17 of 17 with 33 mutants) carried temporary `[[amend]]` entries for
 the retired time claims, dropped after that record as tauten requires. The description of the earlier run follows.
 

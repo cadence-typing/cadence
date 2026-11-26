@@ -9,3 +9,4 @@ import Proofs.Counters
 import Proofs.Ratio
 import Proofs.Progress
 import Proofs.Session
+import Proofs.Ledger

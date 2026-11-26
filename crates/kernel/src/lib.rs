@@ -16,6 +16,7 @@
 pub mod checkpoint;
 pub mod counters;
 pub mod first;
+pub mod ledger;
 pub mod progress;
 pub mod ratio;
 pub mod session;

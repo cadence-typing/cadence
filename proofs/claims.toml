@@ -491,3 +491,113 @@ name = "credit-allows-equal"
 file = "crates/kernel/src/progress.rs"
 before = "        Some(last) => closing > last,\n"
 after = "        Some(last) => closing >= last,\n"
+
+# ---- one attempt-ledger step (crates/kernel/src/ledger.rs, #32)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ledger.rs"
+function = "ledger::insert"
+lean = "cadence_kernel.ledger.insert"
+theorems = ["Proofs.Ledger.insert_spec", "Proofs.Ledger.over_bound_rejects"]
+total = "Proofs.Ledger.insert_spec"
+mutants = ["bound-off-by-one", "past-target-counts-as-inside"]
+
+[[mutant]]
+name = "bound-off-by-one"
+file = "crates/kernel/src/ledger.rs"
+before = "            if buffer_len >= bound {\n"
+after = "            if buffer_len > bound {\n"
+
+[[mutant]]
+name = "past-target-counts-as-inside"
+file = "crates/kernel/src/ledger.rs"
+before = "                let in_target = buffer_len < target_len;\n"
+after = "                let in_target = buffer_len <= target_len;\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ledger.rs"
+function = "ledger::settle_at"
+lean = "cadence_kernel.ledger.settle_at"
+theorems = ["Proofs.Ledger.first_write_once"]
+total = "Proofs.Ledger.first_write_once"
+mutants = ["settle-at-overwrites"]
+
+[[mutant]]
+name = "settle-at-overwrites"
+file = "crates/kernel/src/ledger.rs"
+before = "        *slot = settle(*slot, matched);\n"
+after = "        *slot = settle(Slot::Open, matched);\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ledger.rs"
+function = "ledger::flags_after_insert"
+lean = "cadence_kernel.ledger.flags_after_insert"
+theorems = ["Proofs.Ledger.word_flag_sticky"]
+mutants = ["flag-clears-on-correction"]
+
+[[mutant]]
+name = "flag-clears-on-correction"
+file = "crates/kernel/src/ledger.rs"
+before = "        any_error: f.any_error || !matched,\n"
+after = "        any_error: !matched,\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ledger.rs"
+function = "ledger::flags_after_deletion"
+lean = "cadence_kernel.ledger.flags_after_deletion"
+theorems = ["Proofs.Ledger.word_flag_sticky"]
+mutants = ["deletion-not-flagged"]
+
+[[mutant]]
+name = "deletion-not-flagged"
+file = "crates/kernel/src/ledger.rs"
+before = "        any_deletion: true,\n"
+after = "        any_deletion: f.any_deletion,\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ledger.rs"
+function = "ledger::flags_after_interrupt"
+lean = "cadence_kernel.ledger.flags_after_interrupt"
+theorems = ["Proofs.Ledger.word_flag_sticky"]
+mutants = ["interrupt-not-flagged"]
+
+[[mutant]]
+name = "interrupt-not-flagged"
+file = "crates/kernel/src/ledger.rs"
+before = "        interrupted: true,\n"
+after = "        interrupted: f.interrupted,\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ledger.rs"
+function = "ledger::clean"
+lean = "cadence_kernel.ledger.clean"
+theorems = ["Proofs.Ledger.clean_spec"]
+total = "Proofs.Ledger.clean_spec"
+mutants = ["clean-ignores-paste"]
+
+[[mutant]]
+name = "clean-ignores-paste"
+file = "crates/kernel/src/ledger.rs"
+before = "    !f.any_error && !f.any_deletion && !f.interrupted && !f.pasted\n"
+after = "    !f.any_error && !f.any_deletion && !f.interrupted\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/ledger.rs"
+function = "ledger::complete"
+lean = "cadence_kernel.ledger.complete"
+theorems = ["Proofs.Ledger.complete_iff_exact"]
+total = "Proofs.Ledger.complete_iff_exact"
+mutants = ["complete-ignores-tail"]
+
+[[mutant]]
+name = "complete-ignores-tail"
+file = "crates/kernel/src/ledger.rs"
+before = "    buffer_len == target_len && correct_visible == target_len\n"
+after = "    buffer_len >= target_len && correct_visible == target_len\n"

@@ -81,7 +81,7 @@ Rust and [Ratatui](https://ratatui.rs). There is one state owner with a typed re
 
 **Assurance**, labelled honestly:
 
-- **Proved:** the scoring decisions live in a small `no_std` crate, [`crates/kernel`](crates/kernel), which production calls directly. It has 20 proved claims (Lean theorems) over its [Charon/Aeneas](https://github.com/AeneasVerif/aeneas) translation, for example:
+- **Proved:** the scoring decisions live in a small `no_std` crate, [`crates/kernel`](crates/kernel), which production calls directly. It has 27 proved claims (Lean theorems) over its [Charon/Aeneas](https://github.com/AeneasVerif/aeneas) translation, for example:
   - a corrected mistake stays an error;
   - accuracy never exceeds 100%;
   - active time is the closed segments plus the open one, exactly, never counts a pause and never runs backwards;
@@ -89,7 +89,7 @@ Rust and [Ratatui](https://ratatui.rs). There is one state owner with a typed re
   - a checkpoint is never credited twice;
   - once the review shows, nothing leads back to typing, and ending early never marks a session completed.
 
-  Each claim passes an axiom audit, and every one of its 40 deliberate source mutants must break it. The inventory, and what remains only tested, is in [docs/TAUTEN.md](docs/TAUTEN.md).
+  Each claim passes an axiom audit, and every one of its 48 deliberate source mutants must break it. The inventory, and what remains only tested, is in [docs/TAUTEN.md](docs/TAUTEN.md).
 - **Model-checked:** the protocol designs (async admission, causal barriers, durable checkpoints) have bounded [TLA+ models](formal/), run by the quality gate on every change ([registry](models/claims.toml)); deliberately faulty variants must produce named counterexamples. The checkpoint save protocol ([`CheckpointSave.tla`](models/CheckpointSave.tla)) and the session flow ([`SessionFlow.tla`](models/SessionFlow.tla)) are mapped to the shipped code; the handover's three models are design probes.
 - **Tested:** [independent scoring fixtures](fixtures/scoring.json), property tests, 193 tests in all, plus real-PTY smoke runs.
 - **Profile:** the code follows the [tauten](https://github.com/tauten-dev/tauten) strictness profile: kernel/core/edge tiers, no ambient I/O outside the edge, checked arithmetic, typed errors. `cargo tauten check` passes with no baseline.
