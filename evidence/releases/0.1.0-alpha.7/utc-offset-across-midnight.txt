@@ -1,0 +1,66 @@
+==================== --utc-offset -16:00 ====================
+  DAILY PRACTICE                                                                     0.1.0-alpha.6
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+                                              cadence
+
+
+                                  Make room for a little practice.
+                               15:00 allocated · practice at your pace
+
+       ○ warm-up       ○ words      ○ number row     ○ numpad        ○ prose        ○ review
+         1:00           5:00            2:00           3:00           3:00            1:00
+
+                                         UP FIRST · warm-up
+                       Settle into an easy rhythm; familiar words are checked.
+
+                          Last session · 120.8 WPM · 93.6% · earlier today
+                             Today targets  om · ne · as · ad · re · or
+
+                                        Enter  Begin session
+
+
+
+
+
+
+ READY  today                                                                  │ 15:00 plan │ local
+ Enter begin  q quit  F2 text size (AUTO)
+==================== --utc-offset +09:00 ====================
+  DAILY PRACTICE                                                                     0.1.0-alpha.6
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+                                              cadence
+
+
+                                  Make room for a little practice.
+                               15:00 allocated · practice at your pace
+
+       ○ warm-up       ○ words      ○ number row     ○ numpad        ○ prose        ○ review
+         1:00           5:00            2:00           3:00           3:00            1:00
+
+                                         UP FIRST · warm-up
+                       Settle into an easy rhythm; familiar words are checked.
+
+                            Last session · 120.8 WPM · 93.6% · yesterday
+                     Today targets  om · ne · as · ad · re · or   40 due reviews
+
+                                        Enter  Begin session
+
+
+
+
+
+
+ READY  today                                                                  │ 15:00 plan │ local
+ Enter begin  q quit  F2 text size (AUTO)

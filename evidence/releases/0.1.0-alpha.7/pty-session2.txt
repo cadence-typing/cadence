@@ -1,0 +1,364 @@
+==================== session 2: start @100x32 ====================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+==================== session 2: start @60x18 ====================
+  DAILY PRACTICE                             0.1.0-alpha.6
+────────────────────────────────────────────────────────────
+
+
+                          cadence
+              Make room for a little practice.
+           15:00 allocated · practice at your pace
+       ○ warm-up          ○ words         ○ number row
+       ○ numpad           ○ prose           ○ review
+                     UP FIRST · warm-up
+   Settle into an easy rhythm; familiar words are checked.
+        Last session · 124.0 WPM · 94.6% · yesterday
+    Today targets  n' · om · ne · la · de · ad   +2 more
+                    Enter  Begin session
+
+
+ READY  today                          │ 15:00 plan │ local
+ Enter begin  q quit  F2 text size (AUTO)
+==================== session 2: phase warm-up @100x32 ====================
+  ● warm-up  ○ words  ○ number row  ○ numpad  ○ prose  ○ review                      0.1.0-alpha.6
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+                complex won't murder added september watched fellow central inc lost
+
+
+
+
+
+
+
+
+
+
+
+
+                              Normal text · native scaling unavailable
+
+
+ TYPE  warm-up                            │ phase 1/6 │ fix 0 │ -- WPM │ acc -- │ 0:59 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+==================== session 2: phase warm-up @60x18 ====================
+  cadence                                    0.1.0-alpha.6
+────────────────────────────────────────────────────────────
+
+
+
+
+
+    complex won't murder added september watched fellow
+                      central inc lost
+
+
+
+
+          Normal text · native scaling unavailable
+
+
+ TYPE  warm-up        │ -- WPM │ acc -- │ 0:59 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+==================== session 2: phase words @100x32 ====================
+  ✓ warm-up  ● words  ○ number row  ○ numpad  ○ prose  ○ review                      0.1.0-alpha.6
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+                  wasn't truly women's the someone plane real homicide and hadn't
+
+
+
+
+
+
+
+
+
+
+
+
+                              Normal text · native scaling unavailable
+               Targeting n' · om · ne · la · de · ad · due review · again: truly, real
+
+ TYPE  words                              │ phase 2/6 │ fix 1 │ -- WPM │ acc -- │ 4:59 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+==================== session 2: phase words @60x18 ====================
+  cadence                                    0.1.0-alpha.6
+────────────────────────────────────────────────────────────
+
+
+
+
+
+   wasn't truly women's the someone plane real homicide
+                         and hadn't
+
+
+
+
+          Normal text · native scaling unavailable
+  Targeting n' · om · ne · la · de · ad · due review · aga
+
+ TYPE  words  │ fix 1 │ -- WPM │ acc -- │ 4:59 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+==================== session 2: phase number @100x32 ====================
+  ✓ warm-up  ✓ words  ● number row  ○ numpad  ○ prose  ○ review                      0.1.0-alpha.6
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+                                              box 366
+
+
+
+
+
+
+
+
+
+
+
+
+                              Normal text · native scaling unavailable
+                                            Targeting 36
+
+ TYPE  number row                         │ phase 3/6 │ fix 0 │ -- WPM │ acc -- │ 1:59 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+==================== session 2: phase number @60x18 ====================
+  cadence                                    0.1.0-alpha.6
+────────────────────────────────────────────────────────────
+
+
+
+
+
+                          box 366
+
+
+
+
+
+          Normal text · native scaling unavailable
+                        Targeting 36
+
+ TYPE  number row     │ -- WPM │ acc -- │ 1:59 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+==================== session 2: phase prose @100x32 ====================
+  ✓ warm-up  ✓ words  ✓ number row  ✓ numpad  ● prose  ○ review                      0.1.0-alpha.6
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+  "Oh! very delightful indeed; I can say nothing less, for I suppose Miss Woodhouse and Mr. Frank
+                           Churchill are hearing every thing that passes.
+
+
+
+
+
+
+
+
+
+
+
+                              Normal text · native scaling unavailable
+                                         Emma — Jane Austen
+
+ TYPE  prose                              │ phase 5/6 │ fix 0 │ -- WPM │ acc -- │ 2:59 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+==================== session 2: phase prose @60x18 ====================
+  cadence                                    0.1.0-alpha.6
+────────────────────────────────────────────────────────────
+
+
+
+
+   "Oh! very delightful indeed; I can say nothing less,
+   for I suppose Miss Woodhouse and Mr. Frank Churchill
+            are hearing every thing that passes.
+
+
+
+
+          Normal text · native scaling unavailable
+                     Emma — Jane Austen
+
+ TYPE  prose  │ fix 0 │ -- WPM │ acc -- │ 2:59 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+==================== session 2: phase review @100x32 ====================
+  ✓ warm-up  ✓ words  ✓ number row  ✓ numpad  ✓ prose  ● review                      0.1.0-alpha.6
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+                  online very still why well best without your description hadn't
+
+
+
+
+
+
+
+
+
+
+
+
+                              Normal text · native scaling unavailable
+     Targeting ad · again: online, very, still, why, well, best, without, your · repeat: hadn't
+
+ TYPE  review                             │ phase 6/6 │ fix 0 │ -- WPM │ acc -- │ 0:59 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+==================== session 2: phase review @60x18 ====================
+  cadence                                    0.1.0-alpha.6
+────────────────────────────────────────────────────────────
+
+
+
+
+
+       online very still why well best without your
+                     description hadn't
+
+
+
+
+          Normal text · native scaling unavailable
+  Targeting ad · again: online, very, still, why, well, be
+
+ TYPE  review │ fix 0 │ -- WPM │ acc -- │ 0:59 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+==================== session 2: results @100x32 ====================
+  cadence                                                                            0.1.0-alpha.6
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+                                           Session review
+                                            15:00 active
+
+    ───────────────CORRECT SPEED────────────────    ────────────FIRST-PASS ACCURACY─────────────
+                       127.1                                           97.3%
+
+                  +3.1 vs yesterday                             +2.6 pts vs yesterday
+    ────────────────────────────────────────────    ────────────────────────────────────────────
+
+               Track      Acc     Pace        Fixes vs last time        First-pass
+               warm-up    96.4%   124.6 WPM   21    +2.8 · +2.3 pts     602/624
+
+               words      97.4%   127.6 WPM   82    +4.0 · +3.3 pts     3107/3189
+
+               number row 97.3%   126.8 WPM   34    +3.1 · +2.5 pts     1234/1268
+
+               numpad     100.0%  1.0 DPM     0     −0.7 · 0.0 pts      3/3
+
+               prose      97.5%   127.5 WPM   47    +1.9 · +1.6 pts     1865/1912
+
+               review     97.6%   126.0 WPM   15    not in the headline 615/630
+
+             Most slips: in 11/181 · te 9/73 · at 9/77 — future word drills weigh these
+           Targeted: n' · om · ne · la · de · ad · number row 36 · 58 · 51 · 114 to review
+
+                                         Enter  Save & exit
+
+ REVIEW  session review                                                      │ 15:00 active │ saved
+ Enter save & exit
+==================== session 2: results @60x18 ====================
+  cadence                                    0.1.0-alpha.6
+────────────────────────────────────────────────────────────
+
+                       Session review
+                        15:00 active
+  ──────CORRECT SPEED───────    ───FIRST-PASS ACCURACY────
+            127.1                         97.3%
+
+       +3.1 vs yesterday           +2.6 pts vs yesterday
+  ──────────────────────────    ──────────────────────────
+                Resize for per-track details
+          Most slips: in 11/181 · te 9/73 · at 9/77
+  Targeted: n' · om · ne · la · de · ad · number row 36 ·
+                     Enter  Save & exit
+
+
+ REVIEW  session review              │ 15:00 active │ saved
+ Enter save & exit
