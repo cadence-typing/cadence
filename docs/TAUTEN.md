@@ -233,14 +233,20 @@ Recorded by `cargo +1.98.0 tauten proofs` into `proofs/claims.json`; the
 summary line, the per-claim outcomes and the mutant results are copied below
 from that run (see the commit that adds `proofs/claims.json`).
 
-Command: `cargo +1.98.0 tauten proofs --live` (full level, every mutant),
-gating the working tree of the commit that records this run (#32); exit 0:
+Command: `cargo +1.98.0 tauten proofs` (full level, every mutant), gating a
+snapshot of commit `4da39a6` (the alpha.6 release content; the commit that
+records this run changes no kernel source); exit 0:
 
 ```text
-tauten: 27 of 27 claim(s) proved (recorded in proofs/claims.json)
+tauten: gating a snapshot of commit 4da39a6db00cef95f20ba8100c12ae590ed50271
+tauten: proof gate exited with exit status: 0
+tauten: 49 of 49 claim(s) proved (recorded in proofs/claims.json)
 ```
 
-All 48 mutants were `killed`, each by the theorem it targets. The previous
+123 theorems; all 108 mutants were `killed`, each by the theorem it targets.
+Every claim has outcome `proved` and badge `proved`.
+
+The run before (#32): 27 of 27 claims, all 48 mutants killed. The previous
 run (#29, 17 of 17 with 33 mutants) carried temporary `[[amend]]` entries for
 the retired time claims, dropped after that record as tauten requires. The description of the earlier run follows.
 

@@ -2,7 +2,7 @@
 rfc: "2026-11-26-slow-save-pauses-practice"
 title: "A slow save pauses practice instead of invalidating the session"
 status: accepted
-implementation: not-started
+implementation: complete
 authors:
   - claude-fable (grooming agent)
 created: 2026-11-26
@@ -85,3 +85,4 @@ For the owner (#51 stays `needs-owner` until answered; work proceeds on the defa
 ## Decision log
 
 - 2026-11-26: accepted by default under the owner's 2026-11-26 rule; owner may amend.
+- 2026-11-26: implemented on `main` (`4da39a6`, `4e80576`) on the recommended default. Esc does not resume a stall (its controls offer only end early and text size); focus loss or a paste during it takes over the reason. `cadence-runtime` has a test-only `test-faults` feature (`CADENCE_FAULT_SLOW_SAVE`) used for the PTY evidence.

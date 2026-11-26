@@ -2,7 +2,7 @@
 rfc: "2026-11-26-evidence-and-repeat-gap-decisions"
 title: "Evidence attribution and repeat-gap decisions in the kernel"
 status: accepted
-implementation: not-started
+implementation: in-progress
 authors:
   - claude-fable (grooming agent)
 created: 2026-11-26
@@ -74,3 +74,4 @@ None blocking. Owner may amend: whether excluded-interval reasons should be pers
 ## Decision log
 
 - 2026-11-26: accepted by default under the owner's 2026-11-26 rule; owner may amend.
+- 2026-11-26: #42 and #41 implemented on `main` (`4a1cc1f`); `Lanes.consecutive_cap` landed with #36. The segment ordinal rises at every pause (not at every resume); the effect is the same. `lanes::gap_admissible` remains for #58 (alpha.7).

@@ -81,7 +81,7 @@ Rust and [Ratatui](https://ratatui.rs). There is one state owner with a typed re
 
 **Assurance**, labelled honestly:
 
-- **Proved:** the scoring decisions live in a small `no_std` crate, [`crates/kernel`](crates/kernel), which production calls directly. It has 30 proved claims (Lean theorems) over its [Charon/Aeneas](https://github.com/AeneasVerif/aeneas) translation, for example:
+- **Proved:** the scoring decisions live in a small `no_std` crate, [`crates/kernel`](crates/kernel), which production calls directly. It has 49 proved claims (123 Lean theorems) over its [Charon/Aeneas](https://github.com/AeneasVerif/aeneas) translation, for example:
   - a corrected mistake stays an error;
   - accuracy never exceeds 100%;
   - active time is the closed segments plus the open one, exactly, never counts a pause and never runs backwards;

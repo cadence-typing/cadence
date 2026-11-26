@@ -4,6 +4,10 @@ User-visible changes per release. Design decisions live in the [RFC registry](do
 
 ## [Unreleased]
 
+## [0.1.0-alpha.6] — Proved practice decisions (2026-11-26)
+
+Practice decisions (phase split, word choice, quotas, the review ladder, the reinforcement queue, slot substitution, labels, the learner's focus and its evidence) are now proved kernel functions that the app calls. No schema change. **Plans for a given seed differ from alpha.5** (broad words are sampled without replacement and the learner model computes in integers), so an alpha.5 seed does not reproduce its alpha.5 plan. Design: [RFC: practice decisions in the kernel](docs/rfcs/2026-11-26-practice-decisions-in-the-kernel.md), [RFC: evidence and repeat-gap decisions](docs/rfcs/2026-11-26-evidence-and-repeat-gap-decisions.md), [RFC: a slow save pauses practice](docs/rfcs/2026-11-26-slow-save-pauses-practice.md).
+
 ### Added
 
 - One-line install: `curl -fsSL https://cadence-typing.github.io/install.sh | sh`. It verifies the release checksum, installs for the current user only, never uses `sudo`, and never touches your practice history. `--version`, `--prefix`, `--bin-dir` and `--uninstall` are supported.

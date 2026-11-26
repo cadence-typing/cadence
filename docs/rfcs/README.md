@@ -54,11 +54,11 @@ Creation order. New proposals use `—` in the Legacy column.
 | — | [Public distribution: install script, website and project process](2026-11-24-public-distribution.md) | accepted | in-progress | [#1](https://github.com/cadence-typing/cadence/issues/1) |
 | — | [Adopt tauten and prove the scoring kernel in Lean](2026-11-24-tauten-and-lean-kernel.md) | accepted | complete | [#2](https://github.com/cadence-typing/cadence/issues/2) |
 | — | [Formal gates with production mappings](2026-11-26-formal-gates-and-production-mapping.md) | accepted | complete | [#25](https://github.com/cadence-typing/cadence/issues/25) |
-| — | [Practice decisions in the kernel](2026-11-26-practice-decisions-in-the-kernel.md) | accepted | not-started | [#26](https://github.com/cadence-typing/cadence/issues/26) |
+| — | [Practice decisions in the kernel](2026-11-26-practice-decisions-in-the-kernel.md) | accepted | complete | [#26](https://github.com/cadence-typing/cadence/issues/26) |
 | — | [Deliberate practice in every phase](2026-11-26-deliberate-practice-in-every-phase.md) | accepted | not-started | [#27](https://github.com/cadence-typing/cadence/issues/27) |
 | — | [Release bundles built from a tag in public CI](2026-11-26-release-bundles-from-a-tag.md) | accepted | not-started | [#3](https://github.com/cadence-typing/cadence/issues/3) |
-| — | [Evidence attribution and repeat-gap decisions in the kernel](2026-11-26-evidence-and-repeat-gap-decisions.md) | accepted | not-started | [#54](https://github.com/cadence-typing/cadence/issues/54) |
-| — | [A slow save pauses practice instead of invalidating the session](2026-11-26-slow-save-pauses-practice.md) | accepted | not-started | [#51](https://github.com/cadence-typing/cadence/issues/51) |
+| — | [Evidence attribution and repeat-gap decisions in the kernel](2026-11-26-evidence-and-repeat-gap-decisions.md) | accepted | in-progress | [#54](https://github.com/cadence-typing/cadence/issues/54) |
+| — | [A slow save pauses practice instead of invalidating the session](2026-11-26-slow-save-pauses-practice.md) | accepted | complete | [#51](https://github.com/cadence-typing/cadence/issues/51) |
 | — | [Review days are local-calendar days with a recorded offset](2026-11-26-local-calendar-days.md) | accepted | not-started | [#52](https://github.com/cadence-typing/cadence/issues/52) |
 | — | [Pace targets and benchmark probes](2026-11-26-pace-targets-and-benchmark-probes.md) | accepted | not-started | [#6](https://github.com/cadence-typing/cadence/issues/6) |
 | — | [Headless driver and replay: proved request admission and barriers](2026-11-26-headless-driver-and-replay.md) | accepted | not-started | [#4](https://github.com/cadence-typing/cadence/issues/4) |
