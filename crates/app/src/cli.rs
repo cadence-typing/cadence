@@ -23,6 +23,17 @@ pub enum Command {
         script: Option<PathBuf>,
         /// Use a fresh temporary profile, removed at exit.
         ephemeral: bool,
+        /// Write a trace here (#72).
+        record: Option<PathBuf>,
+        /// Keep target text in the trace (D-02 opt-in).
+        record_content: bool,
+    },
+    /// Replay a trace on a fresh temporary profile (#72).
+    Replay {
+        /// The trace.
+        trace: PathBuf,
+        /// Where to write the replayed captures.
+        capture_dir: Option<PathBuf>,
     },
     /// Machine-readable environment facts (#69).
     Doctor,
@@ -95,6 +106,11 @@ pub fn parse() -> Result<Options, String> {
     let mut stdio = false;
     let mut ephemeral = false;
     let mut json = false;
+    let mut record = None;
+    let mut record_content = false;
+    let mut read_only = false;
+    let mut capture_dir = None;
+    let mut trace = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--version" | "-V" => set_action(&mut action, "version")?,
@@ -103,6 +119,24 @@ pub fn parse() -> Result<Options, String> {
             "export" => set_action(&mut action, "export")?,
             "headless" => set_action(&mut action, "headless")?,
             "doctor" => set_action(&mut action, "doctor")?,
+            "replay" => {
+                set_action(&mut action, "replay")?;
+                trace = Some(absolute_path(value(&mut args, &arg)?)?);
+            }
+            "--read-only" => read_only = true,
+            "--record-content" => record_content = true,
+            "--record" => {
+                if record.is_some() {
+                    return Err("duplicate --record".into());
+                }
+                record = Some(absolute_path(value(&mut args, &arg)?)?);
+            }
+            "--capture-dir" => {
+                if capture_dir.is_some() {
+                    return Err("duplicate --capture-dir".into());
+                }
+                capture_dir = Some(absolute_path(value(&mut args, &arg)?)?);
+            }
             "--stdio" => stdio = true,
             "--ephemeral-profile" => ephemeral = true,
             "--json" => json = true,
@@ -213,9 +247,28 @@ pub fn parse() -> Result<Options, String> {
                         .into(),
                 );
             }
+            if record_content && record.is_none() {
+                return Err("--record-content requires --record FILE".into());
+            }
             Command::Headless {
                 script: script.take(),
                 ephemeral,
+                record: record.take(),
+                record_content,
+            }
+        }
+        Some("replay") => {
+            if !read_only {
+                return Err("replay requires --read-only".into());
+            }
+            if options.profile.is_some() {
+                return Err(
+                    "replay uses a fresh temporary profile; --profile-dir is not accepted".into(),
+                );
+            }
+            Command::Replay {
+                trace: trace.take().ok_or("replay requires a trace file")?,
+                capture_dir: capture_dir.take(),
             }
         }
         Some("doctor") => {
@@ -227,7 +280,7 @@ pub fn parse() -> Result<Options, String> {
         Some(_) => return Err("unsupported command".into()),
     };
     if !matches!(options.command, Command::Headless { .. })
-        && (stdio || ephemeral || script.is_some())
+        && (stdio || ephemeral || script.is_some() || record.is_some() || record_content)
     {
         return Err("--stdio, --script and --ephemeral-profile are only valid for headless".into());
     }
@@ -283,7 +336,8 @@ pub fn help() {
         cadence backup --output /absolute/new.sqlite3 [--profile-dir PATH]\n\
         cadence export --output /absolute/new.json [--profile-dir PATH]\n\
         cadence headless --stdio|--script /absolute/requests.jsonl --profile-dir PATH|--ephemeral-profile\n\
-        cadence doctor --json [--profile-dir PATH]\n\n\
+        cadence doctor --json [--profile-dir PATH]\n\
+        cadence replay /absolute/trace.jsonl --read-only [--capture-dir /absolute/dir]\n\n\
         Enter starts/continues. Esc pauses; while paused, e ends the session and shows the review.\n\
         Ctrl-C during practice also ends it and shows the review; Enter there saves and exits.\n\
         F2 cycles text size. Losing focus or pasting pauses practice; nothing is inserted.\n\

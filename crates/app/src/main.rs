@@ -82,8 +82,19 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
             println!("Progress exported: {}", destination.display());
             Ok(())
         }
-        cli::Command::Headless { script, ephemeral } => {
-            headless::run(options.profile.as_deref(), script.as_deref(), *ephemeral)
+        cli::Command::Headless {
+            script,
+            ephemeral,
+            record,
+            record_content,
+        } => headless::run(
+            options.profile.as_deref(),
+            script.as_deref(),
+            *ephemeral,
+            record.as_deref().map(|path| (path, *record_content)),
+        ),
+        cli::Command::Replay { trace, capture_dir } => {
+            headless::replay(trace, capture_dir.as_deref())
         }
         cli::Command::Doctor => headless::doctor(options.profile.as_deref()),
         cli::Command::Practice => {

@@ -165,6 +165,7 @@ pub fn run(
     profile: Option<&Path>,
     script: Option<&Path>,
     ephemeral: bool,
+    record: Option<(&Path, bool)>,
 ) -> Result<(), Box<dyn Error>> {
     let temporary = if ephemeral {
         Some(ephemeral_dir()?)
@@ -175,14 +176,25 @@ pub fn run(
         .as_deref()
         .or(profile)
         .ok_or("headless requires --profile-dir or --ephemeral-profile")?;
-    let result = serve(directory, script);
+    let result = serve(directory, script, record);
     if let Some(dir) = temporary {
         std::fs::remove_dir_all(dir)?;
     }
     result
 }
 
-fn serve(directory: &Path, script: Option<&Path>) -> Result<(), Box<dyn Error>> {
+fn serve(
+    directory: &Path,
+    script: Option<&Path>,
+    record: Option<(&Path, bool)>,
+) -> Result<(), Box<dyn Error>> {
+    use cadence_driver::trace::{Header, Recorder};
+    let mut recorder = record.map(|(_, content)| {
+        Recorder::new(&Header {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            record_content: content,
+        })
+    });
     let store = ProgressStore::open_in(directory)?;
     let mut host = Headless::new(StoreServices {
         store,
@@ -201,19 +213,79 @@ fn serve(directory: &Path, script: Option<&Path>) -> Result<(), Box<dyn Error>> 
             continue;
         }
         let response = protocol.handle(&line, &mut host);
+        if let Some(recorder) = recorder.as_mut() {
+            recorder.record(&line, &response);
+        }
         writeln!(out, "{response}")?;
         out.flush()?;
         if host.finished() {
-            return Ok(());
+            break;
         }
     }
     // End of input: finish and flush as `quit` would.
-    if host.engine().is_some() {
+    if host.engine().is_some() && !host.finished() {
         let quit = br#"{"v":1,"id":"18446744073709551615","op":"quit","args":{"flush":true}}"#;
         let response = protocol.handle(quit, &mut host);
+        if let Some(recorder) = recorder.as_mut() {
+            recorder.record(quit, &response);
+        }
         writeln!(out, "{response}")?;
     }
+    if let (Some(recorder), Some((path, _))) = (recorder, record) {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)?;
+        file.write_all(recorder.text().as_bytes())?;
+        file.sync_all()?;
+    }
     Ok(())
+}
+
+/// The captures of a matching replay, or the divergence report.
+type Replayed = Result<Vec<serde_json::Map<String, serde_json::Value>>, String>;
+
+/// `cadence replay FILE --read-only`: re-executes a trace on a fresh
+/// temporary profile (never one it was not given) and compares every
+/// response; prints the earliest divergence and fails on one.
+///
+/// # Errors
+/// I/O failures and any divergence.
+pub fn replay(trace: &Path, capture_dir: Option<&Path>) -> Result<(), Box<dyn Error>> {
+    let text = std::fs::read_to_string(trace)?;
+    let dir = ephemeral_dir()?;
+    let outcome = (|| -> Result<Replayed, Box<dyn Error>> {
+        let store = ProgressStore::open_in(&dir)?;
+        let mut host = Headless::new(StoreServices {
+            store,
+            day: utc_day()?,
+            failing: false,
+        });
+        Ok(cadence_driver::trace::replay(&text, &mut host).map_err(|d| d.report()))
+    })();
+    std::fs::remove_dir_all(&dir)?;
+    match outcome? {
+        Ok(captures) => {
+            if let Some(out) = capture_dir {
+                std::fs::create_dir_all(out)?;
+                for (index, capture) in captures.iter().enumerate() {
+                    std::fs::write(
+                        out.join(format!("capture-{index:03}.json")),
+                        serde_json::to_vec_pretty(capture)?,
+                    )?;
+                }
+            }
+            println!(
+                "{}",
+                serde_json::json!({"replayed": true, "captures": captures.len()})
+            );
+            Ok(())
+        }
+        Err(report) => {
+            println!("{report}");
+            Err("the replay diverged from the trace".into())
+        }
+    }
 }
 
 /// `cadence doctor --json`: version, schema, paths, terminal facts and disk

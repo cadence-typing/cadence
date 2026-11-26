@@ -291,3 +291,85 @@ fn a_durable_barrier_covers_its_watermark_only() -> Result<(), Box<dyn std::erro
     );
     Ok(())
 }
+
+fn record(trace: &std::path::Path, content: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let fixture = include_str!("../../../fixtures/headless-session.jsonl");
+    let path = trace.to_str().ok_or("path")?;
+    let mut args = vec![
+        "headless",
+        "--stdio",
+        "--ephemeral-profile",
+        "--record",
+        path,
+    ];
+    if content {
+        args.push("--record-content");
+    }
+    run(&args, fixture)?;
+    Ok(())
+}
+
+fn replay(trace: &std::path::Path) -> Result<(bool, Value), Box<dyn std::error::Error>> {
+    let output = cadence()
+        .args(["replay", trace.to_str().ok_or("path")?, "--read-only"])
+        .output()?;
+    let report: Value = serde_json::from_slice(&output.stdout)?;
+    Ok((output.status.success(), report))
+}
+
+/// #72 journey 11: a recorded session replays with identical state,
+/// effects and cells; a flipped key fails at its record; a deleted
+/// response line fails at that line.
+#[test]
+fn a_recorded_session_replays_and_divergences_are_located() -> Result<(), Box<dyn std::error::Error>>
+{
+    let dir = tempfile::tempdir()?;
+    let trace = dir.path().join("trace.jsonl");
+    record(&trace, true)?;
+    let (ok, report) = replay(&trace)?;
+    assert!(ok, "{report}");
+    assert_eq!(report["replayed"], true);
+    let text = std::fs::read_to_string(&trace)?;
+    let lines: Vec<&str> = text.lines().collect();
+    // Flip one key: "cx" becomes "cz" in the text request.
+    let flipped_at = lines
+        .iter()
+        .position(|l| l.contains(r#""text":"cx""#))
+        .ok_or("text request")?;
+    let mut flipped = lines.clone();
+    let replaced = lines[flipped_at].replace(r#""text":"cx""#, r#""text":"cz""#);
+    flipped[flipped_at] = &replaced;
+    let flipped_trace = dir.path().join("flipped.jsonl");
+    std::fs::write(&flipped_trace, flipped.join("\n") + "\n")?;
+    let (ok, report) = replay(&flipped_trace)?;
+    assert!(!ok);
+    assert_eq!(report["diverged_at_line"], flipped_at + 2, "{report}");
+    // Delete the response of the first request.
+    let mut missing = lines.clone();
+    missing.remove(2);
+    let missing_trace = dir.path().join("missing.jsonl");
+    std::fs::write(&missing_trace, missing.join("\n") + "\n")?;
+    let (ok, report) = replay(&missing_trace)?;
+    assert!(!ok);
+    assert_eq!(report["diverged_at_line"], 3, "{report}");
+    Ok(())
+}
+
+/// #72: traces hold target text only with --record-content (D-02).
+#[test]
+fn traces_hold_target_text_only_when_asked() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    let sealed = dir.path().join("sealed.jsonl");
+    let open = dir.path().join("open.jsonl");
+    record(&sealed, false)?;
+    record(&open, true)?;
+    let sealed_text = std::fs::read_to_string(&sealed)?;
+    let open_text = std::fs::read_to_string(&open)?;
+    assert!(open_text.contains(r#""target_text":"cat""#));
+    assert!(!sealed_text.contains(r#""target_text":"cat""#));
+    assert!(sealed_text.contains(r#""target_text":{"sha256""#));
+    assert!(!sealed_text.contains(r#""symbol":"#), "no cell text");
+    let (ok, report) = replay(&sealed)?;
+    assert!(ok, "a sealed trace still replays: {report}");
+    Ok(())
+}

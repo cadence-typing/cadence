@@ -17,3 +17,4 @@ pub mod envelope;
 pub mod headless;
 pub mod protocol;
 pub mod stream;
+pub mod trace;

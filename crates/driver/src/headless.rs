@@ -56,6 +56,15 @@ pub struct Headless<S: Services> {
     next_job: u64,
 }
 
+fn view_digest(text: &str) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(text.as_bytes())
+        .iter()
+        .take(16)
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
 fn invalid(message: &str) -> (Code, String) {
     (Code::InvalidArgument, message.to_string())
 }
@@ -310,6 +319,13 @@ impl<S: Services> Headless<S> {
             result.insert(
                 "event_seq".into(),
                 json!(engine.consumed_events().get().to_string()),
+            );
+            // Pins the whole prepared view (#72): a replay that typed a
+            // different key diverges at that request, not later.
+            let view = engine.prepare(MonoTick::from_us(self.now_us));
+            result.insert(
+                "view_digest".into(),
+                json!(view_digest(&format!("{view:?}"))),
             );
         } else {
             result.insert("state_revision".into(), json!("0"));
