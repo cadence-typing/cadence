@@ -1,5 +1,5 @@
-00 normal |  TODAY   Train   Numpad <version>  
-   2×#d6dce0/#0a0d10/ 5×#85d0b4/#0a0d10/bold+underline 3×#d6dce0/#0a0d10/ 5×#7c868e/#0a0d10/ 3×#d6dce0/#0a0d10/ 6×#7c868e/#0a0d10/ 14×#d6dce0/#0a0d10/ 22×#7c868e/#0a0d10/
+00 normal |  TODAY   Train   Numpad   Progress <version>  
+   2×#d6dce0/#0a0d10/ 5×#85d0b4/#0a0d10/bold+underline 3×#d6dce0/#0a0d10/ 5×#7c868e/#0a0d10/ 3×#d6dce0/#0a0d10/ 6×#7c868e/#0a0d10/ 3×#d6dce0/#0a0d10/ 8×#7c868e/#0a0d10/ 3×#d6dce0/#0a0d10/ 22×#7c868e/#0a0d10/
 01 normal |────────────────────────────────────────────────────────────
    38×#3a424a/#0a0d10/ 22×#7c868e/#0a0d10/
 02 normal |                                                            

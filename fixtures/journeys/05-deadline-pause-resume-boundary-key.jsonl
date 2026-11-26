@@ -1,25 +1,25 @@
 {"build":"0.1.0-beta.2","capabilities":{"keyboard":"normalized","terminal":"test-backend"},"clock":"virtual","record_content":true,"services":"fixture-or-profile","trace_version":1,"type":"header"}
 {"line":{"args":{"scenario":"scoring-cat"},"id":"1","op":"hello","v":1},"type":"request"}
-{"line":{"id":"1","ok":true,"result":{"clock":"virtual","event_seq":"2","limits":{"line_bytes":1048576,"response_cache":1024,"text_units":8192},"scenario":"scoring-cat","state_revision":"2","version":"0.1.0-beta.2","view_digest":"4ed7a76b155044a1630d97c8c6ca6a35"},"v":1},"type":"response"}
+{"line":{"id":"1","ok":true,"result":{"clock":"virtual","event_seq":"2","limits":{"line_bytes":1048576,"response_cache":1024,"text_units":8192},"scenario":"scoring-cat","state_revision":"2","version":"0.1.0-beta.2","view_digest":"08580cc5330b9fd86b89fe6c4c71a84c"},"v":1},"type":"response"}
 {"line":{"args":{"name":"StartDrill"},"id":"2","op":"action","v":1},"type":"request"}
-{"line":{"id":"2","ok":true,"result":{"durable_commit_seq":"1","event_seq":"4","state_revision":"4","view_digest":"2aee206a52f539a1f3f05b96b3c71725"},"v":1},"type":"response"}
+{"line":{"id":"2","ok":true,"result":{"durable_commit_seq":"1","event_seq":"4","state_revision":"4","view_digest":"af602af4bc6d74b08a37067302aa600b"},"v":1},"type":"response"}
 {"line":{"args":{"inter_key_microseconds":500000,"text":"ca"},"id":"3","op":"text","v":1},"type":"request"}
-{"line":{"id":"3","ok":true,"result":{"durable_commit_seq":"1","event_seq":"7","state_revision":"7","view_digest":"27d895789f3ea906f3de217fa10621e6"},"v":1},"type":"response"}
+{"line":{"id":"3","ok":true,"result":{"durable_commit_seq":"1","event_seq":"7","state_revision":"7","view_digest":"838baa0ade8102bb0b9337a2db88b769"},"v":1},"type":"response"}
 {"line":{"args":{"name":"Pause"},"id":"4","op":"action","v":1},"type":"request"}
-{"line":{"id":"4","ok":true,"result":{"durable_commit_seq":"2","event_seq":"9","state_revision":"9","view_digest":"f7194a96457084ff244e3686c024f542"},"v":1},"type":"response"}
+{"line":{"id":"4","ok":true,"result":{"durable_commit_seq":"2","event_seq":"9","state_revision":"9","view_digest":"469c36c5490c0d812ce62828ed6d0a62"},"v":1},"type":"response"}
 {"line":{"args":{"microseconds":10000000},"id":"5","op":"advance","v":1},"type":"request"}
-{"line":{"id":"5","ok":true,"result":{"durable_commit_seq":"2","event_seq":"10","state_revision":"10","view_digest":"c185bac4b076790a24522b06a210936e"},"v":1},"type":"response"}
+{"line":{"id":"5","ok":true,"result":{"durable_commit_seq":"2","event_seq":"10","state_revision":"10","view_digest":"b0cbdfeea20f111076701fb91faf0028"},"v":1},"type":"response"}
 {"line":{"args":{},"id":"6","op":"snapshot","v":1},"type":"request"}
-{"line":{"id":"6","ok":true,"result":{"active_micros":"500000","available_actions":["Resume"],"durable_commit_seq":"2","elapsed_micros":"10500001","ended_early":false,"event_seq":"10","input_owner":"Navigation","pending_jobs":[],"plan_basis":"cold_start","screen":"practice","state_revision":"10","tracks":[{"active_micros":"500000","attempt":{"attempted":"2","correct":"2"},"deletions":"0","first_pass":{"attempted":"2","correct":"2"},"track":"adaptive words"}],"view_digest":"c185bac4b076790a24522b06a210936e"},"v":1},"type":"response"}
+{"line":{"id":"6","ok":true,"result":{"active_micros":"500000","available_actions":["Resume"],"durable_commit_seq":"2","elapsed_micros":"10500001","ended_early":false,"event_seq":"10","input_owner":"Navigation","pending_jobs":[],"plan_basis":"cold_start","screen":"practice","state_revision":"10","tracks":[{"active_micros":"500000","attempt":{"attempted":"2","correct":"2"},"deletions":"0","first_pass":{"attempted":"2","correct":"2"},"track":"adaptive words"}],"view_digest":"b0cbdfeea20f111076701fb91faf0028"},"v":1},"type":"response"}
 {"line":{"args":{"name":"Resume"},"id":"7","op":"action","v":1},"type":"request"}
-{"line":{"id":"7","ok":true,"result":{"durable_commit_seq":"3","event_seq":"12","state_revision":"12","view_digest":"bcf7b30487ee0b205736404c692b3f77"},"v":1},"type":"response"}
+{"line":{"id":"7","ok":true,"result":{"durable_commit_seq":"3","event_seq":"12","state_revision":"12","view_digest":"d36291e06f496d19df670851601df7f5"},"v":1},"type":"response"}
 {"line":{"args":{"inter_key_microseconds":500000,"text":"t"},"id":"8","op":"text","v":1},"type":"request"}
-{"line":{"id":"8","ok":true,"result":{"durable_commit_seq":"4","event_seq":"14","state_revision":"14","view_digest":"87ada96dfd7ed99a10ce5e2b596b1687"},"v":1},"type":"response"}
+{"line":{"id":"8","ok":true,"result":{"durable_commit_seq":"4","event_seq":"14","state_revision":"14","view_digest":"3746e947485b3d5009c5de41d64aba48"},"v":1},"type":"response"}
 {"line":{"args":{"microseconds":59500000},"id":"9","op":"advance","v":1},"type":"request"}
-{"line":{"id":"9","ok":true,"result":{"durable_commit_seq":"5","event_seq":"16","state_revision":"16","view_digest":"b096115393448b153df9653385455c62"},"v":1},"type":"response"}
+{"line":{"id":"9","ok":true,"result":{"durable_commit_seq":"5","event_seq":"16","state_revision":"16","view_digest":"f3095aa80fb14584fbfa5a64d19e23dd"},"v":1},"type":"response"}
 {"line":{"args":{"key":"c","kind":"press","modifiers":[],"source":"unverified"},"id":"10","op":"key","v":1},"type":"request"}
-{"line":{"id":"10","ok":true,"result":{"durable_commit_seq":"5","event_seq":"17","state_revision":"17","view_digest":"c4d102c913447951685fa74e04fae885"},"v":1},"type":"response"}
+{"line":{"id":"10","ok":true,"result":{"durable_commit_seq":"5","event_seq":"17","state_revision":"17","view_digest":"06731d91de4ab27fe6b2d0ea5b7d30f9"},"v":1},"type":"response"}
 {"line":{"args":{},"id":"11","op":"snapshot","v":1},"type":"request"}
-{"line":{"id":"11","ok":true,"result":{"active_micros":"60000000","available_actions":["NextPhase"],"durable_commit_seq":"5","elapsed_micros":"70000001","ended_early":false,"event_seq":"17","input_owner":"Navigation","pending_jobs":[],"plan_basis":"cold_start","screen":"phase_complete","state_revision":"17","tracks":[{"active_micros":"60000000","attempt":{"attempted":"3","correct":"3"},"deletions":"0","first_pass":{"attempted":"3","correct":"3"},"track":"adaptive words"}],"view_digest":"c4d102c913447951685fa74e04fae885"},"v":1},"type":"response"}
+{"line":{"id":"11","ok":true,"result":{"active_micros":"60000000","available_actions":["NextPhase"],"durable_commit_seq":"5","elapsed_micros":"70000001","ended_early":false,"event_seq":"17","input_owner":"Navigation","pending_jobs":[],"plan_basis":"cold_start","screen":"phase_complete","state_revision":"17","tracks":[{"active_micros":"60000000","attempt":{"attempted":"3","correct":"3"},"deletions":"0","first_pass":{"attempted":"3","correct":"3"},"track":"adaptive words"}],"view_digest":"06731d91de4ab27fe6b2d0ea5b7d30f9"},"v":1},"type":"response"}
 {"line":{"args":{"flush":true},"id":"12","op":"quit","v":1},"type":"request"}
-{"line":{"id":"12","ok":true,"result":{"durable_commit_seq":"6","event_seq":"19","saved":true,"state_revision":"19","view_digest":"cd1af3d907281860a3ecda6190057086"},"v":1},"type":"response"}
+{"line":{"id":"12","ok":true,"result":{"durable_commit_seq":"6","event_seq":"19","saved":true,"state_revision":"19","view_digest":"94deb0f4c740ab4b6578fdb46a081f81"},"v":1},"type":"response"}

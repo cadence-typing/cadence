@@ -48,10 +48,20 @@ pub fn tabs(selected: Destination, palette: Palette) -> Line<'static> {
     Line::from(spans)
 }
 
-/// Train or Numpad, in place of the daily landing.
-pub fn paint(buffer: &mut Buffer, area: Rect, view: &DestinationView, palette: Palette) {
+/// Train, Numpad or Progress, in place of the daily landing.
+pub fn paint(
+    buffer: &mut Buffer,
+    area: Rect,
+    full: &cadence_engine::PreparedView,
+    palette: Palette,
+) {
+    let view: &DestinationView = &full.destination;
     let mut lines = Vec::new();
     match view.selected {
+        Destination::Progress => {
+            crate::progress::paint(buffer, area, full, palette);
+            return;
+        }
         Destination::Train => {
             lines.push(Line::styled(
                 "Train one track",

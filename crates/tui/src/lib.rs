@@ -14,6 +14,7 @@ mod modeline;
 mod native_text;
 pub mod paint;
 mod practice;
+mod progress;
 mod settings;
 mod stages;
 pub mod theme;

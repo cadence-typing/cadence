@@ -423,3 +423,26 @@ fn settings_changes_are_audited_once_at_the_session_they_apply_to() -> TestResul
     );
     Ok(())
 }
+
+/// #81: the history query is bounded, oldest first, and keeps synthetic
+/// sessions visible (flagged) so Progress can stop a series at them.
+#[test]
+fn history_points_are_bounded_and_flag_synthetic_sessions() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let mut store = ProgressStore::open_in(directory.path())?;
+    for session in 1..=5 {
+        store.apply_checkpoint(&checkpoint(session, 1, ProgressStatus::Completed)?)?;
+    }
+    store.mark_synthetic(cadence_core::SessionId::new(4)?)?;
+    let points = store.history_points(3)?;
+    let ids: Vec<u64> = points.iter().map(|p| p.session.get()).collect();
+    assert_eq!(ids, vec![3, 4, 5], "the newest three, oldest first");
+    let synthetic: Vec<bool> = points.iter().map(|p| p.synthetic).collect();
+    assert_eq!(synthetic, vec![false, true, false]);
+    assert!(
+        points
+            .iter()
+            .all(|p| p.tracks.first().is_some_and(|t| t.first_attempted == 4))
+    );
+    Ok(())
+}

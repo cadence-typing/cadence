@@ -147,11 +147,13 @@ pub enum Destination {
     Train,
     /// Numpad-only practice with a chosen length.
     Numpad,
+    /// Comparable trends with counts (#81).
+    Progress,
 }
 
 impl Destination {
     /// Every destination, in tab order.
-    pub const ALL: [Self; 3] = [Self::Today, Self::Train, Self::Numpad];
+    pub const ALL: [Self; 4] = [Self::Today, Self::Train, Self::Numpad, Self::Progress];
 
     /// Its tab label.
     #[must_use]
@@ -160,6 +162,7 @@ impl Destination {
             Self::Today => "Today",
             Self::Train => "Train",
             Self::Numpad => "Numpad",
+            Self::Progress => "Progress",
         }
     }
 }
@@ -213,6 +216,14 @@ const READY_TRAIN: &[Binding] = &[
     ),
     LONGER,
     SHORTER,
+    QUIT,
+    HELP,
+    NEXT_DESTINATION,
+    PREVIOUS_DESTINATION,
+    SETTINGS,
+    TEXT_SIZE,
+];
+const READY_PROGRESS: &[Binding] = &[
     QUIT,
     HELP,
     NEXT_DESTINATION,
@@ -362,6 +373,7 @@ pub const fn bindings_for(state: CommandState) -> &'static [Binding] {
             Destination::Today => READY_TODAY,
             Destination::Train => READY_TRAIN,
             Destination::Numpad => READY_NUMPAD,
+            Destination::Progress => READY_PROGRESS,
         },
         ViewMode::Typing if state.enter_submits => TYPING_NUMPAD,
         ViewMode::Typing => TYPING,

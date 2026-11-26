@@ -94,6 +94,10 @@ impl crate::Engine {
         bindings_for(self.command_state())
     }
 
+    pub(crate) const fn navigation_destination(&self) -> Destination {
+        self.navigation.destination
+    }
+
     /// Whether `action` is offered now.
     #[must_use]
     pub fn offers(&self, action: Action) -> bool {
@@ -158,6 +162,8 @@ impl crate::Engine {
             Action::Begin => {
                 t.outcome = match self.navigation.destination {
                     Destination::Today => self.begin_today(at)?,
+                    // Progress reads history; it starts nothing.
+                    Destination::Progress => DomainOutcome::None,
                     Destination::Train | Destination::Numpad => {
                         let phase = if self.navigation.destination == Destination::Numpad {
                             Phase::Numpad
@@ -198,6 +204,11 @@ impl crate::Engine {
                 let at_index = all.iter().position(|d| *d == nav.destination).unwrap_or(0);
                 let next = cycle(at_index, all.len(), action == Action::NextDestination);
                 nav.destination = all.get(next).copied().unwrap_or_default();
+                // Entering Progress asks the worker for history (#81).
+                if nav.destination == Destination::Progress {
+                    t.job = self.jobs.start(crate::jobs::JobKind::History);
+                    self.progress.begin(t.job);
+                }
             }
             Action::Help => self.navigation.help = !self.navigation.help,
             Action::Settings => {

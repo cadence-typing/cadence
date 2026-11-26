@@ -422,6 +422,27 @@ pub struct HistorySummary {
 /// Earlier sessions kept for comparison: enough to find the last
 /// session with the same track set after a few single-track runs.
 pub const RECENT_SESSION_CAPACITY: usize = 30;
+/// One session as the Progress destination reads it (#81): its basis and
+/// its exact per-track totals.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HistoryPoint {
+    /// The session.
+    pub session: crate::SessionId,
+    /// Its local calendar day.
+    pub day: i64,
+    /// The layout it was typed on, `unspecified` read as its adopter.
+    pub layout: Option<crate::alphabet::Layout>,
+    /// Its content class.
+    pub content_class: ContentClass,
+    /// Recorded by the headless driver.
+    pub synthetic: bool,
+    /// For a session with a transfer probe: whether that probe is
+    /// comparable.
+    pub probe_comparable: Option<bool>,
+    /// Exact cumulative track totals.
+    pub tracks: Vec<TrackProgress>,
+}
+
 /// One earlier session's exact per-track totals.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionRecap {

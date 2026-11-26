@@ -31,13 +31,29 @@ impl SummaryMetrics {
             .iter()
             .filter(|report| report.track.in_headline())
             .collect();
+        Self::sum(&reports, rate_valid)
+    }
+
+    /// One track's series across comparable sessions (#81): the same exact
+    /// sums of numerators and denominators, never an average of
+    /// percentages. Unlike [`Self::from_reports`] it takes any one track,
+    /// the transfer probe's included.
+    ///
+    /// # Errors
+    /// As [`Self::from_reports`].
+    pub fn for_series(reports: &[TrackProgress]) -> Result<Self, CoreError> {
+        let reports: Vec<&TrackProgress> = reports.iter().collect();
+        Self::sum(&reports, true)
+    }
+
+    fn sum(reports: &[&TrackProgress], rate_valid: bool) -> Result<Self, CoreError> {
         let mut typing_units = UnitCount::ZERO;
         let mut typing_time = Micros::ZERO;
         let mut keypad_digits = UnitCount::ZERO;
         let mut keypad_time = Micros::ZERO;
         let mut first_correct = UnitCount::ZERO;
         let mut first_attempted = UnitCount::ZERO;
-        for report in &reports {
+        for report in reports {
             first_correct = first_correct.checked_add(UnitCount::from_raw(report.first_correct))?;
             first_attempted =
                 first_attempted.checked_add(UnitCount::from_raw(report.first_attempted))?;

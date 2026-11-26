@@ -54,6 +54,8 @@ impl Engine {
             commands: self.commands(),
             help: self.help_view(),
             destination: self.destination_view(),
+            progress: (self.navigation_destination() == crate::commands::Destination::Progress)
+                .then(|| self.progress.view()),
             numpad_off: matches!(
                 self.settings.value("keyboard.numpad"),
                 Some(cadence_core::settings::Setting::Boolean(false))

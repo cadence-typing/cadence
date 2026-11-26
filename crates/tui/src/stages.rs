@@ -37,7 +37,7 @@ pub(super) fn paint(
         ScreenView::Today { .. }
             if view.destination.selected != cadence_engine::commands::Destination::Today =>
         {
-            crate::destinations::paint(buffer, area, &view.destination, palette);
+            crate::destinations::paint(buffer, area, view, palette);
         }
         ScreenView::Today { total_seconds } => {
             landing(buffer, area, view, *total_seconds, palette, native);

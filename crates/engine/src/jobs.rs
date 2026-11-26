@@ -15,10 +15,12 @@ pub enum JobKind {
     ConfigWrite,
     /// A `config.toml` reload (#79).
     ConfigReload,
+    /// The Progress destination's bounded history query (#81).
+    History,
 }
 
 /// One slot per kind.
-const KINDS: usize = 3;
+const KINDS: usize = 4;
 
 impl JobKind {
     const fn index(self) -> usize {
@@ -26,6 +28,7 @@ impl JobKind {
             Self::Ping => 0,
             Self::ConfigWrite => 1,
             Self::ConfigReload => 2,
+            Self::History => 3,
         }
     }
 }
@@ -56,6 +59,8 @@ pub enum JobOutcome {
         /// The file's digest.
         digest: Option<cadence_core::settings::ConfigDigest>,
     },
+    /// The history query's sessions, oldest first (#81).
+    History(Vec<cadence_core::progress::HistoryPoint>),
 }
 
 /// One kind's state.

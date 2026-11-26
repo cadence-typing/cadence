@@ -247,7 +247,7 @@ impl SettingsState {
                         self.notice = Some(Notice::Saved);
                         self.overlay = None;
                     }
-                    JobKind::ConfigReload | JobKind::Ping => {
+                    JobKind::ConfigReload | JobKind::Ping | JobKind::History => {
                         self.notice = Some(Notice::Reloaded);
                         if let Some(overlay) = self.overlay.as_mut() {
                             overlay.draft.clone_from(&self.values);
@@ -264,7 +264,7 @@ impl SettingsState {
                 }
                 Vec::new()
             }
-            JobOutcome::Succeeded => Vec::new(),
+            JobOutcome::Succeeded | JobOutcome::History(_) => Vec::new(),
         }
     }
 

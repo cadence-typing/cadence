@@ -185,6 +185,51 @@ impl ProgressStore {
         Ok(())
     }
 
+    /// The newest `limit` sessions with their basis and exact track totals,
+    /// oldest first (#81): synthetic and probe sessions included, so the
+    /// caller can keep them out of a series visibly. Bounded by `limit`.
+    ///
+    /// # Errors
+    /// Corrupt rows or SQL failures.
+    pub fn history_points(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<cadence_core::progress::HistoryPoint>, StoreError> {
+        let adopter = self.adopter()?;
+        let limit = i64::try_from(limit)
+            .map_err(|error| StoreError::Corrupt(format!("history limit: {error}")))?;
+        let mut statement = self.connection.prepare(
+            "SELECT s.session_id, s.provenance, p.comparable
+             FROM sessions s LEFT JOIN benchmark_probes p ON p.session_id = s.session_id
+             ORDER BY s.session_id DESC LIMIT ?1",
+        )?;
+        let rows: Vec<(i64, String, Option<i64>)> = statement
+            .query_map([limit], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<Result<_, _>>()?;
+        let mut points = Vec::with_capacity(rows.len());
+        for (id, provenance, comparable) in rows.into_iter().rev() {
+            let session = SessionId::new(
+                u64::try_from(id)
+                    .map_err(|error| StoreError::Corrupt(format!("session id: {error}")))?,
+            )
+            .map_err(|error| StoreError::Corrupt(error.to_string()))?;
+            let Some(stored) = records::load_session(&self.connection, session)? else {
+                continue;
+            };
+            let progress = stored.checkpoint.progress;
+            points.push(cadence_core::progress::HistoryPoint {
+                session,
+                day: progress.day,
+                layout: progress.layout.or(adopter),
+                content_class: progress.content_class,
+                synthetic: provenance == "synthetic",
+                probe_comparable: comparable.map(|c| c == 1),
+                tracks: progress.tracks,
+            });
+        }
+        Ok(points)
+    }
+
     /// Records the score-affecting settings a session starts with (#79):
     /// for each key whose value differs from its last audited value (its
     /// default when never audited), one row at `at_session`. Launching

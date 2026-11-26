@@ -442,6 +442,8 @@ pub struct PreparedView {
     pub help: Option<&'static [crate::commands::Binding]>,
     /// The selected destination outside practice (#80).
     pub destination: DestinationView,
+    /// The Progress destination, when selected (#81).
+    pub progress: Option<crate::progress::ProgressView>,
     /// The effective display settings, applied at once (#79).
     pub display: DisplayView,
 }

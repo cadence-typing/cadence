@@ -1,0 +1,107 @@
+===== progress run / at launch
+  DAILY PRACTICE                                                                      0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+              ┌ Set up Cadence ──────────────────────────────────────────────────────┐
+              │› layout            "us"             applies now                      │
+              │  numpad            true             applies now                      │
+              │  minutes           15               applies now                      │
+              │                                                                      │
+              │                                                                      │
+              │↑↓ choose · ←→ change · Enter start (as shown)                        │
+              └──────────────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ Enter begin  q quit  ? help  Tab / → next screen  Shift-Tab / ← previous screen  s settings
+===== progress run / setup accepted
+  TODAY   Train   Numpad   Progress                                                   0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+                                              cadence
+
+
+                                  Make room for a little practice.
+                               15:00 allocated · practice at your pace
+
+       ○ warm-up       ○ words      ○ number row     ○ numpad        ○ prose        ○ review
+         1:00           5:00            2:00           3:00           3:00            1:00
+
+                                         UP FIRST · warm-up
+                       Settle into an easy rhythm; familiar words are checked.
+
+                             Local history · 0 completed · 0 unfinished
+                  No per-key history yet: this session teaches Cadence your slips.
+            Words goal: building your baseline   number row goal: building your baseline
+
+                                        Enter  Begin session
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ Enter begin  q quit  ? help  Tab / → next screen  Shift-Tab / ← previous screen  s settings
+===== progress run / progress
+  Today   Train   Numpad   PROGRESS                                                   0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Progress
+    Only sessions on the same layout and content are compared.
+
+    No sessions yet: practise once and your trends start here.
+
+    Due reviews 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ q quit  ? help  Tab / → next screen  Shift-Tab / ← previous screen  s settings  F2 text size (AUTO)
+===== config.toml
+[keyboard]
+layout = "us"
+numpad = true
+
+[session]
+minutes = 15
+

@@ -943,3 +943,78 @@ fn destinations_and_help_render_at_three_sizes() -> Result<(), Box<dyn std::erro
     }
     Ok(())
 }
+
+/// #81: Progress renders at three sizes, empty and with a series.
+#[test]
+fn progress_renders_at_three_sizes() -> Result<(), Box<dyn std::error::Error>> {
+    use cadence_core::progress::{ContentClass, HistoryPoint, Track, TrackProgress};
+    use cadence_engine::jobs::JobOutcome;
+    let session = |id: u64| -> Result<HistoryPoint, Box<dyn std::error::Error>> {
+        Ok(HistoryPoint {
+            session: cadence_core::SessionId::new(id)?,
+            day: 1,
+            layout: Some(Layout::Us),
+            content_class: ContentClass::Standard,
+            synthetic: false,
+            probe_comparable: None,
+            tracks: vec![TrackProgress {
+                first_correct: 90,
+                first_attempted: 100,
+                correct_units: 300,
+                active_micros: 60_000_000,
+                ..TrackProgress::empty(Track::Words)
+            }],
+        })
+    };
+    let cases: [(Vec<HistoryPoint>, &[&str]); 2] = [
+        (
+            Vec::new(),
+            &["PROGRESS", "No sessions yet", "Due reviews 0"],
+        ),
+        (
+            vec![session(1)?, session(2)?, session(3)?],
+            &[
+                "words",
+                "90.0% first pass (270 / 300)",
+                "3 comparable sessions",
+            ],
+        ),
+    ];
+    for (points, expected) in cases {
+        let mut engine = planned_engine("cat")?;
+        let mut ticket = None;
+        for seq in 1..=3 {
+            ticket = engine
+                .reduce(envelope(seq, seq, EventKind::Key(Key::Tab)))
+                .job
+                .or(ticket);
+        }
+        let ticket = ticket.ok_or("history query")?;
+        engine.reduce(envelope(
+            4,
+            4,
+            EventKind::JobResult {
+                ticket,
+                outcome: JobOutcome::History(points),
+            },
+        ));
+        let view = engine.prepare(MonoTick::from_us(10));
+        for (columns, rows) in [(60_u16, 18_u16), (100, 32), (120, 40)] {
+            let mut buffer = Buffer::empty(Rect::new(0, 0, columns, rows));
+            let area = buffer.area;
+            let mut renditions = vec![LineRendition::Normal; usize::from(rows)];
+            paint(
+                &mut buffer,
+                area,
+                &view,
+                Palette::cadence_dark(),
+                &mut renditions,
+            );
+            let text = screen_text(&buffer);
+            for want in expected {
+                assert!(text.contains(want), "{columns}x{rows}: {want}\n{text}");
+            }
+        }
+    }
+    Ok(())
+}

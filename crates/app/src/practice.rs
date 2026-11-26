@@ -28,6 +28,13 @@ pub struct Prepared {
     pub bootstrap: StoreBootstrap,
 }
 
+/// The workers a reduction may hand a started job to.
+#[derive(Clone, Copy)]
+struct Ports<'a> {
+    config: &'a ConfigWorker,
+    worker: &'a SaveWorker,
+}
+
 /// The engine, its event sequence and its undispatched checkpoint.
 struct Owner {
     engine: Engine,
@@ -48,7 +55,7 @@ impl Owner {
         &mut self,
         at: MonoTick,
         kind: EventKind,
-        config: &ConfigWorker,
+        ports: Ports<'_>,
     ) -> Result<Transition, Box<dyn Error>> {
         let next = self.seq.next()?;
         let mut transition = self.engine.reduce(EventEnvelope {
@@ -63,11 +70,14 @@ impl Owner {
             }
             self.dispatch = Some(checkpoint);
         }
-        // A started settings job goes to the config worker (#79).
-        if let Some(ticket) = transition.job
-            && let Some(request) = self.engine.settings_request(ticket)
-        {
-            config.submit(ticket, request)?;
+        // A started settings job goes to the config worker (#79), a history
+        // query to the store's writer (#81).
+        if let Some(ticket) = transition.job {
+            if let Some(request) = self.engine.settings_request(ticket) {
+                ports.config.submit(ticket, request)?;
+            } else if let Some(limit) = self.engine.history_request(ticket) {
+                ports.worker.try_query(ticket, limit)?;
+            }
         }
         Ok(transition)
     }
@@ -79,9 +89,9 @@ fn begin(
     bootstrap: StoreBootstrap,
     (day, text_size): (i64, TextSize),
     (terminal, origin): (&TerminalGuard, Instant),
-    config: &ConfigWorker,
+    ports: Ports<'_>,
 ) -> Result<(), Box<dyn Error>> {
-    owner.apply(MonoTick::ORIGIN, EventKind::SetTextSize(text_size), config)?;
+    owner.apply(MonoTick::ORIGIN, EventKind::SetTextSize(text_size), ports)?;
     owner.apply(
         MonoTick::ORIGIN,
         EventKind::StorageReady {
@@ -89,18 +99,18 @@ fn begin(
             day,
             history: bootstrap.history,
         },
-        config,
+        ports,
     )?;
     let (columns, rows) = terminal.viewport()?;
     owner.apply(
         elapsed_since(origin)?,
         EventKind::Resized { columns, rows },
-        config,
+        ports,
     )?;
     owner.apply(
         elapsed_since(origin)?,
         EventKind::SetTextSupport(terminal.text_support()),
-        config,
+        ports,
     )?;
     Ok(())
 }
@@ -125,7 +135,10 @@ pub fn run(
         bootstrap,
         (day, text_size),
         (&terminal, origin),
-        &config,
+        Ports {
+            config: &config,
+            worker: &worker,
+        },
     )?;
     draw(
         &owner.engine,
@@ -142,7 +155,10 @@ pub fn run(
             let transition = owner.apply(
                 elapsed_since(origin)?,
                 EventKind::SaveResult(result),
-                &config,
+                Ports {
+                    config: &config,
+                    worker: &worker,
+                },
             )?;
             if transition.quit {
                 break transition.exit_failed;
@@ -163,7 +179,10 @@ pub fn run(
             let transition = owner.apply(
                 elapsed_since(origin)?,
                 EventKind::JobResult { ticket, outcome },
-                &config,
+                Ports {
+                    config: &config,
+                    worker: &worker,
+                },
             )?;
             if transition.outcome == DomainOutcome::SetupComplete {
                 // Setup is written (#78) and nothing was typed or saved: the
@@ -177,9 +196,36 @@ pub fn run(
                     next.bootstrap,
                     (day, text_size),
                     (&terminal, origin),
-                    &config,
+                    Ports {
+                        config: &config,
+                        worker: &worker,
+                    },
                 )?;
             }
+            if transition.dirty {
+                draw(
+                    &owner.engine,
+                    &mut terminal,
+                    elapsed_since(origin)?,
+                    palette,
+                )?;
+                last_frame = Instant::now();
+            }
+        }
+        // A history answer for Progress (#81), admitted the same way.
+        if let Some((ticket, answer)) = worker.try_history()? {
+            let outcome = match answer {
+                Ok(points) => cadence_engine::jobs::JobOutcome::History(points),
+                Err(reason) => cadence_engine::jobs::JobOutcome::Failed(reason),
+            };
+            let transition = owner.apply(
+                elapsed_since(origin)?,
+                EventKind::JobResult { ticket, outcome },
+                Ports {
+                    config: &config,
+                    worker: &worker,
+                },
+            )?;
             if transition.dirty {
                 draw(
                     &owner.engine,
@@ -194,7 +240,14 @@ pub fn run(
         // Timestamp immediately after read, before reduction and drawing.
         let at = elapsed_since(origin)?;
         let semantic = event.is_some();
-        let transition = owner.apply(at, event.unwrap_or(EventKind::Tick), &config)?;
+        let transition = owner.apply(
+            at,
+            event.unwrap_or(EventKind::Tick),
+            Ports {
+                config: &config,
+                worker: &worker,
+            },
+        )?;
         if transition.quit {
             break transition.exit_failed;
         }
@@ -210,12 +263,18 @@ pub fn run(
                 next.bootstrap,
                 (day, text_size),
                 (&terminal, origin),
-                &config,
+                Ports {
+                    config: &config,
+                    worker: &worker,
+                },
             )?;
             owner.apply(
                 elapsed_since(origin)?,
                 EventKind::Command(cadence_engine::commands::Action::Begin),
-                &config,
+                Ports {
+                    config: &config,
+                    worker: &worker,
+                },
             )?;
             draw(
                 &owner.engine,

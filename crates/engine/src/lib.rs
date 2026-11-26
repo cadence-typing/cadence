@@ -11,6 +11,7 @@ mod learning;
 mod navigation;
 mod practice;
 mod presentation;
+pub mod progress;
 mod review;
 pub mod settings;
 pub mod setup;
@@ -165,6 +166,8 @@ pub struct Engine {
     setup: Option<setup::Setup>,
     /// Destinations and help (#80).
     navigation: navigation::Navigation,
+    /// The Progress destination's history (#81).
+    progress: progress::ProgressState,
     /// The group of the checkpoint whose acknowledgement is being consumed
     /// (#71): a follow-up dispatched now inherits it.
     ack_group: Option<u64>,
@@ -262,6 +265,7 @@ impl Engine {
             settings: settings::SettingsState::default(),
             setup: None,
             navigation: navigation::Navigation::default(),
+            progress: progress::ProgressState::default(),
             ack_group: None,
             probe_paused: false,
             probe_pasted: false,
@@ -432,11 +436,12 @@ impl Engine {
             EventKind::SaveResult(result) => self.save_result(result, &mut t)?,
             EventKind::StartJob(kind) => t.job = self.jobs.start(kind),
             EventKind::JobResult { ticket, outcome } => {
-                if self.jobs.result(ticket, outcome)
-                    && self.settings_result(ticket.kind)
-                    && self.setup.take().is_some()
-                {
-                    t.outcome = DomainOutcome::SetupComplete;
+                if self.jobs.result(ticket, outcome) {
+                    if ticket.kind == jobs::JobKind::History {
+                        self.history_result();
+                    } else if self.settings_result(ticket.kind) && self.setup.take().is_some() {
+                        t.outcome = DomainOutcome::SetupComplete;
+                    }
                 }
             }
             EventKind::RestartJobs => self.jobs.restart(),

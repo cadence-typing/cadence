@@ -14,6 +14,22 @@ use cadence_data::{ProgressStore, StoreBootstrap, StoreError};
 
 /// One in-flight checkpoint, matching the engine's save-state contract.
 const SAVE_SLOT_COUNT: usize = 1;
+/// One in-flight history query (#81): the engine keeps one per kind.
+const HISTORY_SLOT_COUNT: usize = 1;
+
+/// What the writer is asked to do. A query never delays a save past the
+/// one ahead of it, and its answer has its own channel.
+enum Request {
+    // Boxed: a checkpoint is far larger than a query.
+    Save(Box<Checkpoint>),
+    History(cadence_engine::jobs::JobTicket, usize),
+}
+
+/// A history query's answer, with the ticket it answers (#81).
+pub type HistoryAnswer = (
+    cadence_engine::jobs::JobTicket,
+    Result<Vec<cadence_core::progress::HistoryPoint>, String>,
+);
 /// Startup watchdog is wall time, never practice time.
 const STORE_STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -55,8 +71,9 @@ impl std::error::Error for WriterError {}
 
 /// Owner-side handle. The database and its advisory lock live on the worker.
 pub struct SaveWorker {
-    requests: SyncSender<Checkpoint>,
+    requests: SyncSender<Request>,
     results: Receiver<SaveResult>,
+    history: Receiver<HistoryAnswer>,
     thread: JoinHandle<()>,
 }
 
@@ -68,7 +85,9 @@ impl SaveWorker {
         layout: Option<cadence_core::Layout>,
         audit: Vec<(&'static str, String)>,
     ) -> Result<(Self, StoreBootstrap), WriterError> {
-        let (requests, incoming) = mpsc::sync_channel(SAVE_SLOT_COUNT);
+        let (requests, incoming) =
+            mpsc::sync_channel(SAVE_SLOT_COUNT.saturating_add(HISTORY_SLOT_COUNT));
+        let (answers, history) = mpsc::sync_channel(HISTORY_SLOT_COUNT);
         let (outgoing, results) = mpsc::sync_channel(SAVE_SLOT_COUNT);
         let (startup, ready) = mpsc::sync_channel(SAVE_SLOT_COUNT);
         let thread = thread::Builder::new()
@@ -79,7 +98,7 @@ impl SaveWorker {
                     learner_window,
                     (layout, audit),
                     incoming,
-                    outgoing,
+                    (outgoing, answers),
                     startup,
                 );
             })
@@ -89,6 +108,7 @@ impl SaveWorker {
                 Self {
                     requests,
                     results,
+                    history,
                     thread,
                 },
                 bootstrap,
@@ -109,16 +129,47 @@ impl SaveWorker {
         let Some(checkpoint) = pending.take() else {
             return Ok(());
         };
-        match self.requests.try_send(checkpoint) {
+        match self.requests.try_send(Request::Save(Box::new(checkpoint))) {
             Ok(()) => Ok(()),
-            Err(TrySendError::Full(checkpoint)) => {
-                *pending = Some(checkpoint);
+            Err(TrySendError::Full(Request::Save(checkpoint))) => {
+                *pending = Some(*checkpoint);
                 Err(WriterError::Busy)
             }
-            Err(TrySendError::Disconnected(checkpoint)) => {
-                *pending = Some(checkpoint);
+            Err(TrySendError::Disconnected(Request::Save(checkpoint))) => {
+                *pending = Some(*checkpoint);
                 Err(WriterError::Disconnected)
             }
+            Err(TrySendError::Full(Request::History(..))) => Err(WriterError::Busy),
+            Err(TrySendError::Disconnected(Request::History(..))) => Err(WriterError::Disconnected),
+        }
+    }
+
+    /// Asks for the newest `limit` sessions' history (#81).
+    ///
+    /// # Errors
+    /// Busy or disconnected.
+    pub fn try_query(
+        &self,
+        ticket: cadence_engine::jobs::JobTicket,
+        limit: usize,
+    ) -> Result<(), WriterError> {
+        self.requests
+            .try_send(Request::History(ticket, limit))
+            .map_err(|error| match error {
+                TrySendError::Full(_) => WriterError::Busy,
+                TrySendError::Disconnected(_) => WriterError::Disconnected,
+            })
+    }
+
+    /// One history answer, if any.
+    ///
+    /// # Errors
+    /// The writer stopped.
+    pub fn try_history(&self) -> Result<Option<HistoryAnswer>, WriterError> {
+        match self.history.try_recv() {
+            Ok(answer) => Ok(Some(answer)),
+            Err(TryRecvError::Empty) => Ok(None),
+            Err(TryRecvError::Disconnected) => Err(WriterError::Disconnected),
         }
     }
 
@@ -137,9 +188,11 @@ impl SaveWorker {
         let Self {
             requests,
             results,
+            history,
             thread,
         } = self;
         drop(requests);
+        drop(history);
         // Disconnecting results also unblocks publication on abnormal exit.
         drop(results);
         thread
@@ -163,8 +216,8 @@ fn writer_loop(
     profile: Option<PathBuf>,
     learner_window: usize,
     (layout, audit): (Option<cadence_core::Layout>, Vec<(&'static str, String)>),
-    requests: Receiver<Checkpoint>,
-    results: SyncSender<SaveResult>,
+    requests: Receiver<Request>,
+    (results, answers): (SyncSender<SaveResult>, SyncSender<HistoryAnswer>),
     startup: SyncSender<Result<StoreBootstrap, StoreError>>,
 ) {
     let opened = ProgressStore::open(profile.as_deref()).and_then(|mut store| {
@@ -196,7 +249,19 @@ fn writer_loop(
     };
     #[cfg(feature = "test-faults")]
     let slow = slow_save_fault();
-    while let Ok(checkpoint) = requests.recv() {
+    while let Ok(request) = requests.recv() {
+        let checkpoint = match request {
+            Request::Save(checkpoint) => *checkpoint,
+            Request::History(ticket, limit) => {
+                let answer = store
+                    .history_points(limit)
+                    .map_err(|error| error.to_string());
+                if answers.send((ticket, answer)).is_err() {
+                    return;
+                }
+                continue;
+            }
+        };
         let key = checkpoint.key;
         #[cfg(feature = "test-faults")]
         if let Some((sequence, delay)) = slow
