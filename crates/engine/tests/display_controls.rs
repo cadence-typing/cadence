@@ -34,6 +34,7 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
                     words: Vec::new(),
                     passage: None,
                     caption: None,
+                    target: None,
                 }],
             },
             PlannedPhase {
@@ -45,6 +46,7 @@ fn engine() -> Result<Engine, Box<dyn std::error::Error>> {
                     words: Vec::new(),
                     passage: None,
                     caption: None,
+                    target: None,
                 }],
             },
             PlannedPhase {

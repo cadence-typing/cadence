@@ -43,6 +43,7 @@ fn planned_engine(text: &str) -> Result<Engine, Box<dyn std::error::Error>> {
                 words: Vec::new(),
                 passage: None,
                 caption: None,
+                target: None,
             }],
         }],
     })?)

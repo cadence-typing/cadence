@@ -39,6 +39,7 @@ fn words_exercise(slots: &[(&str, u64, Lane)]) -> Result<PlannedExercise, Error>
             .collect::<Result<_, cadence_core::CoreError>>()?,
         passage: None,
         caption: None,
+        target: None,
     })
 }
 

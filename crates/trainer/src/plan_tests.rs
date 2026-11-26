@@ -408,3 +408,97 @@ fn target_words_keep_their_repeat_gap() {
         );
     }
 }
+
+/// #5: with a numpad focus, exactly two of every three numpad entries are
+/// built around a focus skill and the third is uniform; the number row
+/// (no row focus here) stays uniform: L-01 keeps the groups apart. A cold
+/// start is uniform everywhere.
+#[test]
+fn numeric_entries_follow_their_own_groups_focus() {
+    let v3 =
+        crate::policy::parse_policy(include_bytes!("../../../policies/trainer-v3.toml")).unwrap();
+    let unit = |c| TrainingChar::new(c, LayoutSupportsPound::US).unwrap();
+    let numpad_key = |skill| SkillKey {
+        lane: KeyLane::Numpad,
+        skill,
+    };
+    let mut learning = SessionLearning::new(PlanRecord {
+        seed: 1,
+        mode: PlannerMode::ColdStart,
+        focus: Vec::new(),
+    });
+    let tally = |attempts, errors| SkillTally {
+        attempts,
+        errors,
+        timed: 0,
+        timed_micros: 0,
+    };
+    learning
+        .skills
+        .insert(numpad_key(Skill::Unit(unit('7'))), tally(60, 20));
+    learning.skills.insert(
+        numpad_key(Skill::Bigram(unit('4'), unit('8'))),
+        tally(60, 18),
+    );
+    learning
+        .skills
+        .insert(numpad_key(Skill::Unit(unit('5'))), tally(600, 0));
+    let history = LearnerHistory {
+        sessions: vec![HistoricSession {
+            session: SessionId::FIRST,
+            day: 10,
+            learning,
+        }],
+    };
+    let learner =
+        LearnerModel::from_history(&history, &v3, UtcDay::from_days_since_epoch(11).unwrap())
+            .unwrap();
+    assert!(
+        !learner
+            .focus_in(crate::learner::FocusGroup::Numpad)
+            .is_empty()
+    );
+    let (words, bank) = (pack(3_000), prose(40));
+    let build = |learner: &LearnerModel| {
+        build_session_plan(
+            &v3,
+            PlanInputs {
+                pack: &words,
+                prose: &bank,
+                learner,
+            },
+            9,
+            &[],
+            900,
+        )
+        .unwrap()
+    };
+    let plan = build(&learner);
+    let numpad = &phase(&plan, Phase::Numpad).exercises;
+    for (index, exercise) in numpad.iter().enumerate() {
+        let text = text(&exercise.units);
+        match exercise.target {
+            Some(key) => {
+                assert!(index % 3 < 2, "entry {index} targeted");
+                assert_eq!(key.lane, KeyLane::Numpad);
+                assert!(crate::numeric::contains_skill(&text, key.skill), "{text}");
+            }
+            None => assert_eq!(index % 3, 2, "entry {index} uniform"),
+        }
+    }
+    assert!(
+        phase(&plan, Phase::NumberRow)
+            .exercises
+            .iter()
+            .all(|e| e.target.is_none())
+    );
+    let cold = build(&cold());
+    for wanted in [Phase::Numpad, Phase::NumberRow] {
+        assert!(
+            phase(&cold, wanted)
+                .exercises
+                .iter()
+                .all(|e| e.target.is_none())
+        );
+    }
+}

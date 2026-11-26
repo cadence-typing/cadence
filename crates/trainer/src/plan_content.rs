@@ -5,6 +5,7 @@
 use cadence_core::label;
 use std::cmp::Reverse;
 
+use crate::learner::FocusGroup;
 use crate::numeric::{number_row_exercise, numpad_exercise};
 use crate::plan::{ExerciseKind, PlanError, PlanInputs, PlanRng, PlannedExercise};
 use crate::plan_words::WordSelector;
@@ -34,16 +35,46 @@ pub(super) fn exercises(
                 .map_err(|_unrepresentable| content("exercise count overflow"))?;
             let mut used = std::collections::HashSet::new();
             let mut result = Vec::with_capacity(count);
-            for _ in 0..count {
-                let (units, kind) = if phase == Phase::Numpad {
-                    (numpad_exercise(rng, &mut used), ExerciseKind::Numpad)
+            // #5: the group's focus (L-01: the number row and the numpad
+            // never share one); `numeric_target_share` of the entries are
+            // built around a focus skill in turn, the rest stay uniform.
+            let group = if phase == Phase::Numpad {
+                FocusGroup::Numpad
+            } else {
+                FocusGroup::Row
+            };
+            let focus = inputs.learner.focus_in(group);
+            let (share, cycle) = policy.learning.numeric_target_share;
+            let cycle = usize::try_from(cycle.max(1)).unwrap_or(1);
+            let share = usize::try_from(share).unwrap_or(0);
+            let mut turn = 0_usize;
+            for index in 0..count {
+                let targeted =
+                    !focus.is_empty() && index.checked_rem(cycle).is_some_and(|i| i < share);
+                let target = if targeted {
+                    let key = focus
+                        .get(turn.checked_rem(focus.len()).unwrap_or(0))
+                        .copied();
+                    turn = turn.saturating_add(1);
+                    key
                 } else {
-                    (number_row_exercise(rng, &mut used), ExerciseKind::NumberRow)
+                    None
                 };
-                result.push(PlannedExercise::plain(
+                let skill = target.map(|key| key.skill);
+                let (units, kind) = if phase == Phase::Numpad {
+                    (numpad_exercise(rng, &mut used, skill), ExerciseKind::Numpad)
+                } else {
+                    (
+                        number_row_exercise(rng, &mut used, skill),
+                        ExerciseKind::NumberRow,
+                    )
+                };
+                let mut exercise = PlannedExercise::plain(
                     units.map_err(|error| content(&error.to_string()))?,
                     kind,
-                ));
+                );
+                exercise.target = target;
+                result.push(exercise);
             }
             Ok(result)
         }
@@ -73,6 +104,7 @@ fn words(
             words,
             passage: None,
             caption: None,
+            target: None,
         });
     }
     Ok(result)
@@ -143,6 +175,7 @@ fn prose(
                 words: Vec::new(),
                 passage: Some(passage.id),
                 caption: Some(caption.clone()),
+                target: None,
             });
         }
     }

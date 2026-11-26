@@ -26,6 +26,7 @@ pub fn phase(
             words: Vec::new(),
             passage: None,
             caption: None,
+            target: None,
         });
     }
     Ok(PlannedPhase {

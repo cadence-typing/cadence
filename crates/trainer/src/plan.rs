@@ -89,6 +89,9 @@ pub struct PlannedExercise {
     pub passage: Option<PassageId>,
     /// Attribution or repeat notice shown with the target.
     pub caption: Option<String>,
+    /// The focus skill a numeric entry was built around (#5), for the
+    /// caption (#50) and replay; `None` for uniform entries.
+    pub target: Option<cadence_core::learning::SkillKey>,
 }
 
 impl PlannedExercise {
@@ -101,6 +104,7 @@ impl PlannedExercise {
             words: Vec::new(),
             passage: None,
             caption: None,
+            target: None,
         }
     }
 }
