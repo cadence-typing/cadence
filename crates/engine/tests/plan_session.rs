@@ -494,3 +494,46 @@ fn clean_exit_waits_for_the_final_acknowledgement() -> TestResult {
     assert!(done.quit && !done.exit_failed);
     Ok(())
 }
+
+#[test]
+fn deadline_end_early_and_exit_credit_an_exercise_once() -> TestResult {
+    // #33: the deadline closes the open exercise; ending early from the
+    // interlude and then exiting must not merge its counters again.
+    let mut e = engine(vec![
+        phase(ExerciseKind::Words, Phase::AdaptiveWords, 10, &["cat"])?,
+        phase(ExerciseKind::Numpad, Phase::Numpad, 20, &["12"])?,
+    ])?;
+    ready(&mut e)?;
+    let first = checkpoint(key(&mut e, 0, Key::Enter)?)?;
+    ack(&mut e, 1, &first)?;
+    content(&mut e, 1_000_000, 'c')?;
+    content(&mut e, 1_500_000, 'x')?;
+    let deadline = send(&mut e, 40_000_000, EventKind::Tick)?;
+    assert!(matches!(
+        deadline.outcome,
+        DomainOutcome::PhaseDeadline { partial: true, .. }
+    ));
+    let at_deadline = checkpoint(deadline)?;
+    ack(&mut e, 40_000_001, &at_deadline)?;
+    let ended = checkpoint(key(&mut e, 41_000_000, Key::Interrupt)?)?;
+    ack(&mut e, 41_000_001, &ended)?;
+    let final_save = checkpoint(send(&mut e, 42_000_000, EventKind::Terminate)?)?;
+    for save in [&at_deadline, &ended, &final_save] {
+        let words = save
+            .progress
+            .tracks
+            .iter()
+            .find(|t| t.track == cadence_core::progress::Track::Words)
+            .ok_or("words track expected")?;
+        assert_eq!(
+            (
+                words.content_attempts,
+                words.first_attempted,
+                words.first_correct
+            ),
+            (2, 2, 1),
+            "the exercise is credited exactly once"
+        );
+    }
+    Ok(())
+}

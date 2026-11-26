@@ -314,6 +314,91 @@ def progress.track_valid (t : progress.TrackCounters) : Result Bool := do
     else ok false
   else ok false
 
+/-- [cadence_kernel::progress::Merge]
+    Source: 'crates/kernel/src/progress.rs', lines 78:0-83:1
+    Visibility: public -/
+@[discriminant isize]
+inductive progress.Merge where
+| Merged : progress.TrackCounters → progress.Merge
+| Overflow : progress.Merge
+
+/-- [cadence_kernel::progress::merge]:
+    Source: 'crates/kernel/src/progress.rs', lines 88:0-145:1
+    Visibility: public -/
+def progress.merge
+  (total : progress.TrackCounters) (exercise : progress.TrackCounters) :
+  Result progress.Merge
+  := do
+  let o ← lift (U64.checked_add total.first_correct exercise.first_correct)
+  match o with
+  | none => ok progress.Merge.Overflow
+  | some first_correct =>
+    let o1 ←
+      lift (U64.checked_add total.first_attempted exercise.first_attempted)
+    match o1 with
+    | none => ok progress.Merge.Overflow
+    | some first_attempted =>
+      let o2 ←
+        lift (U64.checked_add total.correct_attempts exercise.correct_attempts)
+      match o2 with
+      | none => ok progress.Merge.Overflow
+      | some correct_attempts =>
+        let o3 ←
+          lift (U64.checked_add total.content_attempts
+            exercise.content_attempts)
+        match o3 with
+        | none => ok progress.Merge.Overflow
+        | some content_attempts =>
+          let o4 ← lift (U64.checked_add total.deletions exercise.deletions)
+          match o4 with
+          | none => ok progress.Merge.Overflow
+          | some deletions =>
+            let o5 ←
+              lift (U64.checked_add total.overflow_attempts
+                exercise.overflow_attempts)
+            match o5 with
+            | none => ok progress.Merge.Overflow
+            | some overflow_attempts =>
+              let o6 ←
+                lift (U64.checked_add total.correct_units
+                  exercise.correct_units)
+              match o6 with
+              | none => ok progress.Merge.Overflow
+              | some correct_units =>
+                let o7 ←
+                  lift (U64.checked_add total.correct_digits
+                    exercise.correct_digits)
+                match o7 with
+                | none => ok progress.Merge.Overflow
+                | some correct_digits =>
+                  let o8 ←
+                    lift (U64.checked_add total.active_micros
+                      exercise.active_micros)
+                  match o8 with
+                  | none => ok progress.Merge.Overflow
+                  | some active_micros =>
+                    ok (progress.Merge.Merged
+                      {
+                        first_correct,
+                        first_attempted,
+                        correct_attempts,
+                        content_attempts,
+                        deletions,
+                        overflow_attempts,
+                        correct_units,
+                        correct_digits,
+                        active_micros
+                      })
+
+/-- [cadence_kernel::progress::credit_once]:
+    Source: 'crates/kernel/src/progress.rs', lines 151:0-156:1
+    Visibility: public -/
+def progress.credit_once
+  (last_credited : Option Std.U64) (closing : Std.U64) : Result Bool := do
+  match last_credited with
+  | none => ok true
+  | some last => ok (closing > last)
+
 /-- [cadence_kernel::ratio::WPM_UNITS_PER_WORD]
     Source: 'crates/kernel/src/ratio.rs', lines 6:0-6:39
     Visibility: public -/

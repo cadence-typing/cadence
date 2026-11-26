@@ -3,7 +3,7 @@ use super::{DomainOutcome, Engine, Key, Screen, invalid};
 use cadence_core::learning::KeyLane;
 use cadence_core::ledger::{Applied, AttemptLedger, ExtraInputAllowance, LedgerEvent, Slot};
 use cadence_core::metrics::{correct_digits, first_pass_accuracy};
-use cadence_core::progress::{Track, TrackProgress};
+use cadence_core::progress::{Track, TrackProgress, credit_once};
 use cadence_core::session::{SessionEvent, SessionState};
 use cadence_core::{CoreError, ExerciseId, Micros, MonoTick};
 use cadence_trainer::{ExerciseKind, Phase};
@@ -90,6 +90,10 @@ impl Engine {
             .get(self.exercise_index)
             .ok_or_else(|| invalid("missing exercise"))?;
         let units = self.learning.open(exercise)?;
+        self.opened = self
+            .opened
+            .checked_add(1)
+            .ok_or_else(|| invalid("exercise ledger sequence exhausted"))?;
         self.ledger = Some(AttemptLedger::new(
             units,
             ExtraInputAllowance::new(EXTRA_INPUT_UNITS)?,
@@ -125,7 +129,14 @@ impl Engine {
     }
     pub(super) fn record_exercise(&mut self) -> Result<(), CoreError> {
         if let Some(progress) = self.current_progress()? {
+            // The kernel decides whether this ledger may be credited (Lean:
+            // only one newer than every credited ledger is, so no exercise
+            // is merged twice).
+            if !credit_once(self.last_credited, self.opened) {
+                return Err(invalid("exercise credited twice"));
+            }
             merge_track(&mut self.tracks, progress)?;
+            self.last_credited = Some(self.opened);
         }
         if let Some(ledger) = self.ledger.take() {
             let exercise = self

@@ -453,3 +453,41 @@ name = "invalidate-refused-when-saved"
 file = "crates/kernel/src/session.rs"
 before = "            State::Saved => Step::Move {\n                next: State::Saved,\n                clock: Clock::Keep,\n                outcome: Outcome::Unchanged,\n            },\n        },\n        Event::Resume"
 after = "            State::Saved => Step::Refused,\n        },\n        Event::Resume"
+
+# ---- exercise credit (crates/kernel/src/progress.rs, #33)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/progress.rs"
+function = "progress::merge"
+lean = "cadence_kernel.progress.merge"
+theorems = ["Proofs.Progress.merge_exact", "Proofs.Progress.merge_keeps_valid"]
+total = "Proofs.Progress.merge_exact"
+mutants = ["merge-drops-deletions", "merge-saturates"]
+
+[[mutant]]
+name = "merge-drops-deletions"
+file = "crates/kernel/src/progress.rs"
+before = "                                                deletions,\n"
+after = "                                                deletions: deletions.saturating_sub(exercise.deletions),\n"
+
+[[mutant]]
+name = "merge-saturates"
+file = "crates/kernel/src/progress.rs"
+before = "    match total.first_correct.checked_add(exercise.first_correct) {\n        None => Merge::Overflow,\n"
+after = "    match Some(total.first_correct.saturating_add(exercise.first_correct)) {\n        None => Merge::Overflow,\n"
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/progress.rs"
+function = "progress::credit_once"
+lean = "cadence_kernel.progress.credit_once"
+theorems = ["Proofs.Progress.credit_once_spec"]
+total = "Proofs.Progress.credit_once_spec"
+mutants = ["credit-allows-equal"]
+
+[[mutant]]
+name = "credit-allows-equal"
+file = "crates/kernel/src/progress.rs"
+before = "        Some(last) => closing > last,\n"
+after = "        Some(last) => closing >= last,\n"

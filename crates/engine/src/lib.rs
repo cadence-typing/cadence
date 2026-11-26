@@ -123,6 +123,12 @@ pub struct Engine {
     ledger: Option<AttemptLedger>,
     timing: TimingSegments,
     session_state: SessionState,
+    /// Sequence of the open exercise's ledger: every opened ledger gets a
+    /// new one, so a closing exercise is identified even when the exercise
+    /// counter does not advance (a deadline cuts it).
+    opened: u64,
+    /// The last ledger sequence whose counters were merged into a track.
+    last_credited: Option<u64>,
     phase_start: Micros,
     exercise_start: Micros,
     active: Micros,
@@ -188,6 +194,8 @@ impl Engine {
             ledger: None,
             timing: TimingSegments::new(),
             session_state: SessionState::Ready,
+            opened: 0,
+            last_credited: None,
             phase_start: Micros::ZERO,
             exercise_start: Micros::ZERO,
             active: Micros::ZERO,

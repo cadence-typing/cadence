@@ -85,6 +85,8 @@ function below is called by production code; there is no second copy.
 | `time::segment_active` | `TimingSegments::active_through` (`crates/core/src/session.rs`), hence `pause`, `end_phase` and the engine's phase clock |
 | `time::in_window` | `Micros::within_half_open`, called by `Engine::advance_clock` to decide whether active time is still inside the phase (A-05) |
 | `progress::track_valid` (with `in_range`, `ordered`, `split_fits`) | `SessionProgress::validate`, before a checkpoint is built or a stored one decoded |
+| `progress::merge` | `TrackProgress::add`, hence `engine::practice::merge_track` for every exercise credited to a track |
+| `progress::credit_once` | `Engine::record_exercise`: an exercise's ledger is credited only if newer than every credited one, else a typed error |
 | `session::step` | `Engine::transition` (`crates/engine/src/flow.rs`), the only writer of the session state, and `Engine::invalidate`; the engine carries out its clock command and status consequence |
 | `checkpoint::admit` | `Store::apply_checkpoint` (`crates/data/src/store.rs`): apply, replay, conflict or stale |
 
@@ -115,6 +117,8 @@ axioms. The audit admits only `propext`, `Classical.choice` and `Quot.sound`.
 | `ratio::digits_per_minute` | `Ratio.digits_per_minute_spec` | Same for the numpad rate. Total. | `digits-minute-is-ten-seconds`, `digits-denominator-off-by-one` | proved |
 | `ratio::basis_points` | `Ratio.basis_points_spec`, `accuracy_in_range`, `accuracy_computed` | `floor(num*10000/den)`; a ratio of a count to a count at least as large is never over 100% and never `OverFull`; computed whenever `num*10000` fits `u64`. Total. | `basis-allows-over-full`, `basis-remainder-not-quotient`, `basis-full-is-9999` | proved |
 | `time::segment_active` | `Time.segment_active_spec`, `segment_active_closed`, `segment_active_monotone` | Completed active time plus the open segment's `now - start`, exactly, in unbounded arithmetic; `Backward` exactly when `now` precedes the open segment, `Overflow` exactly when the sum exceeds `u64::MAX`; with no open segment (paused) it is the completed total; a later clock reading never gives less active time. Total. | `segment-ignores-open`, `segment-saturates`, `segment-backward-is-zero` | proved |
+| `progress::merge` | `Progress.merge_exact`, `merge_keeps_valid` | Each of the nine counters is the exact sum, or `Overflow` exactly when some sum exceeds `u64::MAX`; nothing is dropped, saturated or partly merged. Merging two ordered tracks stays ordered and within split. Total. | `merge-drops-deletions`, `merge-saturates` | proved |
+| `progress::credit_once` | `Progress.credit_once_spec` | An exercise is credited iff it is newer than every credited one: never twice. Total. | `credit-allows-equal` | proved |
 | `session::step` | `Session.clock_runs_only_running`, `review_is_terminal_for_typing`, `completed_only_after_last_phase`, `running_only_by_start_resume_or_next`, `invalidate_admitted` | Over every state and event: leaving `Running` stops the clock and only entering `Running` resumes it; from the review, finishing or saved no event leads back to typing; only the last typing deadline or reaching the review completes a session (ending early or exiting never does); typing starts only by start, resume or the next phase; an invalid measurement is admitted everywhere. Total. | `pause-keeps-clock`, `review-resumes`, `early-end-completes`, `invalidate-refused-when-saved` | proved |
 | `time::in_window` | `Time.in_window_spec` | `start <= tick < deadline`; a key at the exact deadline is outside the scored slice. Total. | `window-deadline-inclusive`, `window-start-exclusive` | proved |
 | `checkpoint::admit` | `Checkpoint.admit_spec`, `admit_apply_iff`, `refused_never_applies`, `applications_strictly_increase`, `applied_sequence_never_reapplies` | The full decision table. A checkpoint is applied iff no receipt exists and it is strictly newer than the latest applied one; replay, conflict and stale are never applied; once a sequence is applied (the store then holds it as its latest sequence, written in the same transaction: trusted, tested), offering it again in any receipt state is never applied (no double credit). Total. | `admit-equal-sequence-applies`, `admit-replay-applies`, `admit-conflict-replays` | proved |
@@ -134,7 +138,6 @@ them.
 | The ledger calls `settle` for every insertion and Backspace never touches the slots (`AttemptLedger::apply` plumbing, the buffer, per-word flags) | tested | `crates/core/tests/ledger_properties.rs` (write-once, correction cannot erase first errors, counters monotone) and the fixtures. Proving the whole `apply` would need a bigger, Aeneas-translatable ledger in the kernel. |
 | The store reads the receipt and latest sequence correctly, the SQL transaction is atomic, the receipt insert and the session update commit together | tested | `crates/data/src/tests/checkpoints.rs` and `disk.rs`. The kernel only decides from facts it is given. |
 | Durable acknowledgement ordering: an acknowledgement is never observed before the commit (`AckIsDurable`), single-flight dispatch, retry after failure, and a clean exit only after the final acknowledgement | model-proved (bounded) | `models/CheckpointSave.tla`, mapped to `engine::storage`, `SaveWorker`, `ProgressStore::apply_checkpoint` and `checkpoint::admit` (see *Protocol models*). Correspondence to the Rust is by review and the named runtime tests, not by proof. The kernel proves the credit decision (`admit`). |
-| `TrackProgress::add`, merging exercise progress into a track and into the session (`merge_track`), the engine's per-exercise credit | tested | Checked addition in `cadence-core`; no kernel claim. Double counting across exercises is covered by engine tests, not proofs. |
 | Display rounding and formatting (`as_f64`, percent labels), the UI comparison with earlier sessions | tested | f64 is outside the kernel by construction. |
 | VK-03 allocation, VK-04 candidate selection, VK-05 quotas, VK-06 review queue, VL-01 fairness, VP-01/02/04/05 protocols, VR-01 replay equivalence | pending | Unchanged from `STATUS.md`; no Lean claim yet. |
 | That `cargo tauten check`'s findings are all the bugs there are | not-established | A finding is a departure from a profile, not a defect count (tauten's own benchmark: 0 of 120 sampled findings were reachable defects). |
@@ -181,13 +184,13 @@ summary line, the per-claim outcomes and the mutant results are copied below
 from that run (see the commit that adds `proofs/claims.json`).
 
 Command: `cargo +1.98.0 tauten proofs --live` (full level, every mutant),
-gating the working tree of the commit that records this run (#31); exit 0:
+gating the working tree of the commit that records this run (#33); exit 0:
 
 ```text
-tauten: 18 of 18 claim(s) proved (recorded in proofs/claims.json)
+tauten: 20 of 20 claim(s) proved (recorded in proofs/claims.json)
 ```
 
-All 37 mutants were `killed`, each by the theorem it targets. The previous
+All 40 mutants were `killed`, each by the theorem it targets. The previous
 run (#29, 17 of 17 with 33 mutants) carried temporary `[[amend]]` entries for
 the retired time claims, dropped after that record as tauten requires. The description of the earlier run follows.
 
@@ -274,7 +277,7 @@ needs no baseline entry.
   |---|---|---|
   | VK-01 first outcomes write-once | `first::settle`, `count_first`, `counters::*` | Decision proved; ledger plumbing tested |
   | VK-02 checked metric arithmetic | `ratio::*`, `time::*`, `progress::*` | Proved for the listed functions |
-  | VP-03 durable checkpoint | `checkpoint::admit` (credit half) | Decision proved; acknowledgement protocol stays in TLA+ |
+  | VP-03 durable checkpoint | `checkpoint::admit` (store credit), `progress::credit_once` and `progress::merge` (engine credit) | Decisions proved; the save protocol is model-checked (`models/CheckpointSave.tla`) |
 
 - Floating-point display and every f64 in the learner model are outside the
   kernel and unverified.

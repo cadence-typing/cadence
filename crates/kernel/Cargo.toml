@@ -37,6 +37,8 @@ start_from = [
     "cadence_kernel::progress::ordered",
     "cadence_kernel::progress::split_fits",
     "cadence_kernel::progress::track_valid",
+    "cadence_kernel::progress::merge",
+    "cadence_kernel::progress::credit_once",
 ]
 
 # Stated locally, not inherited: the proof gate translates this crate in a

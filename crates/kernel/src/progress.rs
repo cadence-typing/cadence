@@ -72,3 +72,85 @@ pub fn split_fits(t: TrackCounters) -> bool {
 pub fn track_valid(t: TrackCounters) -> bool {
     in_range(t) && ordered(t) && split_fits(t)
 }
+
+/// The result of merging an exercise's counters into a track total.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Merge {
+    /// Every counter is the exact sum.
+    Merged(TrackCounters),
+    /// A counter's sum does not fit `u64`; nothing was merged.
+    Overflow,
+}
+
+/// Merges one exercise's counters into a track total: each of the nine
+/// counters is the exact sum, or the merge is refused as a whole.
+#[must_use]
+pub fn merge(total: TrackCounters, exercise: TrackCounters) -> Merge {
+    match total.first_correct.checked_add(exercise.first_correct) {
+        None => Merge::Overflow,
+        Some(first_correct) => match total.first_attempted.checked_add(exercise.first_attempted) {
+            None => Merge::Overflow,
+            Some(first_attempted) => match total
+                .correct_attempts
+                .checked_add(exercise.correct_attempts)
+            {
+                None => Merge::Overflow,
+                Some(correct_attempts) => match total
+                    .content_attempts
+                    .checked_add(exercise.content_attempts)
+                {
+                    None => Merge::Overflow,
+                    Some(content_attempts) => match total.deletions.checked_add(exercise.deletions)
+                    {
+                        None => Merge::Overflow,
+                        Some(deletions) => match total
+                            .overflow_attempts
+                            .checked_add(exercise.overflow_attempts)
+                        {
+                            None => Merge::Overflow,
+                            Some(overflow_attempts) => {
+                                match total.correct_units.checked_add(exercise.correct_units) {
+                                    None => Merge::Overflow,
+                                    Some(correct_units) => match total
+                                        .correct_digits
+                                        .checked_add(exercise.correct_digits)
+                                    {
+                                        None => Merge::Overflow,
+                                        Some(correct_digits) => match total
+                                            .active_micros
+                                            .checked_add(exercise.active_micros)
+                                        {
+                                            None => Merge::Overflow,
+                                            Some(active_micros) => Merge::Merged(TrackCounters {
+                                                first_correct,
+                                                first_attempted,
+                                                correct_attempts,
+                                                content_attempts,
+                                                deletions,
+                                                overflow_attempts,
+                                                correct_units,
+                                                correct_digits,
+                                                active_micros,
+                                            }),
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                },
+            },
+        },
+    }
+}
+
+/// Whether the exercise opened as `closing` may be credited, given the last
+/// credited one: only an exercise newer than every credited one is, so no
+/// exercise's counters are merged twice (the engine half of `NoDoubleCredit`).
+#[must_use]
+pub fn credit_once(last_credited: Option<u64>, closing: u64) -> bool {
+    match last_credited {
+        None => true,
+        Some(last) => closing > last,
+    }
+}

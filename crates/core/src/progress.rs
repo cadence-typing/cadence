@@ -108,40 +108,28 @@ impl TrackProgress {
         if self.track != other.track {
             return Err(invalid());
         }
-        let a = self.values();
-        let b = other.values();
-        let mut sums = [0; 9];
-        for ((out, left), right) in sums.iter_mut().zip(a).zip(b) {
-            *out = left
-                .checked_add(right)
-                .ok_or(CoreError::ArithmeticOverflow {
-                    operation: "track accumulation",
-                })?;
+        // The kernel decides the merge (Lean: each counter is the exact sum,
+        // or nothing is merged; validity is preserved).
+        match cadence_kernel::progress::merge(self.counters(), other.counters()) {
+            cadence_kernel::progress::Merge::Overflow => Err(CoreError::ArithmeticOverflow {
+                operation: "track accumulation",
+            }),
+            cadence_kernel::progress::Merge::Merged(t) => {
+                *self = Self {
+                    track: self.track,
+                    first_correct: t.first_correct,
+                    first_attempted: t.first_attempted,
+                    correct_attempts: t.correct_attempts,
+                    content_attempts: t.content_attempts,
+                    deletions: t.deletions,
+                    overflow_attempts: t.overflow_attempts,
+                    correct_units: t.correct_units,
+                    correct_digits: t.correct_digits,
+                    active_micros: t.active_micros,
+                };
+                Ok(())
+            }
         }
-        let [
-            first_correct,
-            first_attempted,
-            correct_attempts,
-            content_attempts,
-            deletions,
-            overflow_attempts,
-            correct_units,
-            correct_digits,
-            active_micros,
-        ] = sums;
-        *self = Self {
-            track: self.track,
-            first_correct,
-            first_attempted,
-            correct_attempts,
-            content_attempts,
-            deletions,
-            overflow_attempts,
-            correct_units,
-            correct_digits,
-            active_micros,
-        };
-        Ok(())
     }
     /// The kernel's view of the counters, for its validity decision.
     fn counters(&self) -> cadence_kernel::progress::TrackCounters {
@@ -171,6 +159,9 @@ impl TrackProgress {
         ]
     }
 }
+/// Whether a closing exercise may be credited: the proved
+/// [`cadence_kernel::progress::credit_once`].
+pub use cadence_kernel::progress::credit_once;
 /// A cumulative session snapshot, independent of storage representation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionProgress {
