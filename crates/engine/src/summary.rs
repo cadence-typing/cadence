@@ -29,7 +29,7 @@ impl SummaryMetrics {
         // than first-pass typing, so it never reaches the headline (#60).
         let reports: Vec<&TrackProgress> = reports
             .iter()
-            .filter(|report| report.track != Track::Review)
+            .filter(|report| report.track.in_headline())
             .collect();
         let mut typing_units = UnitCount::ZERO;
         let mut typing_time = Micros::ZERO;

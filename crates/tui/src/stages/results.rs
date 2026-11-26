@@ -306,7 +306,7 @@ fn result_row(buffer: &mut Buffer, area: Rect, row: Row<'_>, palette: Palette) {
     let earlier = baseline.and_then(|b| b.tracks.first());
     let delta = match earlier {
         // Retyping recent misses is easier than first-pass typing (#60).
-        _ if report.track == Track::Review => "not in the headline".to_string(),
+        _ if !report.track.in_headline() => "not in the headline".to_string(),
         None => "first time".to_string(),
         Some(before) => {
             let pace_change = rate
@@ -344,5 +344,6 @@ const fn track_label(track: Track) -> &'static str {
         Track::Numpad => "numpad",
         Track::Prose => "prose",
         Track::Review => "review",
+        Track::Benchmark => "probe",
     }
 }

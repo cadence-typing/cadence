@@ -8,8 +8,10 @@
 //! reconstructed from track totals. Schema 4 (#45) admits the `review`
 //! track (track names are not constrained in SQL; the reader maps them) and
 //! adds the nullable `sessions.utc_offset_minutes` (written by #52); no row
-//! changes. Every 0/1/2/3 -> 4 path is one transaction; no destructive reset
-//! path exists. `word_outcomes` also holds warm-up and prose words from
+//! changes. Schema 5 (#64) adds `pace_targets`, `benchmark_probes` and
+//! `sessions.provenance` (`live` by default) and admits the `benchmark`
+//! track. Every 0/1/2/3/4 -> 5 path is one transaction; no destructive
+//! reset path exists. `word_outcomes` also holds warm-up and prose words from
 //! alpha.7 (columns unchanged).
 
 use rusqlite::{Connection, OptionalExtension};
@@ -17,7 +19,7 @@ use rusqlite::{Connection, OptionalExtension};
 use crate::StoreError;
 
 /// Highest supported persistence schema version.
-pub const SUPPORTED_SCHEMA: i64 = 4;
+pub const SUPPORTED_SCHEMA: i64 = 5;
 
 pub(crate) fn inspect(connection: &Connection) -> Result<i64, StoreError> {
     let has_schema: bool = connection.query_row(
@@ -93,6 +95,7 @@ pub(crate) fn migrate(connection: &mut Connection, current: i64) -> Result<(), S
         (2, MIGRATION_V2),
         (3, MIGRATION_V3),
         (4, MIGRATION_V4),
+        (5, MIGRATION_V5),
     ] {
         if current < target {
             tx.execute_batch(sql)
@@ -196,4 +199,27 @@ const MIGRATION_V4: &str = "
 ALTER TABLE sessions ADD COLUMN utc_offset_minutes INTEGER NULL
     CHECK(utc_offset_minutes IS NULL OR utc_offset_minutes BETWEEN -1440 AND 1440);
 UPDATE schema_info SET version=4 WHERE id=1;
+";
+
+/// Pace targets, transfer probes and session provenance (#64). The
+/// `benchmark` track needs no SQL change (track names are mapped by the
+/// reader). No row changes; nothing is backfilled.
+const MIGRATION_V5: &str = "
+CREATE TABLE pace_targets (
+    session_id INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
+    track TEXT NOT NULL,
+    target_cpm INTEGER NULL CHECK(target_cpm IS NULL OR target_cpm>0),
+    decision TEXT NOT NULL CHECK(decision IN ('no_baseline','steady','raise','lower')),
+    PRIMARY KEY(session_id,track)
+);
+CREATE TABLE benchmark_probes (
+    session_id INTEGER PRIMARY KEY REFERENCES sessions(session_id) ON DELETE CASCADE,
+    passage_id TEXT NOT NULL CHECK(length(passage_id)=16),
+    strata TEXT NOT NULL,
+    comparable INTEGER NOT NULL CHECK(comparable IN (0,1)),
+    reason TEXT NOT NULL
+);
+ALTER TABLE sessions ADD COLUMN provenance TEXT NOT NULL DEFAULT 'live'
+    CHECK(provenance IN ('live','synthetic'));
+UPDATE schema_info SET version=5 WHERE id=1;
 ";

@@ -25,6 +25,9 @@ pub enum Track {
     /// The typed closing review (schema 4, #45; recorded from #49). Kept
     /// out of the session headline (#60).
     Review,
+    /// A transfer probe on unseen text (schema 5, #64). Kept out of the
+    /// session headline like the review.
+    Benchmark,
 }
 impl Track {
     /// Stable byte in the checkpoint digest (declaration order of the v1
@@ -38,6 +41,7 @@ impl Track {
             Self::Numpad => 3,
             Self::Prose => 4,
             Self::Review => 5,
+            Self::Benchmark => 6,
         }
     }
 
@@ -51,7 +55,16 @@ impl Track {
             Self::Numpad => "numpad",
             Self::Prose => "prose",
             Self::Review => "review",
+            Self::Benchmark => "transfer probe",
         }
+    }
+
+    /// Whether the track's figures enter the session headline and
+    /// like-for-like comparisons: the closing review and the transfer probe
+    /// do not (#60, #64).
+    #[must_use]
+    pub const fn in_headline(self) -> bool {
+        !matches!(self, Self::Review | Self::Benchmark)
     }
 }
 /// Persisted session disposition.
@@ -192,7 +205,7 @@ pub struct SessionProgress {
     pub corpus_digest: String,
     /// Session disposition.
     pub status: ProgressStatus,
-    /// At most six distinct tracks.
+    /// At most seven distinct tracks.
     pub tracks: Vec<TrackProgress>,
     /// Total session-active duration.
     pub active_micros: u64,
@@ -205,7 +218,7 @@ impl SessionProgress {
         if [&self.profile, &self.policy_digest, &self.corpus_digest]
             .iter()
             .any(|s| s.is_empty() || s.len() > 256 || s.chars().any(char::is_control))
-            || self.tracks.len() > 6
+            || self.tracks.len() > 7
             || self
                 .utc_offset_minutes
                 .is_some_and(|m| m.unsigned_abs() > 18 * 60)

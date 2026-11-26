@@ -39,6 +39,7 @@ pub(crate) fn track_name(track: Track) -> &'static str {
         Track::Numpad => "numpad",
         Track::Prose => "prose",
         Track::Review => "review",
+        Track::Benchmark => "benchmark",
     }
 }
 
@@ -50,6 +51,7 @@ fn parse_track(track: &str) -> Result<Track, StoreError> {
         "numpad" => Ok(Track::Numpad),
         "prose" => Ok(Track::Prose),
         "review" => Ok(Track::Review),
+        "benchmark" => Ok(Track::Benchmark),
         _ => Err(StoreError::Corrupt(format!("unknown track {track:?}"))),
     }
 }

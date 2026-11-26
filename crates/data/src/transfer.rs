@@ -23,6 +23,8 @@ struct PortableSession {
     /// Schema 4: the local UTC offset in minutes the session's day was
     /// counted in (#52); `null` when it was not recorded.
     utc_offset_minutes: Option<i64>,
+    /// Schema 5: `live`, or `synthetic` for a headless-driver session (#64).
+    provenance: String,
 }
 
 #[derive(Serialize)]
@@ -160,13 +162,17 @@ impl ProgressStore {
         {
             let mut statement = self
                 .connection
-                .prepare("SELECT session_id, utc_offset_minutes FROM sessions")?;
+                .prepare("SELECT session_id, utc_offset_minutes, provenance FROM sessions")?;
             let rows = statement.query_map([], |row| {
-                Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?))
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, Option<i64>>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
             })?;
             for row in rows {
-                let (session, offset) = row?;
-                offsets.insert(session, offset);
+                let (session, offset, provenance) = row?;
+                offsets.insert(session, (offset, provenance));
             }
         }
         let sessions = self
@@ -174,14 +180,17 @@ impl ProgressStore {
             .into_iter()
             .map(|session| {
                 let checkpoint = session.checkpoint;
+                let stored = i64::try_from(checkpoint.key.session.get())
+                    .ok()
+                    .and_then(|session| offsets.get(&session));
                 PortableSession {
                     session_id: checkpoint.key.session.get(),
                     sequence: checkpoint.key.sequence.get(),
                     digest: checkpoint.key.digest.to_hex(),
                     learning: checkpoint.learning.as_ref().map(PortableLearning::new),
-                    utc_offset_minutes: i64::try_from(checkpoint.key.session.get())
-                        .ok()
-                        .and_then(|session| offsets.get(&session).copied().flatten()),
+                    utc_offset_minutes: stored.and_then(|(offset, _)| *offset),
+                    provenance: stored
+                        .map_or_else(|| "live".to_string(), |(_, provenance)| provenance.clone()),
                     progress: checkpoint.progress,
                 }
             })

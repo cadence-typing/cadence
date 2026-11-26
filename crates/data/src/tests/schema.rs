@@ -161,7 +161,10 @@ fn populated_schema_three_migrates_intact() -> TestResult {
         let history = store.session_history()?;
         // Turn the file back into its schema-3 layout.
         store.connection.execute_batch(
-            "ALTER TABLE sessions DROP COLUMN utc_offset_minutes;
+            "DROP TABLE pace_targets;
+             DROP TABLE benchmark_probes;
+             ALTER TABLE sessions DROP COLUMN provenance;
+             ALTER TABLE sessions DROP COLUMN utc_offset_minutes;
              UPDATE schema_info SET version=3 WHERE id=1;",
         )?;
         history
@@ -171,7 +174,7 @@ fn populated_schema_three_migrates_intact() -> TestResult {
         store
             .connection
             .query_row("SELECT version FROM schema_info", [], |row| row.get(0))?;
-    assert_eq!(version, 4);
+    assert_eq!(version, 5);
     assert_eq!(store.session_history()?, before);
     let offsets: i64 = store.connection.query_row(
         "SELECT COUNT(*) FROM sessions WHERE utc_offset_minutes IS NOT NULL",
@@ -182,8 +185,8 @@ fn populated_schema_three_migrates_intact() -> TestResult {
     Ok(())
 }
 
-/// #45: a schema newer than this build (as schema 4 is for alpha.5) is
-/// refused, not migrated or reset.
+/// #45, #64: a schema newer than this build (as schema 5 is for alpha.7)
+/// is refused, not migrated or reset.
 #[test]
 fn the_next_schema_is_refused() -> TestResult {
     let directory = tempfile::tempdir()?;
@@ -191,15 +194,104 @@ fn the_next_schema_is_refused() -> TestResult {
         let store = ProgressStore::open_in(directory.path())?;
         store
             .connection
-            .execute_batch("UPDATE schema_info SET version=5 WHERE id=1;")?;
+            .execute_batch("UPDATE schema_info SET version=6 WHERE id=1;")?;
     }
     assert!(matches!(
         ProgressStore::open_in(directory.path()),
         Err(StoreError::SchemaTooNew {
-            found: 5,
-            supported: 4
+            found: 6,
+            supported: 5
         })
     ));
+    Ok(())
+}
+
+/// #64: a populated schema-4 profile migrates to schema 5 with every
+/// session, receipt and digest intact; every session is `live`; the new
+/// tables are empty.
+#[test]
+fn populated_schema_four_migrates_intact() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let saved = [
+        checkpoint(1, 1, ProgressStatus::Completed)?,
+        checkpoint(2, 3, ProgressStatus::Abandoned)?,
+    ];
+    let (before, receipts) = {
+        let mut store = ProgressStore::open_in(directory.path())?;
+        for checkpoint in &saved {
+            store.apply_checkpoint(checkpoint)?;
+        }
+        let history = store.session_history()?;
+        let receipts: Vec<(i64, i64, String)> = {
+            let mut statement = store.connection.prepare(
+                "SELECT session_id, commit_seq, digest FROM commit_receipts ORDER BY 1, 2",
+            )?;
+            let rows =
+                statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
+            rows.collect::<Result<_, _>>()?
+        };
+        store.connection.execute_batch(
+            "DROP TABLE pace_targets;
+             DROP TABLE benchmark_probes;
+             ALTER TABLE sessions DROP COLUMN provenance;
+             UPDATE schema_info SET version=4 WHERE id=1;",
+        )?;
+        (history, receipts)
+    };
+    let store = ProgressStore::open_in(directory.path())?;
+    let version: i64 =
+        store
+            .connection
+            .query_row("SELECT version FROM schema_info", [], |row| row.get(0))?;
+    assert_eq!(version, 5);
+    assert_eq!(store.session_history()?, before);
+    let after: Vec<(i64, i64, String)> = {
+        let mut statement = store
+            .connection
+            .prepare("SELECT session_id, commit_seq, digest FROM commit_receipts ORDER BY 1, 2")?;
+        let rows = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
+        rows.collect::<Result<_, _>>()?
+    };
+    assert_eq!(after, receipts, "receipts intact");
+    let count = |sql: &str| -> rusqlite::Result<i64> {
+        store.connection.query_row(sql, [], |row| row.get(0))
+    };
+    assert_eq!(
+        count("SELECT COUNT(*) FROM sessions WHERE provenance<>'live'")?,
+        0
+    );
+    assert_eq!(count("SELECT COUNT(*) FROM pace_targets")?, 0);
+    assert_eq!(count("SELECT COUNT(*) FROM benchmark_probes")?, 0);
+    Ok(())
+}
+
+/// #64: a checkpoint with a `benchmark` track round-trips.
+#[test]
+fn a_benchmark_track_round_trips() -> TestResult {
+    use cadence_core::progress::{Track, TrackProgress};
+    let directory = tempfile::tempdir()?;
+    let mut store = ProgressStore::open_in(directory.path())?;
+    let base = checkpoint(1, 1, ProgressStatus::Running)?;
+    let mut progress = base.progress.clone();
+    progress.active_micros = 1_500_000;
+    progress.tracks.push(TrackProgress {
+        track: Track::Benchmark,
+        first_correct: 90,
+        first_attempted: 100,
+        correct_attempts: 100,
+        content_attempts: 104,
+        deletions: 4,
+        overflow_attempts: 0,
+        correct_units: 96,
+        correct_digits: 0,
+        active_micros: 600_000,
+    });
+    let saved = super::rekey(&base, 1, progress)?;
+    store.apply_checkpoint(&saved)?;
+    assert_eq!(
+        store.session_history()?.first().map(|row| &row.checkpoint),
+        Some(&saved)
+    );
     Ok(())
 }
 

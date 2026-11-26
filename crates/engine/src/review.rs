@@ -13,7 +13,7 @@ use cadence_core::progress::{SessionRecap, Track, TrackProgress};
 fn headline_tracks(tracks: &[TrackProgress]) -> Vec<TrackProgress> {
     tracks
         .iter()
-        .filter(|t| t.track != Track::Review)
+        .filter(|t| t.track.in_headline())
         .cloned()
         .collect()
 }
@@ -50,7 +50,7 @@ impl Engine {
             tracks
                 .iter()
                 .map(|t| t.track)
-                .filter(|track| *track != Track::Review)
+                .filter(|track| track.in_headline())
                 .collect()
         };
         let tracks = shared(&self.tracks);
@@ -67,7 +67,7 @@ impl Engine {
         let per_track = self
             .tracks
             .iter()
-            .filter(|current| current.track != Track::Review)
+            .filter(|current| current.track.in_headline())
             .filter_map(|current| {
                 self.history.recent.iter().find_map(|recap| {
                     recap

@@ -133,6 +133,9 @@ fn the_closing_review_never_moves_the_headline() -> Result<(), CoreError> {
     for review in [
         report(Track::Review, 400, (400, 400), 5_000_000),
         report(Track::Review, 0, (0, 40), 30_000_000),
+        // #64: the transfer probe stays out of the headline too.
+        report(Track::Benchmark, 400, (400, 400), 5_000_000),
+        report(Track::Benchmark, 0, (0, 40), 30_000_000),
     ] {
         let mut with = base.clone();
         with.push(review);
