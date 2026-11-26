@@ -133,6 +133,7 @@
         "InterludeGrace",
         "NoScoreOutsidePhase",
         "PauseKeepsReason",
+        "ReviewNeverUncompletes",
         "TypeOK"
       ],
       "properties": [],
@@ -141,11 +142,13 @@
         "SessionFlow-deadline-inclusive.cfg violates NoScoreOutsidePhase",
         "SessionFlow-early-end-completed.cfg violates EndEarlyIsUnfinished",
         "SessionFlow-enter-skips-interlude.cfg violates InterludeGrace",
+        "SessionFlow-review-end-uncompletes.cfg violates ReviewNeverUncompletes",
         "SessionFlow-score-while-paused.cfg violates ClockStoppedUnlessRunning"
       ],
       "production_symbols": [
         "cadence_engine::flow::{transition, pause_for, resume, end_early, interlude_settled}",
         "cadence_engine::practice::{advance_clock, advance_phase}",
+        "cadence_kernel::session::settle",
         "cadence_kernel::session::step",
         "cadence_kernel::time::in_window"
       ],
@@ -158,15 +161,16 @@
         "cadence-engine::paste_and_focus_loss_pause_without_invalidating",
         "cadence-engine::pause_before_first_input_and_paused_controls_do_not_score"
       ],
-      "constants": "Phases = 2 Budget = 2 Grace = 1 MaxTime = 6 PauseStopsClock = TRUE DeadlineExclusive = TRUE GraceGuard = TRUE EndEarlyAbandons = TRUE CatchUpGuard = TRUE",
+      "constants": "Phases = 3 Budget = 2 Grace = 1 MaxTime = 6 PauseStopsClock = TRUE DeadlineExclusive = TRUE GraceGuard = TRUE EndEarlyAbandons = TRUE CatchUpGuard = TRUE ReviewCompletes = TRUE",
       "sha256": {
-        "SessionFlow.tla": "51842faea88b9688fba4c9c1453562c4f98b1a22fb8dfa8ecafaf7a3ff071470",
-        "SessionFlow.cfg": "a12400472f686451625459db5455552001e54e72b8129fd95f779710c9ff04b6",
-        "SessionFlow-score-while-paused.cfg": "afdcd2a35f4fe058c7054e870cf5756fa896b9d0b56f3800fabb03cff525d8d2",
-        "SessionFlow-deadline-inclusive.cfg": "5b263de83c92a17c42963bd6eea754063209d0a9360eabc0616df10d802551cd",
-        "SessionFlow-enter-skips-interlude.cfg": "13d6874df7f1e47ac10c925b49645b469316af1227f66630bb8120ef15d183b3",
-        "SessionFlow-early-end-completed.cfg": "638a86ade3f56377fdbbf2e3fea9867c2c16925c1fc62d7163de262e0aea98ce",
-        "SessionFlow-ack-resumes-any-pause.cfg": "145723039af6b0021258b2a68e598b223aec3177cae21b47bf6f4e5bf9c8741f"
+        "SessionFlow.tla": "ed589f0ab3ce5edcdb30b43096097964588fb7c10196139b14004f803f58ac77",
+        "SessionFlow.cfg": "a83041e7d0951a21b1b5b2ae2899f11f0508bc9e50a09c1e85819edd8b5d2986",
+        "SessionFlow-score-while-paused.cfg": "6b35e5a9f0d514816158546aea0405b4b19f9264c0fbc3436ee026ddcdbe0ad0",
+        "SessionFlow-deadline-inclusive.cfg": "649861163ec88d172e5dea4178bc088ebf614974d039fe41ec79b8a7bab34072",
+        "SessionFlow-enter-skips-interlude.cfg": "8a5cbc410cb7be0a84f314cd74bc76d15fc8610218a1dc4d0a1f3fcc6a01bf61",
+        "SessionFlow-early-end-completed.cfg": "2ee287967ff3e3ecf49e2d69a9dbff834bcd8cef6f2e9c6d9ba2e62a0de08d36",
+        "SessionFlow-ack-resumes-any-pause.cfg": "5aaa160d76b79044fee84a671461dfc21c9b1f8c2eabcfb21f4ff5f9b6e9035a",
+        "SessionFlow-review-end-uncompletes.cfg": "a0e87d787751a79857f7ae9d5550b19b9a21cb5616fb234d5fb9a6ac52ecdcb0"
       }
     },
     {

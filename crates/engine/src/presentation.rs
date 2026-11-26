@@ -110,14 +110,15 @@ impl Engine {
     }
     /// Why the current target was chosen, without efficacy claims.
     fn exercise_context(&self) -> Option<String> {
-        let exercise = self
-            .plan
-            .phases
-            .get(self.phase_index)?
-            .exercises
-            .get(self.exercise_index)?;
+        let phase = self.plan.phases.get(self.phase_index)?;
+        let exercise = phase.exercises.get(self.exercise_index)?;
         if let Some(caption) = &exercise.caption {
             return Some(caption.clone());
+        }
+        // The closing review (#49) serves the session's misses; once none
+        // are left it is extra words, and says so.
+        if phase.phase == Phase::Review && !self.learning.substituted {
+            return Some("no misses left \u{b7} extra words".to_string());
         }
         // A returned numeric miss (#59) is labelled by the proved label::of.
         if self.learning.numeric_again

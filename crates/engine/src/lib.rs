@@ -165,21 +165,23 @@ impl Engine {
             return Err(invalid("session needs a typing phase"));
         }
         for (index, p) in plan.phases.iter().enumerate() {
-            if p.phase == Phase::Review
-                && (!p.exercises.is_empty() || index.checked_add(1) != Some(plan.phases.len()))
-            {
-                return Err(invalid("review must be empty and last"));
+            // The closing review (#49) may be typed; it is always last.
+            if p.phase == Phase::Review && index.checked_add(1) != Some(plan.phases.len()) {
+                return Err(invalid("review must be last"));
             }
             Micros::from_seconds(p.seconds)?;
             if p.phase != Phase::Review && (p.exercises.is_empty() || p.seconds == 0) {
                 return Err(invalid("empty practice phase"));
+            }
+            if p.phase == Phase::Review && !p.exercises.is_empty() && p.seconds == 0 {
+                return Err(invalid("a typed review needs time"));
             }
             for e in &p.exercises {
                 if e.units.is_empty()
                     || e.units.len()
                         > usize::try_from(cadence_core::TextUnitIndex::MAXIMUM.get())
                             .unwrap_or(usize::MAX)
-                    || practice::track_kind(e.kind) != practice::track_phase(p.phase)?
+                    || !practice::kind_fits(e.kind, p.phase)?
                 {
                     return Err(invalid("invalid exercise target or phase kind"));
                 }

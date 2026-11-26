@@ -131,10 +131,11 @@ violates = "StallLosesNothing"
 module = "SessionFlow"
 dir = "models"
 config = "SessionFlow.cfg"
-invariants = ["TypeOK", "ClockStoppedUnlessRunning", "NoScoreOutsidePhase", "InterludeGrace", "EndEarlyIsUnfinished", "PauseKeepsReason", "CatchUpKeepsOtherPauses"]
+invariants = ["TypeOK", "ClockStoppedUnlessRunning", "NoScoreOutsidePhase", "InterludeGrace", "EndEarlyIsUnfinished", "PauseKeepsReason", "CatchUpKeepsOtherPauses", "ReviewNeverUncompletes"]
 status = "mapped"
 production_symbols = [
   "cadence_kernel::session::step",
+  "cadence_kernel::session::settle",
   "cadence_kernel::time::in_window",
   "cadence_engine::flow::{transition, pause_for, resume, end_early, interlude_settled}",
   "cadence_engine::practice::{advance_clock, advance_phase}",
@@ -168,6 +169,10 @@ violates = "EndEarlyIsUnfinished"
 [[model.mutant]]
 config = "SessionFlow-ack-resumes-any-pause.cfg"
 violates = "CatchUpKeepsOtherPauses"
+
+[[model.mutant]]
+config = "SessionFlow-review-end-uncompletes.cfg"
+violates = "ReviewNeverUncompletes"
 
 # The cross-session feedback loop (#40): observe, checkpoint, finish or kill,
 # replay the durable rows through the review ladder, plan the due words,

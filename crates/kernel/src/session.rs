@@ -38,7 +38,8 @@ pub enum Event {
     Resume,
     /// A phase's deadline passed with typing phases still ahead.
     Deadline,
-    /// The deadline of the last typing phase passed.
+    /// The deadline of the last scored phase passed: the session is
+    /// complete; a closing review may follow as one more typing phase (#49).
     LastDeadline,
     /// Enter or Esc after the interlude grace.
     NextPhase,
@@ -311,6 +312,33 @@ pub fn step(state: State, event: Event) -> Step {
                 clock: Clock::Resume,
                 outcome: Outcome::Unchanged,
             },
+        },
+    }
+}
+
+/// The persisted session status the table's outcomes act on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Status {
+    /// The plan is in progress.
+    Open,
+    /// The last scored (non-review) phase reached its deadline (#49).
+    Completed,
+    /// The session ended before its plan did.
+    Abandoned,
+}
+
+/// The status after a step's outcome: a completed session stays completed
+/// whatever follows, so ending during the closing review (#49) or exiting
+/// keeps it completed; an unfinished end of an open plan abandons it.
+#[must_use]
+pub fn settle(status: Status, outcome: Outcome) -> Status {
+    match outcome {
+        Outcome::Completed => Status::Completed,
+        Outcome::Unchanged => status,
+        Outcome::Unfinished => match status {
+            Status::Open => Status::Abandoned,
+            Status::Completed => Status::Completed,
+            Status::Abandoned => Status::Abandoned,
         },
     }
 }

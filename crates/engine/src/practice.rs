@@ -58,6 +58,13 @@ impl Engine {
             self.timing.end_phase(boundary)?;
             self.active = deadline;
             self.record_exercise()?;
+            if phase == Phase::Review {
+                // The closing review's deadline opens the results (#49).
+                self.screen = Screen::Summary;
+                self.transition(Some(at), SessionEvent::PlanDone)?;
+                self.checkpoint_due = true;
+                return Ok(Some(DomainOutcome::SessionSummary));
+            }
             self.screen = Screen::PhaseComplete { partial };
             self.transition(
                 Some(at),
@@ -80,7 +87,7 @@ impl Engine {
             .phases
             .get(self.phase_index)
             .ok_or_else(|| invalid("missing phase"))?;
-        if phase.phase == Phase::Review {
+        if phase.phase == Phase::Review && phase.exercises.is_empty() {
             self.screen = Screen::Summary;
             self.transition(Some(at), SessionEvent::PlanDone)?;
             self.checkpoint_due = true;
@@ -340,6 +347,15 @@ pub(super) fn track_phase(phase: Phase) -> Result<Track, CoreError> {
         Phase::NumberRow => Ok(Track::NumberRow),
         Phase::Numpad => Ok(Track::Numpad),
         Phase::Prose => Ok(Track::Prose),
-        Phase::Review => Err(invalid("review is not a typing track")),
+        Phase::Review => Ok(Track::Review),
     }
+}
+
+/// Whether an exercise kind belongs in a phase: the closing review (#49)
+/// is typed as words; every other phase's kind matches its track.
+pub(super) fn kind_fits(kind: ExerciseKind, phase: Phase) -> Result<bool, CoreError> {
+    if phase == Phase::Review {
+        return Ok(kind == ExerciseKind::Words);
+    }
+    Ok(track_kind(kind) == track_phase(phase)?)
 }

@@ -4,7 +4,8 @@
 use super::{DomainOutcome, Engine, PauseReason, Screen, Transition};
 use cadence_core::progress::ProgressStatus;
 use cadence_core::session::{
-    SessionClock, SessionEvent, SessionOutcome, SessionState, SessionStep, session_step,
+    SessionClock, SessionEvent, SessionState, SessionStatus, SessionStep, session_settle,
+    session_step,
 };
 use cadence_core::{CoreError, MonoTick};
 
@@ -43,13 +44,18 @@ impl Engine {
             }
             (SessionClock::Stop | SessionClock::Keep, _) => {}
         }
-        match outcome {
-            SessionOutcome::Completed => self.status = ProgressStatus::Completed,
-            SessionOutcome::Unfinished if self.status != ProgressStatus::Completed => {
-                self.status = ProgressStatus::Abandoned;
-            }
-            SessionOutcome::Unfinished | SessionOutcome::Unchanged => {}
-        }
+        // The proved kernel folds the outcome into the status: completed
+        // stays completed, so ending in the closing review keeps it (#49).
+        let status = match self.status {
+            ProgressStatus::Running => SessionStatus::Open,
+            ProgressStatus::Completed => SessionStatus::Completed,
+            ProgressStatus::Abandoned => SessionStatus::Abandoned,
+        };
+        self.status = match session_settle(status, outcome) {
+            SessionStatus::Open => ProgressStatus::Running,
+            SessionStatus::Completed => ProgressStatus::Completed,
+            SessionStatus::Abandoned => ProgressStatus::Abandoned,
+        };
         self.session_state = next;
         Ok(())
     }

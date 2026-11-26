@@ -12,6 +12,10 @@
 (* reason (Engine::pause_for). Time is discrete: one Tick is one unit of   *)
 (* wall time, and active time grows only while the clock runs.             *)
 (*                                                                         *)
+(* Phases 1..Phases-1 are scored; phase Phases is the closing review      *)
+(* (#49): typed and clocked like any phase, its deadline opens the results *)
+(* (PlanDone). The session is completed at the last scored deadline.       *)
+(*                                                                         *)
 (* Abstracted away: content (a Type event stands for one scored key), the  *)
 (* checkpoint protocol (models/CheckpointSave.tla), the exit path after    *)
 (* the review, and resize (another pause reason).                          *)
@@ -24,11 +28,19 @@
 (*   EndEarlyAbandons:  ending early marks an unfinished plan abandoned.   *)
 (*   CatchUpGuard:      a late acknowledgement resumes only the "saving"   *)
 (*                      pause it caused (#51).                             *)
+(*   ReviewCompletes:   the last scored deadline, not the review's,        *)
+(*                      completes the session (#49).                       *)
 (***************************************************************************)
 EXTENDS Naturals
 
 CONSTANTS Phases, Budget, Grace, MaxTime,
-          PauseStopsClock, DeadlineExclusive, GraceGuard, EndEarlyAbandons, CatchUpGuard
+          PauseStopsClock, DeadlineExclusive, GraceGuard, EndEarlyAbandons, CatchUpGuard,
+          ReviewCompletes
+
+ASSUME Phases >= 2
+
+\* The phase whose deadline completes the session.
+CompletingPhase == IF ReviewCompletes THEN Phases - 1 ELSE Phases
 
 States == {"Ready", "Running", "Paused", "PhaseComplete", "Review"}
 Reasons == {"none", "requested", "focus", "paste", "invalid", "save", "saving"}
@@ -50,10 +62,11 @@ VARIABLES
     skipped,        \* an interlude was left before its grace
     endedEarly,     \* the session was ended before the last typing deadline
     stalled,        \* a checkpoint acknowledgement is overdue (#51)
-    resumedOther    \* a late acknowledgement resumed another reason's pause
+    resumedOther,   \* a late acknowledgement resumed another reason's pause
+    scoredDone      \* the last scored phase reached its deadline (#49)
 
 vars == <<state, phase, active, started, clock, now, interlude, reason, invalid,
-          failed, status, scoredOutside, skipped, endedEarly, stalled, resumedOther>>
+          failed, status, scoredOutside, skipped, endedEarly, stalled, resumedOther, scoredDone>>
 
 TypeOK ==
     /\ state \in States
@@ -65,16 +78,16 @@ TypeOK ==
     /\ invalid \in BOOLEAN /\ failed \in BOOLEAN
     /\ status \in {"open", "completed", "abandoned"}
     /\ scoredOutside \in BOOLEAN /\ skipped \in BOOLEAN /\ endedEarly \in BOOLEAN
-    /\ stalled \in BOOLEAN /\ resumedOther \in BOOLEAN
+    /\ stalled \in BOOLEAN /\ resumedOther \in BOOLEAN /\ scoredDone \in BOOLEAN
 
 Init ==
     /\ state = "Ready" /\ phase = 1 /\ active = 0 /\ started = FALSE
     /\ clock = FALSE /\ now = 0 /\ interlude = 0 /\ reason = "none"
     /\ invalid = FALSE /\ failed = FALSE /\ status = "open"
     /\ scoredOutside = FALSE /\ skipped = FALSE /\ endedEarly = FALSE
-    /\ stalled = FALSE /\ resumedOther = FALSE
+    /\ stalled = FALSE /\ resumedOther = FALSE /\ scoredDone = FALSE
 
-History == <<scoredOutside, skipped, endedEarly, resumedOther>>
+History == <<scoredOutside, skipped, endedEarly, resumedOther, scoredDone>>
 
 \* The deadline has passed for this phase (Engine::advance_clock asks
 \* within_half_open, i.e. active < Budget; the mutant asks active <= Budget).
@@ -97,7 +110,7 @@ Type ==
     /\ clock' = TRUE
     /\ scoredOutside' = (scoredOutside \/ active >= Budget)
     /\ UNCHANGED <<state, phase, active, now, interlude, reason, invalid, failed,
-                   status, skipped, endedEarly, stalled, resumedOther>>
+                   status, skipped, endedEarly, stalled, resumedOther, scoredDone>>
 
 \* Wall time passes; active time grows only while a segment is open
 \* (TimingSegments::active_through = time::segment_active).
@@ -109,16 +122,19 @@ Tick ==
                    failed, status, History, stalled>>
 
 \* The deadline: Deadline or LastDeadline (table), the open segment ends at
-\* the boundary (TimingSegments::end_phase), the interlude opens.
+\* the boundary (TimingSegments::end_phase), the interlude opens. The
+\* closing review's deadline opens the results instead (PlanDone).
 Deadline ==
     /\ state = "Running"
     /\ ~InWindow(active)
-    /\ state' = "PhaseComplete"
+    /\ state' = IF phase = Phases THEN "Review" ELSE "PhaseComplete"
     /\ clock' = FALSE
     /\ started' = FALSE
     /\ interlude' = now
-    /\ status' = IF phase = Phases THEN "completed" ELSE status
-    /\ UNCHANGED <<phase, active, now, reason, invalid, failed, History, stalled>>
+    /\ status' = IF phase >= CompletingPhase THEN "completed" ELSE status
+    /\ scoredDone' = (scoredDone \/ phase >= Phases - 1)
+    /\ UNCHANGED <<phase, active, now, reason, invalid, failed, scoredOutside, skipped,
+                   endedEarly, resumedOther, stalled>>
 
 \* Esc, focus loss, paste (Engine::pause_for) and a failed save: Pause or
 \* SaveFailed (table); the pause keeps its reason.
@@ -165,7 +181,7 @@ NextPhase ==
        ELSE /\ state' = "Review" /\ status' = "completed"
             /\ UNCHANGED <<phase, active>>
     /\ UNCHANGED <<started, clock, now, interlude, reason, invalid, failed,
-                   scoredOutside, endedEarly, stalled, resumedOther>>
+                   scoredOutside, endedEarly, stalled, resumedOther, scoredDone>>
 
 \* `e` in the pause controls or Ctrl-C (Engine::end_early): EndEarly (table),
 \* refused while invalid or after a failed save.
@@ -176,9 +192,9 @@ EndEarly ==
     /\ reason' = "none"
     /\ status' = IF status = "completed" THEN status
                  ELSE IF EndEarlyAbandons THEN "abandoned" ELSE "completed"
-    /\ endedEarly' = (endedEarly \/ status # "completed")
+    /\ endedEarly' = (endedEarly \/ ~scoredDone)
     /\ UNCHANGED <<phase, active, started, now, interlude, invalid, failed,
-                   scoredOutside, skipped, stalled, resumedOther>>
+                   scoredOutside, skipped, stalled, resumedOther, scoredDone>>
 
 \* Engine::watchdog while running: the outstanding checkpoint passed the
 \* 2 s bound; SaveStalled pauses with the reason "saving".
@@ -208,7 +224,7 @@ CatchUp ==
     /\ resumedOther' = (resumedOther \/ reason # "saving")
     /\ reason' = "none"
     /\ UNCHANGED <<phase, active, started, now, interlude, invalid, failed, status,
-                   scoredOutside, skipped, endedEarly>>
+                   scoredOutside, skipped, endedEarly, scoredDone>>
 
 \* The acknowledgement arrives when there is no "saving" pause to end.
 CatchUpQuiet ==
@@ -236,8 +252,13 @@ NoScoreOutsidePhase == ~scoredOutside
 \* No key leaves the phase-complete screen within the grace.
 InterludeGrace == ~skipped
 
-\* Ending before the last typing deadline never yields a completed session.
+\* Ending before the last scored (non-review) deadline never yields a
+\* completed session.
 EndEarlyIsUnfinished == endedEarly => status # "completed"
+
+\* Once the last scored phase reached its deadline the session is completed,
+\* and nothing in or after the closing review takes that back (#49).
+ReviewNeverUncompletes == scoredDone => status = "completed"
 
 \* A paused session always says why.
 PauseKeepsReason == state = "Paused" => reason # "none"

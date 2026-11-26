@@ -40,6 +40,7 @@ start_from = [
     "cadence_kernel::time::in_window",
     "cadence_kernel::session::step",
     "cadence_kernel::session::overdue",
+    "cadence_kernel::session::settle",
     "cadence_kernel::calendar::local_day",
     "cadence_kernel::calendar::days_ago",
     "cadence_kernel::checkpoint::admit",

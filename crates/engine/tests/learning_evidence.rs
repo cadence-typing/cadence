@@ -3,7 +3,7 @@
 use cadence_core::learning::{
     KeyLane, PlanRecord, PlannerMode, SessionLearning, Skill, SkillKey, SkillTally, WordTally,
 };
-use cadence_core::progress::{Checkpoint, HistorySummary, SaveResult};
+use cadence_core::progress::{Checkpoint, HistorySummary, ProgressStatus, SaveResult, Track};
 use cadence_core::{
     ContentDigest, LayoutSupportsPound, Micros, MonoTick, SessionId, TrainingChar, WordId,
 };
@@ -880,6 +880,91 @@ fn an_interrupted_prose_word_is_no_outcome() -> TestResult {
     assert!(
         !learning.words.contains_key(&WordId::new(3)?),
         "interrupted: no outcome"
+    );
+    Ok(())
+}
+
+/// #49: misses from warm-up, words and prose come back in the closing
+/// review in FIFO order, each once; once none are left the review is
+/// captioned "no misses left · extra words"; ending the session during
+/// the review stores it completed; review typing is its own track.
+#[test]
+fn the_closing_review_serves_the_sessions_misses() -> TestResult {
+    let mut warm = words_exercise(&[("cat", 1, Lane::Target), ("dog", 2, Lane::Target)])?;
+    warm.kind = ExerciseKind::WarmUp;
+    let review = || {
+        words_exercise(&[
+            ("map", 5, Lane::Review),
+            ("pen", 6, Lane::Review),
+            ("cup", 11, Lane::Review),
+        ])
+    };
+    let phases = vec![
+        PlannedPhase {
+            phase: Phase::WarmUp,
+            seconds: 1,
+            exercises: vec![warm],
+        },
+        PlannedPhase {
+            phase: Phase::AdaptiveWords,
+            seconds: 1,
+            exercises: vec![words_exercise(&[
+                ("sun", 3, Lane::Target),
+                ("hat", 4, Lane::Target),
+            ])?],
+        },
+        PlannedPhase {
+            phase: Phase::Prose,
+            seconds: 1,
+            exercises: vec![prose_exercise(
+                "a big log",
+                &[(9, 1, 2, 3, "big"), (10, 2, 6, 3, "log")],
+            )?],
+        },
+        PlannedPhase {
+            phase: Phase::Review,
+            seconds: 60,
+            exercises: vec![review()?, review()?],
+        },
+    ];
+    let mut driver = Driver::new(engine(phases)?)?;
+    driver.key(0, Key::Enter)?;
+    let mut at = SECOND;
+    for typed in ["c#at do", "s#un ha", "a b#ig l"] {
+        at = type_text(&mut driver, at, typed)?;
+        driver.send(at + 1_000_000, EventKind::Tick)?;
+        driver.key(at + 2_000_000, Key::Enter)?;
+        at += 2_100_000;
+    }
+    assert_eq!(
+        practice_text(&mut driver, at)?,
+        "cat sun big",
+        "FIFO, each once"
+    );
+    at = type_text(&mut driver, at, "cat sun big")?;
+    at += 100_000;
+    assert_eq!(
+        practice_text(&mut driver, at)?,
+        "map pen cup",
+        "no miss returns twice"
+    );
+    assert_eq!(
+        context_line(&mut driver, at).as_deref(),
+        Some("no misses left · extra words")
+    );
+    at = type_text(&mut driver, at, "ma")?;
+    driver.key(at, Key::Interrupt)?;
+    let checkpoint = driver.last.clone().ok_or("checkpoint expected")?;
+    assert_eq!(checkpoint.progress.status, ProgressStatus::Completed);
+    let review_track = checkpoint
+        .progress
+        .tracks
+        .iter()
+        .find(|t| t.track == Track::Review)
+        .ok_or("review track expected")?;
+    assert_eq!(
+        review_track.first_attempted, 13,
+        "11 units of the retype and 2 of the fallback"
     );
     Ok(())
 }

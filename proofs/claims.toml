@@ -1216,6 +1216,27 @@ file = "crates/kernel/src/session.rs"
 before = "    elapsed_us > bound_us\n"
 after = "    elapsed_us >= bound_us\n"
 
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/session.rs"
+function = "session::settle"
+lean = "cadence_kernel.session.settle"
+theorems = ["Proofs.Session.review_phase_keeps_completed", "Proofs.Session.settle_spec"]
+total = "Proofs.Session.settle_spec"
+mutants = ["review-phase-marks-unfinished", "settle-unfinished-keeps-open"]
+
+[[mutant]]
+name = "review-phase-marks-unfinished"
+file = "crates/kernel/src/session.rs"
+before = "            Status::Completed => Status::Completed,\n            Status::Abandoned => Status::Abandoned,\n"
+after = "            Status::Completed => Status::Abandoned,\n            Status::Abandoned => Status::Abandoned,\n"
+
+[[mutant]]
+name = "settle-unfinished-keeps-open"
+file = "crates/kernel/src/session.rs"
+before = "            Status::Open => Status::Abandoned,\n"
+after = "            Status::Open => Status::Open,\n"
+
 # ---- local-calendar days (crates/kernel/src/calendar.rs, #52)
 
 [[claim]]

@@ -23,7 +23,20 @@ pub(super) fn exercises(
     prose_seed: u64,
 ) -> Result<Vec<PlannedExercise>, PlanError> {
     match phase {
-        Phase::Review => Ok(Vec::new()),
+        // The closing review (#49): the reducer fills its slots with the
+        // session's misses; this is the fallback when none are left —
+        // leftover due words, then focus targets, then core words. Every
+        // slot is a non-due review slot, so every slot is substitutable.
+        Phase::Review => {
+            let mut selector =
+                WordSelector::adaptive(policy, inputs.pack, inputs.learner, rng, served_due);
+            let mut exercises = words(policy, &mut selector, rng, seconds, ExerciseKind::Words)?;
+            for slot in exercises.iter_mut().flat_map(|e| e.words.iter_mut()) {
+                slot.lane = crate::policy::Lane::Review;
+                slot.due_review = false;
+            }
+            Ok(exercises)
+        }
         Phase::WarmUp => {
             let mut selector = WordSelector::warm_up(policy, inputs.pack, inputs.learner, rng);
             let mut exercises = words(policy, &mut selector, rng, seconds, ExerciseKind::WarmUp)?;
@@ -43,7 +56,9 @@ pub(super) fn exercises(
         Phase::AdaptiveWords => {
             let mut selector =
                 WordSelector::adaptive(policy, inputs.pack, inputs.learner, rng, served_due);
-            words(policy, &mut selector, rng, seconds, ExerciseKind::Words)
+            let exercises = words(policy, &mut selector, rng, seconds, ExerciseKind::Words)?;
+            served_due.extend(selector.served_due().iter().copied());
+            Ok(exercises)
         }
         Phase::NumberRow | Phase::Numpad => {
             // One prepared entry per second, not one five-entry string per 20s.

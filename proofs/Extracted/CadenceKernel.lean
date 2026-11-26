@@ -2056,7 +2056,7 @@ inductive session.State where
 | Saved : session.State
 
 /-- [cadence_kernel::session::Event]
-    Source: 'crates/kernel/src/session.rs', lines 28:0-58:1
+    Source: 'crates/kernel/src/session.rs', lines 28:0-59:1
     Visibility: public -/
 @[discriminant isize]
 inductive session.Event where
@@ -2076,7 +2076,7 @@ inductive session.Event where
 | SaveCaughtUp : session.Event
 
 /-- [cadence_kernel::session::Clock]
-    Source: 'crates/kernel/src/session.rs', lines 62:0-69:1
+    Source: 'crates/kernel/src/session.rs', lines 63:0-70:1
     Visibility: public -/
 @[discriminant isize]
 inductive session.Clock where
@@ -2085,7 +2085,7 @@ inductive session.Clock where
 | Resume : session.Clock
 
 /-- [cadence_kernel::session::Outcome]
-    Source: 'crates/kernel/src/session.rs', lines 73:0-81:1
+    Source: 'crates/kernel/src/session.rs', lines 74:0-82:1
     Visibility: public -/
 @[discriminant isize]
 inductive session.Outcome where
@@ -2094,7 +2094,7 @@ inductive session.Outcome where
 | Unfinished : session.Outcome
 
 /-- [cadence_kernel::session::Step]
-    Source: 'crates/kernel/src/session.rs', lines 85:0-97:1
+    Source: 'crates/kernel/src/session.rs', lines 86:0-98:1
     Visibility: public -/
 @[discriminant isize]
 inductive session.Step where
@@ -2102,7 +2102,7 @@ inductive session.Step where
 | Refused : session.Step
 
 /-- [cadence_kernel::session::step]:
-    Source: 'crates/kernel/src/session.rs', lines 102:0-316:1
+    Source: 'crates/kernel/src/session.rs', lines 103:0-317:1
     Visibility: public -/
 def session.step
   (state : session.State) (event : session.Event) : Result session.Step := do
@@ -2300,8 +2300,33 @@ def session.step
     | session.State.Finishing => ok session.Step.Refused
     | session.State.Saved => ok session.Step.Refused
 
+/-- [cadence_kernel::session::Status]
+    Source: 'crates/kernel/src/session.rs', lines 321:0-328:1
+    Visibility: public -/
+@[discriminant isize]
+inductive session.Status where
+| Open : session.Status
+| Completed : session.Status
+| Abandoned : session.Status
+
+/-- [cadence_kernel::session::settle]:
+    Source: 'crates/kernel/src/session.rs', lines 334:0-344:1
+    Visibility: public -/
+def session.settle
+  (status : session.Status) (outcome : session.Outcome) :
+  Result session.Status
+  := do
+  match outcome with
+  | session.Outcome.Unchanged => ok status
+  | session.Outcome.Completed => ok session.Status.Completed
+  | session.Outcome.Unfinished =>
+    match status with
+    | session.Status.Open => ok session.Status.Abandoned
+    | session.Status.Completed => ok session.Status.Completed
+    | session.Status.Abandoned => ok session.Status.Abandoned
+
 /-- [cadence_kernel::session::overdue]:
-    Source: 'crates/kernel/src/session.rs', lines 321:0-323:1
+    Source: 'crates/kernel/src/session.rs', lines 349:0-351:1
     Visibility: public -/
 def session.overdue
   (elapsed_us : Std.U64) (bound_us : Std.U64) : Result Bool := do

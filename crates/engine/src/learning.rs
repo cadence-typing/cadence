@@ -52,6 +52,8 @@ pub(super) struct Learning {
     pub(super) numeric_again: bool,
     /// Pack words inside the open prose exercise (#48).
     prose_spans: Vec<WordSpan>,
+    /// A queued miss was placed into the open exercise.
+    pub(super) substituted: bool,
 }
 
 /// A missed numeric entry and the entry index it returns at.
@@ -87,6 +89,7 @@ impl Learning {
             numeric_current: None,
             numeric_again: false,
             prose_spans: Vec::new(),
+            substituted: false,
         }
     }
 
@@ -182,6 +185,7 @@ impl Learning {
         exercise: &PlannedExercise,
     ) -> Result<Vec<TrainingChar>, CoreError> {
         self.mark = None;
+        self.substituted = false;
         self.words.clone_from(&exercise.words);
         if numeric(exercise.kind) {
             return Ok(self.open_numeric(exercise));
@@ -237,6 +241,7 @@ impl Learning {
             };
             *piece = next.units;
             *done = true;
+            self.substituted = true;
             self.evidence.note_reinforcement()?;
         }
         self.queue = waiting;

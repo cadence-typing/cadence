@@ -44,9 +44,10 @@ theorem review_is_terminal_for_typing (s : session.State) (e : session.Event)
         n = session.State.Review ∨ n = session.State.Finishing ∨ n = session.State.Saved ⦄ := by
   rcases h with h | h | h <;> subst h <;> cases e <;> simp [session.step, WP.spec_ok]
 
-/-- A session is marked completed only when its last typing phase's deadline
-passes or the plan reaches its review: ending early or exiting never
-completes it. -/
+/-- A session is marked completed only when its last scored (non-review)
+phase's deadline passes (`LastDeadline`; a closing review may follow as one
+more typing phase, #49) or the plan reaches its end: ending early or exiting
+never completes it. -/
 theorem completed_only_after_last_phase (s : session.State) (e : session.Event) :
     session.step s e
       ⦃ r => ∀ n c, r = session.Step.Move n c session.Outcome.Completed →
@@ -89,6 +90,24 @@ theorem caught_up_only_from_paused (s : session.State) :
       ⦃ r => ∀ n c o, r = session.Step.Move n c o →
         s = session.State.Paused ∧ n = session.State.Running ∧ o = session.Outcome.Unchanged ⦄ := by
   cases s <;> simp [session.step, WP.spec_ok]
+
+/-- The closing review keeps a completed session completed (#49): once the
+last scored phase completed it, no outcome — ending early during the review,
+exiting, another deadline — changes the status. Total. -/
+theorem review_phase_keeps_completed (o : session.Outcome) :
+    session.settle session.Status.Completed o ⦃ r => r = session.Status.Completed ⦄ := by
+  cases o <;> simp [session.settle, WP.spec_ok]
+
+/-- Only a `Completed` outcome completes; ending an open plan abandons it;
+nothing reopens a session. -/
+theorem settle_spec (st : session.Status) (o : session.Outcome) :
+    session.settle st o
+      ⦃ r => (r = session.Status.Completed → o = session.Outcome.Completed ∨
+                st = session.Status.Completed) ∧
+             (st = session.Status.Open → o = session.Outcome.Unfinished →
+                r = session.Status.Abandoned) ∧
+             (r = session.Status.Open → st = session.Status.Open) ⦄ := by
+  cases st <;> cases o <;> simp [session.settle, WP.spec_ok]
 
 /-- Overdue exactly when strictly past the bound. Total. -/
 theorem overdue_spec (elapsed bound : U64) :

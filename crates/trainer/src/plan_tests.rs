@@ -634,3 +634,32 @@ fn prose_does_not_depend_on_the_learner_focus() {
         phase(&adaptive_plan, Phase::AdaptiveWords)
     );
 }
+
+/// #49: the closing review carries a fallback word list whose every slot
+/// is a non-due review slot (substitutable), no word due in an earlier
+/// phase is due again, and the plan's seconds still sum to the budget.
+#[test]
+fn the_closing_review_has_a_substitutable_fallback() {
+    let (words, bank) = (pack(3_000), prose(50));
+    let learner = weak_on("qa", &[(WordId::new(321).unwrap(), 1)], 10);
+    for budget in [300, 900] {
+        let plan = build(&learner, &words, &bank, 3, &[], budget).unwrap();
+        assert_eq!(plan.phases.iter().map(|p| p.seconds).sum::<u64>(), budget);
+        let review = phase(&plan, Phase::Review);
+        assert!(!review.exercises.is_empty());
+        assert!(
+            review
+                .exercises
+                .iter()
+                .all(|e| e.kind == ExerciseKind::Words)
+        );
+        assert!(
+            review
+                .exercises
+                .iter()
+                .flat_map(|e| e.words.iter())
+                .all(|w| w.lane == Lane::Review && !w.due_review)
+        );
+        assert_eq!(plan.phases.last().map(|p| p.phase), Some(Phase::Review));
+    }
+}
