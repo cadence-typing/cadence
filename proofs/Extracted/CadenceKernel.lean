@@ -2672,7 +2672,7 @@ def save.exit_requested
       save.Command.None)
 
 /-- [cadence_kernel::save::step]:
-    Source: 'crates/kernel/src/save.rs', lines 163:0-205:1
+    Source: 'crates/kernel/src/save.rs', lines 163:0-199:1
     Visibility: public -/
 def save.step
   (s : save.State) (event : save.Event) :
@@ -2700,10 +2700,7 @@ def save.step
     then
       if s.finishing
       then ok (s, save.Command.None)
-      else
-        if s.stalled
-        then ok (s, save.Command.None)
-        else ok ({ s with stalled := true }, save.Command.Pause)
+      else ok ({ s with stalled := true }, save.Command.Pause)
     else ok (s, save.Command.None)
 
 /-- [cadence_kernel::select::BASIS]

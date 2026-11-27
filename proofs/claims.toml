@@ -429,6 +429,7 @@ theorems = [
   "Proofs.Session.stall_stops_clock",
   "Proofs.Session.stall_changes_no_outcome",
   "Proofs.Session.caught_up_only_from_paused",
+  "Proofs.Session.reachable_clock",
 ]
 total = "Proofs.Session.clock_runs_only_running"
 mutants = [
@@ -1221,9 +1222,19 @@ crate = "cadence-kernel"
 file = "crates/kernel/src/session.rs"
 function = "session::settle"
 lean = "cadence_kernel.session.settle"
-theorems = ["Proofs.Session.review_phase_keeps_completed", "Proofs.Session.settle_spec"]
+theorems = [
+  "Proofs.Session.review_phase_keeps_completed",
+  "Proofs.Session.settle_spec",
+  "Proofs.Session.completed_is_stable",
+]
 total = "Proofs.Session.settle_spec"
-mutants = ["review-phase-marks-unfinished", "settle-unfinished-keeps-open"]
+mutants = ["review-phase-marks-unfinished", "settle-unfinished-keeps-open", "completed-reopens"]
+
+[[mutant]]
+name = "completed-reopens"
+file = "crates/kernel/src/session.rs"
+before = "            Status::Completed => Status::Completed,"
+after = "            Status::Completed => Status::Abandoned,"
 
 [[mutant]]
 name = "review-phase-marks-unfinished"

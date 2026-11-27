@@ -1,0 +1,24 @@
+flush -> none
+due -> none
+flush -> dispatch 1
+due -> none
+flush -> none
+acked 1 -> none
+flush -> dispatch 2
+acked 1 -> none
+stalled -> pause
+stalled -> pause
+due -> none
+acked 2 -> resume
+flush -> dispatch 3
+ack-failed 3 -> pause
+due -> none
+flush -> none
+retry -> none
+flush -> dispatch 4
+exit -> none
+final-timeout -> quit failed
+acked 4 -> none
+flush -> dispatch 5
+exit -> none
+acked 5 -> quit ok

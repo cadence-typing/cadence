@@ -65,7 +65,7 @@ impl Engine {
                 // The closing review's deadline opens the results (#49).
                 self.screen = Screen::Summary;
                 self.transition(Some(at), SessionEvent::PlanDone)?;
-                self.checkpoint_due = true;
+                self.mark_due();
                 return Ok(Some(DomainOutcome::SessionSummary));
             }
             self.screen = Screen::PhaseComplete { partial };
@@ -78,7 +78,7 @@ impl Engine {
                 },
             )?;
             self.interlude_opened = Some(at);
-            self.checkpoint_due = true;
+            self.mark_due();
             return Ok(Some(DomainOutcome::PhaseDeadline { phase, partial }));
         }
         self.active = active;
@@ -93,7 +93,7 @@ impl Engine {
         if phase.phase == Phase::Review && phase.exercises.is_empty() {
             self.screen = Screen::Summary;
             self.transition(Some(at), SessionEvent::PlanDone)?;
-            self.checkpoint_due = true;
+            self.mark_due();
             return Ok(());
         }
         let exercise = phase
@@ -182,7 +182,7 @@ impl Engine {
         let Some(phase) = self.plan.phases.get(self.phase_index) else {
             self.screen = Screen::Summary;
             self.transition(Some(at), SessionEvent::PlanDone)?;
-            self.checkpoint_due = true;
+            self.mark_due();
             return Ok(DomainOutcome::SessionSummary);
         };
         let phase = phase.phase;
@@ -203,11 +203,7 @@ impl Engine {
         if self.session_state == SessionState::Paused {
             match key {
                 Key::Escape | Key::Enter => self.resume(at)?,
-                Key::Content(c)
-                    if c.get() == 'e'
-                        && !self.invalid
-                        && !self.storage.as_ref().is_some_and(|s| s.failed.is_some()) =>
-                {
+                Key::Content(c) if c.get() == 'e' && !self.invalid && !self.save.failed => {
                     return self.end_early(at);
                 }
                 Key::Content(_)
@@ -345,7 +341,7 @@ impl Engine {
         self.exercise_index = advance.next;
         self.list_wrapped = self.list_wrapped || advance.wrapped;
         self.open_exercise(at)?;
-        self.checkpoint_due = true;
+        self.mark_due();
         Ok(DomainOutcome::ExerciseCompleted {
             exercise,
             first_pass,

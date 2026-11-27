@@ -407,7 +407,7 @@ impl crate::Engine {
     /// Settings open from the start screen or while paused, never while
     /// typing.
     pub(crate) fn settings_openable(&self) -> bool {
-        !self.finishing
+        !self.save.finishing
             && !self.invalid
             && (self.screen == crate::Screen::Today
                 || self.session_state == cadence_core::session::SessionState::Paused)

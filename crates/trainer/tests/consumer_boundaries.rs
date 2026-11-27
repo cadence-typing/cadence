@@ -403,3 +403,33 @@ fn the_due_queue_has_no_second_copy_in_the_trainer() -> TestResult {
     }
     Ok(())
 }
+
+/// #89: every flag and sequence of the save protocol is the kernel
+/// machine's (`save::step`); the engine's storage driver keeps payloads and
+/// timestamps only, and no second copy of the flags.
+#[test]
+fn the_save_protocol_has_no_second_copy_in_the_engine() -> TestResult {
+    let storage = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../engine/src/storage.rs"
+    ))?;
+    let engine =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../engine/src/lib.rs"))?;
+    assert!(
+        storage.contains("cadence_core::save::step("),
+        "the driver steps the kernel"
+    );
+    for copy in [
+        "failed: Option<Checkpoint>",
+        "sequence: CommitSeq,",
+        "storage.sequence",
+        "checkpoint_due",
+        "self.finishing",
+    ] {
+        assert!(!storage.contains(copy), "engine/storage.rs keeps {copy}");
+    }
+    for copy in ["checkpoint_due: bool", "finishing: bool"] {
+        assert!(!engine.contains(copy), "engine/lib.rs keeps {copy}");
+    }
+    Ok(())
+}

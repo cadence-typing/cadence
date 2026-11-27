@@ -307,7 +307,7 @@ impl Engine {
     }
     fn practice_view(&self) -> ScreenView {
         let phase = self.plan.phases.get(self.phase_index);
-        let paused = self.session_state != SessionState::Running || self.finishing;
+        let paused = self.session_state != SessionState::Running || self.save.finishing;
         let elapsed = self.active.checked_sub(self.phase_start);
         let remaining = phase
             .and_then(|p| Micros::from_seconds(p.seconds).ok())
@@ -379,7 +379,7 @@ impl Engine {
             ViewMode::SaveError
         } else if self.invalid {
             ViewMode::Invalid
-        } else if self.finishing {
+        } else if self.save.finishing {
             ViewMode::Saving
         } else {
             match self.screen {

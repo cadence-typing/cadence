@@ -193,7 +193,7 @@ impl crate::Engine {
             Action::Pause => self.pause_for(at, PauseReason::Requested)?,
             Action::Resume => self.resume(at)?,
             Action::EndAndReview => {
-                if !self.invalid && !self.storage.as_ref().is_some_and(|s| s.failed.is_some()) {
+                if !self.invalid && !self.save.failed {
                     t.outcome = self.end_early(at)?;
                 }
             }

@@ -104,6 +104,7 @@
         "cadence_engine::storage::{dispatch_checkpoint, save_result, retry_save, request_exit, watchdog}",
         "cadence_kernel::checkpoint::admit",
         "cadence_kernel::chunks::{admit, watermark_ok}",
+        "cadence_kernel::save::step",
         "cadence_kernel::session::overdue",
         "cadence_runtime::writer::SaveWorker"
       ],

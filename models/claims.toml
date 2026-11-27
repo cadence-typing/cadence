@@ -83,6 +83,7 @@ production_symbols = [
   "cadence_kernel::checkpoint::admit",
   "cadence_kernel::session::overdue",
   "cadence_kernel::chunks::{admit, watermark_ok}",
+  "cadence_kernel::save::step",
   "cadence_data::chunk_rows::append",
   "cadence_engine::learning::ChunkLog",
 ]

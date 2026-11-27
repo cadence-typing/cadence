@@ -82,7 +82,7 @@ impl Engine {
                 self.probe_paused = true;
             }
         }
-        self.checkpoint_due = true;
+        self.mark_due();
         Ok(())
     }
 
@@ -90,7 +90,7 @@ impl Engine {
     pub(super) fn resume(&mut self, at: MonoTick) -> Result<(), CoreError> {
         if !self.invalid
             && self.viewport == super::ViewportState::Usable
-            && !self.storage.as_ref().is_some_and(|s| s.failed.is_some())
+            && !self.save.failed
             && self.pause_reason != Some(PauseReason::SavingSlow)
         {
             self.transition(Some(at), SessionEvent::Resume)?;
@@ -102,8 +102,8 @@ impl Engine {
     /// Ctrl-C: during practice or an interlude it ends the session into the
     /// review; elsewhere (start, review, failure, invalid) it exits.
     pub(super) fn interrupt(&mut self, at: MonoTick, t: &mut Transition) -> Result<(), CoreError> {
-        let failed = self.storage.as_ref().is_some_and(|s| s.failed.is_some());
-        if !self.finishing
+        let failed = self.save.failed;
+        if !self.save.finishing
             && !self.invalid
             && !failed
             && matches!(self.screen, Screen::Practice | Screen::PhaseComplete { .. })
@@ -137,7 +137,7 @@ impl Engine {
         self.screen = Screen::Summary;
         self.pause_reason = None;
         self.interlude_opened = None;
-        self.checkpoint_due = true;
+        self.mark_due();
         Ok(outcome)
     }
 

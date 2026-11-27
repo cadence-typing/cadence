@@ -1,4 +1,5 @@
 import Extracted.CadenceKernel
+import Proofs.TautenMachine
 
 /-!
 # The session lifecycle (`cadence_kernel::session`)
@@ -114,5 +115,79 @@ theorem overdue_spec (elapsed bound : U64) :
     session.overdue elapsed bound ⦃ r => (r = true ↔ bound.val < elapsed.val) ⦄ := by
   unfold session.overdue
   simp [WP.spec_ok]
+
+/-! ## The lifecycle as a machine (#89)
+
+The engine's session configuration: the table's state, whether the active
+clock has a segment open (`Resume` opens one, `Stop` closes it, `Keep`
+leaves it), and the persisted status (`settle` applies each outcome). A
+refused event changes nothing. The theorems below hold in every reachable
+configuration (`Tauten.Machine.rinv_of_step`), not only per step. -/
+
+open Tauten.Machine
+
+/-- The session configuration the engine keeps. -/
+structure Config where
+  state : session.State
+  clock : Bool
+  status : session.Status
+
+/-- The clock after a command. -/
+def applyClock (running : Bool) : session.Clock → Bool
+  | .Keep => running
+  | .Stop => false
+  | .Resume => true
+
+/-- `session.step` and `session.settle`, as the engine applies them. -/
+def lifecycle : RMachine Config session.Event Unit := ⟨fun x e => do
+  let r ← session.step x.state e
+  match r with
+  | .Move n c o => do
+    let st ← session.settle x.status o
+    ok ({ state := n, clock := applyClock x.clock c, status := st }, ())
+  | .Refused => ok (x, ())⟩
+
+/-- A session starts ready, with no clock segment, open. -/
+def lifecycleInit (x : Config) : Prop :=
+  x = { state := session.State.Ready, clock := false, status := session.Status.Open }
+
+/-- In every reachable configuration the active clock runs only while
+practice is running. -/
+theorem reachable_clock (x : Config) (h : RReachable lifecycle lifecycleInit x) :
+    x.clock = true → x.state = session.State.Running := by
+  refine rinv_of_step lifecycle lifecycleInit
+    (fun x => x.clock = true → x.state = session.State.Running) ?_ ?_ x h
+  · intro x hx; subst hx; simp
+  · intro ⟨s, c, st⟩ e hinv
+    simp only at hinv
+    have hsettle : ∀ o, ∃ v, session.settle st o = ok v := by
+      intro o; cases st <;> cases o <;> simp [session.settle]
+    cases c with
+    | false =>
+      cases s <;> cases e <;>
+        simp only [lifecycle, session.step, bind_ok, WP.spec_ok, applyClock] <;>
+        first
+          | (obtain ⟨v, hv⟩ := hsettle session.Outcome.Unchanged; simp [hv])
+          | (obtain ⟨v, hv⟩ := hsettle session.Outcome.Completed; simp [hv])
+          | (obtain ⟨v, hv⟩ := hsettle session.Outcome.Unfinished; simp [hv])
+    | true =>
+      have hs := hinv rfl
+      subst hs
+      cases e <;>
+        simp only [lifecycle, session.step, bind_ok, WP.spec_ok, applyClock] <;>
+        first
+          | (obtain ⟨v, hv⟩ := hsettle session.Outcome.Unchanged; simp [hv])
+          | (obtain ⟨v, hv⟩ := hsettle session.Outcome.Completed; simp [hv])
+          | (obtain ⟨v, hv⟩ := hsettle session.Outcome.Unfinished; simp [hv])
+
+/-- Once completed, always completed: from any reachable configuration
+whose status is `Completed`, every event keeps it. -/
+theorem completed_is_stable (x : Config) (_h : RReachable lifecycle lifecycleInit x)
+    (e : session.Event) (hc : x.status = session.Status.Completed) :
+    lifecycle.step x e ⦃ r => r.1.status = session.Status.Completed ⦄ := by
+  obtain ⟨s, c, st⟩ := x
+  simp only at hc
+  subst hc
+  cases s <;> cases e <;> simp [lifecycle, session.step, session.settle, WP.spec_ok]
 
 end Proofs.Session

@@ -1,10 +1,15 @@
-//! Single-flight checkpoint state; runtime alone performs durable I/O.
+//! The driver of the save protocol (#89): every flag and sequence of the
+//! single-flight protocol is the proved kernel machine's
+//! (`cadence_core::save::step`, held in `Engine::save`); this module holds
+//! the payloads and timestamps, measures the watchdogs and carries out the
+//! machine's commands. The runtime alone performs durable I/O.
 use super::practice::merge_track;
 use super::{DomainOutcome, Engine, Screen, Transition, invalid};
 use crate::view::{Durability, PauseReason};
 use cadence_core::progress::{
     Checkpoint, HistorySummary, ProgressStatus, SaveKey, SaveResult, SessionProgress,
 };
+use cadence_core::save::{Command, Event};
 use cadence_core::session::{SessionEvent, SessionState, save_overdue};
 use cadence_core::{CommitSeq, CoreError, MonoTick, SessionId};
 
@@ -16,25 +21,17 @@ const FINAL_FLUSH_WATCHDOG_US: u64 = 10_000_000;
 pub(super) struct Storage {
     session: SessionId,
     day: i64,
-    sequence: CommitSeq,
+    /// The payload in flight: present exactly while the machine says
+    /// `pending`.
     pending: Option<Checkpoint>,
     /// The causal group of the pending checkpoint (#71).
     pending_group: Option<u64>,
-    pub(super) failed: Option<Checkpoint>,
+    /// The newest acknowledged key, for its digest in diagnostics.
     last_ack: Option<SaveKey>,
     sent_at: Option<MonoTick>,
     last_dispatch: Option<MonoTick>,
 }
 impl Storage {
-    /// The newest dispatched and the newest acknowledged sequence.
-    pub(super) fn watermarks(&self) -> (Option<u64>, Option<u64>) {
-        let dispatched = self.sequence.get();
-        (
-            (dispatched > 0).then_some(dispatched),
-            self.last_ack.map(|key| key.sequence.get()),
-        )
-    }
-
     /// Local calendar day of this session.
     pub(super) const fn day(&self) -> i64 {
         self.day
@@ -70,10 +67,8 @@ impl Engine {
         self.storage = Some(Storage {
             session,
             day,
-            sequence: CommitSeq::INITIAL,
             pending: None,
             pending_group: None,
-            failed: None,
             last_ack: None,
             sent_at: None,
             last_dispatch: None,
@@ -102,9 +97,23 @@ impl Engine {
         // this checkpoint's child (#71).
         self.ack_group = storage.pending_group.take();
         storage.sent_at = None;
+        let seq = response.key.sequence.get();
+        if response.result.is_ok() {
+            storage.last_ack = Some(response.key);
+        }
+        let durable = storage.last_ack.map_or_else(
+            || "no checkpoint acknowledged".to_string(),
+            |key| {
+                format!(
+                    "last durable checkpoint {}.{}",
+                    key.session.get(),
+                    key.sequence.get()
+                )
+            },
+        );
         match response.result {
             Ok(()) => {
-                storage.last_ack = Some(response.key);
+                let command = self.save_step(Event::Acked { seq });
                 if let cadence_core::progress::Evidence::Chunked(chunked) = &checkpoint.evidence {
                     self.learning.chunks.acknowledged(chunked.through);
                 }
@@ -113,38 +122,35 @@ impl Engine {
                     // acknowledgement must not keep a diagnostic banner open.
                     self.notice = None;
                 }
-                // #51: the stalled save caught up: its pause ends (only a
-                // pause whose reason is still the stall).
-                if self.session_state == SessionState::Paused
-                    && self.pause_reason == Some(PauseReason::SavingSlow)
-                    && !self.invalid
-                {
-                    let at = self.last_at;
-                    self.transition(at, SessionEvent::SaveCaughtUp)?;
-                    self.pause_reason = None;
-                }
-                if self.finishing
-                    && !self.checkpoint_due
-                    && checkpoint.progress.status == self.status
-                {
-                    self.transition(None, SessionEvent::FinalSaved)?;
-                    t.quit = true;
-                    t.exit_failed = false;
+                match command {
+                    // #51: the stalled save caught up: its pause ends (only
+                    // a pause whose reason is still the stall).
+                    Command::Resume => {
+                        if self.session_state == SessionState::Paused
+                            && self.pause_reason == Some(PauseReason::SavingSlow)
+                            && !self.invalid
+                        {
+                            let at = self.last_at;
+                            self.transition(at, SessionEvent::SaveCaughtUp)?;
+                            self.pause_reason = None;
+                        }
+                    }
+                    Command::Quit { success: true } => {
+                        self.transition(None, SessionEvent::FinalSaved)?;
+                        t.quit = true;
+                        t.exit_failed = false;
+                    }
+                    Command::None
+                    | Command::Dispatch { .. }
+                    | Command::Pause
+                    | Command::Quit { success: false } => {}
                 }
             }
             Err(message) => {
-                storage.failed = Some(checkpoint);
+                if self.save_step(Event::AckFailed { seq }) != Command::Pause {
+                    return Err(invalid("a failed acknowledgement did not pause"));
+                }
                 let bounded: String = message.chars().take(256).collect();
-                let durable = storage.last_ack.map_or_else(
-                    || "no checkpoint acknowledged".to_string(),
-                    |key| {
-                        format!(
-                            "last durable checkpoint {}.{}",
-                            key.session.get(),
-                            key.sequence.get()
-                        )
-                    },
-                );
                 let at = self.last_at;
                 self.transition(at, SessionEvent::SaveFailed)?;
                 if self.pause_reason == Some(PauseReason::SavingSlow) {
@@ -158,12 +164,20 @@ impl Engine {
         }
         Ok(())
     }
+    /// Steps the save machine; the driver carries out the command.
+    pub(super) fn save_step(&mut self, event: Event) -> Command {
+        let (next, command) = cadence_core::save::step(self.save, event);
+        self.save = next;
+        command
+    }
+    /// Something a checkpoint should carry changed.
+    pub(super) fn mark_due(&mut self) {
+        let _none = self.save_step(Event::Due);
+    }
     pub(super) fn retry_save(&mut self) {
-        if let Some(storage) = self.storage.as_mut()
-            && storage.failed.take().is_some()
-        {
-            // Rebuild the cumulative snapshot only on dispatch, including retained tail.
-            self.checkpoint_due = true;
+        if self.save.failed {
+            // The snapshot is rebuilt on dispatch, including the retained tail.
+            let _none = self.save_step(Event::Retry);
             self.notice = Some("Retrying durable save; practice remains paused.".to_string());
         }
     }
@@ -172,13 +186,12 @@ impl Engine {
         at: MonoTick,
         t: &mut Transition,
     ) -> Result<(), CoreError> {
-        if self.finishing && self.storage.as_ref().is_some_and(|s| s.failed.is_some()) {
-            t.quit = true;
-            t.exit_failed = true;
-            self.notice=Some("Exited without saving the latest tail; only the last acknowledged checkpoint is durable.".to_string());
-            return Ok(());
-        }
-        if self.finishing {
+        if self.save.finishing {
+            if self.save_step(Event::ExitRequested) == (Command::Quit { success: false }) {
+                t.quit = true;
+                t.exit_failed = true;
+                self.notice=Some("Exited without saving the latest tail; only the last acknowledged checkpoint is durable.".to_string());
+            }
             return Ok(());
         }
         if self.screen == Screen::Today && self.session_state == SessionState::Ready {
@@ -197,8 +210,7 @@ impl Engine {
         if in_probe {
             self.record_probe(false, true)?;
         }
-        self.finishing = true;
-        self.checkpoint_due = true;
+        let _none = self.save_step(Event::ExitRequested);
         if self.storage.is_none() {
             t.quit = true;
         } else {
@@ -210,9 +222,12 @@ impl Engine {
         let Some(storage) = self.storage.as_ref() else {
             return Ok(());
         };
-        if self.finishing
-            && let Some(sent) = storage.sent_at
+        let sent = storage.sent_at;
+        let last_dispatch = storage.last_dispatch;
+        if self.save.finishing
+            && let Some(sent) = sent
             && at.elapsed_since(sent)?.as_us() >= FINAL_FLUSH_WATCHDOG_US
+            && self.save_step(Event::FinalTimeout) == (Command::Quit { success: false })
         {
             self.notice =
                 Some("Final save timed out; only acknowledged progress is durable.".to_string());
@@ -221,8 +236,9 @@ impl Engine {
             return Ok(());
         }
         if self.session_state == SessionState::Running {
-            if let Some(sent) = storage.sent_at
+            if let Some(sent) = sent
                 && save_overdue(at.elapsed_since(sent)?.as_us(), CHECKPOINT_CADENCE_US)
+                && self.save_step(Event::Stalled) == Command::Pause
             {
                 // #51: a slow save stalls practice (the clock stops, nothing
                 // is scored) until the acknowledgement arrives, instead of
@@ -231,13 +247,13 @@ impl Engine {
                 self.pause_reason = Some(PauseReason::SavingSlow);
                 return Ok(());
             }
-            if storage.last_dispatch.is_none()
-                || storage.last_dispatch.is_some_and(|last| {
+            if last_dispatch.is_none()
+                || last_dispatch.is_some_and(|last| {
                     at.elapsed_since(last)
                         .is_ok_and(|d| d.as_us() >= CHECKPOINT_CADENCE_US)
                 })
             {
-                self.checkpoint_due = true;
+                self.mark_due();
             }
         }
         Ok(())
@@ -247,16 +263,15 @@ impl Engine {
         at: MonoTick,
         t: &mut Transition,
     ) -> Result<(), CoreError> {
-        if !self.checkpoint_due {
+        if self.storage.is_none() {
             return Ok(());
         }
-        let Some(storage) = self.storage.as_ref() else {
-            self.checkpoint_due = false;
+        let Command::Dispatch { seq } = self.save_step(Event::Flush) else {
             return Ok(());
         };
-        if storage.pending.is_some() || storage.failed.is_some() {
-            return Ok(());
-        }
+        let Some(storage) = self.storage.as_ref() else {
+            return Err(invalid("dispatch without storage"));
+        };
         let mut tracks = self.tracks.clone();
         if let Some(current) = self.current_progress()? {
             merge_track(&mut tracks, current)?;
@@ -274,7 +289,7 @@ impl Engine {
             content_class: self.content_class,
             pack_digest: self.pack_digest.clone(),
         };
-        let sequence = storage.sequence.next()?;
+        let sequence = CommitSeq::from_raw(seq);
         let checkpoint = Checkpoint::new(
             storage.session,
             sequence,
@@ -283,13 +298,11 @@ impl Engine {
         )?;
         let group = self.ack_group.take().unwrap_or(self.consumed.get());
         if let Some(storage) = self.storage.as_mut() {
-            storage.sequence = sequence;
             storage.pending_group = Some(group);
             storage.pending = Some(checkpoint.clone());
             storage.sent_at = Some(at);
             storage.last_dispatch = Some(at);
         }
-        self.checkpoint_due = false;
         t.checkpoint = Some(checkpoint);
         t.checkpoint_group = Some(group);
         Ok(())
@@ -299,9 +312,9 @@ impl Engine {
             return Durability::Transient;
         };
         let last_ack = storage.last_ack.map(|key| key.sequence);
-        if storage.failed.is_some() {
+        if self.save.failed {
             Durability::Failed { last_ack }
-        } else if storage.pending.is_some() {
+        } else if self.save.pending {
             Durability::Saving { last_ack }
         } else if let Some(sequence) = last_ack {
             Durability::Checkpointed { sequence }

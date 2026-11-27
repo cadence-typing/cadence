@@ -199,8 +199,8 @@ pub struct Engine {
     storage: Option<Storage>,
     learning: learning::Learning,
     status: ProgressStatus,
-    checkpoint_due: bool,
-    finishing: bool,
+    /// The save protocol's state: the proved kernel machine (#89).
+    save: cadence_core::save::State,
     text_size: TextSize,
     text_support: TextSupport,
     viewport: ViewportState,
@@ -290,8 +290,7 @@ impl Engine {
             history: HistorySummary::default(),
             storage: None,
             status: ProgressStatus::Running,
-            checkpoint_due: false,
-            finishing: false,
+            save: cadence_core::save::initial(),
             text_size: TextSize::Auto,
             text_support: TextSupport::NormalOnly,
             viewport: ViewportState::Usable,
@@ -343,7 +342,7 @@ impl Engine {
     pub fn input_owner(&self) -> InputOwner {
         if self.screen == Screen::Practice
             && self.session_state == SessionState::Running
-            && !self.finishing
+            && !self.save.finishing
         {
             InputOwner::Practice
         } else {
@@ -373,9 +372,11 @@ impl Engine {
     /// acknowledged one (#71 durable barriers).
     #[must_use]
     pub fn save_watermarks(&self) -> (Option<u64>, Option<u64>) {
-        self.storage
-            .as_ref()
-            .map_or((None, None), |storage| storage.watermarks())
+        if self.storage.is_none() {
+            return (None, None);
+        }
+        let positive = |seq: u64| (seq > 0).then_some(seq);
+        (positive(self.save.sequence), positive(self.save.last_ack))
     }
 
     /// Exact track totals now, including the open exercise (#69 snapshot).
@@ -459,8 +460,8 @@ impl Engine {
             }
             EventKind::RestartJobs => self.jobs.restart(),
             EventKind::CheckpointRequested => {
-                if self.storage.is_some() && !self.finishing {
-                    self.checkpoint_due = true;
+                if self.storage.is_some() && !self.save.finishing {
+                    self.mark_due();
                 }
             }
             EventKind::Key(key) if self.setup.is_some() && !setup::passes_through(key) => {
@@ -471,13 +472,13 @@ impl Engine {
             }
             EventKind::Key(Key::Interrupt) => self.interrupt(at, &mut t)?,
             EventKind::Terminate => self.request_exit(at, &mut t)?,
-            EventKind::PasteRejected if !self.finishing && !self.invalid => {
+            EventKind::PasteRejected if !self.save.finishing && !self.invalid => {
                 self.pause_for(at, PauseReason::PasteRejected)?;
             }
-            EventKind::FocusLost if !self.finishing && !self.invalid => {
+            EventKind::FocusLost if !self.save.finishing && !self.invalid => {
                 self.pause_for(at, PauseReason::FocusLost)?;
             }
-            kind if !self.finishing && !self.invalid => {
+            kind if !self.save.finishing && !self.invalid => {
                 if let Some(outcome) = boundary {
                     t.outcome = outcome;
                 } else {
@@ -518,7 +519,7 @@ impl Engine {
             "Measurement stopped: {}. Ctrl-C keeps the partial evidence; no qualified score.",
             flow::describe(&reason)
         ));
-        self.checkpoint_due = true;
+        self.mark_due();
         Transition::changed(DomainOutcome::MeasurementInvalid { reason })
     }
     fn apply_kind(&mut self, at: MonoTick, kind: EventKind) -> Result<DomainOutcome, CoreError> {
@@ -540,7 +541,7 @@ impl Engine {
         {
             self.transition(Some(at), SessionEvent::Pause)?;
             self.pause_reason = Some(PauseReason::TooSmall);
-            self.checkpoint_due = true;
+            self.mark_due();
         }
         Ok(())
     }

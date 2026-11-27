@@ -48,7 +48,7 @@ pub enum Event {
     ExitRequested,
     /// The final save's watchdog expired.
     FinalTimeout,
-    /// The running save's acknowledgement is overdue.
+    /// The running save's acknowledgement is overdue while practice runs.
     Stalled,
 }
 
@@ -189,7 +189,7 @@ pub fn step(s: State, event: Event) -> (State, Command) {
             }
         }
         Event::Stalled => {
-            if s.pending && !s.finishing && !s.stalled {
+            if s.pending && !s.finishing {
                 (State { stalled: true, ..s }, Command::Pause)
             } else {
                 (s, Command::None)
@@ -236,7 +236,9 @@ mod tests {
         let (s, _) = step(s, Event::Flush);
         let (s, c) = step(s, Event::Stalled);
         assert_eq!(c, Command::Pause);
-        assert_eq!(step(s, Event::Stalled).1, Command::None);
+        // The driver reports a stall only while practice runs; each report
+        // pauses it again.
+        assert_eq!(step(s, Event::Stalled).1, Command::Pause);
         assert_eq!(step(s, Event::Acked { seq: 1 }).1, Command::Resume);
         // A failed final save quits unsuccessfully on a second request.
         let (s, _) = step(s, Event::ExitRequested);
