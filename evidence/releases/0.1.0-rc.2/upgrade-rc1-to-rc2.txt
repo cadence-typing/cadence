@@ -1,0 +1,17 @@
+# rc.1: cadence 0.1.0-rc.1 (x86_64, development preview)
+# rc.2: cadence 0.1.0-rc.2 (x86_64, development preview)
+{"id":"6","ok":true,"result":{"durable_commit_seq":"7","event_seq":"102","saved":true,"state_revision":"102","view_digest":"95fe795d6eefebbf9c01946dfbf06e39"},"v":1}
+{"id":"6","ok":true,"result":{"durable_commit_seq":"7","event_seq":"102","saved":true,"state_revision":"102","view_digest":"95fe795d6eefebbf9c01946dfbf06e39"},"v":1}
+Progress exported: <tmp>/before.json
+## rc.2 opens the rc.1 profile
+schema 7
+Progress exported: <tmp>/after.json
+export schema 7 -> 7
+sessions 2 unchanged: sequence, digest and learning records
+## rc.2 records a full-keypad session (12*, Backspace, +7, Enter, -4.50, Enter)
+requests 9 all ok; saved True
+Progress exported: <tmp>/rc2.json
+newest session 3 provenance synthetic content_class standard
+## rc.1 opens the profile rc.2 wrote (no new schema)
+Progress exported: <tmp>/back.json
+rc.1 reads 3 sessions
