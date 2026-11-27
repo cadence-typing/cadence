@@ -4,6 +4,19 @@ User-visible changes per release. Design decisions live in the [RFC registry](do
 
 ## [Unreleased]
 
+## [0.1.0-rc.1] — Evidence you can count once, gates you can rerun (2026-11-27)
+
+Design: [RFC: append-only observation chunks](docs/rfcs/2026-11-26-observation-chunks.md), [RFC: protocol proofs as kernel machines](docs/rfcs/2026-11-26-protocol-proofs-as-kernel-machines.md), [decision 0009](docs/decisions/0009-lean-for-verus-and-tlaps.md). The release candidate: still an unpromoted development bundle (promotion needs #13, #14 and #98).
+
+- **Store schema 7.** Migration is automatic; learning evidence is now stored as append-only observation chunks, one per closed exercise, that the database itself refuses to change or delete. Each checkpoint writes only what is new, so saving no longer gets slower as a session grows, and a retried save can never count evidence twice. Sessions recorded before stay exactly as they were (`legacy`). beta.3 cannot open a schema-7 profile; back up before downgrading. [#11](https://github.com/cadence-typing/cadence/issues/11)
+- `cadence doctor --json` reports each session's commit, chunk and derived watermarks; `cadence doctor --rebuild-derived` recomputes your totals from the chunks and lists any that differed; `export` lists every chunk. [#11](https://github.com/cadence-typing/cadence/issues/11)
+- `cadence restore --from FILE` restores a backup with the writer closed: it validates the backup before replacing anything, keeps the replaced database as `progress.sqlite3.previous`, and survives being interrupted. Opening a database written by a newer Cadence now says how to recover. [#88](https://github.com/cadence-typing/cadence/issues/88), [#94](https://github.com/cadence-typing/cadence/issues/94)
+- The save protocol is a proved kernel machine: single flight, acknowledgements that never go backwards, a named failed tail and a clean exit only after the final acknowledgement hold in every reachable state, not just to a model checker's bound. [#89](https://github.com/cadence-typing/cadence/issues/89)
+- Due reviews are served first in, first out by a proved queue: no duplicate is admitted and an item with `n` reviews ahead of it is served by the `(n+1)`-th service. [#90](https://github.com/cadence-typing/cadence/issues/90)
+- An assurance manifest binds every handover claim (VP-01..05, VK-01..06, VL-01, VR-01) to its theorems, models and runtime tests, and the `model`, `prove`, `verify` and `correspondence` gates check it. [#91](https://github.com/cadence-typing/cadence/issues/91)
+- Gates you can rerun: a real-PTY suite (#92), crash campaigns that kill the app around every checkpoint statement and migration step (#88), measured latency and memory budgets (#15), a fresh-home offline install that rejects tampered and wrong-architecture bundles (#94), and `./ci qualify`, `status` and `resume` with a receipt for every gate attempt (#93). The installer gains `--from DIR` for offline installs and never leaves the `cadence` link dangling.
+- Dependencies: a licence and advisory audit in every quality run; `chrono` (unmaintained) is replaced by `jiff`. [#95](https://github.com/cadence-typing/cadence/issues/95)
+
 ## [0.1.0-beta.3] — Your settings, your layout, your text (2026-11-27)
 
 Design: [RFC: configuration, keyboard layout and the settings surface](docs/rfcs/2026-11-26-configuration-layout-and-settings.md), [RFC: local imports and code practice](docs/rfcs/2026-11-26-local-imports-and-code-practice.md).
