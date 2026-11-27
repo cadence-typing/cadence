@@ -226,16 +226,24 @@ pub fn build_dist() -> Result<(), String> {
     Ok(())
 }
 
-/// A release binary never carries the test-only fault hooks (#88, #92):
-/// their environment variables are present only in a `test-faults` build.
+/// A release binary never carries the test-only fault hooks (#88, #92) or
+/// the performance harness (#15): their markers are present only in a
+/// `test-faults` or `perf` build.
 fn refuse_fault_hooks(binary: &Path) -> Result<(), String> {
     let bytes = fs::read(binary).map_err(|e| format!("{}: {e}", binary.display()))?;
-    let marker = b"CADENCE_FAULT_";
-    if bytes.windows(marker.len()).any(|window| window == marker) {
-        return Err(format!(
-            "{} contains a test-only fault hook (CADENCE_FAULT_*); build without `test-faults`",
-            binary.display()
-        ));
+    for (marker, what) in [
+        (
+            &b"CADENCE_FAULT_"[..],
+            "a test-only fault hook (CADENCE_FAULT_*); build without `test-faults`",
+        ),
+        (
+            &b"--calibrate-busy-us"[..],
+            "the performance harness; build without `perf`",
+        ),
+    ] {
+        if bytes.windows(marker.len()).any(|window| window == marker) {
+            return Err(format!("{} contains {what}", binary.display()));
+        }
     }
     Ok(())
 }

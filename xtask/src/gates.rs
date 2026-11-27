@@ -79,7 +79,7 @@ pub const GATES: &[Gate] = &[
     Gate {
         id: "performance",
         description: "bounded resources, latency distribution and recorded environment",
-        state: GateState::Pending("P6"),
+        state: GateState::Implemented,
     },
     Gate {
         id: "package-install",
@@ -150,6 +150,7 @@ fn dispatch_implemented(id: &str) -> Result<(), String> {
         "headless" => crate::headless::check(),
         "pty-linux" => crate::pty::check(&crate::dist::root()?),
         "persistence-linux" => crate::persistence::check(&crate::dist::root()?),
+        "performance" => crate::performance::check(&crate::dist::root()?),
         "prove" => crate::assurance::prove(),
         "verify" => crate::assurance::verify(),
         "correspondence" => crate::assurance::correspondence(),

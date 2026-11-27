@@ -15,6 +15,7 @@ mod dist;
 mod gates;
 mod headless;
 mod notices;
+mod performance;
 mod persistence;
 mod pty;
 mod release;

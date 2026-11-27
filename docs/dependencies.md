@@ -29,6 +29,7 @@ the change it brings in the commit message.
 | `tempfile` | tests only | Temporary profiles and homes |
 | `portable-pty` | tests only (app) | A real pseudo-terminal for the PTY smoke suite and the `pty-linux` gate (#92) |
 | `nix` (`term`, `signal`, `process`) | tests only (app) | The PTY's termios read back without `unsafe`, and SIGTERM for the abnormal-exit test; the same version portable-pty uses |
+| `stats_alloc` | tests only (engine) | A counting global allocator, without `unsafe` in our code, for the key-path allocation check (#15) |
 
 Allowed licences (`deny.toml`): Apache-2.0 and MIT (the project's own and
 most of the ecosystem), Unicode-3.0 (unicode-ident's data tables, alongside

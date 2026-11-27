@@ -7,10 +7,13 @@ x-gate: &gate
   environment:
     CARGO_NET_OFFLINE: "true"
     CADENCE_DIST_DIR: /dist
+    # Gate receipts (performance, #15): written, never committed.
+    CADENCE_EVIDENCE_OUT: /evidence-out
   volumes:
     - ..:/src:ro
     - ../.cadence-build:/cache
     - ../dist:/dist
+    - ../evidence-out:/evidence-out
   network_mode: none
 
 services:

@@ -21,8 +21,12 @@ workspace = true
 [features]
 # Test-only fault ports (never in a release build): see cadence-runtime.
 test-faults = ["cadence-runtime/test-faults", "cadence-data/test-faults"]
+# The performance harness, `cadence perf` (#15); never in a release build.
+perf = ["dep:ratatui"]
 
 [dependencies]
+# Only for the performance harness's frame buffers (feature `perf`).
+ratatui = { workspace = true, optional = true }
 cadence-core.workspace = true
 cadence-engine.workspace = true
 cadence-trainer.workspace = true

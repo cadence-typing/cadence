@@ -4,7 +4,7 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 export CADENCE_UID=$(id -u)
 export CADENCE_GID=$(id -g)
-mkdir -p "$ROOT/.cadence-build/cargo" "$ROOT/.cadence-build/target" "$ROOT/.cadence-build/home" "$ROOT/dist"
+mkdir -p "$ROOT/.cadence-build/cargo" "$ROOT/.cadence-build/target" "$ROOT/.cadence-build/home" "$ROOT/dist" "$ROOT/evidence-out"
 compose() { docker compose -f "$ROOT/docker/docker-compose.yml" "$@"; }
 case "${1:-}" in
   prepare)

@@ -3,6 +3,8 @@
 mod cli;
 mod headless;
 mod import;
+#[cfg(feature = "perf")]
+mod perf;
 mod practice;
 #[cfg(test)]
 #[expect(
@@ -39,6 +41,19 @@ const SECONDS_PER_MINUTE: u64 = 60;
 const MINIMUM_WORDS: usize = 20_000;
 
 fn main() -> ExitCode {
+    #[cfg(feature = "perf")]
+    {
+        let args: Vec<String> = std::env::args().skip(1).collect();
+        if args.first().is_some_and(|arg| arg == "perf") {
+            return match perf::main(args.get(1..).unwrap_or(&[])) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(error) => {
+                    eprintln!("cadence perf: {error}");
+                    ExitCode::FAILURE
+                }
+            };
+        }
+    }
     let options = match cli::parse() {
         Ok(options) => options,
         Err(error) => {
