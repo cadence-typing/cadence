@@ -27,7 +27,8 @@ cadence headless --script /abs/requests.jsonl --ephemeral-profile \
 
 Requests are one JSON object per line (`contracts/headless-request.schema.json`).
 Start with `hello` (a fixture `scenario` such as `scoring-cat`,
-`daily-small`, `numpad-small`, `row-and-pad` or `save-error`, or none for
+`daily-small`, `numpad-small`, `numpad-full` (`12+7`, `-4.50`, `6*3/2`: the
+whole keypad, #101), `row-and-pad` or `save-error`, or none for
 the real daily plan), then:
 
 - `action` with any command the current state offers (the command table:

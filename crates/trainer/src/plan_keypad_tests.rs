@@ -147,7 +147,8 @@ fn operators_off_serves_digits_and_decimals_only() {
         );
         assert!(text.matches('.').count() <= 1, "{text}");
     }
-    for chunk in entries.chunks_exact(5) {
+    let (chunks, _rest) = entries.as_chunks::<5>();
+    for chunk in chunks {
         let plain = chunk
             .iter()
             .filter(|t| family_of(t) == Family::Plain)

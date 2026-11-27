@@ -58,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "cadence"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 dependencies = [
  "cadence-core",
  "cadence-data",
@@ -79,7 +79,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-core"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 dependencies = [
  "cadence-kernel",
  "proptest",
@@ -90,7 +90,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-data"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 dependencies = [
  "cadence-core",
  "cadence-kernel",
@@ -104,7 +104,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-driver"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 dependencies = [
  "cadence-core",
  "cadence-engine",
@@ -120,7 +120,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-engine"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 dependencies = [
  "cadence-core",
  "cadence-trainer",
@@ -130,14 +130,14 @@ dependencies = [
 
 [[package]]
 name = "cadence-kernel"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "cadence-runtime"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 dependencies = [
  "cadence-core",
  "cadence-data",
@@ -151,7 +151,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-trainer"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 dependencies = [
  "cadence-core",
  "proptest",
@@ -164,7 +164,7 @@ dependencies = [
 
 [[package]]
 name = "cadence-tui"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 dependencies = [
  "cadence-core",
  "cadence-engine",
@@ -1569,7 +1569,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "xtask"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 dependencies = [
  "cadence-core",
  "cadence-trainer",

@@ -206,6 +206,13 @@ axioms. The audit admits only `propext`, `Classical.choice` and `Quot.sound`.
 | `select::utility` | `Select.utility_in_range`, `utility_monotone` | The weighted mean `sum(w*t)/sum(w)` of the four basis-point terms (0 when every weight is 0), never above 10,000; raising any term never lowers it. Total. | `utility-unnormalized`, `utility-subtracts-hesitation` | proved |
 | `select::scan` | `Select.scan_spec`, `scan_only_eligible`, `scan_optimal`, `scan_none_iff_no_eligible`, `scan_bounded` | `TooLarge` exactly when the vector exceeds the bound (nothing is scanned); a returned index is eligible and no eligible candidate has a greater `(utility, tie_break, id)`, the first winning among equal keys; `Empty` exactly when nothing is eligible. Total. | `scan-ignores-eligibility`, `scan-keeps-first`, `scan-drops-best`, `scan-bound-off-by-one` | proved |
 | `progress::track_valid` | `Progress.track_valid_spec`, `valid_accuracy_at_most_full`, `valid_track_accuracy_in_range` | A valid track has `first_correct <= first_attempted <= content`, and its first-pass accuracy basis points are computed, never over-full and at most 10000 (when the scaled numerator fits `u64`). Total. | the three above and `valid-skips-ordering` | proved |
+| `keypad::class` | `Keypad.class_spec`, `digit_iff_ascii_digit` | The keypad alphabet exactly: `0`–`9` digits, `.` and `,` separators, `+ - * /` operators, everything else outside; a key is a digit exactly when its code is 48–57, so no operator or separator enters the digit numerator. Total. (#102) | `operator-is-digit`, `comma-outside` | proved |
+| `keypad::step` | `Keypad.step_spec`, `reject_absorbing`, `outside_rejects`, `no_adjacent_operators`, `one_separator_per_operand` | The RFC's entry-grammar table (`sign? operand (operator operand)*`): nothing leaves `Reject`, an outside key rejects, an operator after an operator or a sign rejects, a second separator in one operand rejects. Total. | `adjacent-operators-accepted`, `second-separator-accepted` | proved |
+| `keypad::accepting` | `Keypad.accepting_spec` | Only after a digit (`Whole`, `Fraction`): an entry never ends in an operator, a sign or a separator. Total. | `trailing-operator-accepted` | proved |
+| `keypad::well_formed` | `Keypad.well_formed_spec` | The grammar run over every code of the string from `Start`, accepted only after a digit; the empty string is rejected. Total. | `well-formed-skips-last` | proved |
+| `keypad::family_at` | `Keypad.family_at_spec`, `family_at_total`, `operators_off_digits_only`, `disabled_never_served`, `empty_mix_is_plain` | With `r = position mod cycle`, the family whose run of consecutive positions (plain, decimal, signed, operation, chain) holds `r`, so a whole cycle serves each family exactly its weight; never a zero-weight family; only plain or decimal with operators off; plain for an empty mix. Total. | `family-boundary-off-by-one`, `operators-off-ignored` | proved |
+| `keypad::carries` | `Keypad.carries_spec` | Which family can carry which focus skill: digits anywhere, a separator not in plain entries, an operator in operations and chains (and `+`/`-` as a sign), no outside key and no operator pair. Total. | `plain-carries-operator` | proved |
+| `keypad::focus_admissible` | `Keypad.focus_admissible_spec` | A numpad focus exactly when a family the session may serve carries it; never an outside key; never an operator with operators off. Total. | `focus-ignores-operators-off` | proved |
 
 The "proved" badges above are the gate's; if the table and `proofs/claims.json`
 ever disagree, `proofs/claims.json` wins.
@@ -301,6 +308,21 @@ tests, not by proof. The table is generated from the registry.
 Recorded by `cargo +1.98.0 tauten proofs` into `proofs/claims.json`; the
 summary line, the per-claim outcomes and the mutant results are copied below
 from that run (see the commit that adds `proofs/claims.json`).
+
+Command: `cargo tauten proofs --level ship` for rc.2 (#102), gating a
+snapshot of `7c53fc7` (re-running the mutants of the 8 claims whose inputs
+changed, 13 mutants, and reusing the other kills of the rc.1 runs); exit 0:
+
+```text
+tauten: ship level: 8 of 80 claim(s) re-calibrated (13 mutant(s) run), 72 reused
+tauten: 80 of 80 claim(s) proved (recorded in proofs/claims.json)
+```
+
+80 claims naming 205 distinct theorems; all 159 `[[mutant]]` entries are
+`killed`, each by a theorem of its claim. Every claim has outcome `proved`
+and badge `proved`. New since rc.1: the seven `keypad` claims (#102).
+
+The rc.1 record, kept for history:
 
 Command: `cargo +1.98.0 tauten proofs` for rc.1, in two runs. The full
 level (every mutant) gated a snapshot of `9981d20` and proved 71 of 73

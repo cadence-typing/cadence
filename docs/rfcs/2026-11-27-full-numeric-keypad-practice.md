@@ -2,7 +2,7 @@
 rfc: "2026-11-27-full-numeric-keypad-practice"
 title: "Full numeric keypad practice"
 status: accepted
-implementation: not-started
+implementation: complete
 authors:
   - tknawara
   - claude-fable (design agent)
@@ -238,3 +238,4 @@ None blocks acceptance. Resolved by default, for the owner to amend:
 ## Decision log
 
 - 2026-11-27: Accepted by default (owner rule of 2026-11-26 for RFCs written by the project's agents) following the owner's request quoted above. Scheduled in milestone `0.1.0-rc.2`, tracking issue #101, implementation issues #102 to #105. The owner amends afterwards.
+- 2026-11-27: Implemented in rc.2 (#102–#105); 80 of 80 claims proved. Differences from the text above: `carries` and `focus_admissible` take the skill's code points rather than classes, so a sign (`+`/`-`) is told from `*`/`/` for `Signed` entries; the kernel exposes `cycle` and `admissible`, and the per-cycle permutation spans the admissible cycle (plain + decimal with operators off); `class` has a helper `class_other` (an Aeneas translation constraint); `group_of` stays operator-agnostic and the operators filter is applied where the focus is chosen (`LearnerModel::from_history` takes the session's `NumericOptions`); policies v1–v4 parse to 3 plain : 2 decimal : 5 operation, so operators-off content keeps their 3:2 digits-to-decimals mix; the `operators` class also enters whole-session comparisons (no tracks named), so the start screen's "last session" breaks once at the switch as intended; the progress break note now reads "content changed here (imported, code or keypad mix)". The PTY smoke case sends operator keys and a correction through the real terminal but does not type a seeded entry to completion; the exact `12+7` scoring case is a core test.

@@ -1,6 +1,6 @@
 # Cadence implementation and feedback-build status
 
-`0.1.0-rc.1` is an **unsigned, unpromoted development bundle**, not a
+`0.1.0-rc.2` is an **unsigned, unpromoted development bundle**, not a
 P8-qualified release: promotion to `0.1.0` needs authorized signing (#13),
 the shared Buildbot recovery gate (#14) and the owner's real-terminal
 journey (#98). Earlier commit messages overstated P0–P2 completion: passing tests,
@@ -57,8 +57,13 @@ and every repeat is labelled ("again", "due review", "repeat: word",
 "repeat · list restarted"; a prose passage typed within the no-repeat window
 reads "repeat"). Every phase except prose is adaptive (below); prose is
 deliberately untargeted and says so.
-Numpad strings preserve leading zeros and require Enter; physical-keypad origin
-is unverified. Since beta.3 a first run asks the layout, numpad and length;
+Numpad practice uses the whole keypad by default (since rc.2, #101): each
+cycle of ten entries serves 3 digit groups, 2 decimals, 1 signed entry, 3
+operations (`12+7`) and 1 chain (`6*3/2`); `content.numpad_operators = false`
+keeps digits and decimals. Numpad strings preserve leading zeros, are never
+evaluated and require Enter; physical-keypad origin is unverified: a `+`
+typed on the main row during a numpad phase is recorded in the numpad lane,
+as a main-row `7` is. Since beta.3 a first run asks the layout, numpad and length;
 settings live in `$XDG_CONFIG_HOME/cadence/config.toml` (`cadence config
 check`), are edited in the app with `s`, and a layout change starts a
 separate history for symbols. Outside practice Tab moves between Today,
@@ -195,7 +200,11 @@ question and is not claimed; probe comparisons need several probes.
 - **Warm-up** serves retention checks (due words above the first ladder
   rung) and says how many; a warm-up miss returns in the words phase.
 - **Number row and numpad** each have their own focus digits and digit
-  transitions from their own evidence and baseline (policy v3); two of
+  transitions from their own evidence and baseline (policy v3); since rc.2
+  the numpad group also holds `+ - * /` and digit/operator pairs (policy v5,
+  four numpad focus skills; operators only when the session serves them,
+  the proved `keypad::focus_admissible`), and a targeted entry keeps its
+  scheduled family (the proved `keypad::carries`); two of
   every three prepared entries contain a focus skill; a missed entry returns
   once, at least two entries later in the same phase ("again").
 - **Words**: a target word does not recur within four exercises.
@@ -382,7 +391,7 @@ this refresh.
 |---|---|---|
 | P0 / A-01, B-02 | verified | Pinned Rust image and toolchain, Cargo lock, musl C compiler, architecture boundary check, and the dependency, licence and advisory audit in every quality run (`cargo deny`, #95). |
 | P1 / L-02–03, VK-01–02 | verified | `core/{ledger,metrics,session}`, `engine/{practice,presentation}`; scoring fixtures/properties and live corrected-entry smoke. The scoring decisions now live in `crates/kernel`, which production calls and which carries Lean theorems over its Aeneas translation (first-attempt write-once, counters, pace and accuracy arithmetic, active time, track validity, checkpoint admission); see [docs/TAUTEN.md](docs/TAUTEN.md) for each claim's badge. Ledger plumbing around the kernel stays tested. |
-| P2 / P-02–04, VK-03–06 | verified | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Since alpha.7 every phase but prose is adaptive: per-group focus for the number row and numpad (#46, #5), warm-up retention checks (#47), numeric and prose misses in the loop (#59, #48), a typed closing review on its own track excluded from the headline (#49, #60), every repeat labelled (#7) and targets named on screen (#50). Since beta.1 pace hysteresis is a proved kernel decision (`kernel::pace`, #61) whose goals are recorded, shown and applied (#62), transfer probes run on unseen purpose-written text with proved due and comparability decisions (`kernel::benchmark`, #63–#65), and the 20k vetted vocabulary bar is met by `words-en-v2` (#8). Nothing in P2 remains open in this milestone; retention comparisons across probes need more recorded probes to say anything (empirical, not a code gap). |
+| P2 / P-02–04, VK-03–06 | verified | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Since alpha.7 every phase but prose is adaptive: per-group focus for the number row and numpad (#46, #5), warm-up retention checks (#47), numeric and prose misses in the loop (#59, #48), a typed closing review on its own track excluded from the headline (#49, #60), every repeat labelled (#7) and targets named on screen (#50). Since beta.1 pace hysteresis is a proved kernel decision (`kernel::pace`, #61) whose goals are recorded, shown and applied (#62), transfer probes run on unseen purpose-written text with proved due and comparability decisions (`kernel::benchmark`, #63–#65), and the 20k vetted vocabulary bar is met by `words-en-v2` (#8). Since rc.2 the numpad track drills the whole keypad (P-04 read by decision 0010): the keypad alphabet, entry grammar, per-cycle family mix and focus admissibility are proved kernel decisions (`kernel::keypad`, #102) called by `core::keypad`, `trainer/{numeric_keypad,plan_content,learner}` (#103), with the operators class compared per track (`core::comparison::basis`, #104). Nothing in P2 remains open in this milestone; retention comparisons across probes need more recorded probes to say anything (empirical, not a code gap). |
 | P3 / D-01–02, VP-01–03 | verified (process-crash, not power-loss) | `core/{progress,learning,chunks,save}`, `data/{store,schema,records,learning_rows,chunk_rows,files,transfer,faults}`, schema 7 with migrations from every earlier schema, `engine/storage` (the driver of the proved `save::step`), `runtime/writer`, `jobs` (#75). Append-only observation chunks with a derived-state watermark (#11), restore with the writer closed, and the process-crash, migration and bad-state campaigns of `cargo xtask gate persistence-linux` (#88; not power-loss proof). |
 | P4 / H-01–04, VP-04–05 | verified; real terminals: owner #98 | `crates/driver` (`envelope`, `protocol`, `stream`, `headless`, `capture`, `trace`) and `cadence headless|replay|doctor` (#67–#73): NDJSON protocol v1 with stable error codes and a bounded response cache, causal and durable barriers, canonical frame capture with golden frames, traces with digest-sealed content and read-only replay reporting the first divergence; six journeys replayed by `cargo xtask gate headless` in CI. VP-04/VP-05: `HeadlessBarrier.tla`, `RequestCache.tla` and the proved `barrier::{causal, durable}`, `request::{admit, revision_ok, evict}`. Not qualified on real terminals (P6). |
 | P5 / U-01–05 | verified; real terminals: owner #98 | `engine/{view,summary,settings,setup,navigation,progress,commands}`, `tui/{paint,stages,stages/results,stages/headlines,modeline,practice,native_text,settings,destinations,progress,theme}`, `runtime/{presenter,text_protocol,config_worker}`, `data/{config,config_write,theme_file,packs}`, `trainer/{import,packs}` (#75–#86): config file and first-run setup, the acknowledged settings overlay with the proved `settings::takes_effect`, layout partitions and the proved `comparison::same_basis`, destinations Today/Train/Numpad/Progress and help from one command table, Progress series with counts, theme files, high contrast and the key guide, numpad operators and separators, sanitised imports and pack sessions kept out of standard scores; render tests at 60×18, 100×32 and 120×40 and PTY evidence (`evidence/releases/0.1.0-beta.3/`). Not qualified on real terminals (P6). |

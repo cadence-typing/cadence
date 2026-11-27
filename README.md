@@ -15,7 +15,7 @@
   <a href="https://github.com/cadence-typing/cadence/milestones">Roadmap</a>
 </p>
 
-Cadence is an offline typing trainer. Run `cadence`, press Enter, and it walks you through a guided session: a warm-up, adaptive words, the number row, the numpad and real prose. It remembers what you got wrong and brings it back. It works without an account, a network connection or telemetry. Your history is a SQLite file in your home directory.
+Cadence is an offline typing trainer. Run `cadence`, press Enter, and it walks you through a guided session: a warm-up, adaptive words, the number row, the whole numeric keypad (digits, decimals and `+ - * /`) and real prose. It remembers what you got wrong and brings it back. It works without an account, a network connection or telemetry. Your history is a SQLite file in your home directory.
 
 > **Status: unsigned development preview** (`0.1.0-alpha.5`). Linux x86_64 and WSL2 only, in a terminal of at least 60×18. What is finished, tested and proved is tracked precisely in [STATUS.md](STATUS.md).
 
@@ -89,15 +89,16 @@ Rust and [Ratatui](https://ratatui.rs). There is one state owner with a typed re
 
 **Assurance**, labelled honestly:
 
-- **Proved:** the scoring decisions live in a small `no_std` crate, [`crates/kernel`](crates/kernel), which production calls directly. It has 65 proved claims (160 Lean theorems) over its [Charon/Aeneas](https://github.com/AeneasVerif/aeneas) translation, for example:
+- **Proved:** the scoring decisions live in a small `no_std` crate, [`crates/kernel`](crates/kernel), which production calls directly. It has 80 proved claims (205 Lean theorems named by them) over its [Charon/Aeneas](https://github.com/AeneasVerif/aeneas) translation, for example:
   - a corrected mistake stays an error;
   - accuracy never exceeds 100%;
   - active time is the closed segments plus the open one, exactly, never counts a pause and never runs backwards;
   - pace is exactly `units·60 s / (5·active)` and never overflows;
   - a checkpoint is never credited twice;
-  - once the review shows, nothing leads back to typing, and ending early never marks a session completed.
+  - once the review shows, nothing leads back to typing, and ending early never marks a session completed;
+  - a numpad entry is always `sign? operand (operator operand)*`, and every cycle of numpad entries serves each kind (digits, decimals, signed, operations, chains) exactly its share.
 
-  Each claim passes an axiom audit, and every one of its 53 deliberate source mutants must break it. The inventory, and what remains only tested, is in [docs/TAUTEN.md](docs/TAUTEN.md).
+  Each claim passes an axiom audit, and every one of its 159 deliberate source mutants must break it. The inventory, and what remains only tested, is in [docs/TAUTEN.md](docs/TAUTEN.md).
 - **Model-checked:** the protocol designs (async admission, causal barriers, durable checkpoints) have bounded [TLA+ models](formal/), run by the quality gate on every change ([registry](models/claims.toml)); deliberately faulty variants must produce named counterexamples. The checkpoint save protocol ([`CheckpointSave.tla`](models/CheckpointSave.tla)) and the session flow ([`SessionFlow.tla`](models/SessionFlow.tla)) are mapped to the shipped code; the handover's three models are design probes.
 - **Tested:** [independent scoring fixtures](fixtures/scoring.json), property tests, 193 tests in all, plus real-PTY smoke runs.
 - **Profile:** the code follows the [tauten](https://github.com/tauten-dev/tauten) strictness profile: kernel/core/edge tiers, no ambient I/O outside the edge, checked arithmetic, typed errors. `cargo tauten check` passes with no baseline.

@@ -4,6 +4,17 @@ User-visible changes per release. Design decisions live in the [RFC registry](do
 
 ## [Unreleased]
 
+## [0.1.0-rc.2] — The whole numeric keypad (2026-11-27)
+
+Design: [RFC: full numeric keypad practice](docs/rfcs/2026-11-27-full-numeric-keypad-practice.md), [decision 0010](docs/decisions/0010-full-keypad-by-default.md). Tracking: [#101](https://github.com/cadence-typing/cadence/issues/101).
+
+- **Numpad practice uses the whole keypad by default:** digits, decimals, `+ - * /` and Enter. Each cycle of ten entries serves 3 digit groups (`4821`, `3333`), 2 decimals (`07.50`), 1 signed entry (`-45.20`), 3 operations (`12+7`, `84/2.5`) and 1 chain (`6*3/2`), interleaved in a seeded order. Entries are typed exactly and submitted with Enter, as before; nothing is evaluated. [#103](https://github.com/cadence-typing/cadence/issues/103), [#104](https://github.com/cadence-typing/cadence/issues/104)
+- Weak operator keys are targeted: `*`, `+`, `7+` or `*4` can become numpad focus skills and are named on the start screen and in the review ("numpad 7+"). [#103](https://github.com/cadence-typing/cadence/issues/103)
+- `content.numpad_operators = false` keeps digits and decimals only. If you had set it to `true` (beta.3's operations-only drill), you now get the mix. [#104](https://github.com/cadence-typing/cadence/issues/104)
+- Scoring is unchanged: a mistyped operator is a first-attempt error that stays counted after you correct it, and keypad pace is still correct **digits** per minute, now over time that includes operator keys. So your numpad trend starts again at your first full-keypad session ("content changed here"); words, number-row and prose trends continue unbroken. [#104](https://github.com/cadence-typing/cadence/issues/104)
+- The keypad alphabet, the entry grammar (`sign? operand (operator operand)*`), the per-cycle mix and which focus skills each kind of entry can carry are proved kernel decisions: 80 of 80 claims proved, with 10 new mutants that must break them. [#102](https://github.com/cadence-typing/cadence/issues/102)
+- Trainer policy v5 (`policies/trainer-v5.toml`). No store schema change: rc.1 profiles open unchanged. [#103](https://github.com/cadence-typing/cadence/issues/103)
+
 ## [0.1.0-rc.1] — Evidence you can count once, gates you can rerun (2026-11-27)
 
 Design: [RFC: append-only observation chunks](docs/rfcs/2026-11-26-observation-chunks.md), [RFC: protocol proofs as kernel machines](docs/rfcs/2026-11-26-protocol-proofs-as-kernel-machines.md), [decision 0009](docs/decisions/0009-lean-for-verus-and-tlaps.md). The release candidate: still an unpromoted development bundle (promotion needs #13, #14 and #98).
