@@ -7,6 +7,7 @@
 
 use std::process::ExitCode;
 
+mod assurance;
 mod boundary;
 mod contracts;
 mod corpus;
@@ -19,7 +20,7 @@ mod release;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let usage = "usage: cargo xtask <feedback|quality|boundary|verify-contracts|corpus-gate|dist|release-check --tag TAG|gate ID|gates>";
+    let usage = "usage: cargo xtask <feedback|quality|boundary|verify-contracts|corpus-gate|dist|release-check --tag TAG|assurance [--update]|gate ID|gates>";
     let Some(command) = args.first() else {
         eprintln!("{usage}");
         return ExitCode::FAILURE;
@@ -30,6 +31,7 @@ fn main() -> ExitCode {
         "boundary" => boundary::check(),
         "verify-contracts" => contracts::verify_manifest(),
         "gates" => gates::list(),
+        "assurance" => assurance::check(args.get(1..).unwrap_or(&[])),
         "corpus-gate" => corpus::check(),
         "dist" => dist::build_dist(),
         "release-check" => release::check(args.get(1..).unwrap_or(&[])),
@@ -88,7 +90,7 @@ fn run_quality() -> Result<(), String> {
 
 /// The TLC model gate (#28): the gate's own failure-mode tests, then every
 /// model in `models/claims.toml` with the pinned TLC. A missing tool fails.
-fn run_models() -> Result<(), String> {
+pub(crate) fn run_models() -> Result<(), String> {
     run(
         "python3",
         &[

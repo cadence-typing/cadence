@@ -1378,9 +1378,10 @@ theorems = [
   "Proofs.Request.replay_iff_same",
   "Proofs.Request.conflict_iff_other",
   "Proofs.Request.only_new_mutates",
+  "Proofs.Request.applied_once",
 ]
 total = "Proofs.Request.new_iff_greater"
-mutants = ["equal-id-is-new", "conflict-replays", "miss-reexecutes"]
+mutants = ["equal-id-is-new", "conflict-replays", "miss-reexecutes", "replay-reapplies"]
 
 [[claim]]
 crate = "cadence-kernel"
@@ -1437,9 +1438,12 @@ crate = "cadence-kernel"
 file = "crates/kernel/src/barrier.rs"
 function = "barrier::causal"
 lean = "cadence_kernel.barrier.causal"
-theorems = ["Proofs.Barrier.no_early_return", "Proofs.Barrier.future_refused"]
+theorems = [
+  "Proofs.Barrier.no_early_return", "Proofs.Barrier.future_refused",
+  "Proofs.Barrier.done_is_drained",
+]
 total = "Proofs.Barrier.no_early_return"
-mutants = ["done-with-unconsumed", "future-accepted"]
+mutants = ["done-with-unconsumed", "future-accepted", "done-with-outstanding"]
 
 [[claim]]
 crate = "cadence-kernel"
@@ -1479,9 +1483,13 @@ theorems = [
   "Proofs.Ticket.accept_iff_fresh",
   "Proofs.Ticket.at_most_once",
   "Proofs.Ticket.stale_error_never_replaces",
+  "Proofs.Ticket.table_step",
+  "Proofs.Ticket.table_inv",
+  "Proofs.Ticket.accepted_fresh",
+  "Proofs.Ticket.completion_retained",
 ]
 total = "Proofs.Ticket.accept_iff_fresh"
-mutants = ["no-epoch-check", "no-pending-check"]
+mutants = ["no-epoch-check", "no-pending-check", "accept-any-request"]
 
 [[mutant]]
 name = "no-epoch-check"
@@ -1780,3 +1788,23 @@ name = "quit-before-ack"
 file = "crates/kernel/src/save.rs"
 before = "        return if s.failed {\n            (s, Command::Quit { success: false })\n        } else {\n            (s, Command::None)\n        };"
 after = "        return if s.failed {\n            (s, Command::Quit { success: false })\n        } else {\n            (s, Command::Quit { success: true })\n        };"
+
+# ---- machine-level invariants for the protocol decisions (#91)
+
+[[mutant]]
+name = "replay-reapplies"
+file = "crates/kernel/src/request.rs"
+before = "Lookup::SameDigest => Admit::Replay,"
+after = "Lookup::SameDigest => Admit::New,"
+
+[[mutant]]
+name = "accept-any-request"
+file = "crates/kernel/src/ticket.rs"
+before = "if !has_pending || pending_request != result_request {"
+after = "if !has_pending {"
+
+[[mutant]]
+name = "done-with-outstanding"
+file = "crates/kernel/src/barrier.rs"
+before = "if outstanding == 0 && pending_dispatch == 0 && unconsumed == 0 {"
+after = "if pending_dispatch == 0 && unconsumed == 0 {"

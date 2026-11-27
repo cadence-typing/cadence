@@ -1,0 +1,243 @@
+# The assurance manifest (V-02, V-05, #91): every handover claim id of the
+# frozen `formal/claims.json`, bound to the Lean theorems that prove it
+# (recorded `proved` in `proofs/claims.json`), the TLC models that check its
+# interleavings (`mapped` in `models/claims.json`) and the runtime tests
+# that exercise the production path ("<package>::<test path>", as
+# `cargo test -- --list` prints them).
+#
+# `cargo xtask assurance` fails when an id has no entry, a theorem is not
+# proved, a model is not mapped, a test does not exist, or a status claims
+# more than its evidence; `--update` rewrites the table in docs/TAUTEN.md.
+#
+# status = "proved": the safety property holds for the production decision
+#   or machine (every reachable state where the theorem says so); the named
+#   models check the interleavings around it, bounded.
+# status = "model-proved": the property is checked by TLC to a bound under
+#   stated fairness; the theorems prove the parts that are not liveness.
+# Lean stands in for Verus and TLAPS (docs/decisions/0009).
+
+[[claim]]
+id = "VP-01"
+claim = "async admission"
+lean = [
+  "Proofs.Ticket.accept_iff_fresh",
+  "Proofs.Ticket.at_most_once",
+  "Proofs.Ticket.stale_error_never_replaces",
+  "Proofs.Ticket.accepted_fresh",
+]
+models = ["WorkerResults"]
+runtime_tests = [
+  "cadence-engine::a_duplicate_result_applies_once",
+  "cadence-engine::late_results_from_an_older_epoch_change_nothing",
+]
+status = "proved"
+assumptions = [
+  "The engine raises a job kind's epoch on restart and hands out increasing request ids (tested; Ticket.accepted_fresh assumes it as the world's rule).",
+]
+
+[[claim]]
+id = "VP-02"
+claim = "bounded completion retention"
+lean = ["Proofs.Ticket.completion_retained"]
+models = ["WorkerResults"]
+runtime_tests = ["cadence-engine::a_storm_of_stale_results_leaves_the_table_bounded"]
+status = "proved"
+assumptions = [
+  "Bounded storage is the job table's fixed slots (one per kind); the storm test measures it, the proof covers retention and at-most-once completion.",
+]
+
+[[claim]]
+id = "VP-03"
+claim = "durable checkpoint"
+lean = [
+  "Proofs.Checkpoint.admit_spec",
+  "Proofs.Checkpoint.applied_sequence_never_reapplies",
+  "Proofs.Progress.credit_once_spec",
+  "Proofs.Save.single_flight",
+  "Proofs.Save.ack_monotone",
+  "Proofs.Save.failed_tail_named",
+  "Proofs.Save.clean_exit_needs_final_ack",
+  "Proofs.Chunks.admit_spec",
+  "Proofs.Chunks.conflict_on_changed_payload",
+]
+models = ["CheckpointSave"]
+runtime_tests = [
+  "cadence-data::tests::checkpoints::lost_ack_retry_after_reopen_returns_exact_original_key",
+  "cadence-data::tests::learning::retries_store_chunks_once_and_writes_stay_bounded",
+  "cadence-engine::the_recorded_tape_replays_to_the_same_commands",
+]
+status = "proved"
+assumptions = [
+  "SQLite commits the checkpoint transaction atomically; that an acknowledgement is never observed before the commit (AckIsDurable) is checked by CheckpointSave.tla, bounded, not proved.",
+  "The engine reports the save events where save.rs says (trusted; the tape and the session tests exercise it).",
+]
+
+[[claim]]
+id = "VP-04"
+claim = "causal and durable barriers"
+lean = [
+  "Proofs.Barrier.no_early_return",
+  "Proofs.Barrier.done_is_drained",
+  "Proofs.Barrier.durable_covers_watermark",
+]
+models = ["HeadlessBarrier"]
+runtime_tests = [
+  "cadence::a_causal_barrier_waits_for_the_follow_up",
+  "cadence::a_durable_barrier_covers_its_watermark_only",
+]
+status = "proved"
+assumptions = [
+  "The driver counts the scope (children inherit their parent's causal group) as tested; the counts are the world's in Barrier.done_is_drained.",
+]
+
+[[claim]]
+id = "VP-05"
+claim = "headless request admission"
+lean = [
+  "Proofs.Request.new_iff_greater",
+  "Proofs.Request.only_new_mutates",
+  "Proofs.Request.applied_once",
+  "Proofs.Request.cache_bounded",
+]
+models = ["RequestCache"]
+runtime_tests = [
+  "cadence-driver::repeats_replay_conflict_or_expire",
+  "cadence-driver::each_rejection_class_has_its_code_and_mutates_nothing",
+]
+status = "proved"
+assumptions = ["The driver looks the id up in the cache it keeps (tested)."]
+
+[[claim]]
+id = "VK-01"
+claim = "immutable first outcomes"
+lean = [
+  "Proofs.First.settle_write_once",
+  "Proofs.First.mistake_stays_an_error",
+  "Proofs.Ledger.first_write_once",
+  "Proofs.Ledger.over_bound_rejects",
+  "Proofs.Progress.credit_once_spec",
+]
+models = []
+runtime_tests = [
+  "cadence-core::first_outcomes_are_write_once",
+  "cadence-core::correction_cannot_erase_first_errors",
+  "cadence-core::ledger::tests::first_correct_later_edited_stays_correct",
+]
+status = "proved"
+assumptions = [
+  "AttemptLedger passes the buffer length, comparison and word index to the ledger kernel as tested (docs/TAUTEN.md, Not established).",
+]
+
+[[claim]]
+id = "VK-02"
+claim = "checked metric arithmetic"
+lean = [
+  "Proofs.Ratio.fraction_spec",
+  "Proofs.Ratio.wpm_spec",
+  "Proofs.Ratio.accuracy_in_range",
+  "Proofs.Counters.content_step_keeps_inv",
+]
+models = []
+runtime_tests = [
+  "cadence-core::metrics::tests::wpm_matches_fixture_arithmetic",
+  "cadence-core::metrics::tests::empty_attempts_yield_none_everywhere",
+]
+status = "proved"
+assumptions = ["Display rounding (f64) is outside the kernel and tested only."]
+
+[[claim]]
+id = "VK-03"
+claim = "exact budget allocation"
+lean = [
+  "Proofs.Plan.allocate_sum_exact",
+  "Proofs.Plan.allocate_keeps_minimums",
+  "Proofs.Plan.allocate_infeasible_exact",
+]
+models = []
+runtime_tests = [
+  "cadence-trainer::all_cli_track_presets_keep_exact_budget",
+  "cadence-trainer::plan::tests::infeasible_budget_and_tiny_corpus_fail_explicitly",
+]
+status = "proved"
+assumptions = []
+
+[[claim]]
+id = "VK-04"
+claim = "bounded eligible candidate selection"
+lean = [
+  "Proofs.Select.scan_only_eligible",
+  "Proofs.Select.scan_optimal",
+  "Proofs.Select.scan_bounded",
+  "Proofs.Lanes.admissible_spec",
+]
+models = []
+runtime_tests = [
+  "cadence-trainer::caps_are_filtered_before_ranking_with_smallest_legal_scan",
+  "cadence-trainer::candidate::tests::kernel_scan_matches_the_previous_rule",
+]
+status = "proved"
+assumptions = []
+
+[[claim]]
+id = "VK-05"
+claim = "quota and repetition caps"
+lean = [
+  "Proofs.Lanes.never_overrun",
+  "Proofs.Lanes.word_cap",
+  "Proofs.Lanes.focus_cap",
+  "Proofs.Lanes.complete_block_exact",
+  "Proofs.Queue.per_word_bound",
+]
+models = []
+runtime_tests = [
+  "cadence-trainer::lanes::tests::quotas_never_overrun",
+  "cadence-trainer::shipped_startup_replays_many_seeds_and_obeys_caps",
+]
+status = "proved"
+assumptions = []
+
+[[claim]]
+id = "VK-06"
+claim = "review queue integrity"
+lean = [
+  "Proofs.Queue.fifo_admit_spec",
+  "Proofs.Queue.unique_members",
+  "Proofs.Queue.admission_keeps_rank",
+  "Proofs.Slots.never_displaces_due",
+  "Proofs.Review.is_due_spec",
+]
+models = ["FeedbackLoop"]
+runtime_tests = [
+  "cadence-trainer::review::tests::serving_removes_membership_so_no_double_service",
+  "cadence-trainer::the_due_queue_has_no_second_copy_in_the_trainer",
+]
+status = "proved"
+assumptions = []
+
+[[claim]]
+id = "VL-01"
+claim = "conditional review fairness"
+lean = [
+  "Proofs.Queue.rank_decreases",
+  "Proofs.Queue.served_within_rank_plus_one",
+]
+models = ["FeedbackLoop"]
+runtime_tests = ["cadence-trainer::plan::tests::due_missed_words_fill_review_slots_first"]
+status = "model-proved"
+assumptions = [
+  "No insertion ahead of a due item (admission only appends; proved) and services keep happening while it stays eligible: weak fairness in FeedbackLoop.tla's DueEventuallyServed, checked to a bound, not proved.",
+]
+
+[[claim]]
+id = "VR-01"
+claim = "shared execution and replay"
+lean = []
+models = []
+runtime_tests = [
+  "cadence-driver::driver_and_runtime_reach_scoring_only_through_the_engine",
+  "cadence::a_recorded_session_replays_and_divergences_are_located",
+]
+status = "tested"
+assumptions = [
+  "Replay equality is established by deterministic trace replay and the dependency test, not by proof; timing and randomness are explicit inputs (virtual clock, seeded plans).",
+]

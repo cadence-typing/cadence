@@ -10,8 +10,6 @@
 pub enum GateState {
     /// The gate's full check runs; passing it passes the gate.
     Implemented,
-    /// Feedback checks exist, but do not cover the full qualification row.
-    Feedback(&'static str),
     /// Gate has no implementation yet; the field names the packet.
     Pending(&'static str),
     /// A required environment/authority is absent (for example shared
@@ -36,7 +34,7 @@ pub const GATES: &[Gate] = &[
     Gate {
         id: "quality",
         description: "fmt, Clippy warnings denied, dependency/license/advisory audit, boundary/no-placeholder checks",
-        state: GateState::Feedback("complete product assurance remains pending (#91)"),
+        state: GateState::Implemented,
     },
     Gate {
         id: "unit-property",
@@ -61,24 +59,22 @@ pub const GATES: &[Gate] = &[
     Gate {
         id: "model",
         description: "full TLA+ model inventory, stated bounds, named fault kills",
-        state: GateState::Feedback(
-            "the save protocol and session flow are mapped; the handover's admission and barrier models are design probes until #4",
-        ),
+        state: GateState::Implemented,
     },
     Gate {
         id: "prove",
-        description: "required TLAPS/general proof inventory and calibration",
-        state: GateState::Pending("P7"),
+        description: "machine-level invariants recorded proved in Lean (Lean stands in for TLAPS: decision 0009)",
+        state: GateState::Implemented,
     },
     Gate {
         id: "verify",
-        description: "same-source Verus kernels, obligation inventory, production mappings",
-        state: GateState::Pending("P1 begins kernels; P7 completes inventory"),
+        description: "the recorded Lean kernel claims are this commit's, all proved, every mutant killed (Lean stands in for Verus: decision 0009)",
+        state: GateState::Implemented,
     },
     Gate {
         id: "correspondence",
-        description: "models/kernels mapped to real paths; negative campaigns",
-        state: GateState::Pending("P7"),
+        description: "the assurance manifest binds every handover claim to proofs, mapped models and runtime tests, which pass",
+        state: GateState::Implemented,
     },
     Gate {
         id: "performance",
@@ -114,7 +110,6 @@ pub fn list() -> Result<(), String> {
     for gate in GATES {
         let state = match gate.state {
             GateState::Implemented => "implemented".to_string(),
-            GateState::Feedback(reason) => format!("feedback only ({reason})"),
             GateState::Pending(packet) => format!("pending ({packet})"),
             GateState::Blocked(reason) => format!("BLOCKED ({reason})"),
         };
@@ -135,13 +130,6 @@ pub fn run(id: Option<&str>) -> Result<(), String> {
     };
     match gate.state {
         GateState::Implemented => dispatch_implemented(gate.id),
-        GateState::Feedback(reason) => {
-            dispatch_implemented(gate.id)?;
-            Err(format!(
-                "feedback checks passed; qualification for {} remains incomplete: {reason}",
-                gate.id
-            ))
-        }
         GateState::Pending(packet) => Err(format!(
             "gate {} is not implemented yet (work packet {packet}); refusing to fake success",
             gate.id
@@ -161,6 +149,9 @@ fn dispatch_implemented(id: &str) -> Result<(), String> {
         "model" => crate::run_models(),
         "headless" => crate::headless::check(),
         "pty-linux" => crate::pty::check(&crate::dist::root()?),
+        "prove" => crate::assurance::prove(),
+        "verify" => crate::assurance::verify(),
+        "correspondence" => crate::assurance::correspondence(),
         other => Err(format!("gate {other} has no runner wired yet")),
     }
 }
