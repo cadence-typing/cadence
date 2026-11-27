@@ -105,6 +105,9 @@ impl Engine {
         match response.result {
             Ok(()) => {
                 storage.last_ack = Some(response.key);
+                if let cadence_core::progress::Evidence::Chunked(chunked) = &checkpoint.evidence {
+                    self.learning.chunks.acknowledged(chunked.through);
+                }
                 if !self.invalid {
                     // The typed watermark belongs in the modeline; a routine
                     // acknowledgement must not keep a diagnostic banner open.
@@ -276,7 +279,7 @@ impl Engine {
             storage.session,
             sequence,
             progress,
-            Some(self.learning.evidence.clone()),
+            self.learning.chunks.evidence(&self.learning.evidence),
         )?;
         let group = self.ack_group.take().unwrap_or(self.consumed.get());
         if let Some(storage) = self.storage.as_mut() {

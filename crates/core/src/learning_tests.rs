@@ -46,8 +46,13 @@ const ALPHA3_DIGEST: &str = "07df56389ed137468aa95cc3af147f737e33eef60c4ab71aab9
 
 #[test]
 fn absent_learning_keeps_the_alpha3_digest() {
-    let checkpoint =
-        Checkpoint::new(SessionId::FIRST, CommitSeq::INITIAL, progress(), None).unwrap();
+    let checkpoint = Checkpoint::new(
+        SessionId::FIRST,
+        CommitSeq::INITIAL,
+        progress(),
+        crate::progress::Evidence::None,
+    )
+    .unwrap();
     assert_eq!(checkpoint.key.digest.to_hex(), ALPHA3_DIGEST);
 }
 
@@ -57,7 +62,7 @@ fn learning_section_is_digest_sensitive() {
         SessionId::FIRST,
         CommitSeq::INITIAL,
         progress(),
-        Some(learning()),
+        crate::progress::Evidence::Legacy(learning()),
     )
     .unwrap();
     assert_ne!(bare.key.digest.to_hex(), ALPHA3_DIGEST);
@@ -69,7 +74,7 @@ fn learning_section_is_digest_sensitive() {
         SessionId::FIRST,
         CommitSeq::INITIAL,
         progress(),
-        Some(observed),
+        crate::progress::Evidence::Legacy(observed),
     )
     .unwrap();
     assert_ne!(changed.key.digest, bare.key.digest);

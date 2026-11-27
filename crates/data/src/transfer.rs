@@ -187,7 +187,7 @@ impl ProgressStore {
                     session_id: checkpoint.key.session.get(),
                     sequence: checkpoint.key.sequence.get(),
                     digest: checkpoint.key.digest.to_hex(),
-                    learning: checkpoint.learning.as_ref().map(PortableLearning::new),
+                    learning: session.learning.as_ref().map(PortableLearning::new),
                     utc_offset_minutes: stored.and_then(|(offset, _)| *offset),
                     provenance: stored
                         .map_or_else(|| "live".to_string(), |(_, provenance)| provenance.clone()),

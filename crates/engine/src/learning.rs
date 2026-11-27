@@ -63,6 +63,78 @@ pub(super) struct Learning {
     pub(super) served_before: Vec<u32>,
     /// Earlier servings of the open numeric entry.
     pub(super) numeric_served_before: u32,
+    /// The session's observation chunks (#11).
+    pub(super) chunks: ChunkLog,
+}
+
+/// The session's observation chunks (#11): one per closed exercise that
+/// added evidence, kept until a checkpoint carrying it is acknowledged.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct ChunkLog {
+    /// The evidence as of the last closed exercise.
+    closed: SessionLearning,
+    /// The chunks cut so far, 1 through this.
+    through: u64,
+    /// The chain over their digests.
+    chain: cadence_core::ContentDigest,
+    /// Chunks no acknowledged checkpoint has carried yet.
+    unacknowledged: Vec<cadence_core::chunks::ObservationChunk>,
+}
+
+impl ChunkLog {
+    fn new(evidence: &SessionLearning) -> Self {
+        Self {
+            closed: evidence.clone(),
+            through: 0,
+            chain: cadence_core::chunks::GENESIS,
+            unacknowledged: Vec::new(),
+        }
+    }
+
+    /// Cuts the evidence added since the last close as the next chunk; a
+    /// close that added nothing cuts none.
+    pub(super) fn cut(
+        &mut self,
+        track: cadence_core::progress::Track,
+        evidence: &SessionLearning,
+    ) -> Result<(), CoreError> {
+        let seq = self
+            .through
+            .checked_add(1)
+            .ok_or(CoreError::ArithmeticOverflow {
+                operation: "observation chunk sequence",
+            })?;
+        let chunk =
+            cadence_core::chunks::ObservationChunk::between(seq, track, evidence, &self.closed)?;
+        self.closed = evidence.clone();
+        if chunk.skills.is_empty()
+            && chunk.words.is_empty()
+            && chunk.passages.is_empty()
+            && chunk.reinforced == 0
+        {
+            return Ok(());
+        }
+        self.chain = cadence_core::chunks::chain(self.chain, chunk.digest());
+        self.through = seq;
+        self.unacknowledged.push(chunk);
+        Ok(())
+    }
+
+    /// What a checkpoint carries: the header of `evidence` (plan, probe,
+    /// pace), the watermark and chain, and every unacknowledged chunk.
+    pub(super) fn evidence(&self, evidence: &SessionLearning) -> cadence_core::progress::Evidence {
+        cadence_core::progress::Evidence::Chunked(cadence_core::progress::ChunkedEvidence {
+            header: evidence.header(),
+            through: self.through,
+            chain: self.chain,
+            chunks: self.unacknowledged.clone(),
+        })
+    }
+
+    /// An acknowledged checkpoint carried chunks through `through`.
+    pub(super) fn acknowledged(&mut self, through: u64) {
+        self.unacknowledged.retain(|chunk| chunk.seq > through);
+    }
 }
 
 /// A missed numeric entry and the entry index it returns at.
@@ -87,6 +159,7 @@ fn slot_lane(lane: Lane) -> slots::SlotLane {
 impl Learning {
     pub(super) fn new(evidence: SessionLearning, adaptation: Adaptation) -> Self {
         Self {
+            chunks: ChunkLog::new(&evidence),
             evidence,
             adaptation,
             mark: None,

@@ -6,6 +6,7 @@
 //! backup, and portable export. Must not own UI mutation or training
 //! policy decisions.
 
+mod chunk_rows;
 mod error;
 mod files;
 mod learning_rows;

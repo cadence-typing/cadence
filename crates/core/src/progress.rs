@@ -346,6 +346,80 @@ pub struct SaveKey {
     /// Canonical content digest.
     pub digest: ContentDigest,
 }
+/// A session's learning evidence as a checkpoint names it (#11).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Evidence {
+    /// Sessions saved before schema 3 have none; their digest is exactly
+    /// the original v1 encoding.
+    None,
+    /// Sessions saved before schema 7: the cumulative snapshot, read back
+    /// as stored and never written again (`legacy`).
+    Legacy(SessionLearning),
+    /// Chunked sessions: append-only observation chunks.
+    Chunked(ChunkedEvidence),
+}
+
+/// A chunked session's evidence: the header, the chunk watermark and chain,
+/// and the chunks this checkpoint carries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChunkedEvidence {
+    /// The plan record, the probe and the pace records; it holds no
+    /// observations (those are the chunks').
+    pub header: SessionLearning,
+    /// The chunks the session has, 1 through this.
+    pub through: u64,
+    /// The chain over chunk digests 1 through `through`.
+    pub chain: ContentDigest,
+    /// The chunks carried: the ones after the last acknowledged, ending at
+    /// `through`, contiguous. A stored session reads back with none.
+    pub chunks: Vec<crate::chunks::ObservationChunk>,
+}
+
+impl ChunkedEvidence {
+    fn validate(&self) -> Result<(), CoreError> {
+        self.header.validate()?;
+        let header_only = self.header.skills.is_empty()
+            && self.header.words.is_empty()
+            && self.header.passages.is_empty()
+            && self.header.reinforced == 0;
+        let first = self
+            .through
+            .checked_sub(u64::try_from(self.chunks.len()).map_err(|_too_many| invalid())?)
+            .ok_or_else(invalid)?;
+        let contiguous = self
+            .chunks
+            .iter()
+            .zip(1_u64..)
+            .all(|(chunk, offset)| first.checked_add(offset) == Some(chunk.seq));
+        if header_only && contiguous {
+            Ok(())
+        } else {
+            Err(invalid())
+        }
+    }
+}
+
+impl Evidence {
+    /// The cumulative snapshot of a legacy session.
+    #[must_use]
+    pub const fn legacy(&self) -> Option<&SessionLearning> {
+        match self {
+            Self::Legacy(learning) => Some(learning),
+            Self::None | Self::Chunked(_) => None,
+        }
+    }
+
+    /// The header (plan, probe, pace) of any session with evidence.
+    #[must_use]
+    pub const fn header(&self) -> Option<&SessionLearning> {
+        match self {
+            Self::Legacy(learning) => Some(learning),
+            Self::Chunked(chunked) => Some(&chunked.header),
+            Self::None => None,
+        }
+    }
+}
+
 /// Validated cumulative durable-save request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Checkpoint {
@@ -353,13 +427,14 @@ pub struct Checkpoint {
     pub key: SaveKey,
     /// Full replacement progress.
     pub progress: SessionProgress,
-    /// Full replacement learning evidence. Sessions saved before schema 3
-    /// have none; their digest is exactly the original v1 encoding.
-    pub learning: Option<SessionLearning>,
+    /// The session's learning evidence (#11).
+    pub evidence: Evidence,
 }
 /// Tag separating the v1 progress encoding from the learning section. Track
 /// bytes are 0..=5, so this byte can never begin another track record.
 const LEARNING_SECTION_TAG: u8 = 0xFF;
+/// Tag of a chunked session's evidence section (#11).
+const CHUNKED_SECTION_TAG: u8 = 0xF8;
 /// Tag of the optional UTC-offset section (#52), after the tracks.
 const OFFSET_SECTION_TAG: u8 = 0xFE;
 impl Checkpoint {
@@ -370,11 +445,13 @@ impl Checkpoint {
         session: SessionId,
         sequence: CommitSeq,
         mut progress: SessionProgress,
-        learning: Option<SessionLearning>,
+        evidence: Evidence,
     ) -> Result<Self, CoreError> {
         progress.validate()?;
-        if let Some(learning) = &learning {
-            learning.validate()?;
+        match &evidence {
+            Evidence::None => {}
+            Evidence::Legacy(learning) => learning.validate()?,
+            Evidence::Chunked(chunked) => chunked.validate()?,
         }
         progress.tracks.sort_by_key(|t| t.track);
         let mut h = Sha256::new();
@@ -419,9 +496,22 @@ impl Checkpoint {
             h.update([0xF9]);
             h.update(pack.as_bytes());
         }
-        if let Some(learning) = &learning {
-            h.update([LEARNING_SECTION_TAG]);
-            learning.digest_into(&mut h);
+        match &evidence {
+            Evidence::None => {}
+            Evidence::Legacy(learning) => {
+                h.update([LEARNING_SECTION_TAG]);
+                learning.digest_into(&mut h);
+            }
+            // The chunks carried are not hashed: the watermark and chain
+            // name them, so a stored session's identity is recomputed from
+            // its stored chunks, and a retry with the same chunks has the
+            // same identity.
+            Evidence::Chunked(chunked) => {
+                h.update([CHUNKED_SECTION_TAG]);
+                chunked.header.digest_into(&mut h);
+                h.update(chunked.through.to_le_bytes());
+                h.update(chunked.chain.as_bytes());
+            }
         }
         Ok(Self {
             key: SaveKey {
@@ -430,7 +520,7 @@ impl Checkpoint {
                 digest: ContentDigest::from_bytes(h.finalize().into()),
             },
             progress,
-            learning,
+            evidence,
         })
     }
 }

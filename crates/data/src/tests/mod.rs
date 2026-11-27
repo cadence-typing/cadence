@@ -47,7 +47,7 @@ fn checkpoint(
                 active_micros: 900_000,
             }],
         },
-        None,
+        cadence_core::progress::Evidence::None,
     )
 }
 
@@ -60,6 +60,38 @@ fn rekey(
         checkpoint.key.session,
         CommitSeq::from_raw(sequence),
         progress,
-        checkpoint.learning.clone(),
+        checkpoint.evidence.clone(),
     )
+}
+
+/// Chunked evidence whose totals are `steps.last()`: one chunk per step
+/// (each step's growth over the one before, from the plan's header), all
+/// carried, as the engine sends them (#11).
+pub(super) fn chunked(
+    steps: &[cadence_core::learning::SessionLearning],
+) -> Result<cadence_core::progress::Evidence, cadence_core::CoreError> {
+    use cadence_core::chunks::{GENESIS, ObservationChunk, chain};
+    let last = steps
+        .last()
+        .ok_or(cadence_core::CoreError::InvalidIdentity {
+            kind: "test evidence",
+            reason: "no steps",
+        })?;
+    let mut before = last.header();
+    let mut chunks = Vec::new();
+    let mut value = GENESIS;
+    for (seq, step) in (1_u64..).zip(steps) {
+        let chunk = ObservationChunk::between(seq, Track::Words, step, &before)?;
+        value = chain(value, chunk.digest());
+        chunks.push(chunk);
+        before = step.clone();
+    }
+    Ok(cadence_core::progress::Evidence::Chunked(
+        cadence_core::progress::ChunkedEvidence {
+            header: last.header(),
+            through: u64::try_from(chunks.len()).unwrap_or(u64::MAX),
+            chain: value,
+            chunks,
+        },
+    ))
 }

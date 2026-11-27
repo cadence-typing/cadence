@@ -12,7 +12,9 @@
 //! `sessions.provenance` (`live` by default) and admits the `benchmark`
 //! track. Schema 6 (#77) records each session's layout and content class
 //! (existing rows read `unspecified` and `standard`), a nullable pack digest
-//! and `settings_audit`. Every 0/1/2/3/4/5 -> 6 path is one transaction; no
+//! and `settings_audit`. Schema 7 (#11) adds append-only
+//! `observation_chunks` and `derived_state`, marking every earlier session
+//! with learning `legacy`. Every 0..=6 -> 7 path is one transaction; no
 //! destructive reset path exists. `word_outcomes` also holds warm-up and prose words from
 //! alpha.7 (columns unchanged).
 
@@ -21,7 +23,7 @@ use rusqlite::{Connection, OptionalExtension};
 use crate::StoreError;
 
 /// Highest supported persistence schema version.
-pub const SUPPORTED_SCHEMA: i64 = 6;
+pub const SUPPORTED_SCHEMA: i64 = 7;
 
 pub(crate) fn inspect(connection: &Connection) -> Result<i64, StoreError> {
     let has_schema: bool = connection.query_row(
@@ -99,6 +101,7 @@ pub(crate) fn migrate(connection: &mut Connection, current: i64) -> Result<(), S
         (4, MIGRATION_V4),
         (5, MIGRATION_V5),
         (6, MIGRATION_V6),
+        (7, MIGRATION_V7),
     ] {
         if current < target {
             tx.execute_batch(sql)
@@ -244,4 +247,32 @@ CREATE TABLE settings_audit (
     PRIMARY KEY(at_session,key)
 );
 UPDATE schema_info SET version=6 WHERE id=1;
+";
+
+/// Append-only observation chunks and the derived totals' source
+/// watermark (#11). Sessions recorded before are `legacy`: their stored
+/// learning rows stay the authority and are never turned into chunks.
+const MIGRATION_V7: &str = "
+CREATE TABLE observation_chunks (
+    session_id INTEGER NOT NULL REFERENCES sessions(session_id),
+    chunk_seq INTEGER NOT NULL CHECK(chunk_seq >= 1),
+    track TEXT NOT NULL,
+    payload BLOB NOT NULL,
+    digest TEXT NOT NULL CHECK(length(digest)=64),
+    PRIMARY KEY(session_id, chunk_seq)
+);
+CREATE TRIGGER observation_chunks_are_append_only_update
+    BEFORE UPDATE ON observation_chunks
+    BEGIN SELECT RAISE(ABORT, 'observation chunks are append-only'); END;
+CREATE TRIGGER observation_chunks_are_append_only_delete
+    BEFORE DELETE ON observation_chunks
+    BEGIN SELECT RAISE(ABORT, 'observation chunks are append-only'); END;
+CREATE TABLE derived_state (
+    session_id INTEGER PRIMARY KEY REFERENCES sessions(session_id),
+    source_chunk_seq INTEGER NOT NULL CHECK(source_chunk_seq >= 0),
+    legacy INTEGER NOT NULL CHECK(legacy IN (0,1))
+);
+INSERT INTO derived_state(session_id, source_chunk_seq, legacy)
+    SELECT session_id, 0, 1 FROM session_plans;
+UPDATE schema_info SET version=7 WHERE id=1;
 ";

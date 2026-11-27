@@ -80,6 +80,8 @@ fn words_engine() -> Result<Engine, Error> {
 struct Driver {
     engine: Engine,
     last: Option<Checkpoint>,
+    /// Every chunk any checkpoint carried, by sequence (#11).
+    chunks: std::collections::BTreeMap<u64, cadence_core::chunks::ObservationChunk>,
 }
 
 impl Driver {
@@ -88,7 +90,11 @@ impl Driver {
     }
 
     fn with_history(engine: Engine, history: HistorySummary) -> Result<Self, Error> {
-        let mut driver = Self { engine, last: None };
+        let mut driver = Self {
+            engine,
+            last: None,
+            chunks: std::collections::BTreeMap::new(),
+        };
         driver.send(
             0,
             EventKind::StorageReady {
@@ -109,6 +115,15 @@ impl Driver {
         });
         if let Some(checkpoint) = transition.checkpoint {
             let key = checkpoint.key;
+            if let cadence_core::progress::Evidence::Chunked(chunked) = &checkpoint.evidence {
+                for chunk in &chunked.chunks {
+                    // A chunk once carried never changes (L-01).
+                    if let Some(stored) = self.chunks.get(&chunk.seq) {
+                        assert_eq!(stored, chunk, "chunk {} changed", chunk.seq);
+                    }
+                    self.chunks.insert(chunk.seq, chunk.clone());
+                }
+            }
             self.last = Some(checkpoint);
             self.send(
                 at,
@@ -129,10 +144,24 @@ impl Driver {
         self.key(at, Key::Content(unit(c)?))
     }
 
+    /// The totals the last checkpoint names: its header plus the fold of
+    /// its chunks 1 through its watermark.
+    fn learning(&self) -> Result<Option<SessionLearning>, Error> {
+        let Some(cadence_core::progress::Evidence::Chunked(chunked)) =
+            self.last.as_ref().map(|c| &c.evidence)
+        else {
+            return Ok(None);
+        };
+        let mut totals = chunked.header.clone();
+        for chunk in self.chunks.range(1..=chunked.through).map(|(_, c)| c) {
+            chunk.fold_into(&mut totals)?;
+        }
+        Ok(Some(totals))
+    }
+
     fn finish(mut self, at: u64) -> Result<SessionLearning, Error> {
         self.send(at, EventKind::Terminate)?;
-        self.last
-            .and_then(|checkpoint| checkpoint.learning)
+        self.learning()?
             .ok_or_else(|| "final checkpoint carries learning evidence".into())
     }
 }
@@ -1210,11 +1239,7 @@ fn an_interrupted_probe_is_not_comparable() -> TestResult {
     driver.key(0, Key::Enter)?;
     let at = type_text(&mut driver, SECOND, "Probe")?;
     driver.key(at, Key::Interrupt)?;
-    let probe = driver
-        .last
-        .as_ref()
-        .and_then(|c| c.learning.as_ref())
-        .and_then(|l| l.probe);
+    let probe = driver.learning()?.and_then(|l| l.probe);
     assert_eq!(probe.map(|p| p.reason), Some(ProbeReason::EndedEarly));
     Ok(())
 }

@@ -1,5 +1,7 @@
-//! Schema-3 learning evidence rows (plan 0003): replace-per-checkpoint writes
-//! inside the checkpoint transaction, and checked decoding on read.
+//! Learning evidence rows (plan 0003, #11): a chunked session's header is
+//! written whole and its observation rows only ever gain the sums of newly
+//! appended chunks, inside the checkpoint transaction; checked decoding on
+//! read. Legacy sessions' rows are read as stored and never written.
 use std::collections::{BTreeMap, BTreeSet};
 
 use cadence_core::learning::{
@@ -12,39 +14,36 @@ use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use crate::StoreError;
 use crate::error::{read_integer, sql_integer};
 
-const TABLES: [&str; 7] = [
-    "pace_targets",
-    "benchmark_probes",
-    "plan_focus",
-    "skill_observations",
-    "word_outcomes",
-    "prose_seen",
-    "session_plans",
-];
+/// The header tables: the plan, its focus, the pace records and the probe.
+/// They are not observations; a checkpoint states them whole.
+const HEADER_TABLES: [&str; 3] = ["pace_targets", "benchmark_probes", "plan_focus"];
 
-/// Replaces a session's learning rows with `learning`.
-pub(crate) fn save(
+/// Writes a chunked session's header (#11): the plan, focus, pace and
+/// probe. The observation tables are never written here.
+pub(crate) fn save_header(
     tx: &Transaction<'_>,
     session: i64,
-    learning: &SessionLearning,
+    header: &SessionLearning,
 ) -> Result<(), StoreError> {
-    for table in TABLES {
+    for table in HEADER_TABLES {
         tx.prepare_cached(&format!("DELETE FROM {table} WHERE session_id=?1"))?
             .execute([session])?;
     }
+    // `reinforced` is derived from the chunks: a new row starts at 0 and
+    // the header never changes it.
     tx.prepare_cached(
-        "INSERT INTO session_plans(session_id,seed,mode,reinforced) VALUES (?1,?2,?3,?4)",
+        "INSERT INTO session_plans(session_id,seed,mode,reinforced) VALUES (?1,?2,?3,0)
+         ON CONFLICT(session_id) DO UPDATE SET seed=excluded.seed, mode=excluded.mode",
     )?
     .execute(params![
         session,
-        hex(learning.plan.seed),
-        learning.plan.mode.key(),
-        sql_integer(learning.reinforced, "reinforced")?
+        hex(header.plan.seed),
+        header.plan.mode.key()
     ])?;
     let mut focus = tx.prepare_cached(
         "INSERT INTO plan_focus(session_id,rank,lane,kind,skill) VALUES (?1,?2,?3,?4,?5)",
     )?;
-    for (rank, key) in learning.plan.focus.iter().enumerate() {
+    for (rank, key) in header.plan.focus.iter().enumerate() {
         let rank = i64::try_from(rank)
             .map_err(|_unrepresentable| StoreError::IntegerRange { field: "rank" })?;
         focus.execute(params![
@@ -55,42 +54,10 @@ pub(crate) fn save(
             key.skill.text()
         ])?;
     }
-    let mut skills = tx.prepare_cached(
-        "INSERT INTO skill_observations(session_id,lane,kind,skill,attempts,errors,timed,timed_micros)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
-    )?;
-    for (key, tally) in &learning.skills {
-        skills.execute(params![
-            session,
-            key.lane.key(),
-            key.skill.kind_key(),
-            key.skill.text(),
-            sql_integer(tally.attempts, "skill attempts")?,
-            sql_integer(tally.errors, "skill errors")?,
-            sql_integer(tally.timed, "skill timed")?,
-            sql_integer(tally.timed_micros, "skill timed_micros")?
-        ])?;
-    }
-    let mut words = tx.prepare_cached(
-        "INSERT INTO word_outcomes(session_id,word_id,attempts,errors) VALUES (?1,?2,?3,?4)",
-    )?;
-    for (word, tally) in &learning.words {
-        words.execute(params![
-            session,
-            sql_integer(word.get(), "word_id")?,
-            sql_integer(tally.attempts, "word attempts")?,
-            sql_integer(tally.errors, "word errors")?
-        ])?;
-    }
-    let mut passages =
-        tx.prepare_cached("INSERT INTO prose_seen(session_id,passage_id) VALUES (?1,?2)")?;
-    for passage in &learning.passages {
-        passages.execute(params![session, hex(passage.get())])?;
-    }
     let mut pace = tx.prepare_cached(
         "INSERT INTO pace_targets(session_id,track,target_cpm,decision) VALUES (?1,?2,?3,?4)",
     )?;
-    for record in &learning.pace {
+    for record in &header.pace {
         let target = record
             .target_cpm
             .map(|cpm| sql_integer(cpm, "pace target"))
@@ -102,7 +69,7 @@ pub(crate) fn save(
             record.moved.key()
         ])?;
     }
-    if let Some(probe) = learning.probe {
+    if let Some(probe) = header.probe {
         tx.prepare_cached(
             "INSERT INTO benchmark_probes(session_id,passage_id,strata,comparable,reason) \
              VALUES (?1,?2,?3,?4,?5)",
@@ -115,6 +82,59 @@ pub(crate) fn save(
             probe.reason.key()
         ])?;
     }
+    Ok(())
+}
+
+/// Folds one newly appended chunk into the derived observation rows (#11):
+/// sums added in place, never a delete and reinsert.
+pub(crate) fn fold_chunk(
+    tx: &Transaction<'_>,
+    session: i64,
+    chunk: &cadence_core::chunks::ObservationChunk,
+) -> Result<(), StoreError> {
+    let mut skills = tx.prepare_cached(
+        "INSERT INTO skill_observations(session_id,lane,kind,skill,attempts,errors,timed,timed_micros)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8)
+         ON CONFLICT(session_id,lane,kind,skill) DO UPDATE SET
+            attempts=attempts+excluded.attempts, errors=errors+excluded.errors,
+            timed=timed+excluded.timed, timed_micros=timed_micros+excluded.timed_micros",
+    )?;
+    for (key, tally) in &chunk.skills {
+        skills.execute(params![
+            session,
+            key.lane.key(),
+            key.skill.kind_key(),
+            key.skill.text(),
+            sql_integer(tally.attempts, "skill attempts")?,
+            sql_integer(tally.errors, "skill errors")?,
+            sql_integer(tally.timed, "skill timed")?,
+            sql_integer(tally.timed_micros, "skill timed_micros")?
+        ])?;
+    }
+    let mut words = tx.prepare_cached(
+        "INSERT INTO word_outcomes(session_id,word_id,attempts,errors) VALUES (?1,?2,?3,?4)
+         ON CONFLICT(session_id,word_id) DO UPDATE SET
+            attempts=attempts+excluded.attempts, errors=errors+excluded.errors",
+    )?;
+    for (word, tally) in &chunk.words {
+        words.execute(params![
+            session,
+            sql_integer(word.get(), "word_id")?,
+            sql_integer(tally.attempts, "word attempts")?,
+            sql_integer(tally.errors, "word errors")?
+        ])?;
+    }
+    let mut passages = tx.prepare_cached(
+        "INSERT INTO prose_seen(session_id,passage_id) VALUES (?1,?2) ON CONFLICT DO NOTHING",
+    )?;
+    for passage in &chunk.passages {
+        passages.execute(params![session, hex(passage.get())])?;
+    }
+    tx.prepare_cached("UPDATE session_plans SET reinforced=reinforced+?2 WHERE session_id=?1")?
+        .execute(params![
+            session,
+            sql_integer(chunk.reinforced, "reinforced")?
+        ])?;
     Ok(())
 }
 

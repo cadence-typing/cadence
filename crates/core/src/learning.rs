@@ -459,6 +459,19 @@ impl SessionLearning {
         Ok(())
     }
 
+    /// The header alone (#11): the plan, probe and pace records, with no
+    /// observations (those are the chunks').
+    #[must_use]
+    pub fn header(&self) -> Self {
+        Self {
+            skills: BTreeMap::new(),
+            words: BTreeMap::new(),
+            passages: BTreeSet::new(),
+            reinforced: 0,
+            ..self.clone()
+        }
+    }
+
     /// Validates structural bounds and tally invariants.
     ///
     /// # Errors

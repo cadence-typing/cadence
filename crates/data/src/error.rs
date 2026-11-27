@@ -50,6 +50,9 @@ pub enum StoreError {
     StaleSequence,
     /// Frozen identity, counters, or terminal status regressed.
     Regression(String),
+    /// An observation chunk was refused (#11): a changed payload under a
+    /// stored sequence, or a gap. Nothing was written.
+    ChunkRefused(String),
     /// Refusing to overwrite any existing export/backup destination.
     DestinationExists(PathBuf),
     /// SQLite operation failed.
@@ -72,6 +75,7 @@ impl std::fmt::Display for StoreError {
             Self::CommitConflict { session, sequence } => write!(f, "conflicting checkpoint for {session} at {sequence}"),
             Self::StaleSequence => f.write_str("unrecorded checkpoint sequence is older than durable progress"),
             Self::Regression(message) => write!(f, "checkpoint regression: {message}"),
+            Self::ChunkRefused(message) => write!(f, "observation chunk refused: {message}"),
             Self::DestinationExists(path) => write!(f, "refusing to overwrite {}", path.display()),
             Self::Sql(message) => write!(f, "database error: {message}"),
             Self::Export(message) => write!(f, "export error: {message}"),

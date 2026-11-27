@@ -1,6 +1,9 @@
 //! Checked row decoding and canonical checkpoint integrity.
 
-use cadence_core::progress::{Checkpoint, ProgressStatus, SessionProgress, Track, TrackProgress};
+use cadence_core::learning::SessionLearning;
+use cadence_core::progress::{
+    Checkpoint, ChunkedEvidence, Evidence, ProgressStatus, SessionProgress, Track, TrackProgress,
+};
 use cadence_core::{CommitSeq, SessionId};
 use rusqlite::{Connection, params};
 
@@ -12,6 +15,9 @@ use crate::error::{read_integer, sql_integer};
 pub struct StoredSession {
     /// Canonical latest checkpoint, including all exact track numerators.
     pub checkpoint: Checkpoint,
+    /// The session's learning totals: a legacy session's stored snapshot,
+    /// or a chunked session's derived rows (the fold of its chunks).
+    pub learning: Option<SessionLearning>,
 }
 
 pub(crate) fn status_name(status: ProgressStatus) -> &'static str {
@@ -113,7 +119,17 @@ pub(crate) fn load_session(
     }
     progress.tracks.sort_by_key(|track| track.track);
     let learning = crate::learning_rows::load(connection, id)?;
-    let checkpoint = Checkpoint::new(session, sequence, progress, learning)
+    let evidence = match (&learning, crate::chunk_rows::derived_state(connection, id)?) {
+        (None, _) => Evidence::None,
+        (Some(totals), Some((through, false))) => Evidence::Chunked(ChunkedEvidence {
+            header: totals.header(),
+            through,
+            chain: crate::chunk_rows::chain_of(connection, id, through)?,
+            chunks: Vec::new(),
+        }),
+        (Some(totals), Some((_, true)) | None) => Evidence::Legacy(totals.clone()),
+    };
+    let checkpoint = Checkpoint::new(session, sequence, progress, evidence)
         .map_err(|error| StoreError::Corrupt(error.to_string()))?;
     let digest: String = connection.query_row(
         "SELECT digest FROM commit_receipts WHERE session_id=?1 AND commit_seq=?2",
@@ -125,7 +141,10 @@ pub(crate) fn load_session(
             "latest session differs from its durable digest".into(),
         ));
     }
-    Ok(Some(StoredSession { checkpoint }))
+    Ok(Some(StoredSession {
+        checkpoint,
+        learning,
+    }))
 }
 
 pub(crate) fn load_all(connection: &Connection) -> Result<Vec<StoredSession>, StoreError> {
@@ -175,7 +194,7 @@ pub(crate) fn validate_checkpoint(checkpoint: &Checkpoint) -> Result<(), StoreEr
         checkpoint.key.session,
         checkpoint.key.sequence,
         checkpoint.progress.clone(),
-        checkpoint.learning.clone(),
+        checkpoint.evidence.clone(),
     )
     .map_err(|error| StoreError::InvalidCheckpoint(error.to_string()))?;
     if checkpoint.key != canonical.key {
@@ -205,14 +224,20 @@ pub(crate) fn validate_checkpoint(checkpoint: &Checkpoint) -> Result<(), StoreEr
 }
 
 pub(crate) fn validate_advance(old: &Checkpoint, new: &Checkpoint) -> Result<(), StoreError> {
-    match (&old.learning, &new.learning) {
-        (None, None) => {}
-        (Some(previous), Some(current)) if current.advances_from(previous) => {}
-        _ => {
-            return Err(StoreError::Regression(
-                "learning evidence changed plan or decreased".into(),
-            ));
+    let advances = match (&old.evidence, &new.evidence) {
+        (Evidence::None, Evidence::None) => true,
+        // Legacy sessions are never written again (#11).
+        (Evidence::Legacy(_), _) | (_, Evidence::Legacy(_)) => false,
+        (Evidence::Chunked(previous), Evidence::Chunked(current)) => {
+            current.header.advances_from(&previous.header)
+                && cadence_core::chunks::watermark_ok(previous.through, current.through)
         }
+        (Evidence::None, Evidence::Chunked(_)) | (Evidence::Chunked(_), Evidence::None) => false,
+    };
+    if !advances {
+        return Err(StoreError::Regression(
+            "learning evidence changed plan, decreased, or is legacy".into(),
+        ));
     }
     validate_progress_advance(&old.progress, &new.progress)
 }

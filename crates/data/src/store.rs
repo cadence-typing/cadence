@@ -10,8 +10,8 @@ use std::time::Duration;
 use cadence_core::SessionId;
 use cadence_core::learning::{HistoricSession, LearnerHistory, PaceTargets, ProbeHistory};
 use cadence_core::progress::{
-    Checkpoint, HistorySummary, ProgressStatus, RECENT_SESSION_CAPACITY, SaveKey, SessionRecap,
-    Track,
+    Checkpoint, Evidence, HistorySummary, ProgressStatus, RECENT_SESSION_CAPACITY, SaveKey,
+    SessionRecap, Track,
 };
 use cadence_kernel::checkpoint::{Admission, Receipt, admit};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
@@ -325,13 +325,13 @@ impl ProgressStore {
         };
         for session in sessions.iter().filter(standard) {
             let checkpoint = &session.checkpoint;
-            for record in checkpoint.learning.iter().flat_map(|l| l.pace.iter()) {
+            for record in session.learning.iter().flat_map(|l| l.pace.iter()) {
                 if let Some(cpm) = record.target_cpm {
                     pace_targets.retain(|(track, _)| *track != record.track);
                     pace_targets.push((record.track, cpm));
                 }
             }
-            if let Some(probe) = checkpoint.learning.as_ref().and_then(|l| l.probe) {
+            if let Some(probe) = session.learning.as_ref().and_then(|l| l.probe) {
                 probes.shown.insert(probe.passage);
                 if probe.comparable {
                     probes.last_comparable_strata = Some(probe.strata);
@@ -362,7 +362,7 @@ impl ProgressStore {
             .filter_map(|session| {
                 let checkpoint = &session.checkpoint;
                 let effective = checkpoint.progress.layout.or(adopter);
-                checkpoint.learning.clone().map(|mut learning| {
+                session.learning.clone().map(|mut learning| {
                     if layout.is_some() && effective != layout {
                         learning.skills.retain(|key, _| letters_only(*key));
                     }
@@ -551,8 +551,17 @@ impl ProgressStore {
                     sql_integer(track.correct_digits, "correct_digits")?, sql_integer(track.active_micros, "track active_micros")?],
             )?;
         }
-        if let Some(learning) = &checkpoint.learning {
-            crate::learning_rows::save(&tx, session, learning)?;
+        match &checkpoint.evidence {
+            Evidence::None => {}
+            Evidence::Legacy(_) => {
+                return Err(StoreError::InvalidCheckpoint(
+                    "legacy learning evidence is read-only".into(),
+                ));
+            }
+            Evidence::Chunked(chunked) => {
+                crate::learning_rows::save_header(&tx, session, &chunked.header)?;
+                crate::chunk_rows::append(&tx, session, chunked)?;
+            }
         }
         tx.execute(
             "INSERT INTO commit_receipts(session_id,commit_seq,digest,created_at_epoch) VALUES (?1,?2,?3,?4)",
@@ -560,6 +569,18 @@ impl ProgressStore {
         )?;
         tx.commit()?;
         Ok(CommitReceipt { key, created: true })
+    }
+
+    /// A session's stored observation chunks, in order, each checked
+    /// against its digest (#11).
+    ///
+    /// # Errors
+    /// A malformed or tampered chunk.
+    pub fn session_chunks(
+        &self,
+        session: cadence_core::SessionId,
+    ) -> Result<Vec<cadence_core::chunks::ObservationChunk>, StoreError> {
+        crate::chunk_rows::load(&self.connection, sql_integer(session.get(), "session_id")?)
     }
 
     /// Reads complete latest checkpoints in day/session order with checked decoding.

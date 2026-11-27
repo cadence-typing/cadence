@@ -104,7 +104,7 @@ fn learning_round_trips_and_history_returns_the_newest_window() -> TestResult {
                 with.key.session,
                 with.key.sequence,
                 with.progress,
-                Some(learning(session, 10)?),
+                super::chunked(&[learning(session, 10)?])?,
             )?;
             store.apply_checkpoint(&with)?;
         }
@@ -138,29 +138,47 @@ fn decreasing_or_replanned_learning_is_a_regression() -> TestResult {
             base.key.session,
             cadence_core::CommitSeq::from_raw(sequence),
             base.progress.clone(),
-            Some(evidence),
+            evidence,
         )
     };
-    store.apply_checkpoint(&with(1, learning(5, 10)?)?)?;
+    store.apply_checkpoint(&with(1, super::chunked(&[learning(5, 10)?])?)?)?;
+    // A lower watermark (fewer chunks) is a regression.
+    let header =
+        cadence_core::progress::Evidence::Chunked(cadence_core::progress::ChunkedEvidence {
+            header: learning(5, 10)?.header(),
+            through: 0,
+            chain: cadence_core::chunks::GENESIS,
+            chunks: Vec::new(),
+        });
     assert!(matches!(
-        store.apply_checkpoint(&with(2, learning(5, 9)?)?),
+        store.apply_checkpoint(&with(2, header)?),
         Err(StoreError::Regression(_))
     ));
+    // A changed plan is a regression.
     assert!(matches!(
-        store.apply_checkpoint(&with(2, learning(6, 10)?)?),
+        store.apply_checkpoint(&with(2, super::chunked(&[learning(6, 10)?])?)?),
         Err(StoreError::Regression(_))
     ));
-    let dropped = cadence_core::progress::Checkpoint::new(
-        base.key.session,
-        cadence_core::CommitSeq::from_raw(2),
-        base.progress.clone(),
-        None,
-    )?;
+    // Dropping the evidence is a regression.
     assert!(matches!(
-        store.apply_checkpoint(&dropped),
+        store.apply_checkpoint(&with(2, cadence_core::progress::Evidence::None)?),
         Err(StoreError::Regression(_))
     ));
-    store.apply_checkpoint(&with(2, learning(5, 11)?)?)?;
+    // A changed payload under a stored chunk is refused, and nothing moves.
+    assert!(matches!(
+        store.apply_checkpoint(&with(2, super::chunked(&[learning(5, 11)?])?)?),
+        Err(StoreError::ChunkRefused(_))
+    ));
+    // Growth is a new chunk; the stored first one is a replay.
+    store.apply_checkpoint(&with(
+        2,
+        super::chunked(&[learning(5, 10)?, learning(5, 11)?])?,
+    )?)?;
+    let totals = store
+        .session_history()?
+        .pop()
+        .and_then(|session| session.learning);
+    assert_eq!(totals, Some(learning(5, 11)?));
     Ok(())
 }
 
@@ -227,7 +245,7 @@ fn a_mixed_focus_list_round_trips() -> TestResult {
             base.key.session,
             base.key.sequence,
             base.progress,
-            Some(evidence.clone()),
+            super::chunked(&[evidence.clone()])?,
         )?;
         store.apply_checkpoint(&saved)?;
     }
@@ -280,7 +298,7 @@ fn a_probe_record_round_trips_and_feeds_the_probe_history() -> TestResult {
                 keyed.key.session,
                 keyed.key.sequence,
                 keyed.progress,
-                Some(evidence),
+                super::chunked(&[evidence])?,
             )?;
             store.apply_checkpoint(&with)?;
         }
@@ -341,7 +359,7 @@ fn a_new_layout_adopts_letters_once_and_starts_symbols_empty() -> TestResult {
             base.key.session,
             base.key.sequence,
             progress,
-            Some(evidence),
+            super::chunked(&[evidence])?,
         )?)?;
         Ok(())
     };
@@ -460,7 +478,7 @@ fn pack_sessions_feed_nothing_and_stay_readable() -> TestResult {
         base.key.session,
         base.key.sequence,
         base.progress.clone(),
-        Some(learning(1, 10)?),
+        super::chunked(&[learning(1, 10)?])?,
     )?)?;
     let before = store.bootstrap(60)?;
     let mut pack = base.progress.clone();
@@ -470,7 +488,7 @@ fn pack_sessions_feed_nothing_and_stay_readable() -> TestResult {
         cadence_core::SessionId::new(2)?,
         cadence_core::CommitSeq::from_raw(1),
         pack,
-        Some(learning(2, 40)?),
+        super::chunked(&[learning(2, 40)?])?,
     )?)?;
     let after = store.bootstrap(60)?;
     // Learner model and ladder (word outcomes live in learner sessions).
@@ -492,5 +510,112 @@ fn pack_sessions_feed_nothing_and_stay_readable() -> TestResult {
             .and_then(|s| s.checkpoint.progress.pack_digest.clone()),
         Some("ab".repeat(32))
     );
+    Ok(())
+}
+
+/// #11: a session saved before schema 7 is `legacy`: it reads back with its
+/// original digest and totals, and is never written again; the chunk table
+/// refuses any update or delete.
+#[test]
+fn legacy_sessions_stay_readable_and_chunks_are_append_only() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let base = checkpoint(1, 1, ProgressStatus::Running)?;
+    let legacy = cadence_core::progress::Checkpoint::new(
+        base.key.session,
+        base.key.sequence,
+        base.progress.clone(),
+        cadence_core::progress::Evidence::Legacy(learning(1, 10)?),
+    )?;
+    {
+        // A schema-6 file: the legacy rows written as beta.3 wrote them.
+        let store = ProgressStore::open_in(directory.path())?;
+        store.connection.execute_batch(
+            "DROP TABLE derived_state; DROP TABLE observation_chunks;
+             UPDATE schema_info SET version=6 WHERE id=1;",
+        )?;
+    }
+    // The legacy rows, as beta.3 wrote them.
+    {
+        let connection = Connection::open(directory.path().join(DATABASE_FILE))?;
+        let progress = &legacy.progress;
+        connection.execute(
+            "INSERT INTO profiles(name) VALUES (?1)",
+            [&progress.profile],
+        )?;
+        connection.execute(
+            "INSERT INTO sessions(session_id,profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq)
+             VALUES (1,?1,?2,?3,?4,'running',?5,1)",
+            params![progress.profile, progress.day, progress.policy_digest, progress.corpus_digest,
+                i64::try_from(progress.active_micros)?],
+        )?;
+        connection.execute(
+            "INSERT INTO session_tracks(session_id,track,first_correct,first_attempted,correct_attempts,
+                content_attempts,correct_units,deletions,overflow_attempts,correct_digits,active_micros)
+             VALUES (1,'number_row',3,4,5,8,3,2,1,2,900000)",
+            [],
+        )?;
+        let evidence = learning(1, 10)?;
+        let tx = rusqlite::Transaction::new_unchecked(
+            &connection,
+            rusqlite::TransactionBehavior::Deferred,
+        )?;
+        crate::learning_rows::save_header(&tx, 1, &evidence)?;
+        tx.execute(
+            "INSERT INTO skill_observations(session_id,lane,kind,skill,attempts,errors,timed,timed_micros)
+             VALUES (1,'main','bigram','th',10,1,1,180000)",
+            [],
+        )?;
+        tx.execute("INSERT INTO word_outcomes VALUES (1,42,1,1)", [])?;
+        tx.execute(
+            "INSERT INTO prose_seen VALUES (1,?1)",
+            [format!("{:016x}", u64::MAX)],
+        )?;
+        tx.execute(
+            "UPDATE session_plans SET reinforced=1 WHERE session_id=1",
+            [],
+        )?;
+        tx.execute(
+            "INSERT INTO commit_receipts VALUES (1,1,?1,?2)",
+            params![legacy.key.digest.to_hex(), progress.day],
+        )?;
+        tx.commit()?;
+    }
+    let mut store = ProgressStore::open_in(directory.path())?;
+    let stored = store.session_history()?.pop().ok_or("stored session")?;
+    assert_eq!(stored.checkpoint, legacy, "the original digest reads back");
+    assert_eq!(stored.learning, Some(learning(1, 10)?));
+    // Legacy evidence is never written again.
+    let next = rekey(&legacy, 2, legacy.progress.clone())?;
+    assert!(store.apply_checkpoint(&next).is_err());
+    // Chunked sessions append; their chunks refuse UPDATE and DELETE.
+    let chunked = cadence_core::progress::Checkpoint::new(
+        cadence_core::SessionId::new(2)?,
+        cadence_core::CommitSeq::from_raw(1),
+        base.progress.clone(),
+        super::chunked(&[learning(2, 3)?, learning(2, 5)?])?,
+    )?;
+    store.apply_checkpoint(&chunked)?;
+    assert_eq!(
+        store
+            .session_chunks(cadence_core::SessionId::new(2)?)?
+            .len(),
+        2
+    );
+    for sql in [
+        "UPDATE observation_chunks SET payload=x'00' WHERE session_id=2",
+        "DELETE FROM observation_chunks WHERE session_id=2",
+    ] {
+        assert!(store.connection.execute(sql, []).is_err(), "{sql}");
+    }
+    let reread = store
+        .session_history()?
+        .into_iter()
+        .find(|s| s.checkpoint.key.session.get() == 2)
+        .ok_or("chunked session")?;
+    assert_eq!(
+        reread.checkpoint.key, chunked.key,
+        "identity from stored chunks"
+    );
+    assert_eq!(reread.learning, Some(learning(2, 5)?));
     Ok(())
 }

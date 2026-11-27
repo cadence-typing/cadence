@@ -157,6 +157,15 @@ impl Engine {
                 .and_then(|phase| phase.exercises.get(self.exercise_index))
                 .ok_or_else(|| invalid("missing exercise"))?;
             self.learning.close(exercise, &ledger)?;
+            // The closed exercise's evidence becomes the next chunk (#11).
+            let track = self
+                .plan
+                .phases
+                .get(self.phase_index)
+                .map(|phase| track_phase(phase.phase))
+                .ok_or_else(|| invalid("missing phase"))??;
+            let learning = &mut self.learning;
+            learning.chunks.cut(track, &learning.evidence)?;
         }
         Ok(())
     }

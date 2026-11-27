@@ -20,27 +20,48 @@ fn progress() -> SessionProgress {
 #[test]
 fn digest_is_order_canonical_and_field_sensitive() -> Result<(), CoreError> {
     let session = SessionId::new(1)?;
-    let original = Checkpoint::new(session, CommitSeq::INITIAL, progress(), None)?;
+    let original = Checkpoint::new(
+        session,
+        CommitSeq::INITIAL,
+        progress(),
+        crate::progress::Evidence::None,
+    )?;
     let mut reversed = progress();
     reversed.tracks.reverse();
     assert_eq!(
-        Checkpoint::new(session, CommitSeq::INITIAL, reversed, None)?.key,
+        Checkpoint::new(
+            session,
+            CommitSeq::INITIAL,
+            reversed,
+            crate::progress::Evidence::None
+        )?
+        .key,
         original.key
     );
     let mut changed = progress();
     changed.status = ProgressStatus::Abandoned;
     assert_ne!(
-        Checkpoint::new(session, CommitSeq::INITIAL, changed, None)?
-            .key
-            .digest,
+        Checkpoint::new(
+            session,
+            CommitSeq::INITIAL,
+            changed,
+            crate::progress::Evidence::None
+        )?
+        .key
+        .digest,
         original.key.digest
     );
     let mut changed = progress();
     changed.profile = "other".to_string();
     assert_ne!(
-        Checkpoint::new(session, CommitSeq::INITIAL, changed, None)?
-            .key
-            .digest,
+        Checkpoint::new(
+            session,
+            CommitSeq::INITIAL,
+            changed,
+            crate::progress::Evidence::None
+        )?
+        .key
+        .digest,
         original.key.digest
     );
     Ok(())
@@ -80,12 +101,22 @@ fn length_prefix_prevents_identity_concatenation_collision() -> Result<(), CoreE
     second.policy_digest = "bc".to_string();
     let session = SessionId::new(1)?;
     assert_ne!(
-        Checkpoint::new(session, CommitSeq::INITIAL, first, None)?
-            .key
-            .digest,
-        Checkpoint::new(session, CommitSeq::INITIAL, second, None)?
-            .key
-            .digest
+        Checkpoint::new(
+            session,
+            CommitSeq::INITIAL,
+            first,
+            crate::progress::Evidence::None
+        )?
+        .key
+        .digest,
+        Checkpoint::new(
+            session,
+            CommitSeq::INITIAL,
+            second,
+            crate::progress::Evidence::None
+        )?
+        .key
+        .digest
     );
     Ok(())
 }

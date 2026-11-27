@@ -161,7 +161,9 @@ fn populated_schema_three_migrates_intact() -> TestResult {
         let history = store.session_history()?;
         // Turn the file back into its schema-3 layout.
         store.connection.execute_batch(
-            "DROP TABLE settings_audit;
+            "DROP TABLE derived_state;
+             DROP TABLE observation_chunks;
+             DROP TABLE settings_audit;
              ALTER TABLE sessions DROP COLUMN pack_digest;
              ALTER TABLE sessions DROP COLUMN content_class;
              ALTER TABLE sessions DROP COLUMN layout;
@@ -178,7 +180,7 @@ fn populated_schema_three_migrates_intact() -> TestResult {
         store
             .connection
             .query_row("SELECT version FROM schema_info", [], |row| row.get(0))?;
-    assert_eq!(version, 6);
+    assert_eq!(version, SUPPORTED_SCHEMA);
     assert_eq!(store.session_history()?, before);
     let offsets: i64 = store.connection.query_row(
         "SELECT COUNT(*) FROM sessions WHERE utc_offset_minutes IS NOT NULL",
@@ -189,8 +191,8 @@ fn populated_schema_three_migrates_intact() -> TestResult {
     Ok(())
 }
 
-/// #45, #64, #77: a schema newer than this build (as schema 6 is for
-/// beta.2) is refused, not migrated or reset.
+/// #45, #64, #77: a schema newer than this build (as schema 7 is for
+/// beta.3) is refused, not migrated or reset.
 #[test]
 fn the_next_schema_is_refused() -> TestResult {
     let directory = tempfile::tempdir()?;
@@ -198,13 +200,13 @@ fn the_next_schema_is_refused() -> TestResult {
         let store = ProgressStore::open_in(directory.path())?;
         store
             .connection
-            .execute_batch("UPDATE schema_info SET version=7 WHERE id=1;")?;
+            .execute_batch("UPDATE schema_info SET version=8 WHERE id=1;")?;
     }
     assert!(matches!(
         ProgressStore::open_in(directory.path()),
         Err(StoreError::SchemaTooNew {
-            found: 7,
-            supported: 6
+            found: 8,
+            supported: 7
         })
     ));
     Ok(())
@@ -235,7 +237,9 @@ fn populated_schema_four_migrates_intact() -> TestResult {
             rows.collect::<Result<_, _>>()?
         };
         store.connection.execute_batch(
-            "DROP TABLE settings_audit;
+            "DROP TABLE derived_state;
+             DROP TABLE observation_chunks;
+             DROP TABLE settings_audit;
              ALTER TABLE sessions DROP COLUMN pack_digest;
              ALTER TABLE sessions DROP COLUMN content_class;
              ALTER TABLE sessions DROP COLUMN layout;
@@ -251,7 +255,7 @@ fn populated_schema_four_migrates_intact() -> TestResult {
         store
             .connection
             .query_row("SELECT version FROM schema_info", [], |row| row.get(0))?;
-    assert_eq!(version, 6);
+    assert_eq!(version, SUPPORTED_SCHEMA);
     assert_eq!(store.session_history()?, before);
     let after: Vec<(i64, i64, String)> = {
         let mut statement = store
@@ -399,7 +403,9 @@ fn populated_schema_five_migrates_intact() -> TestResult {
         }
         let history = store.session_history()?;
         store.connection.execute_batch(
-            "DROP TABLE settings_audit;
+            "DROP TABLE derived_state;
+             DROP TABLE observation_chunks;
+             DROP TABLE settings_audit;
              ALTER TABLE sessions DROP COLUMN pack_digest;
              ALTER TABLE sessions DROP COLUMN content_class;
              ALTER TABLE sessions DROP COLUMN layout;
@@ -412,7 +418,7 @@ fn populated_schema_five_migrates_intact() -> TestResult {
         store
             .connection
             .query_row("SELECT version FROM schema_info", [], |row| row.get(0))?;
-    assert_eq!(version, 6);
+    assert_eq!(version, SUPPORTED_SCHEMA);
     assert_eq!(store.session_history()?, before, "digests intact");
     let count = |sql: &str| -> rusqlite::Result<i64> {
         store.connection.query_row(sql, [], |row| row.get(0))

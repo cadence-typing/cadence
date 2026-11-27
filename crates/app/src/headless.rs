@@ -242,7 +242,7 @@ fn seed_contamination(store: &mut ProgressStore) -> Result<(), String> {
                     ..TrackProgress::empty(Track::Words)
                 }],
             },
-            None,
+            cadence_core::progress::Evidence::None,
         )
         .map_err(|e| e.to_string())
     };
