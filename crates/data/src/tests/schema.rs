@@ -426,3 +426,16 @@ fn populated_schema_five_migrates_intact() -> TestResult {
     assert_eq!(count("SELECT COUNT(*) FROM settings_audit")?, 0);
     Ok(())
 }
+
+/// RUSTSEC-2026-0459 (CVE-2026-119375): SQLite before 3.54.0 can return
+/// uninitialised page-cache memory for a database opened with a crafted
+/// sibling `-wal`. The bundled SQLite must stay at or above the patched
+/// release.
+#[test]
+fn the_bundled_sqlite_is_patched() {
+    assert!(
+        rusqlite::version_number() >= 3_054_000,
+        "bundled SQLite {} is older than 3.54.0",
+        rusqlite::version()
+    );
+}
