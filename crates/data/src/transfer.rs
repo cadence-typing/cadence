@@ -25,6 +25,30 @@ struct PortableSession {
     utc_offset_minutes: Option<i64>,
     /// Schema 5: `live`, or `synthetic` for a headless-driver session (#64).
     provenance: String,
+    /// Schema 7: the session's observation chunks in order, each its
+    /// sequence, track, digest and canonical payload (#11); empty for
+    /// legacy sessions.
+    chunks: Vec<PortableChunk>,
+}
+
+#[derive(Serialize)]
+struct PortableChunk {
+    seq: u64,
+    track: &'static str,
+    digest: String,
+    payload: serde_json::Value,
+}
+
+impl PortableChunk {
+    fn new(chunk: &cadence_core::chunks::ObservationChunk) -> Result<Self, StoreError> {
+        Ok(Self {
+            seq: chunk.seq,
+            track: chunk.track.key(),
+            digest: chunk.digest().to_hex(),
+            payload: serde_json::from_slice(&chunk.encode())
+                .map_err(|error| StoreError::Export(error.to_string()))?,
+        })
+    }
 }
 
 #[derive(Serialize)]
@@ -179,11 +203,16 @@ impl ProgressStore {
             .session_history()?
             .into_iter()
             .map(|session| {
+                let chunks = self
+                    .session_chunks(session.checkpoint.key.session)?
+                    .iter()
+                    .map(PortableChunk::new)
+                    .collect::<Result<Vec<_>, _>>()?;
                 let checkpoint = session.checkpoint;
                 let stored = i64::try_from(checkpoint.key.session.get())
                     .ok()
                     .and_then(|session| offsets.get(&session));
-                PortableSession {
+                Ok(PortableSession {
                     session_id: checkpoint.key.session.get(),
                     sequence: checkpoint.key.sequence.get(),
                     digest: checkpoint.key.digest.to_hex(),
@@ -192,9 +221,10 @@ impl ProgressStore {
                     provenance: stored
                         .map_or_else(|| "live".to_string(), |(_, provenance)| provenance.clone()),
                     progress: checkpoint.progress,
-                }
+                    chunks,
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, StoreError>>()?;
         let mut file = files::reserve(destination)?;
         let result = (|| {
             serde_json::to_writer_pretty(

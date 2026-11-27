@@ -583,6 +583,38 @@ impl ProgressStore {
         crate::chunk_rows::load(&self.connection, sql_integer(session.get(), "session_id")?)
     }
 
+    /// Every chunked or legacy session's chunk and derived watermarks (#11).
+    ///
+    /// # Errors
+    /// SQL failures.
+    pub fn watermarks(&self) -> Result<Vec<crate::chunk_rows::Watermark>, StoreError> {
+        crate::chunk_rows::watermarks(&self.connection)
+    }
+
+    /// Recomputes every chunked session's derived rows from its chunks in
+    /// one transaction, returning the sessions whose rows differed (#11).
+    ///
+    /// # Errors
+    /// A malformed chunk or SQL failure; nothing is changed then.
+    pub fn rebuild_derived(&mut self) -> Result<Vec<u64>, StoreError> {
+        let tx = self.connection.transaction()?;
+        let mut differed = Vec::new();
+        for mark in crate::chunk_rows::watermarks(&tx)? {
+            if mark.legacy {
+                continue;
+            }
+            let session = sql_integer(mark.session, "session_id")?;
+            let Some(stored) = crate::learning_rows::load(&tx, session)? else {
+                continue;
+            };
+            if crate::chunk_rows::rebuild(&tx, session, &stored, &stored)? {
+                differed.push(mark.session);
+            }
+        }
+        tx.commit()?;
+        Ok(differed)
+    }
+
     /// Reads complete latest checkpoints in day/session order with checked decoding.
     ///
     /// # Errors

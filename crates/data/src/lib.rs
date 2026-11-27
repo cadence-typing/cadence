@@ -7,6 +7,7 @@
 //! policy decisions.
 
 mod chunk_rows;
+pub use chunk_rows::Watermark;
 mod error;
 mod files;
 mod learning_rows;

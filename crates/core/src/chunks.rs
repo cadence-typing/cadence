@@ -277,10 +277,11 @@ mod tests {
     }
 
     #[test]
-    fn a_chunk_is_the_difference_and_its_fold_restores_the_totals() -> Result<(), CoreError> {
+    fn a_chunk_is_the_difference_and_its_fold_restores_the_totals()
+    -> Result<(), Box<dyn std::error::Error>> {
         let key = SkillKey {
             lane: KeyLane::Main,
-            skill: Skill::Unit(TrainingChar::new('t', Layout::Us).map_err(|_| invalid("t"))?),
+            skill: Skill::Unit(TrainingChar::new('t', Layout::Us)?),
         };
         let mut before = learning();
         before.observe_skill(key, false, None)?;

@@ -2,11 +2,11 @@
 rfc: "2026-11-26-observation-chunks"
 title: "Append-only observation chunks and a rebuildable learner state"
 status: accepted
-implementation: not-started
+implementation: complete
 authors:
   - claude-fable (grooming agent)
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-27
 issue: https://github.com/cadence-typing/cadence/issues/11
 milestone: "0.1.0-rc.1"
 supersedes: []
@@ -77,3 +77,4 @@ None blocking. Owner may amend: whether `legacy` sessions should ever be re-enco
 ## Decision log
 
 - 2026-11-26: accepted by default under the owner's 2026-11-26 rule; owner may amend.
+- 2026-11-27: implemented (#11). A chunk is the evidence one closed exercise added (`cadence_core::chunks::ObservationChunk`, canonical JSON, SHA-256 digest); a checkpoint names its chunks by watermark and a hash chain over their digests and carries only those after the last acknowledgement, so a stored session's identity is recomputed from its stored chunks. Schema 7 adds `observation_chunks` (triggers abort `UPDATE` and `DELETE`) and `derived_state`; earlier sessions are `legacy`, read as stored and never written. `cadence doctor --json` reports the watermarks, `--rebuild-derived` recomputes and lists differences, and `export` lists each session's chunks.

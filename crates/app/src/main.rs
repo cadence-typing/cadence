@@ -95,7 +95,9 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
         cli::Command::Replay { trace, capture_dir } => {
             headless::replay(trace, capture_dir.as_deref())
         }
-        cli::Command::Doctor => headless::doctor(options.profile.as_deref()),
+        cli::Command::Doctor { rebuild_derived } => {
+            headless::doctor(options.profile.as_deref(), *rebuild_derived)
+        }
         cli::Command::ConfigCheck(file) => config_check(file.as_deref()),
         cli::Command::Import(request) => {
             let config = load_config(None)?.config;

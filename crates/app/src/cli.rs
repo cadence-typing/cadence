@@ -35,8 +35,11 @@ pub enum Command {
         /// Where to write the replayed captures.
         capture_dir: Option<PathBuf>,
     },
-    /// Machine-readable environment facts (#69).
-    Doctor,
+    /// Machine-readable environment facts (#69) and chunk watermarks (#11).
+    Doctor {
+        /// Recompute the derived learning rows from the chunks first.
+        rebuild_derived: bool,
+    },
     /// Validate a config file and print effective values (#76).
     ConfigCheck(Option<PathBuf>),
     /// Import local text as a pack (#84).
@@ -176,6 +179,7 @@ pub fn parse() -> Result<Options, String> {
     let mut stdio = false;
     let mut ephemeral = false;
     let mut json = false;
+    let mut rebuild_derived = false;
     let mut record = None;
     let mut record_content = false;
     let mut read_only = false;
@@ -246,6 +250,7 @@ pub fn parse() -> Result<Options, String> {
             "--stdio" => stdio = true,
             "--ephemeral-profile" => ephemeral = true,
             "--json" => json = true,
+            "--rebuild-derived" => rebuild_derived = true,
             "--script" => {
                 if script.is_some() {
                     return Err("duplicate --script".into());
@@ -395,10 +400,10 @@ pub fn parse() -> Result<Options, String> {
             replace,
         }),
         Some("doctor") => {
-            if !json {
-                return Err("doctor requires --json".into());
+            if !json && !rebuild_derived {
+                return Err("doctor requires --json or --rebuild-derived".into());
             }
-            Command::Doctor
+            Command::Doctor { rebuild_derived }
         }
         Some(_) => return Err("unsupported command".into()),
     };
@@ -407,7 +412,7 @@ pub fn parse() -> Result<Options, String> {
     {
         return Err("--stdio, --script and --ephemeral-profile are only valid for headless".into());
     }
-    if json && !matches!(options.command, Command::Doctor) {
+    if json && !matches!(options.command, Command::Doctor { .. }) {
         return Err("--json is only valid for doctor".into());
     }
     if output.is_some() {
@@ -460,7 +465,7 @@ pub fn help() {
         cadence backup --output /absolute/new.sqlite3 [--profile-dir PATH]\n\
         cadence export --output /absolute/new.json [--profile-dir PATH]\n\
         cadence headless --stdio|--script /absolute/requests.jsonl --profile-dir PATH|--ephemeral-profile\n\
-        cadence doctor --json [--profile-dir PATH]\n\
+        cadence doctor --json|--rebuild-derived [--profile-dir PATH]\n\
         cadence config check [/absolute/config.toml]\n\
         cadence import /absolute/file|- --name NAME [--dry-run] [--normalize-typography] [--replace]\n\
         cadence packs\n\

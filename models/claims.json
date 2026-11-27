@@ -98,9 +98,12 @@
         "CheckpointSave-two-in-flight.cfg violates SingleFlight"
       ],
       "production_symbols": [
+        "cadence_data::chunk_rows::append",
         "cadence_data::store::ProgressStore::apply_checkpoint",
+        "cadence_engine::learning::ChunkLog",
         "cadence_engine::storage::{dispatch_checkpoint, save_result, retry_save, request_exit, watchdog}",
         "cadence_kernel::checkpoint::admit",
+        "cadence_kernel::chunks::{admit, watermark_ok}",
         "cadence_kernel::session::overdue",
         "cadence_runtime::writer::SaveWorker"
       ],
@@ -207,7 +210,7 @@
         "FeedbackLoop-starve-due.cfg violates DueEventuallyServed"
       ],
       "production_symbols": [
-        "cadence_data::learning_rows::save",
+        "cadence_data::learning_rows::{save_header, fold_chunk}",
         "cadence_data::store::bootstrap",
         "cadence_engine::learning::{open, close, enqueue}",
         "cadence_kernel::queue::admit",

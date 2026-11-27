@@ -148,6 +148,55 @@ fn doctor_reports_json() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// #11: a recorded session's chunks are reported with matching chunk and
+/// derived watermarks, and rebuilding the derived rows from them changes
+/// nothing.
+#[test]
+fn doctor_reports_watermarks_and_rebuild_equals_stored() -> Result<(), Box<dyn std::error::Error>> {
+    let profile = tempfile::tempdir()?;
+    let dir = profile.path().to_str().ok_or("path")?;
+    let requests = concat!(
+        r#"{"v":1,"id":"1","op":"hello","args":{"scenario":"scoring-cat"}}"#,
+        "\n",
+        r#"{"v":1,"id":"2","op":"action","args":{"name":"StartDrill"}}"#,
+        "\n",
+        r#"{"v":1,"id":"3","op":"text","args":{"text":"cat","inter_key_microseconds":300000}}"#,
+        "\n",
+        r#"{"v":1,"id":"4","op":"quit","args":{"flush":true}}"#,
+        "\n",
+    );
+    run(&["headless", "--stdio", "--profile-dir", dir], requests)?;
+    let doctor = |flag: &str| -> Result<Value, Box<dyn std::error::Error>> {
+        let output = cadence()
+            .args(["doctor", flag, "--profile-dir", dir])
+            .output()?;
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        Ok(serde_json::from_slice(&output.stdout)?)
+    };
+    let report = doctor("--json")?;
+    let session = report
+        .pointer("/store/sessions/0")
+        .ok_or_else(|| format!("no session in {report}"))?;
+    let chunks = session.get("chunk_watermark").and_then(Value::as_u64);
+    assert!(chunks.is_some_and(|n| n >= 1), "{report}");
+    assert_eq!(
+        session.get("derived_watermark").and_then(Value::as_u64),
+        chunks
+    );
+    assert_eq!(session.get("legacy"), Some(&Value::Bool(false)));
+    let rebuilt = doctor("--rebuild-derived")?;
+    assert_eq!(
+        rebuilt.get("rebuilt_sessions"),
+        Some(&serde_json::json!([])),
+        "rebuild equals stored: {rebuilt}"
+    );
+    Ok(())
+}
+
 fn snapshot_of<'a>(responses: &'a [Value], id: &str) -> Result<&'a Value, String> {
     by_id(responses, id)
         .map(|r| &r["result"])

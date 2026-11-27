@@ -82,6 +82,9 @@ production_symbols = [
   "cadence_data::store::ProgressStore::apply_checkpoint",
   "cadence_kernel::checkpoint::admit",
   "cadence_kernel::session::overdue",
+  "cadence_kernel::chunks::{admit, watermark_ok}",
+  "cadence_data::chunk_rows::append",
+  "cadence_engine::learning::ChunkLog",
 ]
 runtime_tests = [
   "cadence-engine::final_flush_timeout_exits_unsuccessfully_without_fabricating_ack",
@@ -218,7 +221,7 @@ production_symbols = [
   "cadence_kernel::slots::substitute",
   "cadence_engine::learning::{open, close, enqueue}",
   "cadence_trainer::learner::due_words",
-  "cadence_data::learning_rows::save",
+  "cadence_data::learning_rows::{save_header, fold_chunk}",
   "cadence_data::store::bootstrap",
 ]
 runtime_tests = [
@@ -363,3 +366,7 @@ violates = "AtMostOnce"
 config = "WorkerResults-drop-full-slot.cfg"
 violates = "CompletionRetained"
 
+
+[[amend]]
+module = "FeedbackLoop"
+reason = "#11: cadence_data::learning_rows::save (delete and reinsert per checkpoint) no longer exists; its successors learning_rows::{save_header, fold_chunk} (with chunk_rows::append, mapped under CheckpointSave) write the same evidence append-only"

@@ -188,3 +188,76 @@ pub(crate) fn derived_state(
     row.map(|(seq, legacy)| Ok((read_integer(seq, "source_chunk_seq")?, legacy == 1)))
         .transpose()
 }
+
+/// One session's chunk and derived watermarks (`doctor --json`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Watermark {
+    /// The session.
+    pub session: u64,
+    /// The last stored chunk (0 when none).
+    pub chunks: u64,
+    /// The chunk the derived rows were last folded from.
+    pub derived: u64,
+    /// Recorded before schema 7: its rows are the authority, it has no
+    /// chunks.
+    pub legacy: bool,
+}
+
+pub(crate) fn watermarks(connection: &Connection) -> Result<Vec<Watermark>, StoreError> {
+    let mut statement = connection.prepare(
+        "SELECT d.session_id, COALESCE(MAX(c.chunk_seq),0), d.source_chunk_seq, d.legacy
+         FROM derived_state d LEFT JOIN observation_chunks c ON c.session_id=d.session_id
+         GROUP BY d.session_id ORDER BY d.session_id",
+    )?;
+    let mut rows = statement.query([])?;
+    let mut out = Vec::new();
+    while let Some(row) = rows.next()? {
+        out.push(Watermark {
+            session: read_integer(row.get(0)?, "session_id")?,
+            chunks: read_integer(row.get(1)?, "chunk_seq")?,
+            derived: read_integer(row.get(2)?, "source_chunk_seq")?,
+            legacy: row.get::<_, i64>(3)? == 1,
+        });
+    }
+    Ok(out)
+}
+
+/// Recomputes a chunked session's derived observation rows from its chunks
+/// (`doctor --rebuild-derived`). Returns whether they differed.
+pub(crate) fn rebuild(
+    tx: &Transaction<'_>,
+    session: i64,
+    header: &cadence_core::learning::SessionLearning,
+    stored: &cadence_core::learning::SessionLearning,
+) -> Result<bool, StoreError> {
+    let chunks = load(tx, session)?;
+    let mut totals = header.header();
+    for chunk in &chunks {
+        chunk
+            .fold_into(&mut totals)
+            .map_err(|error| StoreError::Corrupt(error.to_string()))?;
+    }
+    let differs = totals != *stored;
+    if differs {
+        // The observation rows are derived; the chunks stay untouched.
+        for table in ["skill_observations", "word_outcomes", "prose_seen"] {
+            tx.execute(
+                &format!("DELETE FROM {table} WHERE session_id=?1"),
+                [session],
+            )?;
+        }
+        tx.execute(
+            "UPDATE session_plans SET reinforced=0 WHERE session_id=?1",
+            [session],
+        )?;
+        for chunk in &chunks {
+            crate::learning_rows::fold_chunk(tx, session, chunk)?;
+        }
+    }
+    let through = chunks.last().map_or(0, |chunk| chunk.seq);
+    tx.execute(
+        "UPDATE derived_state SET source_chunk_seq=?2 WHERE session_id=?1",
+        params![session, sql_integer(through, "chunk_seq")?],
+    )?;
+    Ok(differs)
+}

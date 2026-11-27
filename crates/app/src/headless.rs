@@ -528,12 +528,14 @@ pub fn replay(trace: &Path, capture_dir: Option<&Path>) -> Result<(), Box<dyn Er
     }
 }
 
-/// `cadence doctor --json`: version, schema, paths, terminal facts and disk
-/// use, as one JSON object on stdout.
+/// `cadence doctor --json`: version, schema, paths, terminal facts, disk use
+/// and each session's chunk and derived watermarks (#11), as one JSON object
+/// on stdout. `--rebuild-derived` first recomputes every chunked session's
+/// derived rows from its chunks and lists the sessions that differed.
 ///
 /// # Errors
-/// Path resolution or encoding failures.
-pub fn doctor(profile: Option<&Path>) -> Result<(), Box<dyn Error>> {
+/// Path resolution or encoding failures, and a failed rebuild.
+pub fn doctor(profile: Option<&Path>, rebuild_derived: bool) -> Result<(), Box<dyn Error>> {
     use std::io::IsTerminal;
     let paths = cadence_data::data_dir(profile);
     let (data, exists, bytes) = match &paths {
@@ -548,6 +550,33 @@ pub fn doctor(profile: Option<&Path>) -> Result<(), Box<dyn Error>> {
         }
         Err(_) => (None, false, None),
     };
+    // The store is opened only when a database exists: doctor never creates
+    // one.
+    let mut rebuilt = None;
+    let store = match &paths {
+        Ok(paths) if bytes.is_some() => match cadence_data::ProgressStore::open_in(&paths.data) {
+            Ok(mut store) => {
+                if rebuild_derived {
+                    rebuilt = Some(store.rebuild_derived()?);
+                }
+                serde_json::json!({
+                    "sessions": store.watermarks()?.iter().map(|mark| serde_json::json!({
+                        "session": mark.session,
+                        "chunk_watermark": mark.chunks,
+                        "derived_watermark": mark.derived,
+                        "legacy": mark.legacy,
+                    })).collect::<Vec<_>>(),
+                })
+            }
+            Err(error) => serde_json::json!({ "error": error.to_string() }),
+        },
+        Ok(_) | Err(_) => {
+            if rebuild_derived {
+                return Err("no progress database to rebuild".into());
+            }
+            serde_json::Value::Null
+        }
+    };
     let report = serde_json::json!({
         "version": env!("CARGO_PKG_VERSION"),
         "schema": SUPPORTED_SCHEMA,
@@ -557,6 +586,8 @@ pub fn doctor(profile: Option<&Path>) -> Result<(), Box<dyn Error>> {
             "database_bytes": bytes,
             "error": paths.as_ref().err().map(ToString::to_string),
         },
+        "store": store,
+        "rebuilt_sessions": rebuilt,
         "terminal": {
             "term": std::env::var("TERM").ok(),
             "stdin_is_terminal": std::io::stdin().is_terminal(),

@@ -619,3 +619,79 @@ fn legacy_sessions_stay_readable_and_chunks_are_append_only() -> TestResult {
     assert_eq!(reread.learning, Some(learning(2, 5)?));
     Ok(())
 }
+
+/// #11 acceptance: a lost acknowledgement then a retry stores each chunk
+/// once; a checkpoint's writes are bounded by its new chunks, not by the
+/// session's length; a tampered derived row is found and repaired by the
+/// rebuild.
+#[test]
+fn retries_store_chunks_once_and_writes_stay_bounded() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let mut store = ProgressStore::open_in(directory.path())?;
+    let base = checkpoint(1, 1, ProgressStatus::Running)?;
+    let steps: Vec<SessionLearning> = (1..=40)
+        .map(|n| {
+            let mut step = learning(3, n)?;
+            for word in 1..=n {
+                step.words.insert(
+                    WordId::new(1_000 + word)?,
+                    WordTally {
+                        attempts: 1,
+                        errors: 0,
+                    },
+                );
+            }
+            Ok(step)
+        })
+        .collect::<Result<_, Box<dyn std::error::Error>>>()?;
+    let save = |store: &mut ProgressStore,
+                sequence: u64,
+                upto: usize,
+                from: usize|
+     -> Result<u64, Box<dyn std::error::Error>> {
+        let cadence_core::progress::Evidence::Chunked(mut all) =
+            super::chunked(steps.get(..upto).ok_or("steps")?)?
+        else {
+            return Err("chunked".into());
+        };
+        // Carry only the chunks after `from` (the last acknowledged).
+        all.chunks
+            .retain(|chunk| chunk.seq > u64::try_from(from).unwrap_or(0));
+        let with = cadence_core::progress::Checkpoint::new(
+            base.key.session,
+            cadence_core::CommitSeq::from_raw(sequence),
+            base.progress.clone(),
+            cadence_core::progress::Evidence::Chunked(all),
+        )?;
+        let before = store.connection.total_changes();
+        store.apply_checkpoint(&with)?;
+        Ok(store.connection.total_changes() - before)
+    };
+    save(&mut store, 1, 1, 0)?;
+    // The acknowledgement of sequence 1 was lost: sequence 2 resends chunk
+    // 1 with chunk 2; chunk 1 is a replay.
+    save(&mut store, 2, 2, 0)?;
+    let early = save(&mut store, 3, 3, 2)?;
+    for n in 4..=39 {
+        save(&mut store, u64::try_from(n)?, n, n - 1)?;
+    }
+    let late = save(&mut store, 40, 40, 39)?;
+    assert_eq!(
+        store.session_chunks(base.key.session)?.len(),
+        40,
+        "each chunk once"
+    );
+    // One new chunk's rows each time: a constant, whatever the length.
+    assert_eq!(early, late, "rows written per checkpoint");
+    let totals = store.session_history()?.pop().and_then(|s| s.learning);
+    assert_eq!(totals.as_ref(), steps.last());
+    assert_eq!(store.rebuild_derived()?, Vec::<u64>::new());
+    store.connection.execute(
+        "UPDATE word_outcomes SET attempts=attempts+1 WHERE word_id=1001",
+        [],
+    )?;
+    assert_eq!(store.rebuild_derived()?, vec![1]);
+    let totals = store.session_history()?.pop().and_then(|s| s.learning);
+    assert_eq!(totals.as_ref(), steps.last(), "rebuilt from the chunks");
+    Ok(())
+}
