@@ -20,7 +20,7 @@ workspace = true
 
 [features]
 # Test-only fault ports (never in a release build): see cadence-runtime.
-test-faults = ["cadence-runtime/test-faults"]
+test-faults = ["cadence-runtime/test-faults", "cadence-data/test-faults"]
 
 [dependencies]
 cadence-core.workspace = true

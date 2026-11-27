@@ -75,6 +75,20 @@ fn run(options: cli::Options) -> Result<(), Box<dyn Error>> {
             println!("Backup created: {}", destination.display());
             Ok(())
         }
+        cli::Command::Restore(backup) => {
+            let paths = cadence_data::data_dir(options.profile.as_deref())?;
+            let restored = ProgressStore::restore(&paths.data, backup)?;
+            println!(
+                "Restored {} session(s) from {} (schema {}).",
+                restored.sessions,
+                backup.display(),
+                restored.schema
+            );
+            if let Some(previous) = restored.previous {
+                println!("The replaced database is kept as {}.", previous.display());
+            }
+            Ok(())
+        }
         cli::Command::Export(destination) => {
             let store = ProgressStore::open(options.profile.as_deref())?;
             store.export_to(destination)?;

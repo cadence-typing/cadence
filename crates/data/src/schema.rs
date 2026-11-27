@@ -104,6 +104,7 @@ pub(crate) fn migrate(connection: &mut Connection, current: i64) -> Result<(), S
         (7, MIGRATION_V7),
     ] {
         if current < target {
+            crate::faults::point("migration");
             tx.execute_batch(sql)
                 .map_err(|error| StoreError::Migration {
                     target,
@@ -111,6 +112,7 @@ pub(crate) fn migrate(connection: &mut Connection, current: i64) -> Result<(), S
                 })?;
         }
     }
+    crate::faults::point("migration-commit");
     tx.commit()?;
     Ok(())
 }

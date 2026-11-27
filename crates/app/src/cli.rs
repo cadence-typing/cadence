@@ -17,6 +17,8 @@ pub enum Command {
     Backup(PathBuf),
     /// Portable progress export to a new output file.
     Export(PathBuf),
+    /// Restore a backup with the writer closed (D-02, #88).
+    Restore(PathBuf),
     /// The headless NDJSON driver (#69): requests from stdin or a script.
     Headless {
         /// The request script; `None` reads stdin.
@@ -175,6 +177,7 @@ pub fn parse() -> Result<Options, String> {
     let mut theme = None;
     let mut action = None;
     let mut output = None;
+    let mut restore_from = None;
     let mut script = None;
     let mut stdio = false;
     let mut ephemeral = false;
@@ -196,6 +199,7 @@ pub fn parse() -> Result<Options, String> {
             "--version" | "-V" => set_action(&mut action, "version")?,
             "--help" | "-h" => set_action(&mut action, "help")?,
             "backup" => set_action(&mut action, "backup")?,
+            "restore" => set_action(&mut action, "restore")?,
             "export" => set_action(&mut action, "export")?,
             "headless" => set_action(&mut action, "headless")?,
             "doctor" => set_action(&mut action, "doctor")?,
@@ -262,6 +266,12 @@ pub fn parse() -> Result<Options, String> {
                     return Err("duplicate --profile-dir".into());
                 }
                 options.profile = Some(absolute_path(value(&mut args, &arg)?)?);
+            }
+            "--from" => {
+                if restore_from.is_some() {
+                    return Err("duplicate --from".into());
+                }
+                restore_from = Some(absolute_path(value(&mut args, &arg)?)?);
             }
             "--output" => {
                 if output.is_some() {
@@ -348,6 +358,11 @@ pub fn parse() -> Result<Options, String> {
             output
                 .take()
                 .ok_or("backup requires --output /absolute/new.sqlite3")?,
+        ),
+        Some("restore") => Command::Restore(
+            restore_from
+                .take()
+                .ok_or("restore requires --from /absolute/backup.sqlite3")?,
         ),
         Some("export") => Command::Export(
             output
@@ -463,6 +478,7 @@ pub fn help() {
         cadence [--profile-dir /absolute/private/profile] [--seed INTEGER] [--text-size auto|large|normal]\n\
         cadence [--theme dark|light|terminal] [--utc-offset +HH:MM]\n\
         cadence backup --output /absolute/new.sqlite3 [--profile-dir PATH]\n\
+        cadence restore --from /absolute/backup.sqlite3 [--profile-dir PATH]\n\
         cadence export --output /absolute/new.json [--profile-dir PATH]\n\
         cadence headless --stdio|--script /absolute/requests.jsonl --profile-dir PATH|--ephemeral-profile\n\
         cadence doctor --json|--rebuild-derived [--profile-dir PATH]\n\

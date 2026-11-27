@@ -90,6 +90,7 @@ pub fn build_dist() -> Result<(), String> {
         .unwrap_or_else(|| root.join("target"));
     let source_binary = target.join(TARGET).join("release/cadence");
     verify_static(&source_binary, &root)?;
+    refuse_fault_hooks(&source_binary)?;
 
     let dist = std::env::var_os("CADENCE_DIST_DIR")
         .map(PathBuf::from)
@@ -222,5 +223,19 @@ pub fn build_dist() -> Result<(), String> {
         standalone.display(),
         archive.display()
     );
+    Ok(())
+}
+
+/// A release binary never carries the test-only fault hooks (#88, #92):
+/// their environment variables are present only in a `test-faults` build.
+fn refuse_fault_hooks(binary: &Path) -> Result<(), String> {
+    let bytes = fs::read(binary).map_err(|e| format!("{}: {e}", binary.display()))?;
+    let marker = b"CADENCE_FAULT_";
+    if bytes.windows(marker.len()).any(|window| window == marker) {
+        return Err(format!(
+            "{} contains a test-only fault hook (CADENCE_FAULT_*); build without `test-faults`",
+            binary.display()
+        ));
+    }
     Ok(())
 }

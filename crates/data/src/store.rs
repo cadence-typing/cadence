@@ -522,10 +522,12 @@ impl ProgressStore {
             records::validate_advance(&previous.checkpoint, checkpoint)?;
         }
         let progress = &checkpoint.progress;
+        crate::faults::point("checkpoint-statement");
         tx.execute(
             "INSERT INTO profiles(name) VALUES (?1) ON CONFLICT(name) DO NOTHING",
             [&progress.profile],
         )?;
+        crate::faults::point("checkpoint-statement");
         tx.execute(
             "INSERT INTO sessions(session_id,profile,day,policy_digest,corpus_digest,status,active_micros,commit_seq,utc_offset_minutes,layout,content_class,pack_digest)
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)
@@ -538,8 +540,10 @@ impl ProgressStore {
                 progress.content_class.key(),
                 progress.pack_digest],
         )?;
+        crate::faults::point("checkpoint-statement");
         tx.execute("DELETE FROM session_tracks WHERE session_id=?1", [session])?;
         for track in &progress.tracks {
+            crate::faults::point("checkpoint-statement");
             tx.execute(
                 "INSERT INTO session_tracks(session_id,track,first_correct,first_attempted,correct_attempts,
                     content_attempts,deletions,overflow_attempts,correct_units,correct_digits,active_micros)
@@ -559,15 +563,21 @@ impl ProgressStore {
                 ));
             }
             Evidence::Chunked(chunked) => {
+                crate::faults::point("checkpoint-statement");
                 crate::learning_rows::save_header(&tx, session, &chunked.header)?;
+                crate::faults::point("checkpoint-statement");
                 crate::chunk_rows::append(&tx, session, chunked)?;
             }
         }
+        crate::faults::point("checkpoint-statement");
         tx.execute(
             "INSERT INTO commit_receipts(session_id,commit_seq,digest,created_at_epoch) VALUES (?1,?2,?3,?4)",
             params![session, sequence, digest, progress.day],
         )?;
+        crate::faults::point("checkpoint-commit");
         tx.commit()?;
+        // Committed, not yet acknowledged to the engine.
+        crate::faults::point("checkpoint-acknowledge");
         Ok(CommitReceipt { key, created: true })
     }
 

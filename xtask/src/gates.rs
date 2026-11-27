@@ -54,7 +54,7 @@ pub const GATES: &[Gate] = &[
     Gate {
         id: "persistence-linux",
         description: "native SQLite/process-crash/reopen/migration/lock tests",
-        state: GateState::Pending("P3/P6"),
+        state: GateState::Implemented,
     },
     Gate {
         id: "model",
@@ -149,6 +149,7 @@ fn dispatch_implemented(id: &str) -> Result<(), String> {
         "model" => crate::run_models(),
         "headless" => crate::headless::check(),
         "pty-linux" => crate::pty::check(&crate::dist::root()?),
+        "persistence-linux" => crate::persistence::check(&crate::dist::root()?),
         "prove" => crate::assurance::prove(),
         "verify" => crate::assurance::verify(),
         "correspondence" => crate::assurance::correspondence(),

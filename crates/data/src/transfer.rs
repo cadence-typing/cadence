@@ -10,7 +10,11 @@ use rusqlite::{
 };
 use serde::Serialize;
 
+use crate::paths::DATABASE_FILE;
 use crate::{ProgressStore, SUPPORTED_SCHEMA, StoreError, files, records, schema};
+
+/// The replaced database a restore keeps, beside the restored one (D-02).
+pub const PREVIOUS_DATABASE_FILE: &str = "progress.sqlite3.previous";
 
 #[derive(Serialize)]
 struct PortableSession {
@@ -241,5 +245,131 @@ impl ProgressStore {
         })();
         drop(file);
         result.map_err(|error| files::remove_failed(destination, error))
+    }
+}
+
+/// What a restore did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Restored {
+    /// Sessions in the restored database.
+    pub sessions: usize,
+    /// The schema the backup was written with (an older one migrates on the
+    /// next open).
+    pub schema: i64,
+    /// Where the replaced database is kept, when there was one.
+    pub previous: Option<std::path::PathBuf>,
+}
+
+fn validated(connection: &Connection) -> Result<(i64, usize), StoreError> {
+    let version = schema::inspect(connection)?;
+    if version > SUPPORTED_SCHEMA {
+        return Err(StoreError::SchemaTooNew {
+            found: version,
+            supported: SUPPORTED_SCHEMA,
+        });
+    }
+    if version == 0 {
+        return Err(StoreError::Corrupt(
+            "the backup holds no progress database".into(),
+        ));
+    }
+    let sessions = if version == SUPPORTED_SCHEMA {
+        records::validate_database(connection)?.len()
+    } else {
+        let count: i64 =
+            connection.query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
+        usize::try_from(count)
+            .map_err(|_negative| StoreError::Corrupt("negative session count".into()))?
+    };
+    Ok((version, sessions))
+}
+
+impl ProgressStore {
+    /// Restores a backup into `directory` with the writer closed (D-02):
+    /// the backup is validated before anything is replaced, copied and
+    /// validated again beside the database, the current database is kept as
+    /// [`PREVIOUS_DATABASE_FILE`], and only then does the copy replace it
+    /// in one rename. An interruption at any point leaves a working
+    /// database: the current one, or the restored one.
+    ///
+    /// # Errors
+    /// A held writer lock, an invalid or newer backup, an existing previous
+    /// file, or a filesystem or SQLite failure; nothing is replaced then.
+    pub fn restore(directory: &Path, backup: &Path) -> Result<Restored, StoreError> {
+        let source = Connection::open_with_flags(backup, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        let (version, sessions) = validated(&source)?;
+        files::private_directory(directory)?;
+        let _lock = files::WriterLock::acquire(directory)?;
+        let database = directory.join(DATABASE_FILE);
+        let previous = directory.join(PREVIOUS_DATABASE_FILE);
+        if previous
+            .try_exists()
+            .map_err(|error| StoreError::Open(error.to_string()))?
+        {
+            return Err(StoreError::DestinationExists(previous));
+        }
+        let staged = directory.join(format!("{DATABASE_FILE}.restoring"));
+        let file = files::reserve(&staged)?;
+        let copied = (|| {
+            let mut target =
+                Connection::open_with_flags(&staged, OpenFlags::SQLITE_OPEN_READ_WRITE)?;
+            {
+                let backup = Backup::new(&source, &mut target)?;
+                let step = backup.step(-1)?;
+                if step != StepResult::Done {
+                    return Err(StoreError::Sql(format!(
+                        "the restore copy did not finish: {step:?}"
+                    )));
+                }
+            }
+            if validated(&target)? != (version, sessions) {
+                return Err(StoreError::Corrupt(
+                    "the restore copy differs from the backup".into(),
+                ));
+            }
+            target
+                .close()
+                .map_err(|(_, error)| StoreError::Sql(error.to_string()))?;
+            file.sync_all()
+                .map_err(|error| StoreError::Open(error.to_string()))
+        })();
+        if let Err(error) = copied {
+            return Err(files::remove_failed(&staged, error));
+        }
+        crate::faults::point("restore-staged");
+        let kept = if database
+            .try_exists()
+            .map_err(|error| StoreError::Open(error.to_string()))?
+        {
+            // Fold the current WAL into the file before keeping it.
+            let current =
+                Connection::open_with_flags(&database, OpenFlags::SQLITE_OPEN_READ_WRITE)?;
+            current.pragma_update(None, "wal_checkpoint", "TRUNCATE")?;
+            current
+                .close()
+                .map_err(|(_, error)| StoreError::Sql(error.to_string()))?;
+            std::fs::hard_link(&database, &previous)
+                .map_err(|error| StoreError::Open(error.to_string()))?;
+            files::sync_parent(&previous)?;
+            Some(previous)
+        } else {
+            None
+        };
+        crate::faults::point("restore-swap");
+        for stale in ["-wal", "-shm"] {
+            let path = directory.join(format!("{DATABASE_FILE}{stale}"));
+            match std::fs::remove_file(&path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(StoreError::Open(error.to_string())),
+            }
+        }
+        std::fs::rename(&staged, &database).map_err(|error| StoreError::Open(error.to_string()))?;
+        files::sync_parent(&database)?;
+        Ok(Restored {
+            sessions,
+            schema: version,
+            previous: kept,
+        })
     }
 }

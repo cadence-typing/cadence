@@ -138,6 +138,9 @@ pub(crate) fn append(
                     digest
                 ])?;
                 crate::learning_rows::fold_chunk(tx, session, chunk)?;
+                if crate::faults::double_apply() {
+                    crate::learning_rows::fold_chunk(tx, session, chunk)?;
+                }
                 last = Some(chunk.seq);
             }
             Admit::Replay => {}
@@ -194,6 +197,8 @@ pub(crate) fn derived_state(
 pub struct Watermark {
     /// The session.
     pub session: u64,
+    /// The newest committed checkpoint sequence.
+    pub commit: u64,
     /// The last stored chunk (0 when none).
     pub chunks: u64,
     /// The chunk the derived rows were last folded from.
@@ -205,8 +210,9 @@ pub struct Watermark {
 
 pub(crate) fn watermarks(connection: &Connection) -> Result<Vec<Watermark>, StoreError> {
     let mut statement = connection.prepare(
-        "SELECT d.session_id, COALESCE(MAX(c.chunk_seq),0), d.source_chunk_seq, d.legacy
-         FROM derived_state d LEFT JOIN observation_chunks c ON c.session_id=d.session_id
+        "SELECT d.session_id, COALESCE(MAX(c.chunk_seq),0), d.source_chunk_seq, d.legacy, s.commit_seq
+         FROM derived_state d JOIN sessions s ON s.session_id=d.session_id
+         LEFT JOIN observation_chunks c ON c.session_id=d.session_id
          GROUP BY d.session_id ORDER BY d.session_id",
     )?;
     let mut rows = statement.query([])?;
@@ -217,6 +223,7 @@ pub(crate) fn watermarks(connection: &Connection) -> Result<Vec<Watermark>, Stor
             chunks: read_integer(row.get(1)?, "chunk_seq")?,
             derived: read_integer(row.get(2)?, "source_chunk_seq")?,
             legacy: row.get::<_, i64>(3)? == 1,
+            commit: read_integer(row.get(4)?, "commit_seq")?,
         });
     }
     Ok(out)

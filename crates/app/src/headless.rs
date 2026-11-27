@@ -562,6 +562,7 @@ pub fn doctor(profile: Option<&Path>, rebuild_derived: bool) -> Result<(), Box<d
                 serde_json::json!({
                     "sessions": store.watermarks()?.iter().map(|mark| serde_json::json!({
                         "session": mark.session,
+                        "commit_watermark": mark.commit,
                         "chunk_watermark": mark.chunks,
                         "derived_watermark": mark.derived,
                         "legacy": mark.legacy,
