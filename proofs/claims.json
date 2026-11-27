@@ -22,7 +22,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
         "lean:first.settle": "fnv1a64:566c72e13b472466",
@@ -30,7 +30,8 @@
         "mutant:settle-open-always-correct": "fnv1a64:491b075cbd025aae",
         "mutant:settle-overwrites-correct": "fnv1a64:5d6a02c07d3eb06c",
         "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
-        "proof:Proofs/Session.lean": "fnv1a64:2cd041c7467a3caf",
+        "proof:Proofs/Session.lean": "fnv1a64:bd5439ee35d5f36f",
+        "proof:Proofs/TautenMachine.lean": "fnv1a64:f378a6fecb8baf87",
         "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
@@ -102,7 +103,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:first.FirstCounts": "fnv1a64:951749e3ebb35e0b",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -178,7 +179,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:first.FirstCounts": "fnv1a64:951749e3ebb35e0b",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -254,7 +255,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:counters.matched": "fnv1a64:2ad1792852f58d8d",
         "mutant:matched-ignores-position": "fnv1a64:0529f9d47b522232",
@@ -311,7 +312,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -432,7 +433,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -488,7 +489,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.fraction": "fnv1a64:49e76f9c2e339bbe",
@@ -528,7 +529,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.MICROSECONDS_PER_MINUTE": "fnv1a64:0e6d1d8a66fb2711",
@@ -612,7 +613,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:ratio.Fraction": "fnv1a64:1598943cfff93593",
         "lean:ratio.MICROSECONDS_PER_MINUTE": "fnv1a64:0e6d1d8a66fb2711",
@@ -674,7 +675,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:ratio.BASIS_POINTS_FULL": "fnv1a64:599654242e42c614",
         "lean:ratio.BasisPoints": "fnv1a64:bda07eef227211d5",
@@ -756,7 +757,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:time.Through": "fnv1a64:2c7a5df47aa92b14",
         "lean:time.segment_active": "fnv1a64:2f71d90c8f3e62f6",
@@ -833,7 +834,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:time.in_window": "fnv1a64:9d5f256c9926dafd",
         "mutant:window-deadline-inclusive": "fnv1a64:7838167070585533",
@@ -885,7 +886,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:checkpoint.Admission": "fnv1a64:730283b1519f480c",
         "lean:checkpoint.Receipt": "fnv1a64:7f7df42fddf3f375",
@@ -894,6 +895,7 @@
         "mutant:admit-equal-sequence-applies": "fnv1a64:8fa4ed5724773913",
         "mutant:admit-replay-applies": "fnv1a64:6a6a00f1c88b40ff",
         "proof:Proofs/Checkpoint.lean": "fnv1a64:cf7b0658242bb81a",
+        "proof:Proofs/Chunks.lean": "fnv1a64:e165fefef2d846d3",
         "proof:Proofs/Queue.lean": "fnv1a64:0c3175e6d165c74c",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
@@ -975,7 +977,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:progress.COUNTER_MAXIMUM": "fnv1a64:3224be1f2d07a607",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1021,7 +1023,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
         "lean:progress.ordered": "fnv1a64:3488d8720654b667",
@@ -1066,7 +1068,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
         "lean:progress.split_fits": "fnv1a64:d649c86921960f7a",
@@ -1116,7 +1118,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:progress.COUNTER_MAXIMUM": "fnv1a64:3224be1f2d07a607",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1218,7 +1220,8 @@
         "Proofs.Session.invalidate_admitted",
         "Proofs.Session.stall_stops_clock",
         "Proofs.Session.stall_changes_no_outcome",
-        "Proofs.Session.caught_up_only_from_paused"
+        "Proofs.Session.caught_up_only_from_paused",
+        "Proofs.Session.reachable_clock"
       ],
       "total": "Proofs.Session.clock_runs_only_running",
       "subsumes": [],
@@ -1233,7 +1236,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:session.Clock": "fnv1a64:f0e1666bc976be48",
         "lean:session.Event": "fnv1a64:243e3aea21d0e7fd",
@@ -1248,7 +1251,8 @@
         "mutant:review-resumes": "fnv1a64:9ebe9bc7efa031e2",
         "mutant:stall-keeps-clock": "fnv1a64:cd10caf8e753c572",
         "mutant:stall-marks-unfinished": "fnv1a64:377d3ab2d40173e3",
-        "proof:Proofs/Session.lean": "fnv1a64:2cd041c7467a3caf",
+        "proof:Proofs/Session.lean": "fnv1a64:bd5439ee35d5f36f",
+        "proof:Proofs/TautenMachine.lean": "fnv1a64:f378a6fecb8baf87",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
@@ -1256,10 +1260,12 @@
           "mutant": "pause-keeps-clock",
           "status": "killed",
           "broken": [
-            "Proofs.Session.clock_runs_only_running"
+            "Proofs.Session.clock_runs_only_running",
+            "Proofs.Session.reachable_clock"
           ],
           "direct": [
-            "Proofs.Session.clock_runs_only_running"
+            "Proofs.Session.clock_runs_only_running",
+            "Proofs.Session.reachable_clock"
           ]
         },
         {
@@ -1297,10 +1303,12 @@
           "status": "killed",
           "broken": [
             "Proofs.Session.clock_runs_only_running",
+            "Proofs.Session.reachable_clock",
             "Proofs.Session.stall_stops_clock"
           ],
           "direct": [
             "Proofs.Session.clock_runs_only_running",
+            "Proofs.Session.reachable_clock",
             "Proofs.Session.stall_stops_clock"
           ]
         },
@@ -1345,7 +1353,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:progress.Merge": "fnv1a64:9618b5d2b3688a0a",
         "lean:progress.TrackCounters": "fnv1a64:da44097dda37899c",
@@ -1402,7 +1410,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:progress.credit_once": "fnv1a64:31f0ee098efec42e",
         "mutant:credit-allows-equal": "fnv1a64:97d7b603ca0e68dd",
@@ -1440,7 +1448,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:counters.Counters": "fnv1a64:04ac3c888a48b9aa",
         "lean:counters.Step": "fnv1a64:5f629420658d70b2",
@@ -1502,7 +1510,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
         "lean:first.settle": "fnv1a64:566c72e13b472466",
@@ -1542,7 +1550,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_insert": "fnv1a64:f7361bb3530d6e3a",
@@ -1581,7 +1589,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_deletion": "fnv1a64:b3e8154528cdf7a8",
@@ -1620,7 +1628,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.flags_after_interrupt": "fnv1a64:f351f7f2c614224f",
@@ -1659,7 +1667,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:ledger.WordFlags": "fnv1a64:2836f9d16067e983",
         "lean:ledger.clean": "fnv1a64:14037ade3f2de508",
@@ -1698,7 +1706,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:ledger.complete": "fnv1a64:710ade383499c619",
         "mutant:complete-ignores-tail": "fnv1a64:045cbb98d4e9de86",
@@ -1736,7 +1744,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:plan.Sum": "fnv1a64:d5ddda56f46bb138",
         "lean:plan.total": "fnv1a64:d4470cfbce1e33e6",
@@ -1790,7 +1798,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:plan.after_pick": "fnv1a64:e406a69939dd8f95",
         "lean:plan.beats": "fnv1a64:94647b5915bbd1af",
@@ -1857,7 +1865,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:plan.Allocation": "fnv1a64:f445157ba4906118",
         "lean:plan.Sum": "fnv1a64:d5ddda56f46bb138",
@@ -1964,7 +1972,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:select.BASIS": "fnv1a64:486c3a7696ffac07",
         "lean:select.Terms": "fnv1a64:d4617d12709bf9d2",
@@ -2063,7 +2071,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:select.BASIS": "fnv1a64:486c3a7696ffac07",
         "lean:select.Candidate": "fnv1a64:b43a8b9c52d9dfb9",
@@ -2194,7 +2202,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:lanes.Admit": "fnv1a64:3f01c5f05f8f71ed",
         "lean:lanes.Facts": "fnv1a64:6cdce9a2adbbd6ae",
@@ -2301,7 +2309,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:lanes.Admit": "fnv1a64:3f01c5f05f8f71ed",
         "lean:lanes.Facts": "fnv1a64:6cdce9a2adbbd6ae",
@@ -2375,7 +2383,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:lanes.complete": "fnv1a64:5a502d324ca354fe",
         "mutant:complete-allows-under": "fnv1a64:d68a99c96f53f42b",
@@ -2422,7 +2430,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:review.FIRST_RUNG": "fnv1a64:1d97894f178b26b5",
         "lean:review.State": "fnv1a64:c16cb4d5d44b818f",
@@ -2642,7 +2650,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:review.is_due": "fnv1a64:12f534ead6bf7151",
         "mutant:due-strictly-after": "fnv1a64:07be8c1bac26d759",
@@ -2684,7 +2692,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:queue.Admit": "fnv1a64:b9993c8cebfe79ac",
         "lean:queue.admit": "fnv1a64:5483f4571dddb3fc",
@@ -2692,6 +2700,7 @@
         "mutant:capacity-off-by-one": "fnv1a64:db22df1301d06330",
         "mutant:per-word-ignored": "fnv1a64:be1f1f05b931690f",
         "proof:Proofs/Checkpoint.lean": "fnv1a64:cf7b0658242bb81a",
+        "proof:Proofs/Chunks.lean": "fnv1a64:e165fefef2d846d3",
         "proof:Proofs/Queue.lean": "fnv1a64:0c3175e6d165c74c",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
@@ -2770,7 +2779,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:label.Facts": "fnv1a64:673a83a88df8c890",
         "lean:label.Label": "fnv1a64:a8f209a2f1328d61",
@@ -2831,7 +2840,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:cycle.Advance": "fnv1a64:9a97d15aacc4fae6",
         "lean:cycle.advance": "fnv1a64:22e169fb75e3e53b",
@@ -2873,7 +2882,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:slots.SlotLane": "fnv1a64:0033687e7600967f",
         "lean:slots.substitute": "fnv1a64:8d4897b2a012968e",
@@ -2944,7 +2953,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:focus.WEIGHT_ONE": "fnv1a64:f041aae5636e8f91",
         "lean:focus.decay_weight": "fnv1a64:ffcf647340cf1984",
@@ -3023,7 +3032,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
         "lean:focus.WEIGHT_ONE": "fnv1a64:f041aae5636e8f91",
@@ -3076,7 +3085,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
         "lean:focus.hesitation_bp": "fnv1a64:d4f9b13ad524db46",
@@ -3123,7 +3132,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
         "lean:focus.Candidate": "fnv1a64:d50854a69c29d3fb",
@@ -3214,7 +3223,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:focus.BASIS": "fnv1a64:62d0da95cac1489a",
         "lean:focus.Candidate": "fnv1a64:d50854a69c29d3fb",
@@ -3292,7 +3301,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:evidence.pair_first_correct": "fnv1a64:da49bcb3429347e7",
         "lean:first.Slot": "fnv1a64:612131c91c8a4949",
@@ -3333,7 +3342,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:evidence.Interval": "fnv1a64:45e981a88b5a441f",
         "lean:evidence.Mark": "fnv1a64:c4adda42a9844404",
@@ -3434,11 +3443,12 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:session.overdue": "fnv1a64:2fc58f54c8223027",
         "mutant:overdue-inclusive": "fnv1a64:38807d8e5fe10591",
-        "proof:Proofs/Session.lean": "fnv1a64:2cd041c7467a3caf",
+        "proof:Proofs/Session.lean": "fnv1a64:bd5439ee35d5f36f",
+        "proof:Proofs/TautenMachine.lean": "fnv1a64:f378a6fecb8baf87",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
@@ -3461,36 +3471,54 @@
       "lean": "cadence_kernel.session.settle",
       "theorems": [
         "Proofs.Session.review_phase_keeps_completed",
-        "Proofs.Session.settle_spec"
+        "Proofs.Session.settle_spec",
+        "Proofs.Session.completed_is_stable"
       ],
       "total": "Proofs.Session.settle_spec",
       "subsumes": [],
       "mutants": [
         "review-phase-marks-unfinished",
-        "settle-unfinished-keeps-open"
+        "settle-unfinished-keeps-open",
+        "completed-reopens"
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:session.Outcome": "fnv1a64:74b9ab8ff93db5d9",
         "lean:session.Status": "fnv1a64:d2284880f7f82115",
         "lean:session.settle": "fnv1a64:075b602fa59b6459",
+        "mutant:completed-reopens": "fnv1a64:77c8809463590104",
         "mutant:review-phase-marks-unfinished": "fnv1a64:dbfc83e5bf192895",
         "mutant:settle-unfinished-keeps-open": "fnv1a64:f3a74d056303beb5",
         "proof:Proofs/First.lean": "fnv1a64:c912c1dd6e6a9c9a",
-        "proof:Proofs/Session.lean": "fnv1a64:2cd041c7467a3caf",
+        "proof:Proofs/Session.lean": "fnv1a64:bd5439ee35d5f36f",
+        "proof:Proofs/TautenMachine.lean": "fnv1a64:f378a6fecb8baf87",
         "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
         {
-          "mutant": "review-phase-marks-unfinished",
+          "mutant": "completed-reopens",
           "status": "killed",
           "broken": [
+            "Proofs.Session.completed_is_stable",
             "Proofs.Session.review_phase_keeps_completed"
           ],
           "direct": [
+            "Proofs.Session.completed_is_stable",
+            "Proofs.Session.review_phase_keeps_completed"
+          ]
+        },
+        {
+          "mutant": "review-phase-marks-unfinished",
+          "status": "killed",
+          "broken": [
+            "Proofs.Session.completed_is_stable",
+            "Proofs.Session.review_phase_keeps_completed"
+          ],
+          "direct": [
+            "Proofs.Session.completed_is_stable",
             "Proofs.Session.review_phase_keeps_completed"
           ]
         },
@@ -3532,7 +3560,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:pace.Block": "fnv1a64:2766b6b77e17bfc3",
         "lean:pace.Decision": "fnv1a64:9cbad356e1211d70",
@@ -3735,7 +3763,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:pace.FULL_BP": "fnv1a64:b85c24db58772a83",
         "lean:pace.block_accuracy_below": "fnv1a64:e77e7c5691359f84",
@@ -3795,7 +3823,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:benchmark.Due": "fnv1a64:5e0aff1dfe5990b9",
         "lean:benchmark.due": "fnv1a64:23623c770c0a625f",
@@ -3845,7 +3873,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:benchmark.Facts": "fnv1a64:d8f36e62f38a711c",
         "lean:benchmark.comparable": "fnv1a64:8ac567dc82cded43",
@@ -3890,18 +3918,20 @@
         "Proofs.Request.new_iff_greater",
         "Proofs.Request.replay_iff_same",
         "Proofs.Request.conflict_iff_other",
-        "Proofs.Request.only_new_mutates"
+        "Proofs.Request.only_new_mutates",
+        "Proofs.Request.applied_once"
       ],
       "total": "Proofs.Request.new_iff_greater",
       "subsumes": [],
       "mutants": [
         "equal-id-is-new",
         "conflict-replays",
-        "miss-reexecutes"
+        "miss-reexecutes",
+        "replay-reapplies"
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:request.Admit": "fnv1a64:9a2a342a17a3c7cd",
         "lean:request.Lookup": "fnv1a64:44dddba458455f28",
@@ -3909,7 +3939,13 @@
         "mutant:conflict-replays": "fnv1a64:b8747375046a03be",
         "mutant:equal-id-is-new": "fnv1a64:f5b1d3e2d0feec62",
         "mutant:miss-reexecutes": "fnv1a64:eacdbfda7bf525a7",
+        "mutant:replay-reapplies": "fnv1a64:e4119d84b1b59097",
+        "proof:Proofs/Barrier.lean": "fnv1a64:b96ccb5bbfd84975",
+        "proof:Proofs/Chunks.lean": "fnv1a64:e165fefef2d846d3",
+        "proof:Proofs/Machines.lean": "fnv1a64:b4dbfc0e07e4d922",
         "proof:Proofs/Request.lean": "fnv1a64:75ac65479de42060",
+        "proof:Proofs/TautenMachine.lean": "fnv1a64:f378a6fecb8baf87",
+        "proof:Proofs/Ticket.lean": "fnv1a64:899a37f7fbf95073",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
@@ -3950,6 +3986,18 @@
           "direct": [
             "Proofs.Request.new_iff_greater"
           ]
+        },
+        {
+          "mutant": "replay-reapplies",
+          "status": "killed",
+          "broken": [
+            "Proofs.Request.new_iff_greater",
+            "Proofs.Request.replay_iff_same"
+          ],
+          "direct": [
+            "Proofs.Request.new_iff_greater",
+            "Proofs.Request.replay_iff_same"
+          ]
         }
       ]
     },
@@ -3968,7 +4016,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:request.revision_ok": "fnv1a64:e92a02f1765c56c2",
         "mutant:stale-accepted": "fnv1a64:fa6b63d77f925a12",
@@ -4004,7 +4052,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:request.evict": "fnv1a64:90be81f8a76450a9",
         "mutant:cache-capacity-off-by-one": "fnv1a64:4ab665dae761089c",
@@ -4033,23 +4081,30 @@
       "lean": "cadence_kernel.barrier.causal",
       "theorems": [
         "Proofs.Barrier.no_early_return",
-        "Proofs.Barrier.future_refused"
+        "Proofs.Barrier.future_refused",
+        "Proofs.Barrier.done_is_drained"
       ],
       "total": "Proofs.Barrier.no_early_return",
       "subsumes": [],
       "mutants": [
         "done-with-unconsumed",
-        "future-accepted"
+        "future-accepted",
+        "done-with-outstanding"
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:barrier.Barrier": "fnv1a64:dbc146a400a1cdf7",
         "lean:barrier.causal": "fnv1a64:51829233db19ba08",
+        "mutant:done-with-outstanding": "fnv1a64:fe7e5b5c6f1de3f4",
         "mutant:done-with-unconsumed": "fnv1a64:0f8878ae1bc9ed4f",
         "mutant:future-accepted": "fnv1a64:58e2236e74d6a4ee",
         "proof:Proofs/Barrier.lean": "fnv1a64:b96ccb5bbfd84975",
+        "proof:Proofs/Machines.lean": "fnv1a64:b4dbfc0e07e4d922",
+        "proof:Proofs/Request.lean": "fnv1a64:75ac65479de42060",
+        "proof:Proofs/TautenMachine.lean": "fnv1a64:f378a6fecb8baf87",
+        "proof:Proofs/Ticket.lean": "fnv1a64:899a37f7fbf95073",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
       "mutant_results": [
@@ -4074,6 +4129,16 @@
             "Proofs.Barrier.future_refused",
             "Proofs.Barrier.no_early_return"
           ]
+        },
+        {
+          "mutant": "done-with-outstanding",
+          "status": "killed",
+          "broken": [
+            "Proofs.Barrier.no_early_return"
+          ],
+          "direct": [
+            "Proofs.Barrier.no_early_return"
+          ]
         }
       ]
     },
@@ -4092,7 +4157,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:barrier.Barrier": "fnv1a64:dbc146a400a1cdf7",
         "lean:barrier.durable": "fnv1a64:825d81c93fc8d79d",
@@ -4121,22 +4186,32 @@
       "theorems": [
         "Proofs.Ticket.accept_iff_fresh",
         "Proofs.Ticket.at_most_once",
-        "Proofs.Ticket.stale_error_never_replaces"
+        "Proofs.Ticket.stale_error_never_replaces",
+        "Proofs.Ticket.table_step",
+        "Proofs.Ticket.table_inv",
+        "Proofs.Ticket.accepted_fresh",
+        "Proofs.Ticket.completion_retained"
       ],
       "total": "Proofs.Ticket.accept_iff_fresh",
       "subsumes": [],
       "mutants": [
         "no-epoch-check",
-        "no-pending-check"
+        "no-pending-check",
+        "accept-any-request"
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:ticket.Admit": "fnv1a64:d0a8ac569465d8a7",
         "lean:ticket.admit": "fnv1a64:ab41e4039afdd952",
+        "mutant:accept-any-request": "fnv1a64:a8bc86c3d0b4a0d4",
         "mutant:no-epoch-check": "fnv1a64:0eb074abd7e88f01",
         "mutant:no-pending-check": "fnv1a64:1de2a5d2cb3a6054",
+        "proof:Proofs/Barrier.lean": "fnv1a64:b96ccb5bbfd84975",
+        "proof:Proofs/Machines.lean": "fnv1a64:b4dbfc0e07e4d922",
+        "proof:Proofs/Request.lean": "fnv1a64:75ac65479de42060",
+        "proof:Proofs/TautenMachine.lean": "fnv1a64:f378a6fecb8baf87",
         "proof:Proofs/Ticket.lean": "fnv1a64:899a37f7fbf95073",
         "toolchain": "fnv1a64:662ec602d0dd70aa"
       },
@@ -4164,6 +4239,16 @@
             "Proofs.Ticket.accept_iff_fresh",
             "Proofs.Ticket.at_most_once"
           ]
+        },
+        {
+          "mutant": "accept-any-request",
+          "status": "killed",
+          "broken": [
+            "Proofs.Ticket.accept_iff_fresh"
+          ],
+          "direct": [
+            "Proofs.Ticket.accept_iff_fresh"
+          ]
         }
       ]
     },
@@ -4186,7 +4271,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:comparison.Basis": "fnv1a64:f99a5cfe1dc05c64",
         "lean:comparison.same_basis": "fnv1a64:14d791de4880fa7c",
@@ -4237,7 +4322,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:settings.Effect": "fnv1a64:8eddc14ec22c3a16",
         "lean:settings.Kind": "fnv1a64:2754a568b1072988",
@@ -4261,6 +4346,347 @@
     },
     {
       "crate": "cadence-kernel",
+      "file": "crates/kernel/src/review.rs",
+      "function": "review::fifo_contains_loop",
+      "lean": "cadence_kernel.review.fifo_contains_loop",
+      "theorems": [
+        "Proofs.Queue.fifo_contains_loop_spec"
+      ],
+      "total": null,
+      "subsumes": [],
+      "mutants": [
+        "contains-skips-last"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
+      "inputs": {
+        "lean:review.fifo_contains_loop": "fnv1a64:a5aa7f30ef0e121e",
+        "lean:review.fifo_contains_loop.body": "fnv1a64:5bc1e9b762b78268",
+        "mutant:contains-skips-last": "fnv1a64:a2b7500ac2e250a6",
+        "proof:Proofs/DueQueue.lean": "fnv1a64:2b245d18a28de964",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "contains-skips-last",
+          "status": "killed",
+          "broken": [
+            "Proofs.Queue.admission_keeps_rank",
+            "Proofs.Queue.fifo_admit_spec",
+            "Proofs.Queue.fifo_contains_loop_spec",
+            "Proofs.Queue.fifo_contains_spec",
+            "Proofs.Queue.unique_members"
+          ],
+          "direct": [
+            "Proofs.Queue.fifo_contains_loop_spec"
+          ],
+          "dependent": [
+            "Proofs.Queue.admission_keeps_rank",
+            "Proofs.Queue.fifo_admit_spec",
+            "Proofs.Queue.fifo_contains_spec",
+            "Proofs.Queue.unique_members"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/review.rs",
+      "function": "review::fifo_contains",
+      "lean": "cadence_kernel.review.fifo_contains",
+      "theorems": [
+        "Proofs.Queue.fifo_contains_spec"
+      ],
+      "total": "Proofs.Queue.fifo_contains_spec",
+      "subsumes": [],
+      "mutants": [
+        "contains-skips-last"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
+      "inputs": {
+        "lean:review.Fifo": "fnv1a64:01423b33da06900f",
+        "lean:review.fifo_contains": "fnv1a64:3157dc34e892ae1f",
+        "lean:review.fifo_contains_loop": "fnv1a64:a5aa7f30ef0e121e",
+        "lean:review.fifo_contains_loop.body": "fnv1a64:5bc1e9b762b78268",
+        "mutant:contains-skips-last": "fnv1a64:a2b7500ac2e250a6",
+        "proof:Proofs/DueQueue.lean": "fnv1a64:2b245d18a28de964",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "contains-skips-last",
+          "status": "killed",
+          "broken": [
+            "Proofs.Queue.admission_keeps_rank",
+            "Proofs.Queue.fifo_admit_spec",
+            "Proofs.Queue.fifo_contains_loop_spec",
+            "Proofs.Queue.fifo_contains_spec",
+            "Proofs.Queue.unique_members"
+          ],
+          "direct": [
+            "Proofs.Queue.fifo_contains_loop_spec"
+          ],
+          "dependent": [
+            "Proofs.Queue.admission_keeps_rank",
+            "Proofs.Queue.fifo_admit_spec",
+            "Proofs.Queue.fifo_contains_spec",
+            "Proofs.Queue.unique_members"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/review.rs",
+      "function": "review::fifo_admit",
+      "lean": "cadence_kernel.review.fifo_admit",
+      "theorems": [
+        "Proofs.Queue.fifo_admit_spec",
+        "Proofs.Queue.unique_members",
+        "Proofs.Queue.admission_keeps_rank"
+      ],
+      "total": "Proofs.Queue.fifo_admit_spec",
+      "subsumes": [],
+      "mutants": [
+        "admit-at-head",
+        "admit-duplicate-due"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
+      "inputs": {
+        "lean:review.Fifo": "fnv1a64:01423b33da06900f",
+        "lean:review.FifoStep": "fnv1a64:b51ac9add79d369a",
+        "lean:review.fifo_admit": "fnv1a64:0ef51fce685234bd",
+        "lean:review.fifo_contains": "fnv1a64:3157dc34e892ae1f",
+        "lean:review.fifo_contains_loop": "fnv1a64:a5aa7f30ef0e121e",
+        "lean:review.fifo_contains_loop.body": "fnv1a64:5bc1e9b762b78268",
+        "mutant:admit-at-head": "fnv1a64:fbfed6c7c2c8d5db",
+        "mutant:admit-duplicate-due": "fnv1a64:349e5a91981e55ed",
+        "proof:Proofs/DueQueue.lean": "fnv1a64:2b245d18a28de964",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "admit-at-head",
+          "status": "killed",
+          "broken": [
+            "Proofs.Queue.admission_keeps_rank",
+            "Proofs.Queue.fifo_admit_spec",
+            "Proofs.Queue.unique_members"
+          ],
+          "direct": [
+            "Proofs.Queue.fifo_admit_spec"
+          ],
+          "dependent": [
+            "Proofs.Queue.admission_keeps_rank",
+            "Proofs.Queue.unique_members"
+          ]
+        },
+        {
+          "mutant": "admit-duplicate-due",
+          "status": "killed",
+          "broken": [
+            "Proofs.Queue.admission_keeps_rank",
+            "Proofs.Queue.fifo_admit_spec",
+            "Proofs.Queue.unique_members"
+          ],
+          "direct": [
+            "Proofs.Queue.fifo_admit_spec"
+          ],
+          "dependent": [
+            "Proofs.Queue.admission_keeps_rank",
+            "Proofs.Queue.unique_members"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/review.rs",
+      "function": "review::fifo_serve",
+      "lean": "cadence_kernel.review.fifo_serve",
+      "theorems": [
+        "Proofs.Queue.fifo_serve_spec",
+        "Proofs.Queue.rank_decreases",
+        "Proofs.Queue.served_within_rank_plus_one"
+      ],
+      "total": "Proofs.Queue.fifo_serve_spec",
+      "subsumes": [],
+      "mutants": [
+        "serve-skips-head"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
+      "inputs": {
+        "lean:review.Fifo": "fnv1a64:01423b33da06900f",
+        "lean:review.FifoStep": "fnv1a64:b51ac9add79d369a",
+        "lean:review.fifo_serve": "fnv1a64:f7bc326bddf5ec1a",
+        "mutant:serve-skips-head": "fnv1a64:29bdf86aa62ee47c",
+        "proof:Proofs/DueQueue.lean": "fnv1a64:2b245d18a28de964",
+        "proof:Proofs/Time.lean": "fnv1a64:abb122e14b38c1f7",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "serve-skips-head",
+          "status": "killed",
+          "broken": [
+            "Proofs.Queue.fifo_serve_spec",
+            "Proofs.Queue.rank_decreases",
+            "Proofs.Queue.served_within_rank_plus_one"
+          ],
+          "direct": [
+            "Proofs.Queue.fifo_serve_spec"
+          ],
+          "dependent": [
+            "Proofs.Queue.rank_decreases",
+            "Proofs.Queue.served_within_rank_plus_one"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/chunks.rs",
+      "function": "chunks::admit",
+      "lean": "cadence_kernel.chunks.admit",
+      "theorems": [
+        "Proofs.Chunks.admit_spec",
+        "Proofs.Chunks.append_iff_next",
+        "Proofs.Chunks.replay_iff_same",
+        "Proofs.Chunks.conflict_on_changed_payload",
+        "Proofs.Chunks.gap_refused"
+      ],
+      "total": "Proofs.Chunks.admit_spec",
+      "subsumes": [],
+      "mutants": [
+        "append-any-seq",
+        "replay-on-changed",
+        "gap-accepted"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
+      "inputs": {
+        "lean:chunks.Admit": "fnv1a64:3033658789d6396c",
+        "lean:chunks.admit": "fnv1a64:7548ad183162f61d",
+        "mutant:append-any-seq": "fnv1a64:6aedbffe81314342",
+        "mutant:gap-accepted": "fnv1a64:1dd16448260206d8",
+        "mutant:replay-on-changed": "fnv1a64:4577a5134b721654",
+        "proof:Proofs/Checkpoint.lean": "fnv1a64:cf7b0658242bb81a",
+        "proof:Proofs/Chunks.lean": "fnv1a64:e165fefef2d846d3",
+        "proof:Proofs/Queue.lean": "fnv1a64:0c3175e6d165c74c",
+        "proof:Proofs/Request.lean": "fnv1a64:75ac65479de42060",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "append-any-seq",
+          "status": "killed",
+          "broken": [
+            "Proofs.Chunks.admit_spec",
+            "Proofs.Chunks.append_iff_next",
+            "Proofs.Chunks.conflict_on_changed_payload",
+            "Proofs.Chunks.gap_refused",
+            "Proofs.Chunks.replay_iff_same"
+          ],
+          "direct": [
+            "Proofs.Chunks.admit_spec"
+          ],
+          "dependent": [
+            "Proofs.Chunks.append_iff_next",
+            "Proofs.Chunks.conflict_on_changed_payload",
+            "Proofs.Chunks.gap_refused",
+            "Proofs.Chunks.replay_iff_same"
+          ]
+        },
+        {
+          "mutant": "replay-on-changed",
+          "status": "killed",
+          "broken": [
+            "Proofs.Chunks.admit_spec",
+            "Proofs.Chunks.append_iff_next",
+            "Proofs.Chunks.conflict_on_changed_payload",
+            "Proofs.Chunks.gap_refused",
+            "Proofs.Chunks.replay_iff_same"
+          ],
+          "direct": [
+            "Proofs.Chunks.admit_spec"
+          ],
+          "dependent": [
+            "Proofs.Chunks.append_iff_next",
+            "Proofs.Chunks.conflict_on_changed_payload",
+            "Proofs.Chunks.gap_refused",
+            "Proofs.Chunks.replay_iff_same"
+          ]
+        },
+        {
+          "mutant": "gap-accepted",
+          "status": "killed",
+          "broken": [
+            "Proofs.Chunks.admit_spec",
+            "Proofs.Chunks.append_iff_next",
+            "Proofs.Chunks.conflict_on_changed_payload",
+            "Proofs.Chunks.gap_refused",
+            "Proofs.Chunks.replay_iff_same"
+          ],
+          "direct": [
+            "Proofs.Chunks.admit_spec"
+          ],
+          "dependent": [
+            "Proofs.Chunks.append_iff_next",
+            "Proofs.Chunks.conflict_on_changed_payload",
+            "Proofs.Chunks.gap_refused",
+            "Proofs.Chunks.replay_iff_same"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/chunks.rs",
+      "function": "chunks::watermark_ok",
+      "lean": "cadence_kernel.chunks.watermark_ok",
+      "theorems": [
+        "Proofs.Chunks.derived_never_ahead"
+      ],
+      "total": "Proofs.Chunks.derived_never_ahead",
+      "subsumes": [],
+      "mutants": [
+        "derived-ahead-ok"
+      ],
+      "outcome": "proved",
+      "badge": "proved",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
+      "inputs": {
+        "lean:chunks.watermark_ok": "fnv1a64:dec0d424ed50b62d",
+        "mutant:derived-ahead-ok": "fnv1a64:afe3637b34cd9f7f",
+        "proof:Proofs/Chunks.lean": "fnv1a64:e165fefef2d846d3",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "derived-ahead-ok",
+          "status": "killed",
+          "broken": [
+            "Proofs.Chunks.derived_never_ahead"
+          ],
+          "direct": [
+            "Proofs.Chunks.derived_never_ahead"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
       "file": "crates/kernel/src/calendar.rs",
       "function": "calendar::local_day",
       "lean": "cadence_kernel.calendar.local_day",
@@ -4278,7 +4704,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:calendar.DAY_SECONDS": "fnv1a64:d9609a2113097e44",
         "lean:calendar.Day": "fnv1a64:2f68f89c4a2d896e",
@@ -4356,7 +4782,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:calendar.days_ago": "fnv1a64:475cb9f41df52cfb",
         "mutant:days-ago-wraps": "fnv1a64:f3b67f2147f7a0ea",
@@ -4392,7 +4818,7 @@
       ],
       "outcome": "proved",
       "badge": "proved",
-      "fingerprint": "fnv1a64:bd691730c0c37a32",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
       "inputs": {
         "lean:lanes.gap_admissible": "fnv1a64:3459b16ae3d3adca",
         "mutant:gap-ignored": "fnv1a64:424917a919999456",
@@ -4422,7 +4848,166 @@
           ]
         }
       ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/save.rs",
+      "function": "save::step",
+      "lean": "cadence_kernel.save.step",
+      "theorems": [
+        "Proofs.Save.step_spec",
+        "Proofs.Save.reachable_inv",
+        "Proofs.Save.single_flight",
+        "Proofs.Save.ack_monotone",
+        "Proofs.Save.failed_tail_named",
+        "Proofs.Save.clean_exit_needs_final_ack"
+      ],
+      "total": "Proofs.Save.step_spec",
+      "subsumes": [],
+      "mutants": [
+        "dispatch-while-pending",
+        "ack-rewinds",
+        "quit-before-ack"
+      ],
+      "outcome": "audit-failed",
+      "badge": "not-established",
+      "detail": "Proofs.Save.step_spec does not state that cadence_kernel.save.step never fails for every input",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
+      "inputs": {
+        "lean:save.Command": "fnv1a64:c7bd07876ffd1fbe",
+        "lean:save.Event": "fnv1a64:a7486ac09bbd059b",
+        "lean:save.State": "fnv1a64:4c646c3e3b67d6f9",
+        "lean:save.ack_failed": "fnv1a64:bdc8bfac76a7234e",
+        "lean:save.acked": "fnv1a64:a358f56c717a7a0a",
+        "lean:save.exit_requested": "fnv1a64:cbccb64b03bc0801",
+        "lean:save.flush": "fnv1a64:b25e612a3b674676",
+        "lean:save.step": "fnv1a64:4aabe854845692eb",
+        "mutant:ack-rewinds": "fnv1a64:b47e98bbbab3a5af",
+        "mutant:dispatch-while-pending": "fnv1a64:584738870f4097c5",
+        "mutant:quit-before-ack": "fnv1a64:7c88822c0c665aaa",
+        "proof:Proofs/Save.lean": "fnv1a64:89f7a98d684e2c3e",
+        "proof:Proofs/TautenMachine.lean": "fnv1a64:f378a6fecb8baf87",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "dispatch-while-pending",
+          "status": "killed",
+          "broken": [
+            "Proofs.Save.ack_monotone",
+            "Proofs.Save.clean_exit_needs_final_ack",
+            "Proofs.Save.failed_tail_named",
+            "Proofs.Save.reachable_inv",
+            "Proofs.Save.single_flight",
+            "Proofs.Save.step_spec"
+          ],
+          "direct": [
+            "Proofs.Save.step_spec"
+          ],
+          "dependent": [
+            "Proofs.Save.ack_monotone",
+            "Proofs.Save.clean_exit_needs_final_ack",
+            "Proofs.Save.failed_tail_named",
+            "Proofs.Save.reachable_inv",
+            "Proofs.Save.single_flight"
+          ]
+        },
+        {
+          "mutant": "ack-rewinds",
+          "status": "killed",
+          "broken": [
+            "Proofs.Save.ack_monotone",
+            "Proofs.Save.clean_exit_needs_final_ack",
+            "Proofs.Save.failed_tail_named",
+            "Proofs.Save.reachable_inv",
+            "Proofs.Save.single_flight",
+            "Proofs.Save.step_spec"
+          ],
+          "direct": [
+            "Proofs.Save.step_spec"
+          ],
+          "dependent": [
+            "Proofs.Save.ack_monotone",
+            "Proofs.Save.clean_exit_needs_final_ack",
+            "Proofs.Save.failed_tail_named",
+            "Proofs.Save.reachable_inv",
+            "Proofs.Save.single_flight"
+          ]
+        },
+        {
+          "mutant": "quit-before-ack",
+          "status": "killed",
+          "broken": [
+            "Proofs.Save.ack_monotone",
+            "Proofs.Save.clean_exit_needs_final_ack",
+            "Proofs.Save.failed_tail_named",
+            "Proofs.Save.reachable_inv",
+            "Proofs.Save.single_flight",
+            "Proofs.Save.step_spec"
+          ],
+          "direct": [
+            "Proofs.Save.step_spec"
+          ],
+          "dependent": [
+            "Proofs.Save.ack_monotone",
+            "Proofs.Save.clean_exit_needs_final_ack",
+            "Proofs.Save.failed_tail_named",
+            "Proofs.Save.reachable_inv",
+            "Proofs.Save.single_flight"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "cadence-kernel",
+      "file": "crates/kernel/src/save.rs",
+      "function": "save::initial",
+      "lean": "cadence_kernel.save.initial",
+      "theorems": [
+        "Proofs.Save.init_inv"
+      ],
+      "total": "Proofs.Save.init_inv",
+      "subsumes": [],
+      "mutants": [
+        "start-in-flight"
+      ],
+      "outcome": "audit-failed",
+      "badge": "not-established",
+      "detail": "Proofs.Save.init_inv does not state that cadence_kernel.save.initial never fails for every input",
+      "fingerprint": "fnv1a64:15cae86120f57e8f",
+      "inputs": {
+        "lean:save.State": "fnv1a64:4c646c3e3b67d6f9",
+        "lean:save.initial": "fnv1a64:725ba6a0f51fb4ee",
+        "mutant:start-in-flight": "fnv1a64:9286927bac8283f5",
+        "proof:Proofs/Save.lean": "fnv1a64:89f7a98d684e2c3e",
+        "proof:Proofs/TautenMachine.lean": "fnv1a64:f378a6fecb8baf87",
+        "toolchain": "fnv1a64:662ec602d0dd70aa"
+      },
+      "mutant_results": [
+        {
+          "mutant": "start-in-flight",
+          "status": "killed",
+          "broken": [
+            "Proofs.Save.ack_monotone",
+            "Proofs.Save.clean_exit_needs_final_ack",
+            "Proofs.Save.failed_tail_named",
+            "Proofs.Save.init_inv",
+            "Proofs.Save.reachable_inv",
+            "Proofs.Save.single_flight"
+          ],
+          "direct": [
+            "Proofs.Save.init_inv"
+          ],
+          "dependent": [
+            "Proofs.Save.ack_monotone",
+            "Proofs.Save.clean_exit_needs_final_ack",
+            "Proofs.Save.failed_tail_named",
+            "Proofs.Save.reachable_inv",
+            "Proofs.Save.single_flight"
+          ]
+        }
+      ]
     }
   ],
-  "commit": "fb0ef3223ee7210e90afb46ddfe8d0ccc88c76d1"
+  "commit": "9981d20b412487fa2d5a9e0c1e8c009e72923f83"
 }
