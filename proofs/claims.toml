@@ -1529,6 +1529,75 @@ file = "crates/kernel/src/settings.rs"
 before = "        Kind::LivePace | Kind::Theme | Kind::TextSize | Kind::KeyGuide | Kind::HighContrast => {"
 after = "        Kind::LivePace | Kind::Theme | Kind::TextSize | Kind::KeyGuide | Kind::HighContrast | Kind::Layout => {"
 
+# ---- the due-review FIFO (crates/kernel/src/review.rs, #90, VL-01)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/review.rs"
+function = "review::fifo_contains_loop"
+lean = "cadence_kernel.review.fifo_contains_loop"
+theorems = ["Proofs.Queue.fifo_contains_loop_spec"]
+mutants = ["contains-skips-last"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/review.rs"
+function = "review::fifo_contains"
+lean = "cadence_kernel.review.fifo_contains"
+theorems = ["Proofs.Queue.fifo_contains_spec"]
+total = "Proofs.Queue.fifo_contains_spec"
+mutants = ["contains-skips-last"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/review.rs"
+function = "review::fifo_admit"
+lean = "cadence_kernel.review.fifo_admit"
+theorems = [
+  "Proofs.Queue.fifo_admit_spec",
+  "Proofs.Queue.unique_members",
+  "Proofs.Queue.admission_keeps_rank",
+]
+total = "Proofs.Queue.fifo_admit_spec"
+mutants = ["admit-at-head", "admit-duplicate-due"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/review.rs"
+function = "review::fifo_serve"
+lean = "cadence_kernel.review.fifo_serve"
+theorems = [
+  "Proofs.Queue.fifo_serve_spec",
+  "Proofs.Queue.rank_decreases",
+  "Proofs.Queue.served_within_rank_plus_one",
+]
+total = "Proofs.Queue.fifo_serve_spec"
+mutants = ["serve-skips-head"]
+
+[[mutant]]
+name = "contains-skips-last"
+file = "crates/kernel/src/review.rs"
+before = "    let mut i = fifo.head;\n    while i < fifo.len {"
+after = "    let mut i = fifo.head;\n    while i.saturating_add(1) < fifo.len {"
+
+[[mutant]]
+name = "admit-at-head"
+file = "crates/kernel/src/review.rs"
+before = "        Some(len) => FifoStep::Appended(Fifo {\n            head: fifo.head,"
+after = "        Some(len) => FifoStep::Appended(Fifo {\n            head: fifo.head.saturating_sub(1),"
+
+[[mutant]]
+name = "admit-duplicate-due"
+file = "crates/kernel/src/review.rs"
+before = "    if fifo_contains(ids, fifo, id) {\n        return FifoStep::Duplicate;\n    }\n"
+after = ""
+
+[[mutant]]
+name = "serve-skips-head"
+file = "crates/kernel/src/review.rs"
+before = "                index: fifo.head,"
+after = "                index: head,"
+
 # ---- local-calendar days (crates/kernel/src/calendar.rs, #52)
 
 [[claim]]

@@ -202,6 +202,7 @@ status = "mapped"
 production_symbols = [
   "cadence_kernel::review::ladder_step",
   "cadence_kernel::queue::admit",
+  "cadence_kernel::review::{fifo_admit, fifo_serve}",
   "cadence_kernel::slots::substitute",
   "cadence_engine::learning::{open, close, enqueue}",
   "cadence_trainer::learner::due_words",

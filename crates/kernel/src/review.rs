@@ -183,3 +183,87 @@ pub fn is_due(due: Option<i64>, today: i64) -> bool {
         Some(d) => d <= today,
     }
 }
+
+/// The due-review FIFO's indices (L-05, VK-06, #90): the live ids are
+/// `ids[head..len]` of a slice the caller owns. Serving advances `head`, so
+/// an item's rank (how many are served before it) is its index minus `head`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Fifo {
+    /// The index of the next item to serve.
+    pub head: usize,
+    /// One past the last live item.
+    pub len: usize,
+}
+
+/// One FIFO decision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FifoStep {
+    /// Admitted at the tail: append the id at index `fifo.len - 1`.
+    Appended(Fifo),
+    /// The id is already queued; nothing changes.
+    Duplicate,
+    /// The queue is at capacity; nothing changes.
+    Full,
+    /// Serve the item at `index` (the head); the queue becomes `fifo`.
+    Served {
+        /// The queue after serving.
+        fifo: Fifo,
+        /// The served item's index.
+        index: usize,
+    },
+    /// Nothing is queued.
+    Empty,
+}
+
+/// Whether `id` is live in `fifo` over `ids`.
+#[must_use]
+pub fn fifo_contains(ids: &[u64], fifo: Fifo, id: u64) -> bool {
+    let mut i = fifo.head;
+    while i < fifo.len {
+        if let Some(value) = ids.get(i)
+            && *value == id
+        {
+            return true;
+        }
+        i = i.saturating_add(1);
+    }
+    false
+}
+
+/// Admits `id` at the tail (a newly due item never jumps ahead), unless it
+/// is already queued or the queue holds `capacity` ids.
+#[must_use]
+pub fn fifo_admit(ids: &[u64], fifo: Fifo, id: u64, capacity: usize) -> FifoStep {
+    if fifo_contains(ids, fifo, id) {
+        return FifoStep::Duplicate;
+    }
+    if fifo.len >= capacity {
+        return FifoStep::Full;
+    }
+    match fifo.len.checked_add(1) {
+        Some(len) => FifoStep::Appended(Fifo {
+            head: fifo.head,
+            len,
+        }),
+        None => FifoStep::Full,
+    }
+}
+
+/// Serves the head, the oldest live item.
+#[must_use]
+pub fn fifo_serve(fifo: Fifo) -> FifoStep {
+    if fifo.head < fifo.len {
+        match fifo.head.checked_add(1) {
+            Some(head) => FifoStep::Served {
+                fifo: Fifo {
+                    head,
+                    len: fifo.len,
+                },
+                index: fifo.head,
+            },
+            None => FifoStep::Empty,
+        }
+    } else {
+        FifoStep::Empty
+    }
+}

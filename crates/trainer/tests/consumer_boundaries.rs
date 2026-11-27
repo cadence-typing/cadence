@@ -388,3 +388,18 @@ fn settings_effect_has_no_second_copy_in_the_engine() -> TestResult {
     }
     Ok(())
 }
+
+/// #90: which due item is admitted and served is decided only by the
+/// kernel's `review::fifo_*`; the trainer's queue keeps no deque or member
+/// set of its own.
+#[test]
+fn the_due_queue_has_no_second_copy_in_the_trainer() -> TestResult {
+    let review = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/review.rs"))?;
+    for call in ["fifo_admit(", "fifo_serve(", "fifo_contains("] {
+        assert!(review.contains(call), "review.rs calls {call}");
+    }
+    for copy in ["VecDeque", "HashSet", "push_back", "pop_front"] {
+        assert!(!review.contains(copy), "review.rs keeps {copy}");
+    }
+    Ok(())
+}

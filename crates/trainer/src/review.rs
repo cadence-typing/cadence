@@ -9,9 +9,6 @@
 //! level. Wall-clock rollback cannot make items instantly overdue or
 //! grant future success (guarded at admission/service time).
 
-use std::collections::HashSet;
-use std::collections::VecDeque;
-
 use cadence_core::{CoreError, UtcDay, review};
 
 /// A queued due item.
@@ -47,11 +44,32 @@ impl ReviewState {
     }
 }
 
-/// The FIFO admission queue with uniqueness.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// The most ids one queue admits over its life (it is rebuilt for every
+/// plan); admission beyond it is refused, never dropped silently.
+pub const DUE_QUEUE_CAPACITY: usize = 1 << 20;
+
+/// The FIFO admission queue with uniqueness. Which item is admitted and
+/// which is served are the proved `cadence_kernel::review::{fifo_admit,
+/// fifo_serve}` (#90): admission is at the tail, a live id is refused, and
+/// the head is served; this type only stores what they decide.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DueQueue {
-    entries: VecDeque<QueueEntry>,
-    members: HashSet<u64>,
+    /// Every admitted id, in admission order (served ones stay before `head`).
+    ids: Vec<u64>,
+    /// Each admitted id's due day, aligned with `ids`.
+    days: Vec<UtcDay>,
+    /// The kernel's indices: live items are `ids[head..len]`.
+    fifo: cadence_core::review::Fifo,
+}
+
+impl Default for DueQueue {
+    fn default() -> Self {
+        Self {
+            ids: Vec::new(),
+            days: Vec::new(),
+            fifo: cadence_core::review::Fifo { head: 0, len: 0 },
+        }
+    }
 }
 
 impl DueQueue {
@@ -63,20 +81,20 @@ impl DueQueue {
 
     /// Number of queued items.
     #[must_use]
-    pub fn len(&self) -> usize {
-        self.entries.len()
+    pub const fn len(&self) -> usize {
+        self.fifo.len.saturating_sub(self.fifo.head)
     }
 
     /// Whether the queue is empty.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+    pub const fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
-    /// Whether the word is already queued.
+    /// Whether the word is already queued: the proved scan.
     #[must_use]
     pub fn contains(&self, word: cadence_core::WordId) -> bool {
-        self.members.contains(&word.get())
+        cadence_core::review::fifo_contains(&self.ids, self.fifo, word.get())
     }
 
     /// Admits an item at the tail when it first becomes due. A
@@ -85,36 +103,64 @@ impl DueQueue {
     ///
     /// # Errors
     /// Returns [`CoreError::InvalidIdentity`] when the item is already
-    /// queued (an item cannot be queued twice).
+    /// queued (an item cannot be queued twice), and
+    /// [`CoreError::CapacityExhausted`] beyond [`DUE_QUEUE_CAPACITY`].
     pub fn admit(
         &mut self,
         word: cadence_core::WordId,
         due_since: UtcDay,
     ) -> Result<(), CoreError> {
-        if self.contains(word) {
-            return Err(CoreError::InvalidIdentity {
+        use cadence_core::review::FifoStep;
+        match cadence_core::review::fifo_admit(&self.ids, self.fifo, word.get(), DUE_QUEUE_CAPACITY)
+        {
+            FifoStep::Appended(next) => {
+                self.ids.push(word.get());
+                self.days.push(due_since);
+                self.fifo = next;
+                Ok(())
+            }
+            FifoStep::Duplicate => Err(CoreError::InvalidIdentity {
                 kind: "DueQueue",
                 reason: "an item cannot be queued twice",
-            });
+            }),
+            FifoStep::Full | FifoStep::Served { .. } | FifoStep::Empty => {
+                Err(CoreError::CapacityExhausted {
+                    limit: "due-review queue",
+                })
+            }
         }
-        self.members.insert(word.get());
-        self.entries.push_back(QueueEntry { word, due_since });
-        Ok(())
+    }
+
+    fn entry(&self, index: usize) -> Option<QueueEntry> {
+        let word = cadence_core::WordId::new(*self.ids.get(index)?).ok()?;
+        Some(QueueEntry {
+            word,
+            due_since: *self.days.get(index)?,
+        })
     }
 
     /// Peeks the head (oldest continuously eligible item).
     #[must_use]
     pub fn head(&self) -> Option<QueueEntry> {
-        self.entries.front().copied()
+        if self.fifo.head < self.fifo.len {
+            self.entry(self.fifo.head)
+        } else {
+            None
+        }
     }
 
     /// Removes and returns the head; consuming removes the pending
     /// entry so duplicate completions cannot serve twice.
     #[must_use]
     pub fn serve_head(&mut self) -> Option<QueueEntry> {
-        let entry = self.entries.pop_front()?;
-        self.members.remove(&entry.word.get());
-        Some(entry)
+        use cadence_core::review::FifoStep;
+        match cadence_core::review::fifo_serve(self.fifo) {
+            FifoStep::Served { fifo, index } => {
+                self.fifo = fifo;
+                self.entry(index)
+            }
+            FifoStep::Empty | FifoStep::Appended(_) | FifoStep::Duplicate | FifoStep::Full => None,
+        }
     }
 }
 

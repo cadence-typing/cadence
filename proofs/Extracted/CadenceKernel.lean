@@ -2402,6 +2402,101 @@ def review.is_due (due : Option Std.I64) (today : Std.I64) : Result Bool := do
   | none => ok false
   | some d => ok (d <= today)
 
+/-- [cadence_kernel::review::Fifo]
+    Source: 'crates/kernel/src/review.rs', lines 191:0-196:1
+    Visibility: public -/
+structure review.Fifo where
+  head : Std.Usize
+  len : Std.Usize
+
+/-- [cadence_kernel::review::FifoStep]
+    Source: 'crates/kernel/src/review.rs', lines 200:0-216:1
+    Visibility: public -/
+@[discriminant isize]
+inductive review.FifoStep where
+| Appended : review.Fifo → review.FifoStep
+| Duplicate : review.FifoStep
+| Full : review.FifoStep
+| Served : review.Fifo → Std.Usize → review.FifoStep
+| Empty : review.FifoStep
+
+/-- [cadence_kernel::review::fifo_contains]: loop body 0:
+    Source: 'crates/kernel/src/review.rs', lines 222:4-231:1
+    Visibility: public -/
+@[rust_loop_body]
+def review.fifo_contains_loop.body
+  (ids : Slice Std.U64) (i : Std.Usize) (id : Std.U64) (i1 : Std.Usize) :
+  Result (ControlFlow Std.Usize Bool)
+  := do
+  if i1 < i
+  then
+    let o ←
+      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice Std.U64) ids
+        i1
+    match o with
+    | none =>
+      let i2 ← lift (core.num.Usize.saturating_add i1 1#usize)
+      ok (cont i2)
+    | some value =>
+      if value = id
+      then ok (done true)
+      else
+        let i2 ← lift (core.num.Usize.saturating_add i1 1#usize)
+        ok (cont i2)
+  else ok (done false)
+
+/-- [cadence_kernel::review::fifo_contains]: loop 0:
+    Source: 'crates/kernel/src/review.rs', lines 222:4-231:1
+    Visibility: public -/
+@[rust_loop]
+def review.fifo_contains_loop
+  (ids : Slice Std.U64) (i : Std.Usize) (id : Std.U64) (i1 : Std.Usize) :
+  Result Bool
+  := do
+  loop
+    (fun i2 => review.fifo_contains_loop.body ids i id i2)
+    i1
+
+/-- [cadence_kernel::review::fifo_contains]:
+    Source: 'crates/kernel/src/review.rs', lines 220:0-231:1
+    Visibility: public -/
+@[reducible]
+def review.fifo_contains
+  (ids : Slice Std.U64) (fifo : review.Fifo) (id : Std.U64) : Result Bool := do
+  review.fifo_contains_loop ids fifo.len id fifo.head
+
+/-- [cadence_kernel::review::fifo_admit]:
+    Source: 'crates/kernel/src/review.rs', lines 236:0-250:1
+    Visibility: public -/
+def review.fifo_admit
+  (ids : Slice Std.U64) (fifo : review.Fifo) (id : Std.U64)
+  (capacity : Std.Usize) :
+  Result review.FifoStep
+  := do
+  let b ← review.fifo_contains ids fifo id
+  if b
+  then ok review.FifoStep.Duplicate
+  else
+    if fifo.len >= capacity
+    then ok review.FifoStep.Full
+    else
+      let o ← lift (Usize.checked_add fifo.len 1#usize)
+      match o with
+      | none => ok review.FifoStep.Full
+      | some len => ok (review.FifoStep.Appended { fifo with len })
+
+/-- [cadence_kernel::review::fifo_serve]:
+    Source: 'crates/kernel/src/review.rs', lines 254:0-269:1
+    Visibility: public -/
+def review.fifo_serve (fifo : review.Fifo) : Result review.FifoStep := do
+  if fifo.head < fifo.len
+  then
+    let o ← lift (Usize.checked_add fifo.head 1#usize)
+    match o with
+    | none => ok review.FifoStep.Empty
+    | some head => ok (review.FifoStep.Served { fifo with head } fifo.head)
+  else ok review.FifoStep.Empty
+
 /-- [cadence_kernel::select::BASIS]
     Source: 'crates/kernel/src/select.rs', lines 12:0-12:30
     Visibility: public -/

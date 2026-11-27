@@ -8,6 +8,7 @@ import Proofs.Time
 import Proofs.First
 import Proofs.Comparison
 import Proofs.Counters
+import Proofs.DueQueue
 import Proofs.Ratio
 import Proofs.Progress
 import Proofs.Session
