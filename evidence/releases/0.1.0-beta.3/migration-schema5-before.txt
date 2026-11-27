@@ -1,0 +1,13 @@
+version 5
+benchmark_probes 0
+commit_receipts 1128
+pace_targets 0
+plan_focus 9
+profiles 1
+prose_seen 11
+schema_info 1
+session_plans 2
+session_tracks 12
+sessions 2
+skill_observations 1219
+word_outcomes 1063

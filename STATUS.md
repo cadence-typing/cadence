@@ -22,6 +22,10 @@ cadence --minutes 5 --track numpad
 cadence --minutes 5 --track words --seed 42
 cadence --text-size normal    # auto (default), large, or normal
 cadence --theme light         # dark (default), light, or terminal
+cadence --pack code-rust --minutes 5   # or code-shell, or an imported pack
+cadence import /absolute/notes.txt --name notes [--dry-run]
+cadence packs
+cadence config check
 cadence --profile-dir /absolute/private/profile
 cadence backup --output /absolute/new-backup.sqlite3
 cadence export --output /absolute/new-progress.json
@@ -52,8 +56,14 @@ and every repeat is labelled ("again", "due review", "repeat: word",
 reads "repeat"). Every phase except prose is adaptive (below); prose is
 deliberately untargeted and says so.
 Numpad strings preserve leading zeros and require Enter; physical-keypad origin
-is unverified. This preview supports ASCII-first practice, not full first-run
-layout configuration, imports, benchmark qualification, or the full settings UI.
+is unverified. Since beta.3 a first run asks the layout, numpad and length;
+settings live in `$XDG_CONFIG_HOME/cadence/config.toml` (`cadence config
+check`), are edited in the app with `s`, and a layout change starts a
+separate history for symbols. Outside practice Tab moves between Today,
+Train, Numpad and Progress; `?` lists every key. `cadence import` and
+`cadence --pack` practise your own text or the shipped Rust and shell
+packs, never compared with standard scores. Benchmark qualification
+remains unclaimed.
 
 Progress is cumulative local SQLite data: correction history, separate track
 counts, exact durations, and last acknowledged checkpoint survive reopening.
@@ -62,6 +72,31 @@ resume a mid-word exercise or claim an uninterrupted timing trial. Store schema
 2 safely refuses a populated historical draft schema 1 rather than inventing
 measurements or resetting it. Keep that file and use a new explicit profile
 for feedback if such a draft database exists.
+
+## Beta.3 settings, layout and your own text
+
+[RFC: configuration, keyboard layout and the settings surface](docs/rfcs/2026-11-26-configuration-layout-and-settings.md),
+[RFC: local imports and code practice](docs/rfcs/2026-11-26-local-imports-and-code-practice.md).
+
+- **Settings.** A typed, validated `config.toml`; first-run setup; an
+  in-app overlay whose writes are acknowledged, atomic and never clobber
+  an external edit; when each setting applies is the proved
+  `settings::takes_effect` (a score-affecting setting never applies now).
+  Theme files, high contrast without colour, a numeric key guide.
+- **Layout.** Schema 6 records each session's layout and content class;
+  the proved `comparison::same_basis` keeps every comparison (review,
+  start-screen recap, Progress) within one layout, content class and live
+  provenance.
+- **Destinations.** Today, Train, Numpad, Progress and help from one typed
+  command table that drives dispatch, hints and headless validation.
+- **Your text.** A bounded, sanitising importer and pack sessions (imported
+  text, shipped Rust and shell), kept out of pace, probes, the learner
+  model, the ladder and comparisons.
+- **Worker results** (settings, history) pass the proved `ticket::admit`;
+  `WorkerResults.tla` models them.
+
+Limits: themes and settings are checked on a few terminals only (P6);
+whether code practice transfers to real coding speed is not claimed.
 
 ## Beta.2 a headless driver with replay
 
@@ -306,9 +341,9 @@ this refresh.
 | P2 / P-02–04, VK-03–06 | in_progress | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Since alpha.7 every phase but prose is adaptive: per-group focus for the number row and numpad (#46, #5), warm-up retention checks (#47), numeric and prose misses in the loop (#59, #48), a typed closing review on its own track excluded from the headline (#49, #60), every repeat labelled (#7) and targets named on screen (#50). Since beta.1 pace hysteresis is a proved kernel decision (`kernel::pace`, #61) whose goals are recorded, shown and applied (#62), transfer probes run on unseen purpose-written text with proved due and comparability decisions (`kernel::benchmark`, #63–#65), and the 20k vetted vocabulary bar is met by `words-en-v2` (#8). Nothing in P2 remains open in this milestone; retention comparisons across probes need more recorded probes to say anything (empirical, not a code gap). |
 | P3 / D-01–02, VP-01–03 | in_progress | `core/{progress,learning}`, `data/{store,schema,records,learning_rows,files,transfer}`, schema 3 with migration/round-trip/regression tests, `engine/storage`, `runtime/writer`. One retained writer/result slot, full-key admission, checkpoints, retry, lock, reopen, backup/export implemented. General job-registry/async planner, immutable observation chunks, full crash/storage campaigns and formal correspondence remain unfinished. |
 | P4 / H-01–04, VP-04–05 | implemented | `crates/driver` (`envelope`, `protocol`, `stream`, `headless`, `capture`, `trace`) and `cadence headless|replay|doctor` (#67–#73): NDJSON protocol v1 with stable error codes and a bounded response cache, causal and durable barriers, canonical frame capture with golden frames, traces with digest-sealed content and read-only replay reporting the first divergence; six journeys replayed by `cargo xtask gate headless` in CI. VP-04/VP-05: `HeadlessBarrier.tla`, `RequestCache.tla` and the proved `barrier::{causal, durable}`, `request::{admit, revision_ok, evict}`. Not qualified on real terminals (P6). |
-| P5 / U-01–05 | in_progress | `engine/{view,summary}`, `tui/{paint,stages,stages/results,stages/headlines,modeline,practice,native_text}` share cells plus native row metadata; `runtime/{presenter,text_protocol}` present and negotiate it. Reducer/summary regressions preserve correction history, weighted metrics, timing and resize pause. Full destinations/settings/layout setup, imports and editable themes remain unfinished. |
+| P5 / U-01–05 | implemented | `engine/{view,summary,settings,setup,navigation,progress,commands}`, `tui/{paint,stages,stages/results,stages/headlines,modeline,practice,native_text,settings,destinations,progress,theme}`, `runtime/{presenter,text_protocol,config_worker}`, `data/{config,config_write,theme_file,packs}`, `trainer/{import,packs}` (#75–#86): config file and first-run setup, the acknowledged settings overlay with the proved `settings::takes_effect`, layout partitions and the proved `comparison::same_basis`, destinations Today/Train/Numpad/Progress and help from one command table, Progress series with counts, theme files, high contrast and the key guide, numpad operators and separators, sanitised imports and pack sessions kept out of standard scores; render tests at 60×18, 100×32 and 120×40 and PTY evidence (`evidence/releases/0.1.0-beta.3/`). Not qualified on real terminals (P6). |
 | P6 / H-05–06 | in_progress | Hermetic Rust regressions and actual PTY/SQLite smoke; no broad terminal qualification or measured p99/memory admission claim. |
-| P7 / VP, VK, VL, VR inventory | pending | Packet models remain design probes, now run by the TLC gate in `./ci quality` from `models/claims.toml` (all 3 positive and 5 mutant configurations, pinned TLC 1.7.4; #28); `models/CheckpointSave.tla` maps the shipped save protocol (single-flight, retry, final flush; 4 mutants; #30); `models/FeedbackLoop.tla` maps the cross-session feedback loop (6 invariants, a liveness property, 7 mutants; #40); `models/SessionFlow.tla` maps the session flow (clock, phase window, interlude grace, end early, the typed closing review; 6 mutants), whose state changes all go through the proved `session::step` and status changes through `session::settle` (#31, #49). Lean (Charon/Aeneas) replaces Verus for kernel proofs: the proof inventory for `crates/kernel` is in [docs/TAUTEN.md](docs/TAUTEN.md) (RFC: [2026-11-24-tauten-and-lean-kernel](docs/rfcs/2026-11-24-tauten-and-lean-kernel.md)). VK-03..05 and the VK-06 ladder are proved (`plan::allocate` #34, `select::scan` #35, `lanes::record` #36, `review::ladder_step` #37); VK-06 queue admission is proved (`queue::admit` #55). VP-04/VP-05 are modelled (`models/HeadlessBarrier.tla`, `models/RequestCache.tla`, mapped; beta.2) with their decisions proved (`barrier::{causal, durable}` #71, `request::{admit, revision_ok, evict}` #67); VL-01, VP-01/02 and VR-01 have no proof (VR-01 replay is tested by six journeys); no TLAPS inventory has passed. |
+| P7 / VP, VK, VL, VR inventory | pending | Packet models remain design probes, now run by the TLC gate in `./ci quality` from `models/claims.toml` (all 3 positive and 5 mutant configurations, pinned TLC 1.7.4; #28); `models/CheckpointSave.tla` maps the shipped save protocol (single-flight, retry, final flush; 4 mutants; #30); `models/FeedbackLoop.tla` maps the cross-session feedback loop (6 invariants, a liveness property, 7 mutants; #40); `models/SessionFlow.tla` maps the session flow (clock, phase window, interlude grace, end early, the typed closing review; 6 mutants), whose state changes all go through the proved `session::step` and status changes through `session::settle` (#31, #49). Lean (Charon/Aeneas) replaces Verus for kernel proofs: the proof inventory for `crates/kernel` is in [docs/TAUTEN.md](docs/TAUTEN.md) (RFC: [2026-11-24-tauten-and-lean-kernel](docs/rfcs/2026-11-24-tauten-and-lean-kernel.md)). VK-03..05 and the VK-06 ladder are proved (`plan::allocate` #34, `select::scan` #35, `lanes::record` #36, `review::ladder_step` #37); VK-06 queue admission is proved (`queue::admit` #55). VP-04/VP-05 are modelled (`models/HeadlessBarrier.tla`, `models/RequestCache.tla`, mapped; beta.2) with their decisions proved (`barrier::{causal, durable}` #71, `request::{admit, revision_ok, evict}` #67); VP-01/VP-02 are modelled (`models/WorkerResults.tla`, mapped; beta.3) with the decision proved (`ticket::admit` #75); VL-01 and VR-01 have no proof (VR-01 replay is tested by six journeys); no TLAPS inventory has passed. |
 | P8 / B-03–06 | blocked for qualification | Static feedback-bundle producer and owner trial installation exist. Buildbot recovery, authorized signing, complete inventory admission and owner terminal/keypad qualification are not completed. |
 
 ## Evidence and limits

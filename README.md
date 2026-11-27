@@ -44,18 +44,26 @@ cadence --minutes 5 --track numpad        # a short single-track drill
 cadence --minutes 5 --track words --seed 42
 cadence --theme light                     # dark (default), light, terminal
 cadence --text-size normal                # auto (default), large, normal
+cadence --pack code-rust --minutes 5      # practise Rust (or code-shell, or your own pack)
+cadence import /path/notes.txt --name notes   # your own text, sanitised; --dry-run to preview
+cadence packs                             # list imported packs
+cadence config check                      # validate ~/.config/cadence/config.toml
 cadence backup --output ~/cadence-backup.sqlite3
 cadence export --output ~/cadence-progress.json
 ```
 
+The first run asks three things (keyboard layout, whether you have a numpad, session length) and writes them to `~/.config/cadence/config.toml`, which you can also edit by hand; `cadence config check` names any bad line. Outside practice, Tab or the arrows move between **Today** (the guided session), **Train** (one track, your length), **Numpad** and **Progress** (trends only across comparable sessions, with their counts).
+
 | Key | Does |
 |---|---|
-| Enter | start, continue, submit a numpad entry |
+| Enter | start, continue, submit a numpad entry (and type a newline in code) |
 | Esc | pause; while paused, `e` ends the session and shows your review |
 | Ctrl-C | end practice and show the review (saved as unfinished) |
+| `s` | settings (start screen or paused): display changes apply at once, the rest next session |
+| `?` | every key for the screen you are on |
 | F2 | cycle text size: auto → large → normal |
 
-Switching windows or pasting pauses practice; a paste never inserts text. Progress lives in `$XDG_DATA_HOME/cadence` (usually `~/.local/share/cadence`). Use `--profile-dir` to keep a separate profile.
+During practice every printable key is practice input. Switching windows or pasting pauses practice; a paste never inserts text. Progress lives in `$XDG_DATA_HOME/cadence` (usually `~/.local/share/cadence`). Use `--profile-dir` to keep a separate profile. Imported text and code packs are never compared with, and never feed, your standard scores.
 
 ## What makes it honest
 
@@ -81,7 +89,7 @@ Rust and [Ratatui](https://ratatui.rs). There is one state owner with a typed re
 
 **Assurance**, labelled honestly:
 
-- **Proved:** the scoring decisions live in a small `no_std` crate, [`crates/kernel`](crates/kernel), which production calls directly. It has 62 proved claims (152 Lean theorems) over its [Charon/Aeneas](https://github.com/AeneasVerif/aeneas) translation, for example:
+- **Proved:** the scoring decisions live in a small `no_std` crate, [`crates/kernel`](crates/kernel), which production calls directly. It has 65 proved claims (160 Lean theorems) over its [Charon/Aeneas](https://github.com/AeneasVerif/aeneas) translation, for example:
   - a corrected mistake stays an error;
   - accuracy never exceeds 100%;
   - active time is the closed segments plus the open one, exactly, never counts a pause and never runs backwards;

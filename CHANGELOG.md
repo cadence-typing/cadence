@@ -4,6 +4,23 @@ User-visible changes per release. Design decisions live in the [RFC registry](do
 
 ## [Unreleased]
 
+## [0.1.0-beta.3] — Your settings, your layout, your text (2026-11-27)
+
+Design: [RFC: configuration, keyboard layout and the settings surface](docs/rfcs/2026-11-26-configuration-layout-and-settings.md), [RFC: local imports and code practice](docs/rfcs/2026-11-26-local-imports-and-code-practice.md).
+
+- **Store schema 6.** Migration is automatic; it records each session's layout and content class, and an audit of score-affecting settings. beta.2 cannot open a schema-6 profile (`SchemaTooNew`), so back up before downgrading. Sessions recorded before read as layout `unspecified`, adopted by the first layout you choose. [#77](https://github.com/cadence-typing/cadence/issues/77)
+- `~/.config/cadence/config.toml`: typed, validated settings with defaults; flags still win; `cadence config check` prints each value and where it came from, or names the bad line. [#76](https://github.com/cadence-typing/cadence/issues/76)
+- A first run asks the layout (US, UK or other), whether you have a numpad and the session length; with no numpad its time goes to the other phases ("numpad off"). [#78](https://github.com/cadence-typing/cadence/issues/78)
+- The keyboard layout partitions your history: switching layout keeps letter history and starts number-row symbols fresh, and no comparison ever crosses a layout change. [#77](https://github.com/cadence-typing/cadence/issues/77)
+- Settings (`s`): saved only once the file is written; display settings apply at once, anything that affects practice or scores from the next session (a proved rule); an edit made elsewhere is never overwritten, and a bad file keeps your last valid settings. `r` reloads. [#75](https://github.com/cadence-typing/cadence/issues/75), [#79](https://github.com/cadence-typing/cadence/issues/79)
+- Destinations Today, Train, Numpad and Progress, with `?` help; every key hint comes from one command table, so none names a key that does nothing. [#80](https://github.com/cadence-typing/cadence/issues/80)
+- Progress: per-track trends only across sessions on the same layout and content, with counts, or "not enough comparable sessions"; it says where and why a series stops. [#81](https://github.com/cadence-typing/cadence/issues/81)
+- Theme files with eleven roles, high-contrast mode that works without colour, and an optional key guide for numeric practice. [#82](https://github.com/cadence-typing/cadence/issues/82)
+- Numpad operator drills and a `,` decimal separator; operator drills are compared only with each other. [#83](https://github.com/cadence-typing/cadence/issues/83)
+- `cadence import` sanitises your own text (terminal sequences, controls and bidirectional overrides refused by line and column), and `cadence --pack` practises it, or the shipped Rust and shell packs (Enter types a newline); none of it is compared with or feeds standard practice. [#84](https://github.com/cadence-typing/cadence/issues/84), [#85](https://github.com/cadence-typing/cadence/issues/85)
+- **Security:** the bundled SQLite is 3.54.1 (rusqlite 0.41), fixing RUSTSEC-2026-0459 / CVE-2026-119375, where a database opened with a crafted `-wal` file could return uninitialised memory. Every earlier release bundled an affected SQLite; take care opening a profile or backup someone else wrote with an older build. [#100](https://github.com/cadence-typing/cadence/issues/100)
+- Headless: all twelve journeys of the test inventory replay in CI, and a tampered trace fails at its first divergence. [#86](https://github.com/cadence-typing/cadence/issues/86)
+
 ## [0.1.0-beta.2] — A headless driver with replay (2026-11-26)
 
 Design: [RFC: headless driver and replay](docs/rfcs/2026-11-26-headless-driver-and-replay.md). For tools and tests; practice itself is unchanged.

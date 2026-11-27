@@ -2,7 +2,7 @@
 rfc: "2026-11-26-local-imports-and-code-practice"
 title: "Local text imports and Rust/shell practice, kept apart from scores"
 status: accepted
-implementation: not-started
+implementation: complete
 authors:
   - claude-fable (grooming agent)
 created: 2026-11-26

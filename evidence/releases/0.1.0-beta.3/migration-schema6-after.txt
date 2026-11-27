@@ -1,0 +1,16 @@
+version 6
+benchmark_probes 0
+commit_receipts 1128
+pace_targets 0
+plan_focus 9
+profiles 1
+prose_seen 11
+schema_info 1
+session_plans 2
+session_tracks 12
+sessions 2
+settings_audit 0
+skill_observations 1219
+word_outcomes 1063
+sessions [(1, 'unspecified', 'standard', None, 'live', 'completed'), (2, 'unspecified', 'standard', None, 'live', 'completed')]
+export schema 5 sessions 2

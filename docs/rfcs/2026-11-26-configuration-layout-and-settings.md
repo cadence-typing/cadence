@@ -2,7 +2,7 @@
 rfc: "2026-11-26-configuration-layout-and-settings"
 title: "Configuration, keyboard layout and the settings surface"
 status: accepted
-implementation: not-started
+implementation: complete
 authors:
   - claude-fable (grooming agent)
 created: 2026-11-26
