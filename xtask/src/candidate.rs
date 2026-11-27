@@ -599,7 +599,10 @@ fn cargo_gate(root: &Path) -> impl FnMut(&str, &Path) -> Result<Outcome, String>
 /// A named candidate that cannot be read.
 pub fn acceptance_summary(root: &Path) -> Result<String, String> {
     let mut out = String::from("Cadence acceptance summary\n");
-    let Some(id) = std::env::var("CADENCE_CANDIDATE_ID").ok().filter(|id| !id.is_empty()) else {
+    let Some(id) = std::env::var("CADENCE_CANDIDATE_ID")
+        .ok()
+        .filter(|id| !id.is_empty())
+    else {
         out.push_str("candidate: none (a development bundle built outside `./ci qualify`)\n");
         out.push_str("admission: not qualified\n");
         out.push_str("signature: not available: unsigned development bundle (#13)\n");
