@@ -66,3 +66,4 @@ Creation order. New proposals use `—` in the Legacy column.
 | — | [Local text imports and Rust/shell practice, kept apart from scores](2026-11-26-local-imports-and-code-practice.md) | accepted | complete | [#10](https://github.com/cadence-typing/cadence/issues/10) |
 | — | [Append-only observation chunks and a rebuildable learner state](2026-11-26-observation-chunks.md) | accepted | complete | [#11](https://github.com/cadence-typing/cadence/issues/11) |
 | — | [Unbounded protocol proofs as kernel machines in Lean](2026-11-26-protocol-proofs-as-kernel-machines.md) | accepted | complete | [#12](https://github.com/cadence-typing/cadence/issues/12) |
+| — | [Full numeric keypad practice](2026-11-27-full-numeric-keypad-practice.md) | accepted | not-started | [#101](https://github.com/cadence-typing/cadence/issues/101) |
