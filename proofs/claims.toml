@@ -1746,6 +1746,7 @@ file = "crates/kernel/src/save.rs"
 function = "save::step"
 lean = "cadence_kernel.save.step"
 theorems = [
+  "Proofs.Save.step_total",
   "Proofs.Save.step_spec",
   "Proofs.Save.reachable_inv",
   "Proofs.Save.single_flight",
@@ -1753,7 +1754,7 @@ theorems = [
   "Proofs.Save.failed_tail_named",
   "Proofs.Save.clean_exit_needs_final_ack",
 ]
-total = "Proofs.Save.step_spec"
+total = "Proofs.Save.step_total"
 mutants = ["dispatch-while-pending", "ack-rewinds", "quit-before-ack"]
 
 [[claim]]
@@ -1761,8 +1762,8 @@ crate = "cadence-kernel"
 file = "crates/kernel/src/save.rs"
 function = "save::initial"
 lean = "cadence_kernel.save.initial"
-theorems = ["Proofs.Save.init_inv"]
-total = "Proofs.Save.init_inv"
+theorems = ["Proofs.Save.initial_spec", "Proofs.Save.init_inv"]
+total = "Proofs.Save.initial_spec"
 mutants = ["start-in-flight"]
 
 [[mutant]]

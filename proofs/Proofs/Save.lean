@@ -102,6 +102,29 @@ theorem step_spec (s : save.State) (e : save.Event) (h : Inv s) :
     cases p <;> cases f <;> cases fin <;> cases st <;>
       simp_all [WP.spec_ok, Inv]
 
+/-- Total: `step` returns for every state and event. -/
+theorem step_total (s : save.State) (e : save.Event) : save.step s e ⦃ _ => True ⦄ := by
+  obtain ⟨sq, la, p, f, d, fin, st⟩ := s
+  cases e with
+  | Flush =>
+    simp only [save.step, save.flush]
+    cases d <;> cases p <;> cases f <;> simp [WP.spec_ok, lift, bind_ok]
+    cases U64.checked_add sq 1#u64 <;> simp [WP.spec_ok]
+  | Acked q =>
+    simp only [save.step, save.acked]
+    cases p <;> cases fin <;> cases d <;> cases st <;> by_cases hq : q = sq <;> simp_all [WP.spec_ok]
+  | AckFailed q =>
+    simp only [save.step, save.ack_failed]
+    cases p <;> by_cases hq : q = sq <;> simp_all [WP.spec_ok]
+  | Due | Retry | ExitRequested | FinalTimeout | Stalled =>
+    simp only [save.step, save.exit_requested]
+    cases p <;> cases f <;> cases fin <;> cases st <;> simp [WP.spec_ok]
+
+/-- Total: the initial state is returned, and it satisfies the invariant. -/
+theorem initial_spec : save.initial ⦃ s => Inv s ⦄ := by
+  unfold save.initial
+  simp [WP.spec_ok, Inv]
+
 /-- The invariant holds in every reachable state. -/
 theorem reachable_inv (s : save.State) (h : RReachable machine init s) : Inv s :=
   rinv_of_step machine init Inv init_inv
