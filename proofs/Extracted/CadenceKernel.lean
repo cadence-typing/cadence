@@ -2542,6 +2542,170 @@ def review.fifo_serve (fifo : review.Fifo) : Result review.FifoStep := do
     | some head => ok (review.FifoStep.Served { fifo with head } fifo.head)
   else ok review.FifoStep.Empty
 
+/-- [cadence_kernel::save::State]
+    Source: 'crates/kernel/src/save.rs', lines 10:0-26:1
+    Visibility: public -/
+structure save.State where
+  sequence : Std.U64
+  last_ack : Std.U64
+  pending : Bool
+  failed : Bool
+  due : Bool
+  finishing : Bool
+  stalled : Bool
+
+/-- [cadence_kernel::save::Event]
+    Source: 'crates/kernel/src/save.rs', lines 30:0-53:1
+    Visibility: public -/
+@[discriminant isize]
+inductive save.Event where
+| Due : save.Event
+| Flush : save.Event
+| Acked : Std.U64 → save.Event
+| AckFailed : Std.U64 → save.Event
+| Retry : save.Event
+| ExitRequested : save.Event
+| FinalTimeout : save.Event
+| Stalled : save.Event
+
+/-- [cadence_kernel::save::Command]
+    Source: 'crates/kernel/src/save.rs', lines 57:0-74:1
+    Visibility: public -/
+@[discriminant isize]
+inductive save.Command where
+| None : save.Command
+| Dispatch : Std.U64 → save.Command
+| Pause : save.Command
+| Resume : save.Command
+| Quit : Bool → save.Command
+
+/-- [cadence_kernel::save::initial]:
+    Source: 'crates/kernel/src/save.rs', lines 78:0-88:1
+    Visibility: public -/
+def save.initial : Result save.State := do
+  ok
+    {
+      sequence := 0#u64,
+      last_ack := 0#u64,
+      pending := false,
+      failed := false,
+      due := false,
+      finishing := false,
+      stalled := false
+    }
+
+/-- [cadence_kernel::save::flush]:
+    Source: 'crates/kernel/src/save.rs', lines 90:0-106:1 -/
+def save.flush (s : save.State) : Result (save.State × save.Command) := do
+  if s.due
+  then
+    if s.pending
+    then ok (s, save.Command.None)
+    else
+      if s.failed
+      then ok (s, save.Command.None)
+      else
+        let o ← lift (U64.checked_add s.sequence 1#u64)
+        match o with
+        | none => ok (s, save.Command.None)
+        | some seq =>
+          ok ({ s with sequence := seq, pending := true, due := false },
+            save.Command.Dispatch seq)
+  else ok (s, save.Command.None)
+
+/-- [cadence_kernel::save::acked]:
+    Source: 'crates/kernel/src/save.rs', lines 108:0-125:1 -/
+def save.acked
+  (s : save.State) (seq : Std.U64) : Result (save.State × save.Command) := do
+  if s.pending
+  then
+    if seq != s.sequence
+    then ok (s, save.Command.None)
+    else
+      if s.finishing
+      then
+        if s.due
+        then
+          if s.stalled
+          then
+            ok ({ s with last_ack := seq, pending := false, stalled := false },
+              save.Command.Resume)
+          else
+            ok ({ s with last_ack := seq, pending := false },
+              save.Command.None)
+        else
+          ok ({ s with last_ack := seq, pending := false, stalled := false },
+            save.Command.Quit true)
+      else
+        if s.stalled
+        then
+          ok ({ s with last_ack := seq, pending := false, stalled := false },
+            save.Command.Resume)
+        else
+          ok ({ s with last_ack := seq, pending := false }, save.Command.None)
+  else ok (s, save.Command.None)
+
+/-- [cadence_kernel::save::ack_failed]:
+    Source: 'crates/kernel/src/save.rs', lines 127:0-140:1 -/
+def save.ack_failed
+  (s : save.State) (seq : Std.U64) : Result (save.State × save.Command) := do
+  if s.pending
+  then
+    if seq != s.sequence
+    then ok (s, save.Command.None)
+    else
+      ok ({ s with pending := false, failed := true, stalled := false },
+        save.Command.Pause)
+  else ok (s, save.Command.None)
+
+/-- [cadence_kernel::save::exit_requested]:
+    Source: 'crates/kernel/src/save.rs', lines 142:0-159:1 -/
+def save.exit_requested
+  (s : save.State) : Result (save.State × save.Command) := do
+  if s.finishing
+  then
+    if s.failed
+    then ok (s, save.Command.Quit false)
+    else ok (s, save.Command.None)
+  else
+    ok ({ s with due := true, finishing := true, stalled := false },
+      save.Command.None)
+
+/-- [cadence_kernel::save::step]:
+    Source: 'crates/kernel/src/save.rs', lines 163:0-205:1
+    Visibility: public -/
+def save.step
+  (s : save.State) (event : save.Event) :
+  Result (save.State × save.Command)
+  := do
+  match event with
+  | save.Event.Due => ok ({ s with due := true }, save.Command.None)
+  | save.Event.Flush => save.flush s
+  | save.Event.Acked seq => save.acked s seq
+  | save.Event.AckFailed seq => save.ack_failed s seq
+  | save.Event.Retry =>
+    if s.failed
+    then ok ({ s with failed := false, due := true }, save.Command.None)
+    else ok (s, save.Command.None)
+  | save.Event.ExitRequested => save.exit_requested s
+  | save.Event.FinalTimeout =>
+    if s.finishing
+    then
+      if s.pending
+      then ok (s, save.Command.Quit false)
+      else ok (s, save.Command.None)
+    else ok (s, save.Command.None)
+  | save.Event.Stalled =>
+    if s.pending
+    then
+      if s.finishing
+      then ok (s, save.Command.None)
+      else
+        if s.stalled
+        then ok (s, save.Command.None)
+        else ok ({ s with stalled := true }, save.Command.Pause)
+    else ok (s, save.Command.None)
+
 /-- [cadence_kernel::select::BASIS]
     Source: 'crates/kernel/src/select.rs', lines 12:0-12:30
     Visibility: public -/

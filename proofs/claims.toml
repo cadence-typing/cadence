@@ -1718,3 +1718,54 @@ name = "gap-ignored"
 file = "crates/kernel/src/lanes.rs"
 before = "    if !served_before {\n        return true;\n    }\n"
 after = "    if !served_before || minimum_gap > 0 {\n        return true;\n    }\n"
+
+# ---- the save protocol as a kernel machine (crates/kernel/src/save.rs, #89)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/save.rs"
+function = "save::step"
+lean = "cadence_kernel.save.step"
+theorems = [
+  "Proofs.Save.step_spec",
+  "Proofs.Save.reachable_inv",
+  "Proofs.Save.single_flight",
+  "Proofs.Save.ack_monotone",
+  "Proofs.Save.failed_tail_named",
+  "Proofs.Save.clean_exit_needs_final_ack",
+]
+total = "Proofs.Save.step_spec"
+mutants = ["dispatch-while-pending", "ack-rewinds", "quit-before-ack"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/save.rs"
+function = "save::initial"
+lean = "cadence_kernel.save.initial"
+theorems = ["Proofs.Save.init_inv"]
+total = "Proofs.Save.init_inv"
+mutants = ["start-in-flight"]
+
+[[mutant]]
+name = "start-in-flight"
+file = "crates/kernel/src/save.rs"
+before = "        last_ack: 0,\n        pending: false,"
+after = "        last_ack: 0,\n        pending: true,"
+
+[[mutant]]
+name = "dispatch-while-pending"
+file = "crates/kernel/src/save.rs"
+before = "    if !s.due || s.pending || s.failed {"
+after = "    if !s.due || s.failed {"
+
+[[mutant]]
+name = "ack-rewinds"
+file = "crates/kernel/src/save.rs"
+before = "    if !s.pending || seq != s.sequence {\n        return (s, Command::None);\n    }\n    let next = State {"
+after = "    if !s.pending {\n        return (s, Command::None);\n    }\n    let next = State {"
+
+[[mutant]]
+name = "quit-before-ack"
+file = "crates/kernel/src/save.rs"
+before = "        return if s.failed {\n            (s, Command::Quit { success: false })\n        } else {\n            (s, Command::None)\n        };"
+after = "        return if s.failed {\n            (s, Command::Quit { success: false })\n        } else {\n            (s, Command::Quit { success: true })\n        };"

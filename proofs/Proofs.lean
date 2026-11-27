@@ -10,6 +10,7 @@ import Proofs.First
 import Proofs.Comparison
 import Proofs.Counters
 import Proofs.DueQueue
+import Proofs.Save
 import Proofs.Ratio
 import Proofs.Progress
 import Proofs.Session

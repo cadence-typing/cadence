@@ -34,6 +34,7 @@ pub mod queue;
 pub mod ratio;
 pub mod request;
 pub mod review;
+pub mod save;
 pub mod select;
 pub mod session;
 pub mod settings;
