@@ -55,6 +55,8 @@ start_from = [
     "cadence_kernel::review::fifo_contains",
     "cadence_kernel::review::fifo_admit",
     "cadence_kernel::review::fifo_serve",
+    "cadence_kernel::chunks::admit",
+    "cadence_kernel::chunks::watermark_ok",
     "cadence_kernel::calendar::local_day",
     "cadence_kernel::calendar::days_ago",
     "cadence_kernel::checkpoint::admit",

@@ -223,6 +223,51 @@ def checkpoint.admit
   | checkpoint.Receipt.Same => ok checkpoint.Admission.Replay
   | checkpoint.Receipt.Different => ok checkpoint.Admission.Conflict
 
+/-- [cadence_kernel::chunks::Admit]
+    Source: 'crates/kernel/src/chunks.rs', lines 11:0-20:1
+    Visibility: public -/
+@[discriminant isize]
+inductive chunks.Admit where
+| Append : chunks.Admit
+| Replay : chunks.Admit
+| Conflict : chunks.Admit
+| Gap : chunks.Admit
+
+/-- [cadence_kernel::chunks::admit]:
+    Source: 'crates/kernel/src/chunks.rs', lines 27:0-46:1
+    Visibility: public -/
+def chunks.admit
+  (stored_last : Std.U64) (has_stored : Bool) (incoming_seq : Std.U64)
+  (same_digest : Bool) :
+  Result chunks.Admit
+  := do
+  if has_stored
+  then
+    if incoming_seq <= stored_last
+    then
+      if same_digest
+      then ok chunks.Admit.Replay
+      else ok chunks.Admit.Conflict
+    else
+      let o ← lift (U64.checked_add stored_last 1#u64)
+      match o with
+      | none => ok chunks.Admit.Gap
+      | some next =>
+        if incoming_seq = next
+        then ok chunks.Admit.Append
+        else ok chunks.Admit.Gap
+  else
+    if incoming_seq = 1#u64
+    then ok chunks.Admit.Append
+    else ok chunks.Admit.Gap
+
+/-- [cadence_kernel::chunks::watermark_ok]:
+    Source: 'crates/kernel/src/chunks.rs', lines 51:0-53:1
+    Visibility: public -/
+def chunks.watermark_ok
+  (derived : Std.U64) (stored : Std.U64) : Result Bool := do
+  ok (derived <= stored)
+
 /-- [cadence_kernel::comparison::Basis]
     Source: 'crates/kernel/src/comparison.rs', lines 7:0-16:1
     Visibility: public -/

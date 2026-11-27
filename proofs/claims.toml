@@ -1598,6 +1598,56 @@ file = "crates/kernel/src/review.rs"
 before = "                index: fifo.head,"
 after = "                index: head,"
 
+# ---- observation-chunk admission (crates/kernel/src/chunks.rs, #11)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/chunks.rs"
+function = "chunks::admit"
+lean = "cadence_kernel.chunks.admit"
+theorems = [
+  "Proofs.Chunks.admit_spec",
+  "Proofs.Chunks.append_iff_next",
+  "Proofs.Chunks.replay_iff_same",
+  "Proofs.Chunks.conflict_on_changed_payload",
+  "Proofs.Chunks.gap_refused",
+]
+total = "Proofs.Chunks.admit_spec"
+mutants = ["append-any-seq", "replay-on-changed", "gap-accepted"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/chunks.rs"
+function = "chunks::watermark_ok"
+lean = "cadence_kernel.chunks.watermark_ok"
+theorems = ["Proofs.Chunks.derived_never_ahead"]
+total = "Proofs.Chunks.derived_never_ahead"
+mutants = ["derived-ahead-ok"]
+
+[[mutant]]
+name = "append-any-seq"
+file = "crates/kernel/src/chunks.rs"
+before = "Some(next) if incoming_seq == next => Admit::Append,"
+after = "Some(next) if incoming_seq >= next => Admit::Append,"
+
+[[mutant]]
+name = "replay-on-changed"
+file = "crates/kernel/src/chunks.rs"
+before = "        return if same_digest {\n            Admit::Replay\n        } else {\n            Admit::Conflict\n        };"
+after = "        return Admit::Replay;"
+
+[[mutant]]
+name = "gap-accepted"
+file = "crates/kernel/src/chunks.rs"
+before = "Some(_) | None => Admit::Gap,"
+after = "Some(_) | None => Admit::Append,"
+
+[[mutant]]
+name = "derived-ahead-ok"
+file = "crates/kernel/src/chunks.rs"
+before = "    derived <= stored\n"
+after = "    derived <= stored.saturating_add(1)\n"
+
 # ---- local-calendar days (crates/kernel/src/calendar.rs, #52)
 
 [[claim]]
