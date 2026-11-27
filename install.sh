@@ -3,6 +3,7 @@
 #
 #   curl -fsSL https://cadence-typing.github.io/install.sh | sh
 #   curl -fsSL https://cadence-typing.github.io/install.sh | sh -s -- --version v0.1.0-alpha.5
+#   sh install.sh --from /path/to/bundle-directory     (offline, #94)
 #
 # Downloads a release bundle from GitHub, checks it against the release's
 # SHA256SUMS, and installs it for the current user only: the bundle goes in
@@ -31,6 +32,8 @@ Usage: install.sh [options]
 Options:
   --version TAG     Install this release tag (default: the newest release,
                     including previews). Env: CADENCE_VERSION
+  --from DIR        Install offline from a directory holding a release's
+                    SHA256SUMS and cadence-VERSION-x86_64-unknown-linux-musl.tar.gz
   --prefix DIR      Where release bundles live
                     (default: ~/.local/lib/cadence). Env: CADENCE_PREFIX
   --bin-dir DIR     Where the `cadence` link goes (default: ~/.local/bin).
@@ -88,6 +91,7 @@ main() {
     PREFIX="${CADENCE_PREFIX:-${HOME:?HOME is not set}/.local/lib/cadence}"
     BIN_DIR="${CADENCE_BIN_DIR:-$HOME/.local/bin}"
     UNINSTALL=0
+    FROM=""
 
     while [ "$#" -gt 0 ]; do
         case "$1" in
@@ -97,6 +101,8 @@ main() {
             --prefix=*) PREFIX="${1#*=}"; shift ;;
             --bin-dir) [ "$#" -ge 2 ] || err "--bin-dir needs a value"; BIN_DIR="$2"; shift 2 ;;
             --bin-dir=*) BIN_DIR="${1#*=}"; shift ;;
+            --from) [ "$#" -ge 2 ] || err "--from needs a directory"; FROM="$2"; shift 2 ;;
+            --from=*) FROM="${1#*=}"; shift ;;
             --uninstall) UNINSTALL=1; shift ;;
             -h|--help) usage; exit 0 ;;
             *) err "unknown option '$1' (see --help)" ;;
@@ -125,7 +131,15 @@ main() {
     tmp=$(mktemp -d "${TMPDIR:-/tmp}/cadence-install.XXXXXX")
     trap 'rm -rf "$tmp"' EXIT INT TERM
 
-    if [ -z "$VERSION" ]; then
+    if [ -n "$FROM" ]; then
+        [ -d "$FROM" ] || err "--from $FROM is not a directory"
+        if [ -z "$VERSION" ]; then
+            found=$(cd "$FROM" && ls cadence-*-"$TARGET".tar.gz 2>/dev/null | head -n 1)
+            [ -n "$found" ] || err "$FROM holds no cadence-*-$TARGET.tar.gz"
+            VERSION="v${found#cadence-}"
+            VERSION="${VERSION%-$TARGET.tar.gz}"
+        fi
+    elif [ -z "$VERSION" ]; then
         VERSION=$(latest_tag "$REPO" "$tmp")
     fi
     case "$VERSION" in
@@ -140,11 +154,17 @@ main() {
     archive="$name.tar.gz"
     base="https://github.com/$REPO/releases/download/$VERSION"
 
-    say "installing Cadence $VERSION from github.com/$REPO"
-    download "$base/SHA256SUMS" "$tmp/SHA256SUMS" ||
-        err "release $VERSION has no SHA256SUMS (does the tag exist?)"
-    download "$base/$archive" "$tmp/$archive" ||
-        err "could not download $archive"
+    if [ -n "$FROM" ]; then
+        say "installing Cadence $VERSION from $FROM"
+        cp "$FROM/SHA256SUMS" "$tmp/SHA256SUMS" 2>/dev/null || err "$FROM has no SHA256SUMS"
+        cp "$FROM/$archive" "$tmp/$archive" 2>/dev/null || err "$FROM has no $archive"
+    else
+        say "installing Cadence $VERSION from github.com/$REPO"
+        download "$base/SHA256SUMS" "$tmp/SHA256SUMS" ||
+            err "release $VERSION has no SHA256SUMS (does the tag exist?)"
+        download "$base/$archive" "$tmp/$archive" ||
+            err "could not download $archive"
+    fi
 
     expected=$(awk -v f="$archive" '$2 == f || $2 == "*" f { print $1 }' "$tmp/SHA256SUMS")
     [ -n "$expected" ] || err "SHA256SUMS does not list $archive"
@@ -157,22 +177,49 @@ main() {
     tar -xzf "$tmp/$archive" -C "$tmp/x" --no-same-owner
     bundle="$tmp/x/$name"
     [ -f "$bundle/cadence" ] || err "archive does not contain $name/cadence"
+    got=$(sha256sum "$bundle/cadence" | awk '{ print $1 }')
     if [ -f "$bundle/cadence.sha256" ]; then
         inner=$(awk '{ print $1 }' "$bundle/cadence.sha256")
-        got=$(sha256sum "$bundle/cadence" | awk '{ print $1 }')
         [ "$inner" = "$got" ] || err "bundled binary does not match its cadence.sha256"
     fi
+    # The release's own digest of the executable, when it lists one.
+    standalone=$(awk '$2 == "cadence-linux-x86_64" { print $1 }' "$tmp/SHA256SUMS")
+    if [ -n "$standalone" ]; then
+        [ "$standalone" = "$got" ] || err "bundled binary does not match SHA256SUMS"
+    fi
+    # An x86-64 ELF executable: magic, 64-bit, little-endian, e_machine 0x3e.
+    elf=$(od -An -tx1 -N20 "$bundle/cadence" | tr -d ' \n')
+    case "$elf" in
+        7f454c46020101*) ;;
+        *) err "the bundled binary is not a 64-bit little-endian ELF executable" ;;
+    esac
+    machine=$(od -An -tx1 -j18 -N2 "$bundle/cadence" | tr -d ' \n')
+    [ "$machine" = "3e00" ] || err "the bundled binary is not for x86_64 (ELF machine $machine)"
     chmod 0755 "$bundle/cadence"
     printf '%s\n' "$VERSION" > "$bundle/.installed-by-cadence-install"
 
     mkdir -p "$PREFIX" "$BIN_DIR"
     dest="$PREFIX/$VERSION"
     staged="$PREFIX/.$VERSION.partial"
-    rm -rf "$staged"
+    previous="$PREFIX/.$VERSION.previous"
+    rm -rf "$staged" "$previous"
     mv "$bundle" "$staged"
-    rm -rf "$dest"
+    # The working version stays in place until the new one is ready: an
+    # existing directory of the same version is moved aside, not removed,
+    # and the link is replaced by a rename, never left dangling.
+    if [ -e "$dest" ]; then
+        mv "$dest" "$previous"
+    fi
     mv "$staged" "$dest"
-    ln -sfn "$dest/cadence" "$BIN_DIR/cadence"
+    [ "${CADENCE_INSTALL_FAULT:-}" != "before-link" ] || err "test fault: stopped before the link"
+    link_tmp="$BIN_DIR/.cadence.link.$$"
+    ln -s "$dest/cadence" "$link_tmp"
+    # A rename over the old link (GNU mv -T); elsewhere, a replaced link.
+    mv -T "$link_tmp" "$BIN_DIR/cadence" 2>/dev/null || {
+        rm -f "$link_tmp"
+        ln -sfn "$dest/cadence" "$BIN_DIR/cadence"
+    }
+    rm -rf "$previous"
 
     say "installed $dest"
     say "linked $BIN_DIR/cadence"

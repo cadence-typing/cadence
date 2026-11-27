@@ -84,7 +84,7 @@ pub const GATES: &[Gate] = &[
     Gate {
         id: "package-install",
         description: "exact candidate bundle, static ELF, fresh-home install/run/replay/backup smoke",
-        state: GateState::Pending("P8"),
+        state: GateState::Implemented,
     },
     Gate {
         id: "wsl-terminal",
@@ -152,6 +152,7 @@ fn dispatch_implemented(id: &str) -> Result<(), String> {
         "pty-linux" => crate::pty::check(&crate::dist::root()?),
         "persistence-linux" => crate::persistence::check(&crate::dist::root()?),
         "performance" => crate::performance::check(&crate::dist::root()?),
+        "package-install" => crate::package::check(&crate::dist::root()?),
         "prove" => crate::assurance::prove(),
         "verify" => crate::assurance::verify(),
         "correspondence" => crate::assurance::correspondence(),

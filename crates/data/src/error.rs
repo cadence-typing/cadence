@@ -66,7 +66,7 @@ impl std::fmt::Display for StoreError {
         match self {
             Self::Open(message) => write!(f, "cannot open progress store: {message}"),
             Self::WriterLockHeld { path } => write!(f, "another cadence writer holds {}", path.display()),
-            Self::SchemaTooNew { found, supported } => write!(f, "progress schema {found} is newer than supported schema {supported}"),
+            Self::SchemaTooNew { found, supported } => write!(f, "progress schema {found} is newer than supported schema {supported}; this database was written by a newer Cadence and is left unchanged: run that version again, or restore a backup made with this one (cadence restore --from FILE)"),
             Self::LegacySchema => f.write_str("populated draft schema 1 cannot be upgraded without inventing missing measurements; database retained unchanged"),
             Self::Migration { target, message } => write!(f, "migration to schema {target} failed: {message}"),
             Self::Corrupt(message) => write!(f, "corrupt progress database: {message}"),

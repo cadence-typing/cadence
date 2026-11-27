@@ -591,6 +591,64 @@ fn cargo_gate(root: &Path) -> impl FnMut(&str, &Path) -> Result<Outcome, String>
     }
 }
 
+/// The bundle's `ACCEPTANCE.txt` (#94): each gate's newest receipt and its
+/// digest for the candidate named by `CADENCE_CANDIDATE_ID`, the admission
+/// decision, and the signature state.
+///
+/// # Errors
+/// A named candidate that cannot be read.
+pub fn acceptance_summary(root: &Path) -> Result<String, String> {
+    let mut out = String::from("Cadence acceptance summary\n");
+    let Ok(id) = std::env::var("CADENCE_CANDIDATE_ID") else {
+        out.push_str("candidate: none (a development bundle built outside `./ci qualify`)\n");
+        out.push_str("admission: not qualified\n");
+        out.push_str("signature: not available: unsigned development bundle (#13)\n");
+        return Ok(out);
+    };
+    let store = Store::at(root);
+    let candidate = store.load(&id)?;
+    let receipts = store.receipts(&id)?;
+    out.push_str(&format!(
+        "candidate: {id} ({} at {})\n",
+        candidate.version, candidate.commit
+    ));
+    let newest = latest(&receipts, &id, &candidate);
+    for gate in &candidate.inventory {
+        match newest.get(gate) {
+            Some(receipt) => {
+                let digest = serde_json::to_string(receipt)
+                    .map(|text| hex(&Sha256::digest(text)))
+                    .map_err(|e| e.to_string())?;
+                out.push_str(&format!(
+                    "{gate:<20} {:?} attempt {} receipt sha256 {digest}\n",
+                    receipt.outcome, receipt.attempt
+                ));
+            }
+            None => out.push_str(&format!("{gate:<20} no receipt\n")),
+        }
+    }
+    let decision = admission(&candidate, &id, &receipts);
+    out.push_str(&format!(
+        "admission: {}\n",
+        if decision.admitted {
+            "every gate passed".to_string()
+        } else {
+            format!(
+                "refused; missing {}",
+                decision
+                    .missing
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        }
+    ));
+    out.push_str("signature: not available: unsigned development bundle (#13)\n");
+    out.push_str("Local receipts cannot promote a bundle: no Buildbot controller is configured (decision 0003).\n");
+    Ok(out)
+}
+
 fn flag<'a>(args: &'a [String], name: &str) -> Option<&'a str> {
     args.iter()
         .position(|a| a == name)

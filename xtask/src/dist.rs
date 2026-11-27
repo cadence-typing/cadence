@@ -130,6 +130,15 @@ pub fn build_dist() -> Result<(), String> {
             .map_err(|e| format!("mandatory corpus notice/content {name}: {e}"))?;
     }
     crate::notices::collect(&root, &bundle)?;
+    // Every setting with its default (#94); the installer leaves the
+    // learner's own config.toml alone.
+    fs::write(bundle.join("config.example.toml"), config_example())
+        .map_err(|e| format!("config.example.toml: {e}"))?;
+    fs::write(
+        bundle.join("ACCEPTANCE.txt"),
+        crate::candidate::acceptance_summary(&root)?,
+    )
+    .map_err(|e| e.to_string())?;
     let compiler = command("rustc", &[OsStr::new("-Vv")], &root)?;
     let manifest = serde_json::json!({
         "schema_version": 1,
@@ -246,4 +255,57 @@ fn refuse_fault_hooks(binary: &Path) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// `config.example.toml` (#94): every key of the settings catalogue with
+/// its default and what it accepts, valid as written.
+fn config_example() -> String {
+    use cadence_core::settings::{DefaultValue, KEYS};
+    let mut out = String::from(
+        "# Cadence settings: every key, set to its default.\n\
+         # Copy to ~/.config/cadence/config.toml (or $XDG_CONFIG_HOME/cadence/)\n\
+         # and keep only what you change; `cadence config check` validates it.\n",
+    );
+    let mut section = "";
+    for key in KEYS {
+        let Some((table, name)) = key.name.split_once('.') else {
+            continue;
+        };
+        if table != section {
+            out.push_str(&format!("\n[{table}]\n"));
+            section = table;
+        }
+        let value = match key.default {
+            DefaultValue::Integer(n) => n.to_string(),
+            DefaultValue::Boolean(b) => b.to_string(),
+            DefaultValue::Text(t) => format!("{t:?}"),
+            DefaultValue::List(items) => format!(
+                "[{}]",
+                items
+                    .iter()
+                    .map(|i| format!("{i:?}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        };
+        out.push_str(&format!("# {}\n{name} = {value}\n", key.accepts));
+    }
+    out
+}
+
+#[cfg(test)]
+mod config_example_tests {
+    /// The example is valid as written: it parses, and every key is known.
+    #[test]
+    fn the_example_config_is_every_key_at_its_default() {
+        let text = super::config_example();
+        let parsed: toml::Value = toml::from_str(&text).unwrap_or_else(|e| panic!("{e}\n{text}"));
+        for key in cadence_core::settings::KEYS {
+            let mut node = Some(&parsed);
+            for part in key.name.split('.') {
+                node = node.and_then(|n| n.get(part));
+            }
+            assert!(node.is_some(), "{} missing", key.name);
+        }
+    }
 }
