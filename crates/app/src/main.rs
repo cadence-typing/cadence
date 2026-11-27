@@ -238,6 +238,12 @@ fn config_check(file: Option<&std::path::Path>) -> Result<(), Box<dyn Error>> {
     let path = config_path(file).ok_or("no config location: set HOME or XDG_CONFIG_HOME")?;
     match cadence_data::config::Config::load(&path) {
         Ok(config) => {
+            // A theme file the config names must load as well (#82): the
+            // app would otherwise fall back to the built-in theme.
+            if let Some(Err(error)) = cadence_data::theme_file::for_config(&config, path.parent()) {
+                println!("{error}");
+                return Err(format!("the theme named in {} does not load", path.display()).into());
+            }
             println!("# {}", path.display());
             for (key, value, source) in config.effective() {
                 println!("{key} = {value}  # {source}");

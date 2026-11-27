@@ -144,7 +144,7 @@ pub fn build_dist() -> Result<(), String> {
         "schema_version": 1,
         "product": "cadence",
         "version": env!("CARGO_PKG_VERSION"),
-        "status": "unsigned development preview; not P8-qualified",
+        "status": "unpromoted development bundle; unsigned; promotion needs #13, #14 and #98",
         "target": TARGET,
         "source_commit": source,
         "source_clean": clean,
@@ -172,7 +172,11 @@ pub fn build_dist() -> Result<(), String> {
     fs::write(
         bundle.join("BUNDLE.txt"),
         format!(
-            "Cadence {version} for {TARGET}: reproducibility inputs\n\
+            "Cadence {version} for {TARGET}: unpromoted development bundle\n\
+             Promotion to 0.1.0 needs: authorized signing (#13), the shared Buildbot\n\
+             recovery gate (#14) and the owner's real-terminal journey (#98).\n\
+             \n\
+             Reproducibility inputs\n\
              source commit: {source} (clean: {clean})\n\
              Cargo.lock sha256: {lock}\n\
              toolchain: rust-toolchain.toml {toolchain}\n\
