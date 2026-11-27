@@ -42,7 +42,7 @@ fn harness(root: &Path, receipt: &Path, busy_us: Option<&str>) -> Result<bool, S
 /// # Errors
 /// A budget missed, or a calibration that passes.
 pub fn check(root: &Path) -> Result<(), String> {
-    let out = std::env::var_os("CADENCE_EVIDENCE_OUT")
+    let out = std::env::var_os("CADENCE_RECEIPTS_DIR")
         .map_or_else(|| root.join("evidence-out"), PathBuf::from);
     let receipt = out.join("performance.json");
     if !harness(root, &receipt, None)? {
