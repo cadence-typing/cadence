@@ -35,10 +35,8 @@ pub struct Gate {
 pub const GATES: &[Gate] = &[
     Gate {
         id: "quality",
-        description: "fmt, Clippy warnings denied, dependency/license audit, boundary/no-placeholder checks",
-        state: GateState::Feedback(
-            "dependency/security audit and complete product assurance remain pending",
-        ),
+        description: "fmt, Clippy warnings denied, dependency/license/advisory audit, boundary/no-placeholder checks",
+        state: GateState::Feedback("complete product assurance remains pending (#91)"),
     },
     Gate {
         id: "unit-property",

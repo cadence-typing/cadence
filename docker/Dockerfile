@@ -18,6 +18,10 @@ ADD --checksum=sha256:936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e
 RUN chmod 0444 /opt/tla/tla2tools.jar
 RUN rustup component add --toolchain 1.97.1 rustfmt clippy \
     && rustup target add --toolchain 1.97.1 x86_64-unknown-linux-musl
+# cargo-deny for the dependency, licence and advisory audit (#95), pinned
+# and built from its own lock file.
+RUN cargo install --locked cargo-deny --version 0.21.0 --root /usr/local \
+    && rm -rf /usr/local/cargo/registry /usr/local/cargo/git
 
 ENV RUSTUP_TOOLCHAIN=1.97.1 \
     RUSTUP_AUTO_INSTALL=0 \

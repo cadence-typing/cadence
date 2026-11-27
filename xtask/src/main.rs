@@ -61,7 +61,9 @@ fn run_feedback() -> Result<(), String> {
 
 /// The `quality` gate: fmt, Clippy with warnings denied, workspace tests,
 /// architecture boundary check, handover-contract manifest verification
-/// (B-05) and the TLC model gate (#28).
+/// (B-05), the dependency, licence and advisory audit (`deny.toml`, against
+/// the database snapshot `./ci prepare` fetched; #95) and the TLC model gate
+/// (#28).
 fn run_quality() -> Result<(), String> {
     run("cargo", &["fmt", "--check"])?;
     run(
@@ -78,6 +80,7 @@ fn run_quality() -> Result<(), String> {
     run("cargo", &["test", "--workspace"])?;
     boundary::check()?;
     contracts::verify_manifest()?;
+    run("cargo", &["deny", "--offline", "check"])?;
     run_models()?;
     Ok(())
 }

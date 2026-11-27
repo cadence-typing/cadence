@@ -230,7 +230,7 @@ pub(crate) fn local_offset() -> (i32, bool) {
     if !detected {
         return (0, false);
     }
-    (chrono::Local::now().offset().local_minus_utc(), true)
+    (jiff::Zoned::now().offset().seconds(), true)
 }
 
 pub(crate) fn build_engine(
@@ -377,6 +377,32 @@ mod config_tests {
         assert_eq!(dark.layout, cadence_core::Layout::Uk);
         assert_eq!(dark.layout, light.layout);
         assert!(matches!(light.theme, cli::Theme::Light));
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod offset_tests {
+    /// #95: the local offset (now from jiff) is the system's, as `date +%z`
+    /// reports it for the same time zone.
+    #[test]
+    fn the_local_offset_matches_the_system() -> Result<(), Box<dyn std::error::Error>> {
+        let (offset, detected) = super::local_offset();
+        if !detected {
+            assert_eq!(offset, 0);
+            return Ok(());
+        }
+        let output = std::process::Command::new("date").arg("+%z").output()?;
+        let text = String::from_utf8(output.stdout)?;
+        let text = text.trim();
+        let sign = if text.starts_with('-') { -1 } else { 1 };
+        let hours: i32 = text.get(1..3).ok_or("hours")?.parse()?;
+        let minutes: i32 = text.get(3..5).ok_or("minutes")?.parse()?;
+        assert_eq!(
+            offset,
+            sign * (hours * 3600 + minutes * 60),
+            "date +%z says {text}"
+        );
         Ok(())
     }
 }

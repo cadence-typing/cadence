@@ -65,7 +65,9 @@ tempfile = "=3.27.0"
 signal-hook = "=0.3.18"
 # Purpose: the local UTC offset at session start (#52, local-calendar days).
 # Default features off; `clock` reads TZ and /etc/localtime in pure Rust.
-chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
+# The local UTC offset at session start (replaces chrono, unmaintained:
+# RUSTSEC-2026-0543): the system time zone only, from TZ or /etc/localtime.
+jiff = { version = "0.2.46", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo"] }
 
 [profile.release]
 overflow-checks = true

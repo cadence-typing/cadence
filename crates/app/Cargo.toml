@@ -1,5 +1,6 @@
 [package]
 name = "cadence"
+publish.workspace = true
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -28,7 +29,7 @@ cadence-tui.workspace = true
 cadence-data.workspace = true
 cadence-driver.workspace = true
 serde_json.workspace = true
-chrono.workspace = true
+jiff.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

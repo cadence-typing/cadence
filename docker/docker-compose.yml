@@ -24,7 +24,9 @@ services:
       CARGO_NET_OFFLINE: "false"
       # /src is read-only: the vetting sources go to the build cache.
       CADENCE_CORPUS_SOURCES: /cache/corpus-sources
-    command: [sh, -c, "cargo fetch --locked && python3 tools/corpus/fetch_vetting_sources.py"]
+    # The RustSec database snapshot for the offline audit (#95) goes to the
+    # build cache with the crates.
+    command: [sh, -c, "cargo fetch --locked && cargo deny fetch db && python3 tools/corpus/fetch_vetting_sources.py"]
 
   quality:
     <<: *gate

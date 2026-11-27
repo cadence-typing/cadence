@@ -1,0 +1,52 @@
+# Dependency, licence and source policy (#95), run by `cargo xtask quality`
+# (and so `./ci quality`) with a pinned cargo-deny; advisories are checked
+# against the RustSec database snapshot fetched by `./ci prepare`.
+# docs/dependencies.md names every direct dependency's purpose and owner.
+
+[graph]
+# The supported target only: Linux x86_64 (static musl and glibc builds).
+targets = [
+    "x86_64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+]
+all-features = false
+
+[advisories]
+# The database lives at its default, $CARGO_HOME/advisory-dbs (the build
+# cache in the gate image); `./ci prepare` fetches it and the quality gate
+# reads that snapshot offline, never fetching.
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# Unmaintained crates are reported for our direct dependencies only.
+unmaintained = "workspace"
+yanked = "deny"
+ignore = []
+
+[licenses]
+# Each licence is allowed for a reason; any other licence fails the gate.
+allow = [
+    # The project's own licences, and most of the Rust ecosystem.
+    "Apache-2.0",
+    "MIT",
+    # unicode-ident's Unicode data tables (Unicode-3.0 AND (MIT OR Apache-2.0)).
+    "Unicode-3.0",
+]
+confidence-threshold = 0.93
+
+[[licenses.exceptions]]
+# foldhash (ratatui's hasher) is Zlib only; Zlib is permissive and
+# compatible with Apache-2.0 OR MIT distribution.
+crate = "foldhash"
+allow = ["Zlib"]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+highlight = "all"
+# The workspace's own path dependencies are not wildcards.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
