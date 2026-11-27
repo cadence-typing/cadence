@@ -32,14 +32,31 @@
 (*   QuitWaitsForAck:   a clean exit needs the final acknowledgement.      *)
 (*   OverdueStopsScore: no content is scored while a save is overdue.      *)
 (*   StallKeepsPending: a stall keeps waiting for the stalled checkpoint.  *)
+(*                                                                         *)
+(* Observation chunks (#11): closing an exercise makes one chunk; a        *)
+(* checkpoint carries the chunks after the last acknowledged chunk         *)
+(* watermark, and the worker applies them in the same transaction through  *)
+(* the proved cadence_kernel::chunks::admit: the next one is appended, a   *)
+(* stored one with the same payload is a replay, a changed payload or a    *)
+(* gap refuses the whole transaction. A reply can be lost after commit, so *)
+(* a retry resends stored chunks. Fault switches:                          *)
+(*   ReplayIsNoop: a replayed chunk is not folded into the totals again.   *)
+(*   AppendOnly:   a stored chunk with a changed payload is refused.       *)
+(*   RefuseGap:    a chunk after a missing one is refused.                 *)
 (***************************************************************************)
 EXTENDS Naturals, Sequences, FiniteSets
 
 CONSTANTS MaxSeq, SingleFlightGuard, AckAfterCommit, Idempotent, QuitWaitsForAck,
-          OverdueStopsScore, StallKeepsPending
+          OverdueStopsScore, StallKeepsPending,
+          MaxChunks, ReplayIsNoop, AppendOnly, RefuseGap
 
 Seqs == 1..MaxSeq
 None == 0
+Chunks == 1..MaxChunks
+\* A stored chunk's payload: 0 absent, 1 as first written, 2 rewritten.
+Absent == 0
+Written == 1
+Rewritten == 2
 
 VARIABLES
     \* engine (Storage and the Engine fields it reads)
@@ -59,10 +76,21 @@ VARIABLES
     credits,      \* times each sequence's snapshot was credited
     early,        \* sequences acknowledged before commit (AckAfterCommit = FALSE)
     overdue,      \* practice is stalled on an overdue acknowledgement (#51)
-    scoredOverdue \* history: content was scored while overdue
+    scoredOverdue, \* history: content was scored while overdue
+    \* observation chunks (#11)
+    closed,       \* chunks the engine has closed (Learning::close)
+    ackChunk,     \* the chunk watermark of the last acknowledged checkpoint
+    carryFrom,    \* per sequence: the first chunk it carries
+    carryTo,      \* per sequence: the last chunk it carries
+    stored,       \* observation_chunks: the stored watermark
+    payload,      \* per chunk: Absent, Written or Rewritten
+    derived       \* the derived totals: chunks folded in (derived_state)
+
+chunkVars == <<closed, ackChunk, carryFrom, carryTo, stored, payload, derived>>
 
 vars == <<seq, pending, failed, lastAck, due, finishing, finals, exited,
-          answered, queue, replies, durable, credits, early, overdue, scoredOverdue>>
+          answered, queue, replies, durable, credits, early, overdue, scoredOverdue,
+          closed, ackChunk, carryFrom, carryTo, stored, payload, derived>>
 
 TypeOK ==
     /\ seq \in 0..MaxSeq
@@ -80,6 +108,11 @@ TypeOK ==
     /\ credits \in [Seqs -> 0..2]
     /\ early \subseteq Seqs
     /\ overdue \in BOOLEAN /\ scoredOverdue \in BOOLEAN
+    /\ closed \in 0..MaxChunks /\ ackChunk \in 0..MaxChunks
+    /\ carryFrom \in [Seqs -> 1..(MaxChunks + 1)] /\ carryTo \in [Seqs -> 0..MaxChunks]
+    /\ stored \in 0..MaxChunks
+    /\ payload \in [Chunks -> {Absent, Written, Rewritten}]
+    /\ derived \in 0..(2 * MaxChunks * MaxSeq)
 
 Init ==
     /\ seq = 0
@@ -97,6 +130,11 @@ Init ==
     /\ credits = [s \in Seqs |-> 0]
     /\ early = {}
     /\ overdue = FALSE /\ scoredOverdue = FALSE
+    /\ closed = 0 /\ ackChunk = 0
+    /\ carryFrom = [s \in Seqs |-> 1] /\ carryTo = [s \in Seqs |-> 0]
+    /\ stored = 0
+    /\ payload = [i \in Chunks |-> Absent]
+    /\ derived = 0
 
 Running == exited = "no"
 
@@ -105,6 +143,7 @@ Running == exited = "no"
 BecomeDue ==
     /\ Running /\ ~finishing /\ ~due
     /\ due' = TRUE
+    /\ UNCHANGED chunkVars
     /\ UNCHANGED <<seq, pending, failed, lastAck, finishing, finals, exited,
                    answered, queue, replies, durable, credits, early, overdue, scoredOverdue>>
 
@@ -117,8 +156,38 @@ Dispatch ==
     /\ due' = FALSE
     /\ finals' = IF finishing THEN finals \cup {seq + 1} ELSE finals
     /\ queue' = Append(queue, seq + 1)
+    \* the chunks after the acknowledged watermark (Storage carries them)
+    /\ carryFrom' = [carryFrom EXCEPT ![seq + 1] = ackChunk + 1]
+    /\ carryTo' = [carryTo EXCEPT ![seq + 1] = closed]
+    /\ UNCHANGED <<closed, ackChunk, stored, payload, derived>>
     /\ UNCHANGED <<failed, lastAck, finishing, exited, answered, replies,
                    durable, credits, early, overdue, scoredOverdue>>
+
+\* chunks::admit over one chunk: the next is appended, a stored one is a
+\* replay, a later one is a gap. Applies from..to in order; a refused gap
+\* refuses the whole transaction (ok = FALSE, nothing changes).
+RECURSIVE ApplyChunks(_, _, _)
+ApplyChunks(i, to, st) ==
+    IF i > to THEN st
+    ELSE IF ~st.ok THEN st
+    ELSE IF i <= st.stored
+         THEN \* a replay: the same payload changes nothing
+              ApplyChunks(i + 1, to,
+                IF ReplayIsNoop THEN st ELSE [st EXCEPT !.derived = @ + 1])
+    ELSE IF i = st.stored + 1
+         THEN ApplyChunks(i + 1, to,
+                [st EXCEPT !.stored = i, !.payload[i] = Written, !.derived = @ + 1])
+    ELSE IF RefuseGap THEN [st EXCEPT !.ok = FALSE]
+    ELSE ApplyChunks(i + 1, to,
+           [st EXCEPT !.stored = i, !.payload[i] = Written, !.derived = @ + 1])
+
+ChunkState == [ok |-> TRUE, stored |-> stored, payload |-> payload, derived |-> derived]
+
+\* The chunk part of a checkpoint's transaction: TRUE when it may commit.
+ChunksCommit(s) ==
+    LET st == ApplyChunks(carryFrom[s], carryTo[s], ChunkState) IN
+    /\ st.ok
+    /\ stored' = st.stored /\ payload' = st.payload /\ derived' = st.derived
 
 \* ProgressStore::apply_checkpoint with checkpoint::admit: a newer sequence
 \* is applied and credited once; an equal one is a read-only replay.
@@ -133,10 +202,51 @@ WorkerCommit ==
     /\ LET s == Head(queue) IN
         /\ queue' = Tail(queue)
         /\ Commit(s)
+        /\ ChunksCommit(s)
         /\ replies' = IF s \in early THEN replies ELSE replies \cup {[s |-> s, ok |-> TRUE]}
         /\ early' = early \ {s}
+    /\ UNCHANGED <<closed, ackChunk, carryFrom, carryTo>>
     /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals,
                    exited, answered, overdue, scoredOverdue>>
+
+\* The transaction commits but its reply reports failure (an I/O error
+\* after commit): the engine retries and resends the chunks, now stored.
+WorkerCommitLostReply ==
+    /\ queue # << >>
+    /\ Head(queue) \notin early
+    /\ LET s == Head(queue) IN
+        /\ queue' = Tail(queue)
+        /\ Commit(s)
+        /\ ChunksCommit(s)
+        /\ replies' = replies \cup {[s |-> s, ok |-> FALSE]}
+    /\ UNCHANGED <<closed, ackChunk, carryFrom, carryTo>>
+    /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals,
+                   exited, answered, early, overdue, scoredOverdue>>
+
+\* A request whose chunks were tampered with or corrupted reaches the
+\* store: a stored chunk with a changed payload, or a chunk after a gap.
+\* The store must refuse it whole (AppendOnly, RefuseGap).
+Forged ==
+    \/ /\ stored > 0 /\ ~AppendOnly
+       /\ \E i \in 1..stored : payload' = [payload EXCEPT ![i] = Rewritten]
+       /\ UNCHANGED <<stored, derived>>
+    \/ /\ stored + 2 <= MaxChunks /\ ~RefuseGap
+       /\ stored' = stored + 2
+       /\ payload' = [payload EXCEPT ![stored + 2] = Written]
+       /\ derived' = derived + 1
+    /\ UNCHANGED <<closed, ackChunk, carryFrom, carryTo>>
+    /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals, exited,
+                   answered, queue, replies, durable, credits, early, overdue, scoredOverdue>>
+
+\* Learning::close: an exercise closes and its chunk is made; a checkpoint
+\* becomes due.
+Close ==
+    /\ Running /\ ~finishing /\ closed < MaxChunks
+    /\ closed' = closed + 1
+    /\ due' = TRUE
+    /\ UNCHANGED <<ackChunk, carryFrom, carryTo, stored, payload, derived>>
+    /\ UNCHANGED <<seq, pending, failed, lastAck, finishing, finals, exited,
+                   answered, queue, replies, durable, credits, early, overdue, scoredOverdue>>
 
 \* The transaction fails (disk full, I/O error): nothing is committed.
 WorkerFail ==
@@ -145,6 +255,7 @@ WorkerFail ==
     /\ LET s == Head(queue) IN
         /\ queue' = Tail(queue)
         /\ replies' = replies \cup {[s |-> s, ok |-> FALSE]}
+    /\ UNCHANGED chunkVars
     /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals,
                    exited, answered, durable, credits, early, overdue, scoredOverdue>>
 
@@ -156,6 +267,8 @@ WorkerReplay ==
         /\ credits[s] > 0
         /\ credits[s] < 2
         /\ Commit(s)
+        /\ ChunksCommit(s)
+    /\ UNCHANGED <<closed, ackChunk, carryFrom, carryTo>>
     /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals,
                    exited, answered, queue, replies, early, overdue, scoredOverdue>>
 
@@ -166,6 +279,7 @@ WorkerAckEarly ==
     /\ Head(queue) \notin early
     /\ early' = early \cup {Head(queue)}
     /\ replies' = replies \cup {[s |-> Head(queue), ok |-> TRUE]}
+    /\ UNCHANGED chunkVars
     /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals,
                    exited, answered, queue, durable, credits, overdue, scoredOverdue>>
 
@@ -183,12 +297,14 @@ Receive ==
                 /\ overdue' = FALSE
                 /\ IF r.ok
                    THEN /\ lastAck' = r.s
+                        /\ ackChunk' = IF carryTo[r.s] > ackChunk THEN carryTo[r.s] ELSE ackChunk
                         /\ failed' = FALSE
                         /\ exited' = IF finishing /\ ~due /\ r.s \in finals
                                      THEN "ok" ELSE exited
                    ELSE /\ failed' = TRUE
-                        /\ UNCHANGED <<lastAck, exited>>
-           ELSE UNCHANGED <<pending, lastAck, failed, exited, overdue>>
+                        /\ UNCHANGED <<lastAck, exited, ackChunk>>
+           ELSE UNCHANGED <<pending, lastAck, failed, exited, overdue, ackChunk>>
+    /\ UNCHANGED <<closed, carryFrom, carryTo, stored, payload, derived>>
     /\ UNCHANGED <<seq, due, finishing, finals, queue, durable, credits, early, scoredOverdue>>
 
 \* Engine::retry_save (`r`): the next dispatch rebuilds the cumulative
@@ -197,6 +313,7 @@ Retry ==
     /\ Running /\ failed
     /\ failed' = FALSE
     /\ due' = TRUE
+    /\ UNCHANGED chunkVars
     /\ UNCHANGED <<seq, pending, lastAck, finishing, finals, exited, answered,
                    queue, replies, durable, credits, early, overdue, scoredOverdue>>
 
@@ -214,6 +331,7 @@ RequestExit ==
        \/ /\ ~QuitWaitsForAck /\ finishing /\ ~failed
           /\ exited' = "ok"
           /\ UNCHANGED <<finishing, due>>
+    /\ UNCHANGED chunkVars
     /\ UNCHANGED <<seq, pending, failed, lastAck, finals, answered, queue,
                    replies, durable, credits, early, overdue, scoredOverdue>>
 
@@ -221,6 +339,7 @@ RequestExit ==
 FinalTimeout ==
     /\ Running /\ finishing /\ pending # None
     /\ exited' = "failed"
+    /\ UNCHANGED chunkVars
     /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals,
                    answered, queue, replies, durable, credits, early, overdue, scoredOverdue>>
 
@@ -230,6 +349,7 @@ Stall ==
     /\ Running /\ ~finishing /\ ~overdue /\ pending # None
     /\ overdue' = TRUE
     /\ pending' = IF StallKeepsPending THEN pending ELSE None
+    /\ UNCHANGED chunkVars
     /\ UNCHANGED <<seq, failed, lastAck, due, finishing, finals, exited, answered,
                    queue, replies, durable, credits, early, scoredOverdue>>
 
@@ -238,12 +358,14 @@ Score ==
     /\ Running /\ ~finishing /\ ~failed
     /\ OverdueStopsScore => ~overdue
     /\ scoredOverdue' = (scoredOverdue \/ overdue)
+    /\ UNCHANGED chunkVars
     /\ UNCHANGED <<seq, pending, failed, lastAck, due, finishing, finals, exited,
                    answered, queue, replies, durable, credits, early, overdue>>
 
 Next ==
     \/ Stall \/ Score \/ BecomeDue \/ Dispatch \/ WorkerCommit \/ WorkerFail \/ WorkerReplay
     \/ WorkerAckEarly \/ Receive \/ Retry \/ RequestExit \/ FinalTimeout
+    \/ WorkerCommitLostReply \/ Forged \/ Close
 
 Spec == Init /\ [][Next]_vars
 
@@ -276,4 +398,14 @@ NoScoreWhileOverdue == ~scoredOverdue
 \* A stall loses nothing: it keeps waiting for the stalled checkpoint, so
 \* its answer still moves the watermark (or takes the save-failed path).
 StallLosesNothing == overdue => pending # None
+
+\* A stored chunk never changes.
+ChunksAppendOnly == \A i \in Chunks : i <= stored => payload[i] = Written
+
+\* The derived totals are the fold of the stored chunks, each counted once,
+\* whatever was retried or replayed.
+EvidenceCountedOnce == derived = stored
+
+\* Stored chunks are exactly 1..stored: no gap.
+NoGap == \A i \in Chunks : (payload[i] # Absent) <=> (i <= stored)
 =============================================================================

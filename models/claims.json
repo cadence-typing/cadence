@@ -74,9 +74,12 @@
       "status": "mapped",
       "invariants": [
         "AckIsDurable",
+        "ChunksAppendOnly",
         "CleanExitIsDurable",
+        "EvidenceCountedOnce",
         "FailedTailIsNamed",
         "NoDoubleCredit",
+        "NoGap",
         "NoScoreWhileOverdue",
         "SingleFlight",
         "StallLosesNothing",
@@ -84,10 +87,13 @@
       ],
       "properties": [],
       "mutants": [
+        "CheckpointSave-append-on-replay.cfg violates EvidenceCountedOnce",
         "CheckpointSave-double-credit.cfg violates NoDoubleCredit",
         "CheckpointSave-early-ack.cfg violates AckIsDurable",
         "CheckpointSave-quit-before-ack.cfg violates CleanExitIsDurable",
+        "CheckpointSave-rewrite-chunk.cfg violates ChunksAppendOnly",
         "CheckpointSave-score-while-overdue.cfg violates NoScoreWhileOverdue",
+        "CheckpointSave-skip-chunk.cfg violates NoGap",
         "CheckpointSave-stall-drops-tail.cfg violates StallLosesNothing",
         "CheckpointSave-two-in-flight.cfg violates SingleFlight"
       ],
@@ -111,16 +117,19 @@
         "cadence-engine::repeated_typing_and_checkpoint_ack_do_not_duplicate_counts",
         "cadence-engine::single_flight_holds_under_a_burst_of_exercise_completions"
       ],
-      "constants": "MaxSeq = 3 SingleFlightGuard = TRUE AckAfterCommit = TRUE Idempotent = TRUE QuitWaitsForAck = TRUE OverdueStopsScore = TRUE StallKeepsPending = TRUE",
+      "constants": "MaxSeq = 3 SingleFlightGuard = TRUE AckAfterCommit = TRUE Idempotent = TRUE QuitWaitsForAck = TRUE OverdueStopsScore = TRUE StallKeepsPending = TRUE MaxChunks = 2 ReplayIsNoop = TRUE AppendOnly = TRUE RefuseGap = TRUE",
       "sha256": {
-        "CheckpointSave.tla": "3c149734db07da6e3727e08b93ed40aa97e799a6d702e835f0bc04533279e79a",
-        "CheckpointSave.cfg": "9cbbd45c28f59e9e446a45d05c372ef49e327d021b6f4586b70ab887002d1eb9",
-        "CheckpointSave-two-in-flight.cfg": "e7f5b890f7edbbb716658ae0fde0f64c553d0b40b64d78c3bfa104962c8889e0",
-        "CheckpointSave-early-ack.cfg": "de266ddb5465b81628ff232268bb6bb94ea5e8dd45821750449538046a207736",
-        "CheckpointSave-double-credit.cfg": "44bfd7945edbdcd6a622d43949ef275161e379380669ee0b2c495456e4ff7f6f",
-        "CheckpointSave-quit-before-ack.cfg": "3b29358f2d088529c33132309c042ebde4b6b144bf56749d584b205e19c69e68",
-        "CheckpointSave-score-while-overdue.cfg": "a8ce529f89a360b7cd22c539faee95c52970212defc109b1826b443910490777",
-        "CheckpointSave-stall-drops-tail.cfg": "7cb500171ca1253de8c232a741be5f63b82d67e657af18a86884c792cb9077e5"
+        "CheckpointSave.tla": "4b5511c568616bc74ba0b6ee54650e259f1f8fb99ce2bc49038afe84c02b2faa",
+        "CheckpointSave.cfg": "7ab15efcbe0a552cb8d3e80d67d28e7fc4d3a9f17d5479cb899e0df8534ed3e1",
+        "CheckpointSave-two-in-flight.cfg": "53d1ef8eb6ffbcfef926e0d8349e2205c960ecab6d90bad3784b66ffbd85ff20",
+        "CheckpointSave-early-ack.cfg": "60d945b880f43ee012358eea86672aa974b7d43e45fb48823f2a6f43fb11ead1",
+        "CheckpointSave-double-credit.cfg": "3e2d5021780fef89256f18a7caaded77154f3befecd8b38e8efe840bd0feda50",
+        "CheckpointSave-quit-before-ack.cfg": "22c08672994e35bd10046fc84fbc6f4a6bee8beea29a493902a04c055abb082d",
+        "CheckpointSave-score-while-overdue.cfg": "6414a0c297a03fb4469a6a40db727624d715c6bd756706b8da1fb6316644380f",
+        "CheckpointSave-stall-drops-tail.cfg": "bce8aa25d017391825fda4a62c9e6eafea52167193319ce192a68875f30a8955",
+        "CheckpointSave-rewrite-chunk.cfg": "bb1c04be598cef3e484ab8818962f04dcb9fb06ddd1ff15a331109fc65d0176c",
+        "CheckpointSave-append-on-replay.cfg": "86eb3b7b048503a20ffbf34f55a016739e30a9f51031de3f1fe340e5bfad2117",
+        "CheckpointSave-skip-chunk.cfg": "21b97e29b09719ecd7ed6a0b09ee6a26e539c3a6b052c195d0fdfd5a47ed50f0"
       }
     },
     {

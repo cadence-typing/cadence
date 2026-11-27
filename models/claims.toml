@@ -74,7 +74,7 @@ violates = "NoEarlyReturn"
 module = "CheckpointSave"
 dir = "models"
 config = "CheckpointSave.cfg"
-invariants = ["TypeOK", "AckIsDurable", "NoDoubleCredit", "SingleFlight", "CleanExitIsDurable", "FailedTailIsNamed", "NoScoreWhileOverdue", "StallLosesNothing"]
+invariants = ["TypeOK", "AckIsDurable", "NoDoubleCredit", "SingleFlight", "CleanExitIsDurable", "FailedTailIsNamed", "NoScoreWhileOverdue", "StallLosesNothing", "ChunksAppendOnly", "EvidenceCountedOnce", "NoGap"]
 status = "mapped"
 production_symbols = [
   "cadence_engine::storage::{dispatch_checkpoint, save_result, retry_save, request_exit, watchdog}",
@@ -127,6 +127,18 @@ violates = "StallLosesNothing"
 # Runtime tests per invariant: ClockStoppedUnlessRunning -> paused_controls;
 # NoScoreOutsidePhase -> exact_boundary; InterludeGrace -> in_flight_key;
 # EndEarlyIsUnfinished -> ending_early; PauseKeepsReason -> paste_and_focus.
+[[model.mutant]]
+config = "CheckpointSave-rewrite-chunk.cfg"
+violates = "ChunksAppendOnly"
+
+[[model.mutant]]
+config = "CheckpointSave-append-on-replay.cfg"
+violates = "EvidenceCountedOnce"
+
+[[model.mutant]]
+config = "CheckpointSave-skip-chunk.cfg"
+violates = "NoGap"
+
 [[model]]
 module = "SessionFlow"
 dir = "models"
