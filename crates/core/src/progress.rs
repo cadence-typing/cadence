@@ -47,6 +47,37 @@ impl Track {
 
     /// Human-readable label.
     #[must_use]
+    pub const fn key(self) -> &'static str {
+        // The persisted name (the store's and serde's snake_case).
+        match self {
+            Self::WarmUp => "warm_up",
+            Self::Words => "words",
+            Self::NumberRow => "number_row",
+            Self::Numpad => "numpad",
+            Self::Prose => "prose",
+            Self::Review => "review",
+            Self::Benchmark => "benchmark",
+        }
+    }
+
+    /// Parses a persisted name ([`Track::key`]).
+    #[must_use]
+    pub fn parse_key(key: &str) -> Option<Self> {
+        [
+            Self::WarmUp,
+            Self::Words,
+            Self::NumberRow,
+            Self::Numpad,
+            Self::Prose,
+            Self::Review,
+            Self::Benchmark,
+        ]
+        .into_iter()
+        .find(|track| track.key() == key)
+    }
+
+    /// The display label.
+    #[must_use]
     pub const fn label(self) -> &'static str {
         match self {
             Self::WarmUp => "warm-up",

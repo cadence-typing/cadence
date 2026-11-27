@@ -18,6 +18,8 @@ workspace = true
 cadence-kernel.workspace = true
 serde = { workspace = true, features = ["derive"] }
 sha2.workspace = true
+# The canonical observation-chunk encoding (#11).
+serde_json.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

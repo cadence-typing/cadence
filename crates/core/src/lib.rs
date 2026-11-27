@@ -15,6 +15,7 @@ pub mod alphabet;
 pub mod barrier;
 pub mod benchmark;
 pub mod calendar;
+pub mod chunks;
 pub mod comparison;
 pub mod error;
 pub mod evidence;
