@@ -29,7 +29,9 @@ env:
 jobs:
   proofs:
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    # The gate measured 143.5 min at 159 mutants (#106); 240 leaves room
+    # and still stops a hung run well under the hosted 360-minute cap.
+    timeout-minutes: 240
     steps:
       - name: Free disk space for the proofs image (about 20 GB unpacked)
         run: |
