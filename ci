@@ -15,7 +15,8 @@ case "${1:-}" in
     exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm quality
     ;;
   dist)
-    exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm package
+    # With CADENCE_CANDIDATE_ID set, ACCEPTANCE.txt lists that candidate's receipts.
+    exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm -e CADENCE_CANDIDATE_ID="${CADENCE_CANDIDATE_ID:-}" package
     ;;
   gate)
     shift
