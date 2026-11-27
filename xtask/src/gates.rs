@@ -39,7 +39,7 @@ pub const GATES: &[Gate] = &[
     Gate {
         id: "unit-property",
         description: "core/trainer/engine/data/parser invariants and deterministic properties",
-        state: GateState::Pending("P1-P3 fill crate test suites; workspace test runner exists"),
+        state: GateState::Implemented,
     },
     Gate {
         id: "headless",
@@ -145,6 +145,7 @@ pub fn run(id: Option<&str>) -> Result<(), String> {
 fn dispatch_implemented(id: &str) -> Result<(), String> {
     match id {
         "quality" => crate::run_quality(),
+        "unit-property" => crate::run_tests(),
         "corpus" => crate::corpus::check(),
         "model" => crate::run_models(),
         "headless" => crate::headless::check(),

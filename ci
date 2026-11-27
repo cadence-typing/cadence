@@ -19,18 +19,27 @@ case "${1:-}" in
     ;;
   gate)
     shift
-    [ "$#" -eq 1 ] || { echo 'usage: ./ci gate GATE-ID' >&2; exit 2; }
+    if [ "$#" -gt 1 ]; then
+      IMAGE=$(docker image inspect --format '{{.Id}}' cadence-gate:0.1.0-alpha.1 2>/dev/null || echo unrecorded)
+      exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm -e CADENCE_IMAGE_ID="$IMAGE" quality cargo run --locked -p xtask -- gate "$@"
+    fi
+    [ "$#" -eq 1 ] || { echo 'usage: ./ci gate GATE-ID | ./ci gate --candidate ID --gate GATE' >&2; exit 2; }
     exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm quality cargo run --locked -p xtask -- gate "$1"
     ;;
   gates)
     exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm quality cargo run --locked -p xtask -- gates
+    ;;
+  qualify|status|resume)
+    # Candidates and receipts (#93): the gate image's id is an input.
+    IMAGE=$(docker image inspect --format '{{.Id}}' cadence-gate:0.1.0-alpha.1 2>/dev/null || echo unrecorded)
+    exec docker compose -f "$ROOT/docker/docker-compose.yml" run --rm -e CADENCE_IMAGE_ID="$IMAGE" quality cargo run --locked -p xtask -- "$@"
     ;;
   local)
     shift
     exec cargo run --manifest-path "$ROOT/Cargo.toml" --locked -p xtask -- "$@"
     ;;
   *)
-    echo 'usage: ./ci prepare|quality|dist|gates|gate GATE-ID|local XTASK-ARGS' >&2
+    echo 'usage: ./ci prepare|quality|dist|gates|gate GATE-ID|qualify --commit SHA --profile linux-x86_64-v1|status --candidate ID|resume --candidate ID|local XTASK-ARGS' >&2
     exit 2
     ;;
 esac

@@ -9,6 +9,8 @@ x-gate: &gate
     CADENCE_DIST_DIR: /dist
     # Gate receipts (performance, #15): written, never committed.
     CADENCE_RECEIPTS_DIR: /evidence-out
+    # Candidates and gate receipts (#93) live in the build cache.
+    CADENCE_BUILD_DIR: /cache
   volumes:
     - ..:/src:ro
     - ../.cadence-build:/cache

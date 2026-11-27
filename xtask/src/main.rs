@@ -9,6 +9,7 @@ use std::process::ExitCode;
 
 mod assurance;
 mod boundary;
+mod candidate;
 mod contracts;
 mod corpus;
 mod dist;
@@ -22,7 +23,7 @@ mod release;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let usage = "usage: cargo xtask <feedback|quality|boundary|verify-contracts|corpus-gate|dist|release-check --tag TAG|assurance [--update]|gate ID|gates>";
+    let usage = "usage: cargo xtask <feedback|quality|boundary|verify-contracts|corpus-gate|dist|release-check --tag TAG|assurance [--update]|gate ID|gates|qualify --commit SHA --profile linux-x86_64-v1|status --candidate ID|resume --candidate ID|gate --candidate ID --gate GATE>";
     let Some(command) = args.first() else {
         eprintln!("{usage}");
         return ExitCode::FAILURE;
@@ -37,7 +38,13 @@ fn main() -> ExitCode {
         "corpus-gate" => corpus::check(),
         "dist" => dist::build_dist(),
         "release-check" => release::check(args.get(1..).unwrap_or(&[])),
+        "gate" if args.iter().any(|a| a == "--candidate") => {
+            candidate::gate(args.get(1..).unwrap_or(&[]))
+        }
         "gate" => gates::run(args.get(1).map(String::as_str)),
+        "qualify" => candidate::qualify(args.get(1..).unwrap_or(&[])),
+        "resume" => candidate::resume(args.get(1..).unwrap_or(&[])),
+        "status" => candidate::status(args.get(1..).unwrap_or(&[])),
         other => {
             eprintln!("unknown command {other:?}\n{usage}");
             return ExitCode::FAILURE;
@@ -88,6 +95,12 @@ fn run_quality() -> Result<(), String> {
     run("cargo", &["deny", "--offline", "check"])?;
     run_models()?;
     Ok(())
+}
+
+/// The `unit-property` gate: every crate's unit, property and fixture
+/// suites (persisted proptest regression seeds included).
+pub(crate) fn run_tests() -> Result<(), String> {
+    run("cargo", &["test", "--locked", "--workspace"])
 }
 
 /// The TLC model gate (#28): the gate's own failure-mode tests, then every
