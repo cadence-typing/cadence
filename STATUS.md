@@ -1,7 +1,9 @@
 # Cadence implementation and feedback-build status
 
-`0.1.0-alpha.6` is an **unsigned development preview**, not a P8-qualified
-release. Earlier commit messages overstated P0–P2 completion: passing tests,
+`0.1.0-rc.1` is an **unsigned, unpromoted development bundle**, not a
+P8-qualified release: promotion to `0.1.0` needs authorized signing (#13),
+the shared Buildbot recovery gate (#14) and the owner's real-terminal
+journey (#98). Earlier commit messages overstated P0–P2 completion: passing tests,
 ASCII filtering, and documentation of intended proofs did not discharge the
 handover's proof, vocabulary-vetting, adaptation, or qualification obligations.
 This ledger supersedes those completion claims; the original handover stays
@@ -72,6 +74,48 @@ resume a mid-word exercise or claim an uninterrupted timing trial. Store schema
 2 safely refuses a populated historical draft schema 1 rather than inventing
 measurements or resetting it. Keep that file and use a new explicit profile
 for feedback if such a draft database exists.
+
+## rc.1 evidence you can count once, gates you can rerun
+
+[RFC: append-only observation chunks](docs/rfcs/2026-11-26-observation-chunks.md),
+[RFC: protocol proofs as kernel machines](docs/rfcs/2026-11-26-protocol-proofs-as-kernel-machines.md),
+[decision 0009](docs/decisions/0009-lean-for-verus-and-tlaps.md).
+
+- **Observation chunks (#11).** Schema 7 stores learning evidence as
+  append-only chunks (database triggers refuse `UPDATE` and `DELETE`); a
+  checkpoint carries only the chunks after the last acknowledgement and
+  names them by watermark and hash chain; admission is the proved
+  `chunks::admit`. Rows written per checkpoint are constant in session
+  length (asserted over 40 checkpoints); a lost acknowledgement and retry
+  store each chunk once; `doctor --rebuild-derived` recomputes the totals.
+- **Kernel machines (#89, #90, #91).** The save protocol (`save::step`),
+  the session lifecycle, request admission, worker results, barriers and the
+  due-review FIFO carry invariants proved for every reachable state by
+  induction over steps (`Tauten.Machine.rinv_of_step`). The assurance
+  manifest (`assurance/claims.toml`) binds every handover claim to its
+  theorems, models and tests; see the generated table in
+  [docs/TAUTEN.md](docs/TAUTEN.md).
+- **Persistence campaigns (#88).** The real binary is killed (test-only
+  fault hooks, compiled out of release builds) before every statement of
+  every checkpoint transaction, before each commit, after each commit before
+  its acknowledgement, and at every migration step from schemas 3 to 6;
+  newer schema, held lock, unwritable directory, truncated file and full
+  disk each end in a named diagnostic. **These are process-crash tests, not
+  proof of power-loss safety.**
+- **Performance (#15).** `cargo xtask gate performance` measured, on one
+  recorded machine (AMD Ryzen 9 9950X3D, WSL2 kernel 6.18, release build,
+  12,000 keys of the daily plan with background saves): reducer p99 65 µs
+  (budget 1 ms), frame p99 at 120x40 100 µs (8 ms), input-to-frame p99
+  175 µs (33 ms, terminal I/O excluded), peak RSS 17 MB under a
+  10,000-result storm. **These are measurements on one machine, not a
+  hardware promise.**
+- **Gates and receipts (#92, #93, #94).** A real-PTY suite, a fresh-home
+  offline install with tamper and wrong-architecture rejection, and
+  `./ci qualify|status|resume` with a receipt per gate attempt; admission is
+  an exact set comparison, and local receipts cannot promote a bundle.
+
+Limits: `wsl-terminal` (owner, #98) and `buildbot-recovery` (blocked, #14)
+never pass locally; nothing here is signed (#13).
 
 ## Beta.3 settings, layout and your own text
 
@@ -336,15 +380,15 @@ this refresh.
 
 | Packet / claims | Status | Production mapping, evidence, remaining obligation |
 |---|---|---|
-| P0 / A-01, B-02 | in_progress | Pinned Rust image/toolchain, Cargo lock, musl C compiler, architecture feedback check. Proof-tool compatibility, full dependency/security audit and shared CI admission remain unqualified. |
-| P1 / L-02–03, VK-01–02 | implemented, behavior checked | `core/{ledger,metrics,session}`, `engine/{practice,presentation}`; scoring fixtures/properties and live corrected-entry smoke. The scoring decisions now live in `crates/kernel`, which production calls and which carries Lean theorems over its Aeneas translation (first-attempt write-once, counters, pace and accuracy arithmetic, active time, track validity, checkpoint admission); see [docs/TAUTEN.md](docs/TAUTEN.md) for each claim's badge. Ledger plumbing around the kernel stays tested. |
-| P2 / P-02–04, VK-03–06 | in_progress | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Since alpha.7 every phase but prose is adaptive: per-group focus for the number row and numpad (#46, #5), warm-up retention checks (#47), numeric and prose misses in the loop (#59, #48), a typed closing review on its own track excluded from the headline (#49, #60), every repeat labelled (#7) and targets named on screen (#50). Since beta.1 pace hysteresis is a proved kernel decision (`kernel::pace`, #61) whose goals are recorded, shown and applied (#62), transfer probes run on unseen purpose-written text with proved due and comparability decisions (`kernel::benchmark`, #63–#65), and the 20k vetted vocabulary bar is met by `words-en-v2` (#8). Nothing in P2 remains open in this milestone; retention comparisons across probes need more recorded probes to say anything (empirical, not a code gap). |
-| P3 / D-01–02, VP-01–03 | in_progress | `core/{progress,learning}`, `data/{store,schema,records,learning_rows,files,transfer}`, schema 3 with migration/round-trip/regression tests, `engine/storage`, `runtime/writer`. One retained writer/result slot, full-key admission, checkpoints, retry, lock, reopen, backup/export implemented. General job-registry/async planner, immutable observation chunks, full crash/storage campaigns and formal correspondence remain unfinished. |
-| P4 / H-01–04, VP-04–05 | implemented | `crates/driver` (`envelope`, `protocol`, `stream`, `headless`, `capture`, `trace`) and `cadence headless|replay|doctor` (#67–#73): NDJSON protocol v1 with stable error codes and a bounded response cache, causal and durable barriers, canonical frame capture with golden frames, traces with digest-sealed content and read-only replay reporting the first divergence; six journeys replayed by `cargo xtask gate headless` in CI. VP-04/VP-05: `HeadlessBarrier.tla`, `RequestCache.tla` and the proved `barrier::{causal, durable}`, `request::{admit, revision_ok, evict}`. Not qualified on real terminals (P6). |
-| P5 / U-01–05 | implemented | `engine/{view,summary,settings,setup,navigation,progress,commands}`, `tui/{paint,stages,stages/results,stages/headlines,modeline,practice,native_text,settings,destinations,progress,theme}`, `runtime/{presenter,text_protocol,config_worker}`, `data/{config,config_write,theme_file,packs}`, `trainer/{import,packs}` (#75–#86): config file and first-run setup, the acknowledged settings overlay with the proved `settings::takes_effect`, layout partitions and the proved `comparison::same_basis`, destinations Today/Train/Numpad/Progress and help from one command table, Progress series with counts, theme files, high contrast and the key guide, numpad operators and separators, sanitised imports and pack sessions kept out of standard scores; render tests at 60×18, 100×32 and 120×40 and PTY evidence (`evidence/releases/0.1.0-beta.3/`). Not qualified on real terminals (P6). |
-| P6 / H-05–06 | in_progress | Hermetic Rust regressions and actual PTY/SQLite smoke; no broad terminal qualification or measured p99/memory admission claim. |
-| P7 / VP, VK, VL, VR inventory | pending | Packet models remain design probes, now run by the TLC gate in `./ci quality` from `models/claims.toml` (all 3 positive and 5 mutant configurations, pinned TLC 1.7.4; #28); `models/CheckpointSave.tla` maps the shipped save protocol (single-flight, retry, final flush; 4 mutants; #30); `models/FeedbackLoop.tla` maps the cross-session feedback loop (6 invariants, a liveness property, 7 mutants; #40); `models/SessionFlow.tla` maps the session flow (clock, phase window, interlude grace, end early, the typed closing review; 6 mutants), whose state changes all go through the proved `session::step` and status changes through `session::settle` (#31, #49). Lean (Charon/Aeneas) replaces Verus for kernel proofs: the proof inventory for `crates/kernel` is in [docs/TAUTEN.md](docs/TAUTEN.md) (RFC: [2026-11-24-tauten-and-lean-kernel](docs/rfcs/2026-11-24-tauten-and-lean-kernel.md)). VK-03..05 and the VK-06 ladder are proved (`plan::allocate` #34, `select::scan` #35, `lanes::record` #36, `review::ladder_step` #37); VK-06 queue admission is proved (`queue::admit` #55). VP-04/VP-05 are modelled (`models/HeadlessBarrier.tla`, `models/RequestCache.tla`, mapped; beta.2) with their decisions proved (`barrier::{causal, durable}` #71, `request::{admit, revision_ok, evict}` #67); VP-01/VP-02 are modelled (`models/WorkerResults.tla`, mapped; beta.3) with the decision proved (`ticket::admit` #75); VL-01 and VR-01 have no proof (VR-01 replay is tested by six journeys); no TLAPS inventory has passed. |
-| P8 / B-03–06 | blocked for qualification | Static feedback-bundle producer and owner trial installation exist. Buildbot recovery, authorized signing, complete inventory admission and owner terminal/keypad qualification are not completed. |
+| P0 / A-01, B-02 | verified | Pinned Rust image and toolchain, Cargo lock, musl C compiler, architecture boundary check, and the dependency, licence and advisory audit in every quality run (`cargo deny`, #95). |
+| P1 / L-02–03, VK-01–02 | verified | `core/{ledger,metrics,session}`, `engine/{practice,presentation}`; scoring fixtures/properties and live corrected-entry smoke. The scoring decisions now live in `crates/kernel`, which production calls and which carries Lean theorems over its Aeneas translation (first-attempt write-once, counters, pace and accuracy arithmetic, active time, track validity, checkpoint admission); see [docs/TAUTEN.md](docs/TAUTEN.md) for each claim's badge. Ledger plumbing around the kernel stays tested. |
+| P2 / P-02–04, VK-03–06 | verified | VK-03–06 are proved kernel decisions called by production (`kernel::{plan, select, lanes, review, queue}`, #34–#37, #55) and the focus model is integer (`kernel::focus`, #38/#56); `trainer/{plan,plan_content,plan_words,learner,learning_policy,policy,review,prose}`, `engine/learning`, `core/learning`; deterministic seed/budget/track tests, bounded eligible scans, learner posterior/decay/threshold tests, weakness-steered target and due-review tests, prose no-repeat tests, reducer evidence/reinforcement tests. Since alpha.7 every phase but prose is adaptive: per-group focus for the number row and numpad (#46, #5), warm-up retention checks (#47), numeric and prose misses in the loop (#59, #48), a typed closing review on its own track excluded from the headline (#49, #60), every repeat labelled (#7) and targets named on screen (#50). Since beta.1 pace hysteresis is a proved kernel decision (`kernel::pace`, #61) whose goals are recorded, shown and applied (#62), transfer probes run on unseen purpose-written text with proved due and comparability decisions (`kernel::benchmark`, #63–#65), and the 20k vetted vocabulary bar is met by `words-en-v2` (#8). Nothing in P2 remains open in this milestone; retention comparisons across probes need more recorded probes to say anything (empirical, not a code gap). |
+| P3 / D-01–02, VP-01–03 | verified (process-crash, not power-loss) | `core/{progress,learning,chunks,save}`, `data/{store,schema,records,learning_rows,chunk_rows,files,transfer,faults}`, schema 7 with migrations from every earlier schema, `engine/storage` (the driver of the proved `save::step`), `runtime/writer`, `jobs` (#75). Append-only observation chunks with a derived-state watermark (#11), restore with the writer closed, and the process-crash, migration and bad-state campaigns of `cargo xtask gate persistence-linux` (#88; not power-loss proof). |
+| P4 / H-01–04, VP-04–05 | verified; real terminals: owner #98 | `crates/driver` (`envelope`, `protocol`, `stream`, `headless`, `capture`, `trace`) and `cadence headless|replay|doctor` (#67–#73): NDJSON protocol v1 with stable error codes and a bounded response cache, causal and durable barriers, canonical frame capture with golden frames, traces with digest-sealed content and read-only replay reporting the first divergence; six journeys replayed by `cargo xtask gate headless` in CI. VP-04/VP-05: `HeadlessBarrier.tla`, `RequestCache.tla` and the proved `barrier::{causal, durable}`, `request::{admit, revision_ok, evict}`. Not qualified on real terminals (P6). |
+| P5 / U-01–05 | verified; real terminals: owner #98 | `engine/{view,summary,settings,setup,navigation,progress,commands}`, `tui/{paint,stages,stages/results,stages/headlines,modeline,practice,native_text,settings,destinations,progress,theme}`, `runtime/{presenter,text_protocol,config_worker}`, `data/{config,config_write,theme_file,packs}`, `trainer/{import,packs}` (#75–#86): config file and first-run setup, the acknowledged settings overlay with the proved `settings::takes_effect`, layout partitions and the proved `comparison::same_basis`, destinations Today/Train/Numpad/Progress and help from one command table, Progress series with counts, theme files, high contrast and the key guide, numpad operators and separators, sanitised imports and pack sessions kept out of standard scores; render tests at 60×18, 100×32 and 120×40 and PTY evidence (`evidence/releases/0.1.0-beta.3/`). Not qualified on real terminals (P6). |
+| P6 / H-05–06 | verified on one machine; real terminals: owner #98 | `cargo xtask gate pty-linux` (#92), `persistence-linux` (#88) and `performance` (#15, receipts under `evidence-out/`, figures above); each fails its negative calibration. Real-terminal qualification across emulators is the owner's `wsl-terminal` gate (#98). |
+| P7 / VP, VK, VL, VR inventory | verified: safety proved, VL-01 model-proved, VR-01 tested | Every handover claim is bound in `assurance/claims.toml` to recorded Lean theorems, mapped TLC models and runtime tests (`cargo xtask assurance`, the `model`, `prove`, `verify` and `correspondence` gates; #91). Safety claims VP-01..05 and VK-01..06 are proved for the production decisions and machines (every reachable state for the protocol machines: #89, #90, #91); VL-01's liveness half is `FeedbackLoop.tla`'s `DueEventuallyServed` under weak fairness, bounded; VR-01 is deterministic replay and a dependency test. Lean stands in for Verus and TLAPS (decision 0009). |
+| P8 / B-03–06 | verified locally; promotion blocked: #13, #14, #98 | Candidates, receipts, `qualify`/`status`/`resume` and exact-set admission (#93); the `package-install` gate (#94). Promotion is blocked on authorized signing (#13), Buildbot recovery (#14) and the owner's terminal journey (#98). |
 
 ## Evidence and limits
 

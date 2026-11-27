@@ -2,18 +2,16 @@
 rfc: "2026-11-26-protocol-proofs-as-kernel-machines"
 title: "Unbounded protocol proofs as kernel machines in Lean"
 status: accepted
-implementation: not-started
+implementation: complete
 authors:
   - claude-fable (grooming agent)
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-27
 issue: https://github.com/cadence-typing/cadence/issues/12
 milestone: "0.1.0-rc.1"
 supersedes: []
 superseded_by: []
-blocked_on:
-  - https://github.com/cadence-typing/cadence/issues/4
-  - https://github.com/cadence-typing/cadence/issues/9
+blocked_on: []
 ---
 
 # RFC: Unbounded protocol proofs as kernel machines in Lean
@@ -76,3 +74,4 @@ None blocking. Owner may amend: dropping TLAPS (this RFC's central choice).
 ## Decision log
 
 - 2026-11-26: accepted by default under the owner's 2026-11-26 rule; owner may amend.
+- 2026-11-27: implemented (#89, #90, #91). Every invariant in the table is proved for every reachable state with `Tauten.Machine.rinv_of_step` over the extracted step (`Proofs/Save.lean`, `Proofs/Session.lean`, `Proofs/Machines.lean`, `Proofs/DueQueue.lean`) and recorded in `proofs/claims.json`; the assurance manifest binds them to the handover ids. Departures, each named: the save step is a new kernel function and `engine::storage` its driver, as planned. The request, ticket and barrier machines are Lean models that apply the extracted decision as their drivers do, against a world that may deliver any event: the barrier scope's counts (children included) are the world's, so child registration is the driver's tested counting, not a machine step. Mutants: `replay-reapplies` as planned; `done-with-outstanding` for the barrier (the RFC's `child-after-drain` is a property of the driver's counting, which the machine takes as given); `accept-any-request` for worker results (`drop-full-slot` remains the TLC mutant of `WorkerResults.tla`); `review-resumes`, already registered, is the RFC's `resume-from-review`, and `completed-reopens` kills `Session.completed_is_stable` directly; `admit-at-head` (#90). The Rust `tauten::machine::Machine` trait is not implemented: every `tauten` release needs rustc 1.98 and the workspace builds with 1.97.1, so the recorded save tape (`crates/engine/tests/golden/save-tape.txt`) replays through a local `replay` with the same semantics.
