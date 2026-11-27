@@ -302,17 +302,22 @@ Recorded by `cargo +1.98.0 tauten proofs` into `proofs/claims.json`; the
 summary line, the per-claim outcomes and the mutant results are copied below
 from that run (see the commit that adds `proofs/claims.json`).
 
-Command: `cargo +1.98.0 tauten proofs` (full level, every mutant), gating a
-snapshot of commit `fb0ef32` (the beta.3 kernel and proofs; later beta.3
-commits change no kernel source or proof); exit 0:
+Command: `cargo +1.98.0 tauten proofs` for rc.1, in two runs. The full
+level (every mutant) gated a snapshot of `9981d20` and proved 71 of 73
+claims: every mutant was killed, and the two save-machine claims failed the
+totality audit (their total theorem assumed the invariant). After
+`1500bfd` added the unconditional `Save.step_total` and
+`Save.initial_spec`, `--level ship` gated a snapshot of `db1ed2c`
+(re-running the mutants of the claims whose inputs changed, reusing the
+other kills of the full run); exit 0:
 
 ```text
-tauten: gating a snapshot of commit fb0ef3223ee7210e90afb46ddfe8d0ccc88c76d1
+tauten: gating a snapshot of commit db1ed2c7c1862afc5e0ef1dca05818e74ba9c64c
 tauten: proof gate exited with exit status: 0
-tauten: 65 of 65 claim(s) proved (recorded in proofs/claims.json)
+tauten: 73 of 73 claim(s) proved (recorded in proofs/claims.json)
 ```
 
-160 theorems; all 133 mutants (distinct `[[mutant]]` entries) were `killed`,
+191 theorems; all 157 mutants (distinct `[[mutant]]` entries) were `killed`,
 each by the theorem it targets. Every claim has outcome `proved` and badge
 `proved`. New since beta.2: `ticket::admit` (#75), `comparison::same_basis`
 (#77) and `settings::takes_effect` (#79).

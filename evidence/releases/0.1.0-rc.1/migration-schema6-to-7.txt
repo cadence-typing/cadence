@@ -1,0 +1,13 @@
+# beta.3: cadence 0.1.0-beta.3 (x86_64, development preview)
+# rc.1:   cadence 0.1.0-beta.3 (x86_64, development preview)
+{"id":"6","ok":true,"result":{"durable_commit_seq":"7","event_seq":"102","saved":true,"state_revision":"102","view_digest":"95fe795d6eefebbf9c01946dfbf06e39"},"v":1}
+{"id":"6","ok":true,"result":{"durable_commit_seq":"7","event_seq":"102","saved":true,"state_revision":"102","view_digest":"95fe795d6eefebbf9c01946dfbf06e39"},"v":1}
+Progress exported: /tmp/cadence-migration.sgFuqr/before.json
+## rc.1 opens the beta.3 profile
+schema 7 store {"sessions": [{"chunk_watermark": 0, "commit_watermark": 7, "derived_watermark": 0, "legacy": true, "session": 1}, {"chunk_watermark": 0, "commit_watermark": 7, "derived_watermark": 0, "legacy": true, "session": 2}]}
+Progress exported: /tmp/cadence-migration.sgFuqr/after.json
+export schema 6 -> 7
+sessions [(1, 7, '9e336169ee086ec865d1132304e4af6712d0a44ca1889648e7f14bca71b4d7f1'), (2, 7, '9e336169ee086ec865d1132304e4af6712d0a44ca1889648e7f14bca71b4d7f1')]
+every session, sequence, digest and learning record unchanged; no chunks synthesized
+## beta.3 on the migrated profile
+cadence: progress schema 7 is newer than supported schema 6
