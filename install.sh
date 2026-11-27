@@ -134,10 +134,16 @@ main() {
     if [ -n "$FROM" ]; then
         [ -d "$FROM" ] || err "--from $FROM is not a directory"
         if [ -z "$VERSION" ]; then
-            found=$(cd "$FROM" && ls cadence-*-"$TARGET".tar.gz 2>/dev/null | head -n 1)
+            found=
+            for candidate in "$FROM"/cadence-*-"$TARGET".tar.gz; do
+                if [ -f "$candidate" ]; then
+                    found=${candidate##*/}
+                    break
+                fi
+            done
             [ -n "$found" ] || err "$FROM holds no cadence-*-$TARGET.tar.gz"
             VERSION="v${found#cadence-}"
-            VERSION="${VERSION%-$TARGET.tar.gz}"
+            VERSION="${VERSION%-"$TARGET".tar.gz}"
         fi
     elif [ -z "$VERSION" ]; then
         VERSION=$(latest_tag "$REPO" "$tmp")
