@@ -1,0 +1,8 @@
+cadence-install: installing Cadence v0.1.0-rc.1 from <scratch>/b
+cadence-install: checksum ok (238e8bd8d683aeb8f221303caab3d3806765e0ff0c8f91cb931284cca4169ca7)
+cadence-install: installed <scratch>/.local/lib/cadence/v0.1.0-rc.1
+cadence-install: linked <scratch>/.local/bin/cadence
+cadence-install: <scratch>/.local/bin is not on your PATH. Add this to your shell profile:
+
+    export PATH="<scratch>/.local/bin:$PATH"
+

@@ -1,0 +1,32 @@
+  TODAY   Train   Numpad   Progress                                                     0.1.0-rc.1
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+                                              cadence
+
+
+                                  Make room for a little practice.
+                               2:00 allocated · practice at your pace
+
+                                               ○ words
+                                                2:00
+
+                                          UP FIRST · words
+                         Broad vocabulary while Cadence records your slips.
+
+                             Local history · 0 completed · 0 unfinished
+                  No per-key history yet: this session teaches Cadence your slips.
+
+                                        Enter  Begin session
+
+
+
+
+
+
+ READY  today / baseline                                                        │ 2:00 plan │ local
+ Enter begin  q quit  ? help  Tab / → next screen  Shift-Tab / ← previous screen  s settings

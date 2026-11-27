@@ -1,0 +1,19 @@
+Cadence acceptance summary
+candidate: cand-0bb098eec7aa30aab04ab4062f4dc2cc (0.1.0-rc.1 at 66993ca658a74bcdc569a3b3d3e63bfa30a82c32)
+quality              Passed attempt 1 receipt sha256 711072a8b6a9d5bb80ac2d3d28087f4832aa1999ee97cf567db49c7a13053326
+unit-property        Passed attempt 1 receipt sha256 cfe4e0fa26486ae199fb8765ffe4181b2e4c184bb32167d1aef695b5e9972f13
+headless             Passed attempt 1 receipt sha256 04a252a2c89c92634e88350fb23968b9b86af262bbad4d7fa45d5ee704d31ec1
+pty-linux            Passed attempt 1 receipt sha256 31cc451c8220e6d8d913885c4b23d52301dcded69a55c7c810020cc9a4cb8668
+persistence-linux    Passed attempt 1 receipt sha256 cab3301f30ca3528ccb0770cd9064211ca64b89eaa2a0fe00cdf1c65d17940a5
+model                Passed attempt 1 receipt sha256 8834f9233d162ae1e39d41613f4e88f968716c980287433574b2ae0a4fd5c96a
+prove                Passed attempt 1 receipt sha256 072bcfcef55d19a4845138017124bee23abc4cf25119acb4c37edc650f1d53e2
+verify               Passed attempt 1 receipt sha256 13584c05e71c4e4c89a03e81f6fbbe7104ffa4345f85322ebd292df3d3cedd10
+correspondence       Passed attempt 1 receipt sha256 45458a0eb282507595a9640576c2f47855f265520b050d0420f29c382022b481
+performance          Passed attempt 1 receipt sha256 e91d863a04a60fb5d44f6238826abf3c3476d1d8f2a8d99b48d67c54e2b4c17d
+package-install      Passed attempt 1 receipt sha256 8f5163bd2899e297a8e9a7f3febd0e7a46626a560b4f47aed7e39ed01d1d6b80
+wsl-terminal         Pending attempt 1 receipt sha256 ab532d6d7b69414e73a424625b4a58a43fa743493867e062600d10f4d4e021ae
+buildbot-recovery    Unsupported attempt 1 receipt sha256 00951d198c294a92e509946a6cac592be9a3b00cd4acdf0a30fededd81bf191e
+corpus               Passed attempt 1 receipt sha256 bafa988c1dca608343ad63de5c875a7ec611ee01a53ae8a386b8435cfcb826b2
+admission: refused; missing buildbot-recovery, wsl-terminal
+signature: not available: unsigned development bundle (#13)
+Local receipts cannot promote a bundle: no Buildbot controller is configured (decision 0003).

@@ -1,0 +1,59 @@
+$ cadence --version
+cadence 0.1.0-rc.1 (x86_64, development preview)
+
+== 2. Choose the layout and numpad once; Enter into the daily plan
+$ cadence replay <scratch>/fixtures/journeys/01-first-run-setup-and-daily-plan.jsonl --read-only
+{"captures":0,"replayed":true}
+
+== 3. Make and correct an error; the first-pass history stays honest
+$ cadence replay <scratch>/fixtures/journeys/02-mistype-backspace-end-early.jsonl --read-only
+{"captures":0,"replayed":true}
+
+== 4. Words, number row, numpad and prose; unknown versus verified keypad input
+$ cadence replay <scratch>/fixtures/journeys/03-numpad-leading-zero-decimal-enter.jsonl --read-only
+{"captures":0,"replayed":true}
+$ cadence replay <scratch>/fixtures/journeys/04-row-and-pad-separate-histories.jsonl --read-only
+{"captures":0,"replayed":true}
+
+== 5. Leave and reopen: completed progress and review scheduling, once
+$ cadence headless --script <tmp>/session.jsonl --profile-dir <tmp>/profile
+{"id":"1","ok":true,"result":{"clock":"virtual","event_seq":"2","limits":{"line_bytes":1048576,"response_cache":1024,"text_units":8192},"scenario":"daily-small","state_revision":"2","version":"0.1.0-rc.1","view_digest":"4f38486ad7606c5cb952e25603eca4b4"},"v":1}
+{"id":"2","ok":true,"result":{"durable_commit_seq":"1","event_seq":"4","state_revision":"4","view_digest":"4735482ff5cde432caf33b405d7c2f6b"},"v":1}
+{"id":"3","ok":true,"result":{"durable_commit_seq":"4","event_seq":"60","state_revision":"60","view_digest":"9b4934fa9ee351e7d09623fb080719d8"},"v":1}
+{"id":"4","ok":true,"result":{"durable_commit_seq":"5","event_seq":"84","state_revision":"84","view_digest":"d8431c11fa8033aa815ed8b1e233294e"},"v":1}
+{"id":"5","ok":true,"result":{"durable_commit_seq":"6","event_seq":"86","saved":true,"state_revision":"86","view_digest":"23f447e98118025b93e1b7d099e5bd45"},"v":1}
+$ cadence doctor --json --profile-dir <tmp>/profile
+{"profile":{"database_bytes":118784,"error":null,"exists":true,"path":"<tmp>/profile"},"rebuilt_sessions":null,"schema":7,"store":{"sessions":[{"chunk_watermark":2,"commit_watermark":6,"derived_watermark":2,"legacy":false,"session":1}]},"terminal":{"stdin_is_terminal":false,"stdout_is_terminal":false,"term":"xterm-256color"},"version":"0.1.0-rc.1"}
+start screen after reopening: reopened-start-screen.txt
+$ cadence headless --script <tmp>/reopen.jsonl --profile-dir <tmp>/profile
+{"id":"1","ok":true,"result":{"clock":"virtual","event_seq":"2","limits":{"line_bytes":1048576,"response_cache":1024,"text_units":8192},"scenario":"daily-small","state_revision":"2","version":"0.1.0-rc.1","view_digest":"4f38486ad7606c5cb952e25603eca4b4"},"v":1}
+{"id":"2","ok":true,"result":{"event_seq":"2","state_revision":"2","text":"  TODAY   Train   Numpad   Progress                                                     0.1.0-rc.1\n────────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\n\n\n\n                                              cadence\n\n\n                                  Make room for a little practice.\n                               2:00 allocated · practice at your pace\n\n                                               ○ words\n                                                2:00\n\n                                          UP FIRST · words\n                         Broad vocabulary while Cadence records your slips.\n\n                             Local history · 0 completed · 0 unfinished\n                  No per-key history yet: this session teaches Cadence your slips.\n\n                                        Enter  Begin session\n\n\n\n\n\n\n READY  today / baseline                                                        │ 2:00 plan │ local\n Enter begin  q quit  ? help  Tab / → next screen  Shift-Tab / ← previous screen  s settings","view_digest":"4f38486ad7606c5cb952e25603eca4b4"},"v":1}
+{"id":"3","ok":true,"result":{"event_seq":"3","saved":false,"state_revision":"3","view_digest":"457b88e362834e87789fb809993547af"},"v":1}
+$ cadence doctor --json --profile-dir <tmp>/profile
+{"profile":{"database_bytes":118784,"error":null,"exists":true,"path":"<tmp>/profile"},"rebuilt_sessions":null,"schema":7,"store":{"sessions":[{"chunk_watermark":2,"commit_watermark":6,"derived_watermark":2,"legacy":false,"session":1}]},"terminal":{"stdin_is_terminal":false,"stdout_is_terminal":false,"term":"xterm-256color"},"version":"0.1.0-rc.1"}
+
+== 6. A headless trace on an isolated profile replays identically
+$ cadence headless --script <tmp>/trace-requests.jsonl --ephemeral-profile --record <tmp>/trace.jsonl
+{"id":"1","ok":true,"result":{"clock":"virtual","event_seq":"2","limits":{"line_bytes":1048576,"response_cache":1024,"text_units":8192},"scenario":"scoring-cat","state_revision":"2","version":"0.1.0-rc.1","view_digest":"6882b9adbbecd4d28219b8df650a28a6"},"v":1}
+{"id":"2","ok":true,"result":{"durable_commit_seq":"1","event_seq":"4","state_revision":"4","view_digest":"8208cac940eb779368cb9d398f65f146"},"v":1}
+{"id":"3","ok":true,"result":{"durable_commit_seq":"1","event_seq":"11","state_revision":"11","view_digest":"190625d8999bdf26c2ee707366a4f0d5"},"v":1}
+{"id":"4","ok":true,"result":{"durable_commit_seq":"1","event_seq":"11","state_revision":"11","text":"  ● words                                                                               0.1.0-rc.1\n────────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\n\n\n\n\n\n\n\n\n\n                                                cxat\n\n\n\n\n\n\n\n\n\n\n\n\n                             Past the end · Backspace to the first error\n                                Follow the caret · Backspace corrects\n\n TYPE  words                              │ phase 1/1 │ fix 0 │ -- WPM │ acc -- │ 0:59 left │ saved\n Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)","view_digest":"190625d8999bdf26c2ee707366a4f0d5"},"v":1}
+{"id":"5","ok":true,"result":{"durable_commit_seq":"2","event_seq":"13","saved":true,"state_revision":"13","view_digest":"997c8f108d3591d6bb3c65f5ba059bce"},"v":1}
+$ cadence replay <tmp>/trace.jsonl --read-only
+{"captures":0,"replayed":true}
+
+== 7. An invalid config, theme and import keep the last valid state, with diagnostics
+$ cadence config check   (expected to fail)
+<tmp>/home/.config/cadence/config.toml:2: session.minutes: expected one of 5, 10, 15, 20, 30
+cadence: 1 problem(s) in <tmp>/home/.config/cadence/config.toml
+$ cadence config check   (expected to fail)
+<tmp>/home/.config/cadence/broken.toml: unknown role colors
+cadence: the theme named in <tmp>/home/.config/cadence/config.toml does not load
+$ cadence import <tmp>/import.txt --name walkthrough --dry-run
+2 lines: 1 accepted (1 passages), 1 rejected
+  line 2, column 4: escape character (terminal sequence)
+dry run: nothing written
+$ cadence packs
+no packs imported
+
+walkthrough: steps 2-7 completed

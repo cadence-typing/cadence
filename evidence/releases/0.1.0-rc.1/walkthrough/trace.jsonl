@@ -1,0 +1,11 @@
+{"build":"0.1.0-rc.1","capabilities":{"keyboard":"normalized","terminal":"test-backend"},"clock":"virtual","record_content":false,"services":"fixture-or-profile","trace_version":1,"type":"header"}
+{"line":{"args":{"scenario":"scoring-cat"},"id":"1","op":"hello","v":1},"type":"request"}
+{"line":{"id":"1","ok":true,"result":{"clock":"virtual","event_seq":"2","limits":{"line_bytes":1048576,"response_cache":1024,"text_units":8192},"scenario":"scoring-cat","state_revision":"2","version":"0.1.0-rc.1","view_digest":"6882b9adbbecd4d28219b8df650a28a6"},"v":1},"type":"response"}
+{"line":{"args":{"name":"StartDrill"},"id":"2","op":"action","v":1},"type":"request"}
+{"line":{"id":"2","ok":true,"result":{"durable_commit_seq":"1","event_seq":"4","state_revision":"4","view_digest":"8208cac940eb779368cb9d398f65f146"},"v":1},"type":"response"}
+{"line":{"args":{"inter_key_microseconds":300000,"text":"cxat"},"id":"3","op":"text","v":1},"type":"request"}
+{"line":{"id":"3","ok":true,"result":{"durable_commit_seq":"1","event_seq":"11","state_revision":"11","view_digest":"190625d8999bdf26c2ee707366a4f0d5"},"v":1},"type":"response"}
+{"line":{"args":{"format":"text"},"id":"4","op":"capture","v":1},"type":"request"}
+{"line":{"id":"4","ok":true,"result":{"durable_commit_seq":"1","event_seq":"11","state_revision":"11","text":{"sha256":"169c0df006b5f3355058826dfe7d3ded3be37508b09d5f1430037639430a5376"},"view_digest":"190625d8999bdf26c2ee707366a4f0d5"},"v":1},"type":"response"}
+{"line":{"args":{"flush":true},"id":"5","op":"quit","v":1},"type":"request"}
+{"line":{"id":"5","ok":true,"result":{"durable_commit_seq":"2","event_seq":"13","saved":true,"state_revision":"13","view_digest":"997c8f108d3591d6bb3c65f5ba059bce"},"v":1},"type":"response"}
