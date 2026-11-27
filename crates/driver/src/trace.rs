@@ -137,6 +137,79 @@ fn divergence(line: usize, reason: &str, expected: Value, actual: Value) -> Dive
     }
 }
 
+/// The header shows the build's version right-aligned; a newer build
+/// replaying an older trace differs only there. Both sides are normalised
+/// before comparing: in `text`, a line ending in the version (after its
+/// padding) ends in `<version>`; in a cell `frame`, the cells of the
+/// padding, the version and the spaces after it become `#`.
+fn normalise_version(response: &mut Value, version: &str) {
+    if version.is_empty() {
+        return;
+    }
+    let Some(result) = response.get_mut("result").and_then(Value::as_object_mut) else {
+        return;
+    };
+    if let Some(Value::String(text)) = result.get_mut("text") {
+        let lines: Vec<String> = text
+            .split('\n')
+            .map(|line| match line.trim_end().strip_suffix(version) {
+                Some(before) => format!("{} <version>", before.trim_end()),
+                None => line.to_string(),
+            })
+            .collect();
+        *text = lines.join("\n");
+    }
+    let columns = result
+        .get("frame")
+        .and_then(|frame| frame.get("columns"))
+        .and_then(Value::as_u64)
+        .and_then(|c| usize::try_from(c).ok())
+        .unwrap_or(0);
+    let Some(cells) = result
+        .get_mut("frame")
+        .and_then(|frame| frame.get_mut("cells"))
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    if columns == 0 {
+        return;
+    }
+    for row in cells.chunks_mut(columns) {
+        let symbols: Vec<String> = row
+            .iter()
+            .map(|cell| {
+                cell.get("symbol")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string()
+            })
+            .collect();
+        let joined: String = symbols.concat();
+        // Only rows of single-cell symbols map string offsets to cells.
+        if joined.chars().count() != symbols.len() {
+            continue;
+        }
+        let chars: Vec<char> = joined.chars().collect();
+        let needle: Vec<char> = version.chars().collect();
+        let Some(at) = chars
+            .windows(needle.len())
+            .position(|w| w == needle.as_slice())
+        else {
+            continue;
+        };
+        let mut start = at;
+        while start > 0 && chars.get(start.saturating_sub(1)) == Some(&' ') {
+            start = start.saturating_sub(1);
+        }
+        for cell in row.iter_mut().skip(start) {
+            if let Some(object) = cell.as_object_mut() {
+                object.insert("symbol".into(), Value::String("#".into()));
+            }
+        }
+    }
+}
+
 /// The first differing counter or field between two responses, as a path.
 fn first_difference(expected: &Value, actual: &Value, path: &str) -> Option<String> {
     match (expected, actual) {
@@ -186,6 +259,7 @@ pub fn replay(trace: &str, host: &mut impl Host) -> Result<Vec<Map<String, Value
         ));
     }
     let record_content = header["record_content"] == true;
+    let recorded_build = header["build"].as_str().unwrap_or("").to_string();
     let mut protocol = Protocol::new();
     let mut captures = Vec::new();
     while let Some((number, text)) = lines.next() {
@@ -236,6 +310,11 @@ pub fn replay(trace: &str, host: &mut impl Host) -> Result<Vec<Map<String, Value
         {
             result.insert("version".into(), Value::String(recorded.to_string()));
         }
+        let mut expected = expected;
+        if let Some(line) = expected.get_mut("line") {
+            normalise_version(line, &recorded_build);
+        }
+        normalise_version(&mut actual, env!("CARGO_PKG_VERSION"));
         if expected["line"] != actual {
             let path = first_difference(&expected["line"], &actual, "response").unwrap_or_default();
             return Err(divergence(
@@ -280,6 +359,21 @@ mod tests {
             );
             Ok(result)
         }
+    }
+
+    /// A newer build differs from an older trace only in the header's
+    /// version, of any length; any other change still shows.
+    #[test]
+    fn only_the_version_is_normalised() {
+        let text = |version: &str, tail: &str| json!({"result": {"text": format!("  TODAY   Train{:>30}  \nbody {tail}", version)}});
+        let mut old = text("0.1.0-beta.2", "same");
+        let mut new = text("0.1.0-rc.1", "same");
+        normalise_version(&mut old, "0.1.0-beta.2");
+        normalise_version(&mut new, "0.1.0-rc.1");
+        assert_eq!(old, new);
+        let mut changed = text("0.1.0-rc.1", "changed");
+        normalise_version(&mut changed, "0.1.0-rc.1");
+        assert_ne!(old, changed);
     }
 
     /// A build whose scoring changed reports the first diverging counter.
