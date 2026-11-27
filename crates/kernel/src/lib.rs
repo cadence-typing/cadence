@@ -24,6 +24,7 @@ pub mod cycle;
 pub mod evidence;
 pub mod first;
 pub mod focus;
+pub mod keypad;
 pub mod label;
 pub mod lanes;
 pub mod ledger;

@@ -1809,3 +1809,128 @@ name = "done-with-outstanding"
 file = "crates/kernel/src/barrier.rs"
 before = "if outstanding == 0 && pending_dispatch == 0 && unconsumed == 0 {"
 after = "if pending_dispatch == 0 && unconsumed == 0 {"
+
+# ---- the numeric keypad (crates/kernel/src/keypad.rs, #101, #102)
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/keypad.rs"
+function = "keypad::class"
+lean = "cadence_kernel.keypad.class"
+theorems = ["Proofs.Keypad.class_spec", "Proofs.Keypad.digit_iff_ascii_digit"]
+total = "Proofs.Keypad.class_spec"
+mutants = ["operator-is-digit", "comma-outside"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/keypad.rs"
+function = "keypad::step"
+lean = "cadence_kernel.keypad.step"
+theorems = ["Proofs.Keypad.step_spec", "Proofs.Keypad.reject_absorbing", "Proofs.Keypad.outside_rejects", "Proofs.Keypad.no_adjacent_operators", "Proofs.Keypad.one_separator_per_operand"]
+total = "Proofs.Keypad.step_spec"
+mutants = ["adjacent-operators-accepted", "second-separator-accepted"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/keypad.rs"
+function = "keypad::accepting"
+lean = "cadence_kernel.keypad.accepting"
+theorems = ["Proofs.Keypad.accepting_spec"]
+total = "Proofs.Keypad.accepting_spec"
+mutants = ["trailing-operator-accepted"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/keypad.rs"
+function = "keypad::well_formed"
+lean = "cadence_kernel.keypad.well_formed"
+theorems = ["Proofs.Keypad.well_formed_spec"]
+total = "Proofs.Keypad.well_formed_spec"
+mutants = ["well-formed-skips-last"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/keypad.rs"
+function = "keypad::family_at"
+lean = "cadence_kernel.keypad.family_at"
+theorems = ["Proofs.Keypad.family_at_spec", "Proofs.Keypad.family_at_total", "Proofs.Keypad.operators_off_digits_only", "Proofs.Keypad.disabled_never_served", "Proofs.Keypad.empty_mix_is_plain"]
+total = "Proofs.Keypad.family_at_total"
+mutants = ["family-boundary-off-by-one", "operators-off-ignored"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/keypad.rs"
+function = "keypad::carries"
+lean = "cadence_kernel.keypad.carries"
+theorems = ["Proofs.Keypad.carries_spec"]
+total = "Proofs.Keypad.carries_spec"
+mutants = ["plain-carries-operator"]
+
+[[claim]]
+crate = "cadence-kernel"
+file = "crates/kernel/src/keypad.rs"
+function = "keypad::focus_admissible"
+lean = "cadence_kernel.keypad.focus_admissible"
+theorems = ["Proofs.Keypad.focus_admissible_spec"]
+total = "Proofs.Keypad.focus_admissible_spec"
+mutants = ["focus-ignores-operators-off"]
+
+[[mutant]]
+name = "operator-is-digit"
+file = "crates/kernel/src/keypad.rs"
+before = "    if code < DIGIT_ZERO {\n"
+after = "    if code < PLUS {\n"
+
+[[mutant]]
+name = "comma-outside"
+file = "crates/kernel/src/keypad.rs"
+before = "    if code == POINT || code == COMMA {\n"
+after = "    if code == POINT {\n"
+
+[[mutant]]
+name = "adjacent-operators-accepted"
+file = "crates/kernel/src/keypad.rs"
+before = "        State::Operator => match class {\n            Class::Digit => State::Whole,\n            Class::Separator => State::Reject,\n            Class::Operator => State::Reject,\n"
+after = "        State::Operator => match class {\n            Class::Digit => State::Whole,\n            Class::Separator => State::Reject,\n            Class::Operator => State::Operator,\n"
+
+[[mutant]]
+name = "second-separator-accepted"
+file = "crates/kernel/src/keypad.rs"
+before = "        State::Fraction => match class {\n            Class::Digit => State::Fraction,\n            Class::Separator => State::Reject,\n"
+after = "        State::Fraction => match class {\n            Class::Digit => State::Fraction,\n            Class::Separator => State::Point,\n"
+
+[[mutant]]
+name = "trailing-operator-accepted"
+file = "crates/kernel/src/keypad.rs"
+before = "        State::Operator => false,\n"
+after = "        State::Operator => true,\n"
+
+[[mutant]]
+name = "well-formed-skips-last"
+file = "crates/kernel/src/keypad.rs"
+before = "    while i < codes.len() {\n"
+after = "    while i.saturating_add(1) < codes.len() {\n"
+
+[[mutant]]
+name = "family-boundary-off-by-one"
+file = "crates/kernel/src/keypad.rs"
+before = "    if r < w.plain {\n"
+after = "    if r <= w.plain {\n"
+
+[[mutant]]
+name = "operators-off-ignored"
+file = "crates/kernel/src/keypad.rs"
+before = "            signed: 0,\n"
+after = "            signed: weights.signed,\n"
+
+[[mutant]]
+name = "plain-carries-operator"
+file = "crates/kernel/src/keypad.rs"
+before = "    let operated = match family {\n        Family::Operation => true,\n        Family::Chain => true,\n        Family::Plain => false,\n"
+after = "    let operated = match family {\n        Family::Operation => true,\n        Family::Chain => true,\n        Family::Plain => true,\n"
+
+[[mutant]]
+name = "focus-ignores-operators-off"
+file = "crates/kernel/src/keypad.rs"
+before = "        || (operators && carries("
+after = "        || (true && carries("

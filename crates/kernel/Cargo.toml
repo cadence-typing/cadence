@@ -111,6 +111,18 @@ start_from = [
     "cadence_kernel::focus::pick",
     "cadence_kernel::evidence::pair_first_correct",
     "cadence_kernel::evidence::clean_interval",
+    "cadence_kernel::keypad::class",
+    "cadence_kernel::keypad::class_other",
+    "cadence_kernel::keypad::is_sign",
+    "cadence_kernel::keypad::step",
+    "cadence_kernel::keypad::accepting",
+    "cadence_kernel::keypad::run_from",
+    "cadence_kernel::keypad::well_formed",
+    "cadence_kernel::keypad::admissible",
+    "cadence_kernel::keypad::cycle",
+    "cadence_kernel::keypad::family_at",
+    "cadence_kernel::keypad::carries",
+    "cadence_kernel::keypad::focus_admissible",
 ]
 
 # Stated locally, not inherited: the proof gate translates this crate in a

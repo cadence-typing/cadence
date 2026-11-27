@@ -31,3 +31,4 @@ import Proofs.Evidence
 import Proofs.Barrier
 import Proofs.Benchmark
 import Proofs.Calendar
+import Proofs.Keypad

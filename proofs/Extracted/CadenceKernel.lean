@@ -861,6 +861,393 @@ def focus.pick
   := do
   focus.pick_loop candidates chosen t 0#usize none 0#u64
 
+/-- [cadence_kernel::keypad::DIGIT_ZERO]
+    Source: 'crates/kernel/src/keypad.rs', lines 15:0-15:33
+    Visibility: public -/
+@[global_simps, irreducible] def keypad.DIGIT_ZERO : Std.U32 := 48#u32
+
+/-- [cadence_kernel::keypad::DIGIT_NINE]
+    Source: 'crates/kernel/src/keypad.rs', lines 17:0-17:33
+    Visibility: public -/
+@[global_simps, irreducible] def keypad.DIGIT_NINE : Std.U32 := 57#u32
+
+/-- [cadence_kernel::keypad::POINT]
+    Source: 'crates/kernel/src/keypad.rs', lines 19:0-19:28
+    Visibility: public -/
+@[global_simps, irreducible] def keypad.POINT : Std.U32 := 46#u32
+
+/-- [cadence_kernel::keypad::COMMA]
+    Source: 'crates/kernel/src/keypad.rs', lines 21:0-21:28
+    Visibility: public -/
+@[global_simps, irreducible] def keypad.COMMA : Std.U32 := 44#u32
+
+/-- [cadence_kernel::keypad::PLUS]
+    Source: 'crates/kernel/src/keypad.rs', lines 23:0-23:27
+    Visibility: public -/
+@[global_simps, irreducible] def keypad.PLUS : Std.U32 := 43#u32
+
+/-- [cadence_kernel::keypad::MINUS]
+    Source: 'crates/kernel/src/keypad.rs', lines 25:0-25:28
+    Visibility: public -/
+@[global_simps, irreducible] def keypad.MINUS : Std.U32 := 45#u32
+
+/-- [cadence_kernel::keypad::TIMES]
+    Source: 'crates/kernel/src/keypad.rs', lines 27:0-27:28
+    Visibility: public -/
+@[global_simps, irreducible] def keypad.TIMES : Std.U32 := 42#u32
+
+/-- [cadence_kernel::keypad::DIVIDE]
+    Source: 'crates/kernel/src/keypad.rs', lines 29:0-29:29
+    Visibility: public -/
+@[global_simps, irreducible] def keypad.DIVIDE : Std.U32 := 47#u32
+
+/-- [cadence_kernel::keypad::Class]
+    Source: 'crates/kernel/src/keypad.rs', lines 33:0-42:1
+    Visibility: public -/
+@[discriminant isize]
+inductive keypad.Class where
+| Digit : keypad.Class
+| Separator : keypad.Class
+| Operator : keypad.Class
+| Outside : keypad.Class
+
+/-- [cadence_kernel::keypad::class_other]:
+    Source: 'crates/kernel/src/keypad.rs', lines 58:0-66:1
+    Visibility: public -/
+def keypad.class_other (code : Std.U32) : Result keypad.Class := do
+  if code = keypad.POINT
+  then ok keypad.Class.Separator
+  else
+    if code = keypad.COMMA
+    then ok keypad.Class.Separator
+    else
+      if code = keypad.PLUS
+      then ok keypad.Class.Operator
+      else
+        if code = keypad.MINUS
+        then ok keypad.Class.Operator
+        else
+          if code = keypad.TIMES
+          then ok keypad.Class.Operator
+          else
+            if code = keypad.DIVIDE
+            then ok keypad.Class.Operator
+            else ok keypad.Class.Outside
+
+/-- [cadence_kernel::keypad::class]:
+    Source: 'crates/kernel/src/keypad.rs', lines 46:0-54:1
+    Visibility: public -/
+def keypad.class (code : Std.U32) : Result keypad.Class := do
+  if code < keypad.DIGIT_ZERO
+  then keypad.class_other code
+  else
+    if code <= keypad.DIGIT_NINE
+    then ok keypad.Class.Digit
+    else keypad.class_other code
+
+/-- [cadence_kernel::keypad::is_sign]:
+    Source: 'crates/kernel/src/keypad.rs', lines 70:0-72:1
+    Visibility: public -/
+def keypad.is_sign (code : Std.U32) : Result Bool := do
+  if code = keypad.PLUS
+  then ok true
+  else ok (code = keypad.MINUS)
+
+/-- [cadence_kernel::keypad::State]
+    Source: 'crates/kernel/src/keypad.rs', lines 77:0-92:1
+    Visibility: public -/
+@[discriminant isize]
+inductive keypad.State where
+| Start : keypad.State
+| Signed : keypad.State
+| Whole : keypad.State
+| Point : keypad.State
+| Fraction : keypad.State
+| Operator : keypad.State
+| Reject : keypad.State
+
+/-- [cadence_kernel::keypad::step]:
+    Source: 'crates/kernel/src/keypad.rs', lines 97:0-143:1
+    Visibility: public -/
+def keypad.step
+  (state : keypad.State) («class» : keypad.Class) (sign : Bool) :
+  Result keypad.State
+  := do
+  match state with
+  | keypad.State.Start =>
+    match «class» with
+    | keypad.Class.Digit => ok keypad.State.Whole
+    | keypad.Class.Separator => ok keypad.State.Reject
+    | keypad.Class.Operator =>
+      if sign
+      then ok keypad.State.Signed
+      else ok keypad.State.Reject
+    | keypad.Class.Outside => ok keypad.State.Reject
+  | keypad.State.Signed =>
+    match «class» with
+    | keypad.Class.Digit => ok keypad.State.Whole
+    | keypad.Class.Separator => ok keypad.State.Reject
+    | keypad.Class.Operator => ok keypad.State.Reject
+    | keypad.Class.Outside => ok keypad.State.Reject
+  | keypad.State.Whole =>
+    match «class» with
+    | keypad.Class.Digit => ok keypad.State.Whole
+    | keypad.Class.Separator => ok keypad.State.Point
+    | keypad.Class.Operator => ok keypad.State.Operator
+    | keypad.Class.Outside => ok keypad.State.Reject
+  | keypad.State.Point =>
+    match «class» with
+    | keypad.Class.Digit => ok keypad.State.Fraction
+    | keypad.Class.Separator => ok keypad.State.Reject
+    | keypad.Class.Operator => ok keypad.State.Reject
+    | keypad.Class.Outside => ok keypad.State.Reject
+  | keypad.State.Fraction =>
+    match «class» with
+    | keypad.Class.Digit => ok keypad.State.Fraction
+    | keypad.Class.Separator => ok keypad.State.Reject
+    | keypad.Class.Operator => ok keypad.State.Operator
+    | keypad.Class.Outside => ok keypad.State.Reject
+  | keypad.State.Operator =>
+    match «class» with
+    | keypad.Class.Digit => ok keypad.State.Whole
+    | keypad.Class.Separator => ok keypad.State.Reject
+    | keypad.Class.Operator => ok keypad.State.Reject
+    | keypad.Class.Outside => ok keypad.State.Reject
+  | keypad.State.Reject => ok keypad.State.Reject
+
+/-- [cadence_kernel::keypad::accepting]:
+    Source: 'crates/kernel/src/keypad.rs', lines 147:0-157:1
+    Visibility: public -/
+def keypad.accepting (state : keypad.State) : Result Bool := do
+  match state with
+  | keypad.State.Start => ok false
+  | keypad.State.Signed => ok false
+  | keypad.State.Whole => ok true
+  | keypad.State.Point => ok false
+  | keypad.State.Fraction => ok true
+  | keypad.State.Operator => ok false
+  | keypad.State.Reject => ok false
+
+/-- [cadence_kernel::keypad::run_from]: loop body 0:
+    Source: 'crates/kernel/src/keypad.rs', lines 164:4-169:5
+    Visibility: public -/
+@[rust_loop_body]
+def keypad.run_from_loop.body
+  (codes : Slice Std.U32) (i : Std.Usize) (state : keypad.State) :
+  Result (ControlFlow (Std.Usize × keypad.State) keypad.State)
+  := do
+  let i1 := Slice.len codes
+  if i < i1
+  then
+    let o ←
+      core.slice.Slice.get (core.slice.index.SliceIndexUsizeSlice Std.U32)
+        codes i
+    let state1 ←
+      match o with
+      | none => ok state
+      | some code =>
+        do
+        let c ← keypad.class code
+        let b ← keypad.is_sign code
+        keypad.step state c b
+    let i2 ← lift (core.num.Usize.saturating_add i 1#usize)
+    ok (cont (i2, state1))
+  else ok (done state)
+
+/-- [cadence_kernel::keypad::run_from]: loop 0:
+    Source: 'crates/kernel/src/keypad.rs', lines 164:4-169:5
+    Visibility: public -/
+@[rust_loop]
+def keypad.run_from_loop
+  (codes : Slice Std.U32) (i : Std.Usize) (state : keypad.State) :
+  Result keypad.State
+  := do
+  loop
+    (fun (i1, state1) => keypad.run_from_loop.body codes i1 state1)
+    (i, state)
+
+/-- [cadence_kernel::keypad::run_from]:
+    Source: 'crates/kernel/src/keypad.rs', lines 161:0-171:1
+    Visibility: public -/
+@[reducible]
+def keypad.run_from
+  (codes : Slice Std.U32) (i : Std.Usize) (state : keypad.State) :
+  Result keypad.State
+  := do
+  keypad.run_from_loop codes i state
+
+/-- [cadence_kernel::keypad::well_formed]:
+    Source: 'crates/kernel/src/keypad.rs', lines 175:0-177:1
+    Visibility: public -/
+def keypad.well_formed (codes : Slice Std.U32) : Result Bool := do
+  let s ← keypad.run_from codes 0#usize keypad.State.Start
+  keypad.accepting s
+
+/-- [cadence_kernel::keypad::Family]
+    Source: 'crates/kernel/src/keypad.rs', lines 181:0-192:1
+    Visibility: public -/
+@[discriminant isize]
+inductive keypad.Family where
+| Plain : keypad.Family
+| Decimal : keypad.Family
+| Signed : keypad.Family
+| Operation : keypad.Family
+| Chain : keypad.Family
+
+/-- [cadence_kernel::keypad::Weights]
+    Source: 'crates/kernel/src/keypad.rs', lines 196:0-207:1
+    Visibility: public -/
+structure keypad.Weights where
+  plain : Std.U64
+  decimal : Std.U64
+  signed : Std.U64
+  operation : Std.U64
+  chain : Std.U64
+
+/-- [cadence_kernel::keypad::admissible]:
+    Source: 'crates/kernel/src/keypad.rs', lines 212:0-224:1
+    Visibility: public -/
+def keypad.admissible
+  (weights : keypad.Weights) (operators : Bool) : Result keypad.Weights := do
+  if operators
+  then ok weights
+  else ok { weights with signed := 0#u64, operation := 0#u64, chain := 0#u64 }
+
+/-- [cadence_kernel::keypad::cycle]:
+    Source: 'crates/kernel/src/keypad.rs', lines 228:0-239:1
+    Visibility: public -/
+def keypad.cycle (w : keypad.Weights) : Result (Option Std.U64) := do
+  let o ← lift (U64.checked_add w.plain w.decimal)
+  match o with
+  | none => ok none
+  | some a =>
+    let o1 ← lift (U64.checked_add a w.signed)
+    match o1 with
+    | none => ok none
+    | some b =>
+      let o2 ← lift (U64.checked_add b w.operation)
+      match o2 with
+      | none => ok none
+      | some c => ok (U64.checked_add c w.chain)
+
+/-- [cadence_kernel::keypad::family_at]:
+    Source: 'crates/kernel/src/keypad.rs', lines 247:0-273:1
+    Visibility: public -/
+def keypad.family_at
+  (position : Std.U64) (weights : keypad.Weights) (operators : Bool) :
+  Result keypad.Family
+  := do
+  let w ← keypad.admissible weights operators
+  let o ← keypad.cycle w
+  match o with
+  | none => ok keypad.Family.Plain
+  | some t =>
+    let o1 ← lift (U64.checked_rem position t)
+    match o1 with
+    | none => ok keypad.Family.Plain
+    | some r =>
+      if r < w.plain
+      then ok keypad.Family.Plain
+      else
+        let r1 ← lift (core.num.U64.saturating_sub r w.plain)
+        if r1 < w.decimal
+        then ok keypad.Family.Decimal
+        else
+          let r2 ← lift (core.num.U64.saturating_sub r1 w.decimal)
+          if r2 < w.signed
+          then ok keypad.Family.Signed
+          else
+            let r3 ← lift (core.num.U64.saturating_sub r2 w.signed)
+            if r3 < w.operation
+            then ok keypad.Family.Operation
+            else ok keypad.Family.Chain
+
+/-- [cadence_kernel::keypad::carries]:
+    Source: 'crates/kernel/src/keypad.rs', lines 281:0-333:1
+    Visibility: public -/
+def keypad.carries
+  (family : keypad.Family) (first : Std.U32) (second : Std.U32) (pair : Bool) :
+  Result Bool
+  := do
+  let operated ←
+    match family with
+    | keypad.Family.Plain => ok false
+    | keypad.Family.Decimal => ok false
+    | keypad.Family.Signed => ok false
+    | keypad.Family.Operation => ok true
+    | keypad.Family.Chain => ok true
+  let signed ←
+    match family with
+    | keypad.Family.Plain => ok false
+    | keypad.Family.Decimal => ok false
+    | keypad.Family.Signed => ok true
+    | keypad.Family.Operation => ok false
+    | keypad.Family.Chain => ok false
+  let fractional ←
+    match family with
+    | keypad.Family.Plain => ok false
+    | keypad.Family.Decimal => ok true
+    | keypad.Family.Signed => ok true
+    | keypad.Family.Operation => ok true
+    | keypad.Family.Chain => ok true
+  let a ← keypad.class first
+  if pair
+  then
+    match a with
+    | keypad.Class.Digit =>
+      let c ← keypad.class second
+      match c with
+      | keypad.Class.Digit => ok true
+      | keypad.Class.Separator => ok fractional
+      | keypad.Class.Operator => ok operated
+      | keypad.Class.Outside => ok false
+    | keypad.Class.Separator =>
+      let c ← keypad.class second
+      match c with
+      | keypad.Class.Digit => ok fractional
+      | keypad.Class.Separator => ok false
+      | keypad.Class.Operator => ok false
+      | keypad.Class.Outside => ok false
+    | keypad.Class.Operator =>
+      let c ← keypad.class second
+      match c with
+      | keypad.Class.Digit =>
+        if operated
+        then ok true
+        else if signed
+             then keypad.is_sign first
+             else ok false
+      | keypad.Class.Separator => ok false
+      | keypad.Class.Operator => ok false
+      | keypad.Class.Outside => ok false
+    | keypad.Class.Outside => ok false
+  else
+    match a with
+    | keypad.Class.Digit => ok true
+    | keypad.Class.Separator => ok fractional
+    | keypad.Class.Operator =>
+      if operated
+      then ok true
+      else if signed
+           then keypad.is_sign first
+           else ok false
+    | keypad.Class.Outside => ok false
+
+/-- [cadence_kernel::keypad::focus_admissible]:
+    Source: 'crates/kernel/src/keypad.rs', lines 340:0-343:1
+    Visibility: public -/
+def keypad.focus_admissible
+  (first : Std.U32) (second : Std.U32) (pair : Bool) (operators : Bool) :
+  Result Bool
+  := do
+  let b ← keypad.carries keypad.Family.Decimal first second pair
+  if b
+  then ok true
+  else
+    if operators
+    then keypad.carries keypad.Family.Operation first second pair
+    else ok false
+
 /-- [cadence_kernel::label::Facts]
     Source: 'crates/kernel/src/label.rs', lines 12:0-23:1
     Visibility: public -/
