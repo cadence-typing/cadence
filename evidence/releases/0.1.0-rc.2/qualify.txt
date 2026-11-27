@@ -1,0 +1,32 @@
+qualify: froze cand-063a733d1b4b608684ee21562debbf69
+qualify: quality: Passed
+qualify: unit-property: Passed
+qualify: headless: Passed
+qualify: pty-linux: Passed
+qualify: persistence-linux: Passed
+qualify: model: Passed
+qualify: prove: Passed
+qualify: verify: Passed
+qualify: correspondence: Passed
+qualify: performance: Passed
+qualify: package-install: Passed
+qualify: wsl-terminal: Pending
+qualify: buildbot-recovery: Unsupported
+qualify: corpus: Passed
+candidate cand-063a733d1b4b608684ee21562debbf69 (0.1.0-rc.2 at 5dd7eef4f89fb80b7d039d5b8a29e87eea9aadcf)
+  quality              Passed (attempt 1)
+  unit-property        Passed (attempt 1)
+  headless             Passed (attempt 1)
+  pty-linux            Passed (attempt 1)
+  persistence-linux    Passed (attempt 1)
+  model                Passed (attempt 1)
+  prove                Passed (attempt 1)
+  verify               Passed (attempt 1)
+  correspondence       Passed (attempt 1)
+  performance          Passed (attempt 1)
+  package-install      Passed (attempt 1)
+  wsl-terminal         Pending (attempt 1; owner-assisted (#98))
+  buildbot-recovery    Unsupported (attempt 1; blocked: no Buildbot controller (#14))
+  corpus               Passed (attempt 1)
+admission: refused; missing buildbot-recovery, wsl-terminal
+No Buildbot controller is configured: local receipts cannot promote a bundle (decision 0003).

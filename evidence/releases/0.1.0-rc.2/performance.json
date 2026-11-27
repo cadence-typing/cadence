@@ -1,0 +1,64 @@
+{
+  "budgets": {
+    "frame_120x40_p99_us": 8000,
+    "input_to_frame_p99_us": 33000,
+    "peak_rss_bytes": 268435456,
+    "reducer_p99_us": 1000
+  },
+  "calibration_busy_us": 0,
+  "corpus": {
+    "prose": 2643,
+    "words": 22000
+  },
+  "environment": {
+    "build_profile": "release",
+    "container": true,
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "cpus": 32,
+    "kernel": "6.18.58.1-microsoft-standard-WSL2",
+    "load": "1.39 2.08 6.57 1/1303 6411",
+    "version": "0.1.0-rc.2"
+  },
+  "frame_120x40": {
+    "max_us": 342,
+    "p50_us": 68,
+    "p99_us": 100,
+    "samples": 12000
+  },
+  "frame_60x18": {
+    "max_us": 226,
+    "p50_us": 24,
+    "p99_us": 41,
+    "samples": 12000
+  },
+  "harness": "cadence perf (#15)",
+  "input_to_frame": {
+    "max_us": 343,
+    "p50_us": 69,
+    "p99_us": 174,
+    "samples": 12000
+  },
+  "keys": 12000,
+  "peak_rss_bytes": 17424384,
+  "reducer": {
+    "max_us": 170,
+    "p50_us": 0,
+    "p99_us": 64,
+    "samples": 26447
+  },
+  "saves": {
+    "acknowledged": 657,
+    "dispatched": 657,
+    "round_trip": {
+      "max_us": 5631,
+      "p50_us": 2545,
+      "p99_us": 5122,
+      "samples": 657
+    }
+  },
+  "storm": {
+    "consumed": 10000,
+    "job_table_unchanged": true,
+    "results": 10000
+  }
+}
