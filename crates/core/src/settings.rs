@@ -153,7 +153,9 @@ pub const KEYS: &[Key] = &[
     Key {
         name: "content.numpad_operators",
         accepts: Accepts::Boolean,
-        default: DefaultValue::Boolean(false),
+        // The whole keypad by default (#101, decision record 0010); must
+        // equal `trainer::numeric::OPERATORS_BY_DEFAULT`.
+        default: DefaultValue::Boolean(true),
     },
     Key {
         name: "display.theme",

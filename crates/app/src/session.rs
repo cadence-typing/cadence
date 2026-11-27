@@ -179,16 +179,18 @@ mod tests {
         Ok(())
     }
 
-    /// #83: operator drills are their own content class, so they are never
-    /// compared with plain drills.
+    /// #83, #101: full-keypad numpad sessions (the default) are their own
+    /// content class, so their numpad rows are never compared with
+    /// digits-only rows; other tracks compare across the class.
     #[test]
     fn operator_drills_are_their_own_class() {
         use cadence_core::comparison::{basis, same_basis};
         use cadence_core::progress::{ContentClass, Track};
         let mut options = crate::cli::Options::defaults();
+        assert_eq!(super::content_class(&options), ContentClass::Operators);
+        options.numeric.operators = false;
         assert_eq!(super::content_class(&options), ContentClass::Standard);
         options.numeric.operators = true;
-        assert_eq!(super::content_class(&options), ContentClass::Operators);
         options.track = Some(cadence_trainer::Phase::Prose);
         assert_eq!(
             super::content_class(&options),
@@ -198,6 +200,11 @@ mod tests {
         let plain = basis(None, ContentClass::Standard, false, [Track::Numpad]);
         let operators = basis(None, ContentClass::Operators, false, [Track::Numpad]);
         assert!(!same_basis(plain, operators));
+        let words = |class| basis(None, class, false, [Track::Words]);
+        assert!(same_basis(
+            words(ContentClass::Standard),
+            words(ContentClass::Operators)
+        ));
     }
 
     /// #82: changing only the theme changes no stored value: display

@@ -209,7 +209,9 @@ pub(crate) fn apply_config(
     }
     options.numpad = config.boolean("keyboard.numpad").unwrap_or(true);
     options.numeric = cadence_trainer::numeric::NumericOptions {
-        operators: config.boolean("content.numpad_operators").unwrap_or(false),
+        operators: config
+            .boolean("content.numpad_operators")
+            .unwrap_or(cadence_trainer::numeric::OPERATORS_BY_DEFAULT),
         separator: if config.text("keyboard.decimal_separator") == Some(",") {
             cadence_trainer::numeric::Separator::Comma
         } else {

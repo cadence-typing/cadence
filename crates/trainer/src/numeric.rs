@@ -65,13 +65,27 @@ impl Separator {
     }
 }
 
+/// Whether numpad phases serve the operator families when
+/// `content.numpad_operators` is not set: the whole keypad (#101, #104).
+pub const OPERATORS_BY_DEFAULT: bool = true;
+
 /// How numpad entries are written (#83).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NumericOptions {
     /// Operator families (signed, operation, chain) may be served (#101).
     pub operators: bool,
     /// The decimal separator.
     pub separator: Separator,
+}
+
+impl Default for NumericOptions {
+    /// The whole keypad with `.` (the shipped settings defaults).
+    fn default() -> Self {
+        Self {
+            operators: OPERATORS_BY_DEFAULT,
+            separator: Separator::Point,
+        }
+    }
 }
 
 /// Seeded entropy source owned by the plan builder.

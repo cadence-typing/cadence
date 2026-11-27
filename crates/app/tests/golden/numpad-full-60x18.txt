@@ -1,0 +1,37 @@
+00 normal |  ● numpad <version>  
+   2×#7c868e/#0a0d10/ 8×#85d0b4/#0a0d10/bold 28×#d6dce0/#0a0d10/ 22×#7c868e/#0a0d10/
+01 normal |────────────────────────────────────────────────────────────
+   38×#3a424a/#0a0d10/ 22×#7c868e/#0a0d10/
+02 normal |                                                            
+   60×#d6dce0/#0a0d10/
+03 normal |                                                            
+   60×#d6dce0/#0a0d10/
+04 normal |                                                            
+   60×#d6dce0/#0a0d10/
+05 normal |                                                            
+   60×#d6dce0/#0a0d10/
+06 normal |                                                            
+   60×#d6dce0/#0a0d10/
+07 normal |                            12+7                            
+   28×#d6dce0/#0a0d10/ 3×#85d0b4/#0a0d10/ 1×#85d0b4/#0a0d10/bold+reverse 28×#d6dce0/#0a0d10/
+08 normal |                                                            
+   60×#d6dce0/#0a0d10/
+09 normal |                                                            
+   60×#d6dce0/#0a0d10/
+10 normal |                                                            
+   60×#d6dce0/#0a0d10/
+11 normal |                                                            
+   60×#d6dce0/#0a0d10/
+12 normal |                                                            
+   60×#d6dce0/#0a0d10/
+13 normal |          Normal text · native scaling unavailable          
+   2×#d6dce0/#0a0d10/ 56×#e0b26a/#0a0d10/ 2×#d6dce0/#0a0d10/
+14 normal |                next key ‘7’ · Enter submits                
+   2×#d6dce0/#0a0d10/ 56×#7c868e/#0a0d10/ 2×#d6dce0/#0a0d10/
+15 normal |                                                            
+   60×#d6dce0/#0a0d10/
+16 normal | TYPE  numpad  │ -- digits/min │ acc -- │ 0:59 left │ saved 
+   6×#85d0b4/#101418/bold+reverse 9×#d6dce0/#101418/ 1×#3a424a/#101418/ 15×#85d0b4/#101418/ 1×#3a424a/#101418/ 8×#d6dce0/#101418/ 1×#3a424a/#101418/ 11×#d6dce0/#101418/ 1×#3a424a/#101418/ 7×#7c868e/#101418/
+17 normal | Enter submit  Esc pause  Ctrl-C end & review               
+   1×#7c868e/#0a0d10/ 12×#d6dce0/#0a0d10/ 47×#7c868e/#0a0d10/
+cursor visible=false column=0 row=0

@@ -188,3 +188,35 @@ fn timing_fixture_case_matches() {
         "paused runs are never benchmark eligible (L-03)"
     );
 }
+
+/// #101, #104: a full-keypad entry is scored by the same rules. `12+7` with
+/// `*` typed for `+`, then Backspace and `+`: all 4 positions are attempted
+/// and 3 are first-correct (the operator stays a first-attempt error after
+/// correction); only the 3 digits count toward digits per minute; the entry
+/// is complete and exact but not clean.
+#[test]
+fn a_corrected_operator_is_a_first_attempt_error_and_never_a_digit() {
+    let events: Vec<Value> = ["1", "2", "*", "Backspace", "+", "7"]
+        .iter()
+        .map(|text| Value::from(*text))
+        .collect();
+    let active = Micros::from_us(6_000_000);
+    let partial = run_case("12+7", events.get(..3).unwrap_or_default(), active);
+    assert!(
+        !partial.is_complete(),
+        "Enter cannot submit an incomplete entry"
+    );
+    let ledger = run_case("12+7", &events, active);
+    let metrics = exercise_metrics(&ledger, active);
+    assert_eq!(metrics.first_attempted, 4);
+    assert_eq!(metrics.first_correct, 3);
+    assert!(!metrics.clean_completion);
+    let numpad = numeric_metrics(&ledger, active);
+    assert_eq!(numpad.correct_digits, 3);
+    assert_eq!(numpad.target_digits, 3);
+    assert!(numpad.submitted_exact);
+    assert!(!numpad.clean_entry);
+    // 3 digits in 6 seconds: 30 digits per minute.
+    let pace = numpad.digits_per_minute.unwrap();
+    assert_eq!(pace.numerator(), 30 * pace.denominator());
+}

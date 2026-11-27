@@ -166,3 +166,67 @@ fn an_empty_profile_has_no_series() -> TestResult {
     );
     Ok(())
 }
+
+fn session_with(
+    id: u64,
+    class: ContentClass,
+    rows: &[(Track, u64)],
+) -> Result<HistoryPoint, Box<dyn std::error::Error>> {
+    Ok(HistoryPoint {
+        session: SessionId::new(id)?,
+        day: i64::try_from(id)?,
+        layout: Some(US),
+        content_class: class,
+        synthetic: false,
+        probe_comparable: None,
+        tracks: rows
+            .iter()
+            .map(|(track, correct)| TrackProgress {
+                first_correct: *correct,
+                first_attempted: 10,
+                correct_units: *correct,
+                active_micros: 60_000_000,
+                ..TrackProgress::empty(*track)
+            })
+            .collect(),
+    })
+}
+
+/// #101, #104: switching the numpad to the whole keypad restarts only the
+/// numpad series ("content changed"); words, number-row and prose continue
+/// across the switch, and full-keypad sessions join each other.
+#[test]
+fn the_full_keypad_restarts_only_the_numpad_series() -> TestResult {
+    let ops = ContentClass::Operators;
+    let all = [
+        (Track::Words, 9),
+        (Track::NumberRow, 8),
+        (Track::Numpad, 7),
+        (Track::Prose, 9),
+    ];
+    let history = vec![
+        session_with(1, STD, &all)?,
+        session_with(2, STD, &all)?,
+        session_with(3, ops, &all)?,
+        session_with(4, ops, &all)?,
+    ];
+    let view = progress(history)?;
+    let ProgressView::Ready { tracks, .. } = &view else {
+        return Err("progress ready".into());
+    };
+    for series in tracks {
+        match series.track {
+            Track::Numpad => {
+                assert_eq!(series.sessions, 2, "numpad joins full-keypad sessions");
+                assert_eq!(series.stopped, Some(Break::ContentChanged));
+            }
+            Track::Words | Track::NumberRow | Track::Prose => {
+                assert_eq!(series.sessions, 4, "{:?} unbroken", series.track);
+                assert_eq!(series.stopped, None, "{:?}", series.track);
+            }
+            _ => {}
+        }
+    }
+    assert!(tracks.iter().any(|s| s.track == Track::Numpad));
+    Ok(())
+}

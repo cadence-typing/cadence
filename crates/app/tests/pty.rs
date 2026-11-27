@@ -229,3 +229,35 @@ fn interrupt_and_termination_restore_the_terminal() -> TestResult {
     )?;
     session.finish(at)
 }
+
+/// #101, #104: by default the numpad phase is the whole keypad: the start
+/// screen says so, operator keys and Backspace reach practice through the
+/// terminal, and the session ends into its review and exits cleanly.
+#[test]
+fn the_numpad_phase_takes_the_whole_keypad() -> TestResult {
+    let mut session = Session::start(
+        100,
+        32,
+        &[
+            "--utc-offset",
+            "+00:00",
+            "--minutes",
+            "5",
+            "--track",
+            "numpad",
+        ],
+    )?;
+    let at = session.expect(0, b"Make room for a little practice.")?;
+    let at = session.expect(at, b"digits, decimals and + - * /")?;
+    session.send(b"\r")?;
+    let at = session.expect(at, b"Enter submits")?;
+    // Operator keys and a correction reach practice through the terminal
+    // (the status line redraws incrementally, so the frame is not matched).
+    session.send(b"1+")?;
+    session.send(b"\x7f")?;
+    session.send(b"*")?;
+    session.send(b"\x03")?;
+    let at = session.expect(at, b"Session review")?;
+    session.send(b"\r")?;
+    session.finish(at)
+}

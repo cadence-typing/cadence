@@ -49,7 +49,7 @@ impl Break {
     pub const fn note(self) -> &'static str {
         match self {
             Self::LayoutChanged => "layout changed here",
-            Self::ContentChanged => "other content (imported or code) here",
+            Self::ContentChanged => "content changed here (imported, code or keypad mix)",
             Self::Synthetic => "a headless session here",
             Self::ProbeNotComparable => "a probe that is not comparable here",
         }
@@ -141,14 +141,17 @@ fn point_basis(point: &HistoryPoint, track: Track) -> Basis {
     basis(point.layout, point.content_class, point.synthetic, [track])
 }
 
-fn why(newest: &HistoryPoint, other: &HistoryPoint) -> Break {
+/// Why `other` breaks `track`'s series. The content class is read as the
+/// series' basis carries it, so a class that does not apply to the track
+/// (`operators` outside the numpad, #101) never reads "content changed".
+fn why(newest: &HistoryPoint, other: &HistoryPoint, track: Track) -> Break {
+    let class = |point: &HistoryPoint| point_basis(point, track).content_class;
+    let standard = u64::from(ContentClass::Standard.code());
     if other.synthetic {
         Break::Synthetic
     } else if other.layout != newest.layout {
         Break::LayoutChanged
-    } else if other.content_class != newest.content_class
-        || newest.content_class != ContentClass::Standard
-    {
+    } else if class(other) != class(newest) || class(newest) != standard {
         Break::ContentChanged
     } else {
         Break::ProbeNotComparable
@@ -171,7 +174,7 @@ fn series(points: &[HistoryPoint], track: Track) -> Result<Option<Series>, CoreE
         let comparable = same_basis(point_basis(newest, track), point_basis(point, track))
             && (!probe || point.probe_comparable == Some(true));
         if !comparable {
-            stopped = Some(why(newest, point));
+            stopped = Some(why(newest, point, track));
             break;
         }
         if let Some(report) = track_of(point, track) {

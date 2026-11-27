@@ -149,6 +149,11 @@ const NUMPAD: &[(&str, &str)] = &[
     ("action", r#"{"name":"StartDrill"}"#),
     ("text", r#"{"text":"01","inter_key_microseconds":300000}"#),
 ];
+/// #101: an operator typed mid-entry, shown as typed.
+const NUMPAD_FULL: &[(&str, &str)] = &[
+    ("action", r#"{"name":"StartDrill"}"#),
+    ("text", r#"{"text":"12+","inter_key_microseconds":300000}"#),
+];
 const RESULTS: &[(&str, &str)] = &[
     ("action", r#"{"name":"StartDrill"}"#),
     ("text", r#"{"text":"cat","inter_key_microseconds":300000}"#),
@@ -169,6 +174,7 @@ fn golden_frames_at_60x18_and_100x32() -> Result<(), Box<dyn std::error::Error>>
             ("start", "scoring-cat", START),
             ("practice", "scoring-cat", PRACTICE),
             ("numpad", "numpad-small", NUMPAD),
+            ("numpad-full", "numpad-full", NUMPAD_FULL),
             ("results", "scoring-cat", RESULTS),
             ("save-error", "save-error", SAVE_ERROR),
         ] {

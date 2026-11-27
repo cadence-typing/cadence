@@ -414,6 +414,7 @@ impl Engine {
                         phase.phase,
                         self.learning.evidence.plan.mode,
                         self.phase_targets(phase.phase).as_deref(),
+                        self.content_class == cadence_core::progress::ContentClass::Operators,
                     ),
                     seconds: phase.seconds,
                     state,
@@ -474,8 +475,21 @@ fn phase_label(phase: Phase) -> &'static str {
 }
 
 /// A phase's purpose: what it targets, or that it is untargeted (#50).
-fn phase_purpose(phase: Phase, mode: PlannerMode, targets: Option<&str>) -> String {
+/// `operators` says the session's numpad entries use the whole keypad
+/// (content class `operators`, #101); `*` and `/` are shown as typed.
+fn phase_purpose(
+    phase: Phase,
+    mode: PlannerMode,
+    targets: Option<&str>,
+    operators: bool,
+) -> String {
     match (phase, targets) {
+        (Phase::Numpad, Some(targets)) if operators => {
+            format!("Exact keypad entries targeting {targets}, with + - * /.")
+        }
+        (Phase::Numpad, None) if operators => {
+            "Exact keypad entries: digits, decimals and + - * /. Leading zeros count.".to_string()
+        }
         (Phase::AdaptiveWords, Some(targets)) => {
             format!("Words chosen for {targets}, plus variety.")
         }

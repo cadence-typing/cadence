@@ -489,7 +489,9 @@ pub fn help() {
         Enter starts/continues. Esc pauses; while paused, e ends the session and shows the review.\n\
         Ctrl-C during practice also ends it and shows the review; Enter there saves and exits.\n\
         F2 cycles text size. Losing focus or pasting pauses practice; nothing is inserted.\n\
-        Numpad entries require Enter; physical keypad origin is unverified.\n\
+        Numpad entries use the whole keypad (digits, decimals, + - * /) and require Enter;\n\
+        set content.numpad_operators = false for digits and decimals only.\n\
+        Physical keypad origin is unverified.\n\
         Progress stays local. This preview is not formally qualified or signed."
     );
 }

@@ -49,6 +49,12 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
         | "config-changes" => (1, 60, vec!["cat".to_string()]),
         "contamination" => (5, 60, vec!["cat".to_string()]),
         "numpad-small" => (3, 60, vec!["0123".to_string(), "4.56".to_string()]),
+        // The whole keypad (#101): an operation, a signed decimal, a chain.
+        "numpad-full" => (
+            3,
+            60,
+            vec!["12+7".to_string(), "-4.50".to_string(), "6*3/2".to_string()],
+        ),
         "row-and-pad" => (4, 30, vec!["room 1234".to_string()]),
         "daily-small" => (
             42,
@@ -58,7 +64,7 @@ fn scenario_plan(name: &str) -> Result<SessionPlan, String> {
         other => return Err(format!("unknown scenario {other}")),
     };
     let (kind, phase) = match name {
-        "numpad-small" => (ExerciseKind::Numpad, Phase::Numpad),
+        "numpad-small" | "numpad-full" => (ExerciseKind::Numpad, Phase::Numpad),
         "row-and-pad" => (ExerciseKind::NumberRow, Phase::NumberRow),
         _ => (ExerciseKind::Words, Phase::AdaptiveWords),
     };

@@ -91,6 +91,11 @@ fn family_of(text: &str) -> Family {
     }
 }
 
+const OPERATORS_OFF: NumericOptions = NumericOptions {
+    operators: false,
+    separator: crate::numeric::Separator::Point,
+};
+
 const OPERATORS_ON: NumericOptions = NumericOptions {
     operators: true,
     separator: crate::numeric::Separator::Point,
@@ -133,7 +138,7 @@ fn each_cycle_serves_the_policy_mix_in_a_seeded_order() {
 #[test]
 fn operators_off_serves_digits_and_decimals_only() {
     let cold = LearnerModel::cold(&v5());
-    let entries = numpad_entries(&cold, NumericOptions::default(), 9);
+    let entries = numpad_entries(&cold, OPERATORS_OFF, 9);
     assert!(!entries.is_empty());
     for text in &entries {
         assert!(
@@ -208,8 +213,7 @@ fn a_weak_operator_is_targeted_only_when_operators_are_served() {
         }
     }
     assert!(carried > 0);
-    let off =
-        LearnerModel::from_history(&history, &v5(), today, NumericOptions::default()).unwrap();
+    let off = LearnerModel::from_history(&history, &v5(), today, OPERATORS_OFF).unwrap();
     assert!(
         off.focus_in(crate::learner::FocusGroup::Numpad)
             .iter()

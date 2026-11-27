@@ -92,7 +92,7 @@ pub fn paint(
                 style(palette, Role::Text).add_modifier(Modifier::BOLD),
             ));
             lines.push(Line::styled(
-                "Digits and entries on the keypad, with their own history.",
+                "Digits, decimals and + - * / on the keypad, with their own history.",
                 style(palette, Role::Muted),
             ));
         }

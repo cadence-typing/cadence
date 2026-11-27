@@ -82,8 +82,11 @@ fn shipped_startup_replays_many_seeds_and_obeys_caps() -> TestResult {
                         previous = Some(word);
                     }
                 }
+                // #101: every numpad entry is a keypad entry (digits, `.`,
+                // `+ - * /`) accepted by the proved grammar.
                 if exercise.kind == ExerciseKind::Numpad {
-                    assert!(text.chars().all(|c| c.is_ascii_digit() || c == '.'));
+                    assert!(cadence_core::keypad::well_formed(&exercise.units), "{text}");
+                    assert!(text.chars().all(|c| "0123456789.+-*/".contains(c)));
                 }
             }
         }

@@ -1108,3 +1108,29 @@ fn code_rows_keep_their_indentation() -> Result<(), Box<dyn std::error::Error>> 
     assert_eq!(close, open, "{text}");
     Ok(())
 }
+
+/// #101, #104: a full-keypad session's numpad purpose names the operators
+/// and an operator target is shown as typed (`7+`, never `7＋` or ×).
+#[test]
+fn a_full_keypad_session_names_operators_and_operator_targets()
+-> Result<(), Box<dyn std::error::Error>> {
+    use cadence_core::learning::KeyLane::Numpad;
+    for (columns, rows) in [(60, 18), (100, 32)] {
+        let engine = targeted_engine(&[cadence_trainer::Phase::Numpad], &[(Numpad, "7+")])?
+            .with_layout(Layout::Us, cadence_core::progress::ContentClass::Operators);
+        let today = render(&engine, 0, columns, rows);
+        assert!(
+            today.contains("Exact keypad entries targeting 7+"),
+            "{columns}x{rows}:\n{today}"
+        );
+        assert!(today.contains("numpad 7+"), "{columns}x{rows}:\n{today}");
+        let untargeted = targeted_engine(&[cadence_trainer::Phase::Numpad], &[])?
+            .with_layout(Layout::Us, cadence_core::progress::ContentClass::Operators);
+        let today = render(&untargeted, 0, columns, rows);
+        assert!(
+            today.contains("Exact keypad entries"),
+            "{columns}x{rows}:\n{today}"
+        );
+    }
+    Ok(())
+}
