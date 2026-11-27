@@ -27,6 +27,8 @@ the change it brings in the commit message.
 | `jiff` (system time zone only) | app | The local UTC offset read once at session start (replaced chrono, unmaintained: RUSTSEC-2026-0543) |
 | `proptest` | tests only | Property tests with persisted regression seeds |
 | `tempfile` | tests only | Temporary profiles and homes |
+| `portable-pty` | tests only (app) | A real pseudo-terminal for the PTY smoke suite and the `pty-linux` gate (#92) |
+| `nix` (`term`, `signal`, `process`) | tests only (app) | The PTY's termios read back without `unsafe`, and SIGTERM for the abnormal-exit test; the same version portable-pty uses |
 
 Allowed licences (`deny.toml`): Apache-2.0 and MIT (the project's own and
 most of the ecosystem), Unicode-3.0 (unicode-ident's data tables, alongside

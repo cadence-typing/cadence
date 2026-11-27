@@ -18,6 +18,10 @@ tier = "edge"
 [lints]
 workspace = true
 
+[features]
+# Test-only fault ports (never in a release build): see cadence-runtime.
+test-faults = ["cadence-runtime/test-faults"]
+
 [dependencies]
 cadence-core.workspace = true
 cadence-engine.workspace = true
@@ -33,3 +37,5 @@ jiff.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+portable-pty.workspace = true
+nix.workspace = true

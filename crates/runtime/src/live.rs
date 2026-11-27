@@ -171,6 +171,12 @@ fn setup_error(error: io::Error) -> TerminalError {
 }
 
 fn restore_terminal() -> io::Result<()> {
+    // The PTY gate's negative calibration (#92): a test-faults build told to
+    // leave raw mode on, so the gate is shown to catch it.
+    #[cfg(feature = "test-faults")]
+    if std::env::var_os("CADENCE_FAULT_LEAVE_RAW").is_some() {
+        return execute!(io::stdout(), Show, LeaveAlternateScreen);
+    }
     // Always attempt raw-mode cleanup even if the output stream failed.
     let display = execute!(
         io::stdout(),

@@ -14,6 +14,7 @@ mod dist;
 mod gates;
 mod headless;
 mod notices;
+mod pty;
 mod release;
 
 fn main() -> ExitCode {

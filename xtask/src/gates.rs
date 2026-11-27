@@ -51,7 +51,7 @@ pub const GATES: &[Gate] = &[
     Gate {
         id: "pty-linux",
         description: "small actual binary/PTY suite, terminal restoration",
-        state: GateState::Pending("P6"),
+        state: GateState::Implemented,
     },
     Gate {
         id: "persistence-linux",
@@ -160,6 +160,7 @@ fn dispatch_implemented(id: &str) -> Result<(), String> {
         "corpus" => crate::corpus::check(),
         "model" => crate::run_models(),
         "headless" => crate::headless::check(),
+        "pty-linux" => crate::pty::check(&crate::dist::root()?),
         other => Err(format!("gate {other} has no runner wired yet")),
     }
 }

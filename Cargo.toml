@@ -62,6 +62,10 @@ sha2 = "0.10.9"
 rand = "0.9.2"
 rand_chacha = "0.9.0"
 tempfile = "=3.27.0"
+# The PTY smoke suite (#92): a real pseudo-terminal for the built binary,
+# and its termios read back safely. Test-only.
+portable-pty = "=0.9.0"
+nix = { version = "=0.28.0", default-features = false, features = ["term", "signal", "process"] }
 signal-hook = "=0.3.18"
 # Purpose: the local UTC offset at session start (#52, local-calendar days).
 # Default features off; `clock` reads TZ and /etc/localtime in pure Rust.
