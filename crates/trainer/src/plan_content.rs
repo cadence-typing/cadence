@@ -7,10 +7,12 @@ use cadence_core::label;
 use std::cmp::Reverse;
 
 use crate::learner::FocusGroup;
-use crate::numeric::{number_row_exercise, numpad_exercise};
+use crate::numeric::number_row_exercise;
+use crate::numeric_keypad::numpad_exercise;
 use crate::plan::{ExerciseKind, PlanError, PlanInputs, PlanRng, PlannedExercise};
 use crate::plan_words::WordSelector;
 use crate::policy::{Phase, TrainerPolicy};
+use cadence_core::keypad;
 use rand::seq::SliceRandom;
 
 /// Per-session options for building a phase's content.
@@ -76,58 +78,8 @@ pub(super) fn exercises(
             served_due.extend(selector.served_due().iter().copied());
             Ok(exercises)
         }
-        Phase::NumberRow | Phase::Numpad => {
-            // One prepared entry per second, not one five-entry string per 20s.
-            let count = usize::try_from(seconds)
-                .map_err(|_unrepresentable| content("exercise count overflow"))?;
-            let mut used = std::collections::HashSet::new();
-            let mut result = Vec::with_capacity(count);
-            // #5: the group's focus (L-01: the number row and the numpad
-            // never share one); `numeric_target_share` of the entries are
-            // built around a focus skill in turn, the rest stay uniform.
-            let group = if phase == Phase::Numpad {
-                FocusGroup::Numpad
-            } else {
-                FocusGroup::Row
-            };
-            let focus = inputs.learner.focus_in(group);
-            let (share, cycle) = policy.learning.numeric_target_share;
-            let cycle = usize::try_from(cycle.max(1)).unwrap_or(1);
-            let share = usize::try_from(share).unwrap_or(0);
-            let mut turn = 0_usize;
-            for index in 0..count {
-                let targeted =
-                    !focus.is_empty() && index.checked_rem(cycle).is_some_and(|i| i < share);
-                let target = if targeted {
-                    let key = focus
-                        .get(turn.checked_rem(focus.len()).unwrap_or(0))
-                        .copied();
-                    turn = turn.saturating_add(1);
-                    key
-                } else {
-                    None
-                };
-                let skill = target.map(|key| key.skill);
-                let (units, kind) = if phase == Phase::Numpad {
-                    (
-                        numpad_exercise(rng, &mut used, skill, inputs.numeric),
-                        ExerciseKind::Numpad,
-                    )
-                } else {
-                    (
-                        number_row_exercise(rng, &mut used, skill),
-                        ExerciseKind::NumberRow,
-                    )
-                };
-                let mut exercise = PlannedExercise::plain(
-                    units.map_err(|error| content(&error.to_string()))?,
-                    kind,
-                );
-                exercise.target = target;
-                result.push(exercise);
-            }
-            Ok(result)
-        }
+        Phase::NumberRow => number_row(policy, inputs, rng, seconds),
+        Phase::Numpad => numpad(policy, inputs, rng, seconds),
         // Prose has its own stream (#48): its passages never depend on
         // what the adaptive phases drew, nor on the learner's focus.
         Phase::Prose => {
@@ -140,6 +92,113 @@ pub(super) fn exercises(
             )
         }
     }
+}
+
+/// One prepared entry per second, not one five-entry string per 20s.
+fn entry_count(seconds: u64) -> Result<usize, PlanError> {
+    usize::try_from(seconds).map_err(|_unrepresentable| content("exercise count overflow"))
+}
+
+/// Whether entry `index` is one of the `numeric_target_share` entries of
+/// its cycle that carry a focus skill (#5).
+fn targeted_slot(policy: &TrainerPolicy, index: usize) -> bool {
+    let (share, cycle) = policy.learning.numeric_target_share;
+    let cycle = usize::try_from(cycle.max(1)).unwrap_or(1);
+    let share = usize::try_from(share).unwrap_or(0);
+    index.checked_rem(cycle).is_some_and(|i| i < share)
+}
+
+/// Number-row entries: the row group's focus (L-01: never the numpad's)
+/// in turn in the targeted share, the rest uniform.
+fn number_row(
+    policy: &TrainerPolicy,
+    inputs: PlanInputs<'_>,
+    rng: &mut PlanRng,
+    seconds: u64,
+) -> Result<Vec<PlannedExercise>, PlanError> {
+    let count = entry_count(seconds)?;
+    let mut used = std::collections::HashSet::new();
+    let mut result = Vec::with_capacity(count);
+    let focus = inputs.learner.focus_in(FocusGroup::Row);
+    let mut turn = 0_usize;
+    for index in 0..count {
+        let target = if !focus.is_empty() && targeted_slot(policy, index) {
+            let key = focus
+                .get(turn.checked_rem(focus.len()).unwrap_or(0))
+                .copied();
+            turn = turn.saturating_add(1);
+            key
+        } else {
+            None
+        };
+        let units = number_row_exercise(rng, &mut used, target.map(|key| key.skill))
+            .map_err(|error| content(&error.to_string()))?;
+        let mut exercise = PlannedExercise::plain(units, ExerciseKind::NumberRow);
+        exercise.target = target;
+        result.push(exercise);
+    }
+    Ok(result)
+}
+
+/// Numpad entries over the whole keypad (#101): each cycle of the
+/// policy's `[keypad]` mix serves every family exactly its weight, in a
+/// seeded order (the proved `keypad::family_at` over a per-cycle
+/// permutation). A targeted entry keeps its family and carries the next
+/// focus skill, in turn, that the family can carry (`keypad::carries`);
+/// when none can, it is untargeted.
+fn numpad(
+    policy: &TrainerPolicy,
+    inputs: PlanInputs<'_>,
+    rng: &mut PlanRng,
+    seconds: u64,
+) -> Result<Vec<PlannedExercise>, PlanError> {
+    let count = entry_count(seconds)?;
+    let weights = policy.keypad.weights;
+    let operators = inputs.numeric.operators;
+    let cycle = keypad::cycle(weights, operators)
+        .filter(|cycle| *cycle > 0)
+        .ok_or_else(|| content("empty keypad mix"))?;
+    let cycle_len =
+        usize::try_from(cycle).map_err(|_unrepresentable| content("keypad cycle overflow"))?;
+    let mut used = std::collections::HashSet::new();
+    let mut result = Vec::with_capacity(count);
+    let focus = inputs.learner.focus_in(FocusGroup::Numpad);
+    let mut order: Vec<u64> = Vec::with_capacity(cycle_len);
+    let mut turn = 0_usize;
+    for index in 0..count {
+        let within = index.checked_rem(cycle_len).unwrap_or(0);
+        if within == 0 {
+            order = (0..cycle).collect();
+            order.shuffle(rng);
+        }
+        let position = order.get(within).copied().unwrap_or(0);
+        let family = keypad::family_at(position, weights, operators);
+        let mut target = None;
+        if targeted_slot(policy, index) {
+            for offset in 0..focus.len() {
+                let at = turn.saturating_add(offset).checked_rem(focus.len());
+                let key = at.and_then(|at| focus.get(at)).copied();
+                if let Some(key) = key.filter(|key| keypad::carries(family, key.skill)) {
+                    target = Some(key);
+                    turn = turn.saturating_add(offset).saturating_add(1);
+                    break;
+                }
+            }
+        }
+        let entry = numpad_exercise(
+            rng,
+            &mut used,
+            family,
+            target.map(|key| key.skill),
+            inputs.numeric,
+            &policy.keypad,
+        )
+        .map_err(|error| content(&error.to_string()))?;
+        let mut exercise = PlannedExercise::plain(entry.into_units(), ExerciseKind::Numpad);
+        exercise.target = target;
+        result.push(exercise);
+    }
+    Ok(result)
 }
 
 fn content(message: &str) -> PlanError {

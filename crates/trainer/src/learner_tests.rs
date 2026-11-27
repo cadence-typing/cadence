@@ -50,7 +50,13 @@ fn day(value: i64) -> UtcDay {
 
 #[test]
 fn empty_history_is_cold_start() {
-    let model = LearnerModel::from_history(&LearnerHistory::default(), &policy(), day(10)).unwrap();
+    let model = LearnerModel::from_history(
+        &LearnerHistory::default(),
+        &policy(),
+        day(10),
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     assert_eq!(model.mode(), PlannerMode::ColdStart);
     assert!(model.focus().is_empty());
     let unseen = model.score(bigram("qz"));
@@ -70,7 +76,13 @@ fn frequent_errors_become_the_first_focus() {
             ],
         )],
     };
-    let model = LearnerModel::from_history(&history, &policy(), day(10)).unwrap();
+    let model = LearnerModel::from_history(
+        &history,
+        &policy(),
+        day(10),
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     assert_eq!(model.mode(), PlannerMode::Adaptive);
     assert_eq!(model.focus().first(), Some(&bigram("th")));
     assert!(!model.focus().contains(&bigram("an")));
@@ -90,7 +102,13 @@ fn slow_transitions_are_a_focus_even_without_errors() {
             ],
         )],
     };
-    let model = LearnerModel::from_history(&history, &policy(), day(10)).unwrap();
+    let model = LearnerModel::from_history(
+        &history,
+        &policy(),
+        day(10),
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     assert_eq!(model.focus().first(), Some(&bigram("ve")));
     assert!(model.score(bigram("ve")).hesitation.get() > 5_000);
     assert_eq!(model.score(bigram("in")).hesitation, BasisPoints::ZERO);
@@ -101,7 +119,13 @@ fn sparse_evidence_is_uncertain_not_mastered() {
     let history = LearnerHistory {
         sessions: vec![session(1, 10, &[("qu", tally(2, 0, 0, 0))])],
     };
-    let model = LearnerModel::from_history(&history, &policy(), day(10)).unwrap();
+    let model = LearnerModel::from_history(
+        &history,
+        &policy(),
+        day(10),
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     assert!(model.focus().is_empty());
     assert!(model.score(bigram("qu")).uncertainty.get() > 8_000);
 }
@@ -121,8 +145,13 @@ fn recent_sessions_outweigh_old_ones() {
             &[("ou", tally(40, 0, 0, 0)), ("ck", tally(40, 6, 0, 0))],
         ));
     }
-    let model =
-        LearnerModel::from_history(&LearnerHistory { sessions }, &policy(), day(30)).unwrap();
+    let model = LearnerModel::from_history(
+        &LearnerHistory { sessions },
+        &policy(),
+        day(30),
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     assert_eq!(model.focus().first(), Some(&bigram("ck")));
 }
 
@@ -142,7 +171,13 @@ fn missed_words_follow_the_review_ladder() {
     };
     let policy = policy();
     let build = |sessions: Vec<HistoricSession>, today: i64| {
-        LearnerModel::from_history(&LearnerHistory { sessions }, &policy, day(today)).unwrap()
+        LearnerModel::from_history(
+            &LearnerHistory { sessions },
+            &policy,
+            day(today),
+            crate::numeric::NumericOptions::default(),
+        )
+        .unwrap()
     };
     // Missed on day 10: due on day 11, not before.
     assert!(build(vec![with_word(1, 10, 1)], 10).due_words().is_empty());
@@ -172,7 +207,13 @@ fn passages_report_their_age_within_the_window() {
     let history = LearnerHistory {
         sessions: vec![first, session(2, 2, &[]), session(3, 3, &[])],
     };
-    let model = LearnerModel::from_history(&history, &policy(), day(3)).unwrap();
+    let model = LearnerModel::from_history(
+        &history,
+        &policy(),
+        day(3),
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     assert_eq!(model.passage_age(passage), Some(2));
     assert_eq!(model.passage_age(PassageId::new(6).unwrap()), None);
 }
@@ -182,7 +223,13 @@ fn word_score_takes_the_weakest_transition() {
     let history = LearnerHistory {
         sessions: vec![session(1, 10, &[("th", tally(40, 12, 0, 0))])],
     };
-    let model = LearnerModel::from_history(&history, &policy(), day(10)).unwrap();
+    let model = LearnerModel::from_history(
+        &history,
+        &policy(),
+        day(10),
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     let the: Vec<_> = "the".chars().map(unit).collect();
     let cat: Vec<_> = "cat".chars().map(unit).collect();
     assert!(model.word_score(&the).error > model.word_score(&cat).error);
@@ -202,7 +249,13 @@ fn noise_never_becomes_a_focus() {
             ],
         )],
     };
-    let model = LearnerModel::from_history(&history, &policy(), day(10)).unwrap();
+    let model = LearnerModel::from_history(
+        &history,
+        &policy(),
+        day(10),
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     assert!(!model.focus().contains(&bigram("pe")));
 }
 
@@ -224,6 +277,7 @@ fn a_key_explained_by_a_focused_transition_is_skipped() {
         },
         &policy(),
         day(10),
+        crate::numeric::NumericOptions::default(),
     )
     .unwrap();
     assert_eq!(model.focus().first(), Some(&bigram("er")));
@@ -257,6 +311,7 @@ fn focus_is_independent_of_map_order() {
             },
             &policy(),
             day(10),
+            crate::numeric::NumericOptions::default(),
         )
         .unwrap()
         .focus()
@@ -295,7 +350,12 @@ fn an_offset_change_between_sessions_keeps_replay_order() {
             with_word(3, 10, 0),
         ],
     };
-    let model = LearnerModel::from_history(&history, &policy(), day(12));
+    let model = LearnerModel::from_history(
+        &history,
+        &policy(),
+        day(12),
+        crate::numeric::NumericOptions::default(),
+    );
     assert!(model.is_ok(), "{model:?}");
 }
 
@@ -355,6 +415,7 @@ fn numpad_weakness_is_a_numpad_focus_and_letters_are_unchanged() {
             },
             &policy,
             day(10),
+            crate::numeric::NumericOptions::default(),
         )
         .unwrap()
     };
@@ -388,7 +449,13 @@ fn sparse_digits_and_policy_v2_give_no_digit_focus() {
     let history = LearnerHistory {
         sessions: vec![session_with(1, &sparse)],
     };
-    let model = LearnerModel::from_history(&history, &policy_v3(), day(10)).unwrap();
+    let model = LearnerModel::from_history(
+        &history,
+        &policy_v3(),
+        day(10),
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     assert!(model.focus_in(FocusGroup::Numpad).is_empty());
     let strong = [
         (key(KeyLane::Numpad, "7"), tally(60, 30, 0, 0)),
@@ -397,7 +464,13 @@ fn sparse_digits_and_policy_v2_give_no_digit_focus() {
     let history = LearnerHistory {
         sessions: vec![session_with(1, &strong)],
     };
-    let v2 = LearnerModel::from_history(&history, &policy(), day(10)).unwrap();
+    let v2 = LearnerModel::from_history(
+        &history,
+        &policy(),
+        day(10),
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     assert!(v2.focus_in(FocusGroup::Numpad).is_empty());
 }
 
@@ -438,4 +511,21 @@ fn the_separator_is_a_numpad_skill() {
             Some(crate::learner::FocusGroup::Numpad)
         );
     }
+}
+
+/// #101: every keypad key and pair in the numpad lane is a numpad skill,
+/// operators included; outside keys and operator pairs are not.
+#[test]
+fn keypad_operators_join_the_numpad_group() {
+    for text in ["+", "*", "/", "-", "7+", "*4", ".5"] {
+        assert_eq!(
+            group_of(key(KeyLane::Numpad, text)),
+            Some(FocusGroup::Numpad),
+            "{text}"
+        );
+    }
+    for text in ["=", "**", "+.", "a"] {
+        assert_eq!(group_of(key(KeyLane::Numpad, text)), None, "{text}");
+    }
+    assert_eq!(group_of(key(KeyLane::Main, "*")), None);
 }

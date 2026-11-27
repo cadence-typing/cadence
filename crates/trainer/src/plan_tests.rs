@@ -122,7 +122,13 @@ fn weak_on(pair: &str, words: &[(WordId, u64)], day: i64) -> LearnerModel {
         }],
     };
     let today = UtcDay::from_days_since_epoch(day + 1).unwrap();
-    LearnerModel::from_history(&history, &policy(), today).unwrap()
+    LearnerModel::from_history(
+        &history,
+        &policy(),
+        today,
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap()
 }
 
 fn slots(plan: &SessionPlan) -> impl Iterator<Item = &PlannedWord> {
@@ -288,7 +294,13 @@ fn prose_prefers_unseen_passages_and_labels_repeats() {
         }],
     };
     let today = UtcDay::from_days_since_epoch(2).unwrap();
-    let learner = LearnerModel::from_history(&history, &policy(), today).unwrap();
+    let learner = LearnerModel::from_history(
+        &history,
+        &policy(),
+        today,
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     let plan = build(&learner, &pack, &bank, 11, &[], 900).unwrap();
     let exercises = &phase(&plan, Phase::Prose).exercises;
     let first_caption = exercises[0].caption.as_deref().unwrap();
@@ -453,9 +465,13 @@ fn numeric_entries_follow_their_own_groups_focus() {
             learning,
         }],
     };
-    let learner =
-        LearnerModel::from_history(&history, &v3, UtcDay::from_days_since_epoch(11).unwrap())
-            .unwrap();
+    let learner = LearnerModel::from_history(
+        &history,
+        &v3,
+        UtcDay::from_days_since_epoch(11).unwrap(),
+        crate::numeric::NumericOptions::default(),
+    )
+    .unwrap();
     assert!(
         !learner
             .focus_in(crate::learner::FocusGroup::Numpad)
@@ -551,6 +567,7 @@ fn retention_checks_go_to_warm_up_and_spill_into_words() {
         &history,
         &policy(),
         UtcDay::from_days_since_epoch(15).unwrap(),
+        crate::numeric::NumericOptions::default(),
     )
     .unwrap();
     let rungs: std::collections::HashMap<WordId, usize> = learner.due_with_rungs().collect();

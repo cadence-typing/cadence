@@ -111,10 +111,11 @@ impl TrainingChar {
         self.0
     }
 
-    /// Whether this is a decimal digit (numpad metrics count these).
+    /// Whether this is a decimal digit (numpad metrics count these): the
+    /// keypad alphabet's `Digit` class (proved `cadence_kernel::keypad::class`).
     #[must_use]
-    pub const fn is_digit(self) -> bool {
-        self.0.is_ascii_digit()
+    pub fn is_digit(self) -> bool {
+        matches!(crate::keypad::class_of(self), crate::keypad::Class::Digit)
     }
 }
 

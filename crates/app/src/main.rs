@@ -30,7 +30,7 @@ const WORDS: &str = include_str!("../../../corpus/words-en-v2.tsv");
 const PROSE: &str = include_str!("../../../corpus/prose-en-v2.tsv");
 const PROSE_SOURCES: &str = include_str!("../../../corpus/prose-sources-v2.tsv");
 const PROBES: &str = include_str!("../../../corpus/benchmark-en-v1.tsv");
-pub(crate) const POLICY: &str = include_str!("../../../policies/trainer-v4.toml");
+pub(crate) const POLICY: &str = include_str!("../../../policies/trainer-v5.toml");
 /// Shipped prose lower bound (plan 0003): enough for a long no-repeat window.
 const MINIMUM_PASSAGES: usize = 2_000;
 /// Domain separation for the per-session plan seed.
@@ -288,6 +288,7 @@ pub(crate) fn build_engine(
         &bootstrap.learner,
         policy,
         UtcDay::from_days_since_epoch(day)?,
+        options.numeric,
     )?;
     let budget = match options.minutes {
         Some(minutes) => minutes

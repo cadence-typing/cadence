@@ -11,10 +11,12 @@
 pub mod candidate;
 pub mod corpus;
 pub mod import;
+pub mod keypad_policy;
 pub mod lanes;
 pub mod learner;
 pub mod learning_policy;
 pub mod numeric;
+pub mod numeric_keypad;
 pub mod packs;
 pub mod plan;
 mod plan_content;
@@ -32,7 +34,8 @@ pub use corpus::{CorpusError, WordBand, WordPack};
 pub use lanes::{BlockPlan, LaneSlot, QuotaTracker};
 pub use learner::{FocusGroup, LearnerModel, SkillScore, group_of};
 pub use learning_policy::LearningPolicy;
-pub use numeric::{DigitSource, NumericError, number_row_exercise, numpad_exercise};
+pub use numeric::{DigitSource, NumericError, number_row_exercise};
+pub use numeric_keypad::{KeypadEntry, numpad_exercise};
 pub use plan::{
     Adaptation, ExerciseKind, PaceInputs, PlanError, PlanInputs, PlanRng, PlannedExercise,
     PlannedPhase, PlannedProbe, PlannedWord, ProbeInputs, ProbePlan, SessionPlan, WordSpan,

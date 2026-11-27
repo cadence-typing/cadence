@@ -1,9 +1,10 @@
-//! Seeded numeric practice. Numpad targets are single Enter-submitted entries;
-//! decimals and leading zeros remain strings, never parsed numeric values.
-//! An entry is built with `.` and the session's decimal separator replaces
-//! it last; operator drills (#83) put one of `+ - * /` between two
-//! operands. Operators and separators are typed units, so they count toward
-//! accuracy, but never toward the digit numerator (`TrainingChar::is_digit`).
+//! Seeded numeric practice: number-row entries, and the parts numpad entries
+//! share (`crate::numeric_keypad`). Numpad targets are single
+//! Enter-submitted entries; decimals and leading zeros remain strings, never
+//! parsed numeric values. An entry is built with `.` and the session's
+//! decimal separator replaces it last. Operators and separators are typed
+//! units, so they count toward accuracy, but never toward the digit
+//! numerator (`TrainingChar::is_digit`).
 use cadence_core::alphabet::{Layout, TrainingChar};
 use cadence_core::learning::Skill;
 use std::collections::HashSet;
@@ -15,6 +16,10 @@ pub enum NumericError {
     InvalidCharacter,
     /// No new entry was found within the bounded preparation scan.
     Exhausted,
+    /// A built numpad entry is not `sign? operand (operator operand)*`.
+    Malformed,
+    /// The focus skill cannot be carried by the entry's family.
+    FocusNotCarried,
 }
 impl std::fmt::Display for NumericError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -24,12 +29,19 @@ impl std::fmt::Display for NumericError {
                 f,
                 "numeric preparation exhausted its bounded distinct-entry scan"
             ),
+            Self::Malformed => write!(f, "a numpad entry broke the keypad entry grammar"),
+            Self::FocusNotCarried => {
+                write!(
+                    f,
+                    "a numpad focus skill was given to a family that cannot carry it"
+                )
+            }
         }
     }
 }
 impl std::error::Error for NumericError {}
 
-/// The operators an operator drill places between operands (#83).
+/// The keypad operators (#83, #101).
 pub const OPERATORS: [char; 4] = ['+', '-', '*', '/'];
 
 /// The decimal separator numpad entries use (`keyboard.decimal_separator`).
@@ -56,7 +68,7 @@ impl Separator {
 /// How numpad entries are written (#83).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct NumericOptions {
-    /// Operator drills: every entry is `operand op operand`.
+    /// Operator families (signed, operation, chain) may be served (#101).
     pub operators: bool,
     /// The decimal separator.
     pub separator: Separator,
@@ -67,7 +79,7 @@ pub trait DigitSource {
     /// Uniform value in `0..bound`; callers pass a positive bound.
     fn below(&mut self, bound: u64) -> u64;
 }
-fn digits(rng: &mut dyn DigitSource, length: usize) -> Result<String, NumericError> {
+pub(crate) fn digits(rng: &mut dyn DigitSource, length: usize) -> Result<String, NumericError> {
     (0..length)
         .map(|_| {
             let value = u8::try_from(rng.below(10))
@@ -81,7 +93,11 @@ fn digits(rng: &mut dyn DigitSource, length: usize) -> Result<String, NumericErr
         })
         .collect()
 }
-fn count(rng: &mut dyn DigitSource, base: usize, bound: u64) -> Result<usize, NumericError> {
+pub(crate) fn count(
+    rng: &mut dyn DigitSource,
+    base: usize,
+    bound: u64,
+) -> Result<usize, NumericError> {
     let value = rng.below(bound);
     if value >= bound {
         return Err(NumericError::InvalidCharacter);
@@ -91,7 +107,7 @@ fn count(rng: &mut dyn DigitSource, base: usize, bound: u64) -> Result<usize, Nu
     )
     .ok_or(NumericError::InvalidCharacter)
 }
-fn units(text: &str) -> Result<Vec<TrainingChar>, NumericError> {
+pub(crate) fn units(text: &str) -> Result<Vec<TrainingChar>, NumericError> {
     text.chars()
         .map(|character| {
             TrainingChar::new(character, Layout::Us)
@@ -100,8 +116,9 @@ fn units(text: &str) -> Result<Vec<TrainingChar>, NumericError> {
         .collect()
 }
 
-/// The characters of a focus skill (a digit, `.`, or a pair of them).
-fn skill_text(skill: Skill) -> String {
+/// The characters of a focus skill (a keypad key or a pair), with either
+/// separator written `.`.
+pub(crate) fn skill_text(skill: Skill) -> String {
     let canonical = |unit: TrainingChar| if unit.get() == ',' { '.' } else { unit.get() };
     match skill {
         Skill::Unit(unit) => canonical(unit).to_string(),
@@ -111,7 +128,11 @@ fn skill_text(skill: Skill) -> String {
 
 /// Overwrites a seeded window of the digit run `run` with `skill` (digits
 /// only), keeping the run's length. A skill longer than the run replaces it.
-fn embed(rng: &mut dyn DigitSource, run: &str, skill: &str) -> Result<String, NumericError> {
+pub(crate) fn embed(
+    rng: &mut dyn DigitSource,
+    run: &str,
+    skill: &str,
+) -> Result<String, NumericError> {
     let (run_len, skill_len) = (run.chars().count(), skill.chars().count());
     if skill_len >= run_len {
         return Ok(skill.to_string());
@@ -163,192 +184,11 @@ pub fn number_row_exercise(
     Err(NumericError::Exhausted)
 }
 
-/// One numpad target containing only digits and optionally one decimal point.
-/// Leading zeros and fractional trailing zeros are significant target units.
-///
-/// # Errors
-/// Rejects invalid entropy or bounded distinct-content exhaustion, never silently
-/// substituting a repeat for fresh content.
-pub fn numpad_exercise(
-    rng: &mut dyn DigitSource,
-    used: &mut HashSet<String>,
-    focus: Option<Skill>,
-    options: NumericOptions,
-) -> Result<Vec<TrainingChar>, NumericError> {
-    for _ in 0..64 {
-        let first = match focus {
-            Some(skill) => targeted_numpad(rng, skill)?,
-            None => uniform_numpad(rng)?,
-        };
-        let canonical = if options.operators {
-            let index = usize::try_from(rng.below(4))
-                .map_err(|_unrepresentable| NumericError::InvalidCharacter)?;
-            let operator = OPERATORS.get(index).ok_or(NumericError::InvalidCharacter)?;
-            format!("{first}{operator}{}", uniform_numpad(rng)?)
-        } else {
-            first
-        };
-        let text = canonical.replace('.', &options.separator.char().to_string());
-        if !used.contains(&text) {
-            let target = units(&text)?;
-            used.insert(text);
-            return Ok(target);
-        }
-    }
-    Err(NumericError::Exhausted)
-}
-
-/// A numpad entry built around a focus skill (#5): digits are embedded in
-/// a digit run; a skill with the decimal point makes a decimal entry.
-fn targeted_numpad(rng: &mut dyn DigitSource, skill: Skill) -> Result<String, NumericError> {
-    let text = skill_text(skill);
-    let length = count(rng, 2, 5)?;
-    Ok(match text.split_once('.') {
-        None => {
-            if rng.below(3) == 0 {
-                // Keep decimals in the targeted mix too.
-                let whole = digits(rng, length)?;
-                format!("{}.{}", embed(rng, &whole, &text)?, digits(rng, 2)?)
-            } else {
-                let run = digits(rng, length)?;
-                embed(rng, &run, &text)?
-            }
-        }
-        Some((before, after)) => {
-            let whole = format!("{}{before}", digits(rng, length.saturating_sub(1).max(1))?);
-            let fraction = format!(
-                "{after}{}",
-                digits(rng, 2_usize.saturating_sub(after.len()))?
-            );
-            format!("{whole}.{fraction}")
-        }
-    })
-}
-
-/// A uniform numpad entry (the cold-start mix).
-fn uniform_numpad(rng: &mut dyn DigitSource) -> Result<String, NumericError> {
-    {
-        let text = match rng.below(5) {
-            0 => {
-                let length = count(rng, 2, 5)?;
-                digits(rng, length)?
-            }
-            1 => {
-                let length = count(rng, 1, 4)?;
-                format!("{}.{}", digits(rng, length)?, digits(rng, 2)?)
-            }
-            2 => {
-                let digit = digits(rng, 1)?;
-                let length = count(rng, 3, 4)?;
-                digit.repeat(length)
-            }
-            3 => {
-                let pair = digits(rng, 2)?;
-                pair.repeat(2)
-            }
-            4 => format!("00{}.{}", digits(rng, 3)?, digits(rng, 2)?),
-            _ => return Err(NumericError::InvalidCharacter),
-        };
-        Ok(text)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::plan::PlanRng;
     use rand::SeedableRng;
-
-    #[test]
-    fn single_enter_entries_preserve_zeros_and_decimals() {
-        let mut rng = PlanRng::seed_from_u64(42);
-        let mut used = HashSet::new();
-        let mut saw_leading = false;
-        let mut saw_decimal = false;
-        for _ in 0..1800 {
-            let target =
-                numpad_exercise(&mut rng, &mut used, None, NumericOptions::default()).unwrap();
-            let text: String = target.iter().map(|unit| unit.get()).collect();
-            assert!(text.chars().all(|c| c.is_ascii_digit() || c == '.'));
-            assert!(text.matches('.').count() <= 1);
-            saw_leading |= text.starts_with("00");
-            saw_decimal |= text.contains('.');
-        }
-        assert!(saw_leading && saw_decimal);
-        assert_eq!(used.len(), 1800);
-    }
-    /// #83: every entry is valid for its class and separator: plain drills
-    /// never hold an operator; operator drills hold exactly one, between
-    /// two operands; a comma separator replaces every point.
-    #[test]
-    fn entries_follow_their_class_and_separator() {
-        for (operators, separator) in [
-            (false, Separator::Point),
-            (false, Separator::Comma),
-            (true, Separator::Point),
-            (true, Separator::Comma),
-        ] {
-            let options = NumericOptions {
-                operators,
-                separator,
-            };
-            let mut rng = PlanRng::seed_from_u64(9);
-            let mut used = HashSet::new();
-            for _ in 0..400 {
-                let text: String = numpad_exercise(&mut rng, &mut used, None, options)
-                    .unwrap()
-                    .iter()
-                    .map(|unit| unit.get())
-                    .collect();
-                let other = if separator == Separator::Point {
-                    ','
-                } else {
-                    '.'
-                };
-                assert!(!text.contains(other), "{text}");
-                let ops: Vec<usize> = text
-                    .char_indices()
-                    .filter(|(_, c)| OPERATORS.contains(c))
-                    .map(|(i, _)| i)
-                    .collect();
-                if operators {
-                    assert_eq!(ops.len(), 1, "{text}");
-                    let (left, right) = text.split_at(ops[0]);
-                    assert!(
-                        left.chars().next().is_some_and(|c| c.is_ascii_digit()),
-                        "{text}"
-                    );
-                    assert!(
-                        right.chars().nth(1).is_some_and(|c| c.is_ascii_digit()),
-                        "{text}"
-                    );
-                } else {
-                    assert!(ops.is_empty(), "{text}");
-                    assert!(
-                        text.chars()
-                            .all(|c| c.is_ascii_digit() || c == separator.char())
-                    );
-                }
-            }
-        }
-        // A focus on the separator targets it in either form.
-        let comma = Skill::Unit(TrainingChar::new(',', Layout::Us).unwrap());
-        let options = NumericOptions {
-            operators: false,
-            separator: Separator::Comma,
-        };
-        let text: String = numpad_exercise(
-            &mut PlanRng::seed_from_u64(3),
-            &mut HashSet::new(),
-            Some(comma),
-            options,
-        )
-        .unwrap()
-        .iter()
-        .map(|unit| unit.get())
-        .collect();
-        assert!(text.contains(','), "{text}");
-    }
 
     /// #83: an entry is a string: leading and trailing zeros stay exactly.
     #[test]
@@ -383,29 +223,10 @@ mod tests {
         }
     }
 
-    /// #5: a targeted entry is valid for its track and contains its focus.
+    /// #5: a targeted number-row entry is valid and contains its focus.
     #[test]
-    fn targeted_entries_contain_their_focus_and_stay_valid() {
+    fn targeted_number_row_entries_contain_their_focus() {
         let mut rng = PlanRng::seed_from_u64(7);
-        let mut used = HashSet::new();
-        for focus in ["7", "48", ".", "4.", ".5", "00"] {
-            for _ in 0..40 {
-                let target = numpad_exercise(
-                    &mut rng,
-                    &mut used,
-                    Some(skill(focus)),
-                    NumericOptions::default(),
-                )
-                .unwrap();
-                let text: String = target.iter().map(|unit| unit.get()).collect();
-                assert!(
-                    text.chars().all(|c| c.is_ascii_digit() || c == '.'),
-                    "{text}"
-                );
-                assert!(text.matches('.').count() <= 1, "{text}");
-                assert!(contains_skill(&text, skill(focus)), "{focus} in {text}");
-            }
-        }
         let mut used = HashSet::new();
         for focus in ["3", "48"] {
             for _ in 0..40 {
@@ -416,27 +237,5 @@ mod tests {
                 assert!(contains_skill(run, skill(focus)), "{focus} in {text}");
             }
         }
-    }
-
-    /// #5: the same seed and focus give the same entries.
-    #[test]
-    fn targeted_entries_replay() {
-        let run = |seed| {
-            let mut rng = PlanRng::seed_from_u64(seed);
-            let mut used = HashSet::new();
-            (0..20)
-                .map(|_| {
-                    numpad_exercise(
-                        &mut rng,
-                        &mut used,
-                        Some(skill("48")),
-                        NumericOptions::default(),
-                    )
-                    .unwrap()
-                })
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(run(3), run(3));
-        assert_ne!(run(3), run(4));
     }
 }

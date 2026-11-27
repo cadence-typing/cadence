@@ -240,6 +240,8 @@ pub struct TrainerPolicy {
     pub benchmark: BenchmarkPolicy,
     /// Learner model, focus selection and content rotation (plan 0003).
     pub learning: crate::learning_policy::LearningPolicy,
+    /// Numpad entry families per cycle and operand length (v5, #103).
+    pub keypad: crate::keypad_policy::KeypadPolicy,
     /// Digest of the source TOML bytes (PolicyVersion basis).
     pub source_digest: cadence_core::ContentDigest,
 }
@@ -299,6 +301,7 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
         Some("trainer-v2") => 2,
         Some("trainer-v3") => 3,
         Some("trainer-v4") => 4,
+        Some("trainer-v5") => 5,
         _ => 0,
     };
     if version == 0
@@ -320,6 +323,7 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
     let pace = parse_pace(&document, version)?;
     let benchmark = parse_benchmark(&document)?;
     let learning = crate::learning_policy::parse_learning(&document, version)?;
+    let keypad = crate::keypad_policy::parse_keypad(&document, version)?;
 
     let policy = TrainerPolicy {
         session,
@@ -330,6 +334,7 @@ pub fn parse_policy(bytes: &[u8]) -> Result<TrainerPolicy, PolicyError> {
         pace,
         benchmark,
         learning,
+        keypad,
         source_digest: digest,
     };
     policy.validate()?;

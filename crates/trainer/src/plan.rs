@@ -645,6 +645,14 @@ mod tests;
 mod pace_tests;
 
 #[cfg(test)]
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "test fixtures use small bounded counts; overflow is impossible by construction"
+)]
+#[path = "plan_keypad_tests.rs"]
+mod keypad_tests;
+
+#[cfg(test)]
 mod probe_tests {
     use super::*;
     use cadence_core::benchmark::Due;

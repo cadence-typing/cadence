@@ -21,6 +21,7 @@ pub mod error;
 pub mod evidence;
 pub mod focus;
 pub mod id;
+pub mod keypad;
 pub mod label;
 pub mod lanes;
 pub mod learning;

@@ -16,11 +16,13 @@
 use std::collections::{BTreeMap, HashMap};
 
 use cadence_core::focus::{self, WEIGHT_ONE};
+use cadence_core::keypad;
 use cadence_core::learning::{
     HistoricSession, KeyLane, LearnerHistory, PlannerMode, Skill, SkillKey,
 };
 use cadence_core::{BasisPoints, CoreError, PassageId, TrainingChar, UtcDay, WordId};
 
+use crate::numeric::NumericOptions;
 use crate::policy::TrainerPolicy;
 use crate::review::{DueQueue, ReviewState, is_due, ladder_step};
 
@@ -81,9 +83,6 @@ impl FocusGroup {
 #[must_use]
 pub fn group_of(key: SkillKey) -> Option<FocusGroup> {
     let digit = |unit: TrainingChar| unit.get().is_ascii_digit();
-    // The decimal separator, either one, is a numpad skill of its own (#83).
-    let numpad =
-        |unit: TrainingChar| unit.get().is_ascii_digit() || unit.get() == '.' || unit.get() == ',';
     let all = |test: &dyn Fn(TrainingChar) -> bool| match key.skill {
         Skill::Unit(unit) => test(unit),
         Skill::Bigram(first, second) => test(first) && test(second),
@@ -91,7 +90,11 @@ pub fn group_of(key: SkillKey) -> Option<FocusGroup> {
     match key.lane {
         KeyLane::Main if is_word_skill(key.skill) => Some(FocusGroup::Letters),
         KeyLane::Main if all(&digit) => Some(FocusGroup::Row),
-        KeyLane::Numpad if all(&numpad) => Some(FocusGroup::Numpad),
+        // Every keypad key and every pair some family can serve (#101):
+        // digits, either separator, `+ - * /` (the proved
+        // `keypad::focus_admissible`). Operator skills are filtered out of
+        // the focus when the session serves no operators (`choose_focus`).
+        KeyLane::Numpad if keypad::focus_admissible(key.skill, true) => Some(FocusGroup::Numpad),
         KeyLane::Main | KeyLane::Numpad => None,
     }
 }
@@ -145,7 +148,9 @@ impl LearnerModel {
         }
     }
 
-    /// Builds the model from history ordered oldest first.
+    /// Builds the model from history ordered oldest first. `numeric` says
+    /// whether the session serves operators, so whether operator skills may
+    /// be a numpad focus (#101).
     ///
     /// # Errors
     /// Malformed history days or an inconsistent review ladder.
@@ -153,6 +158,7 @@ impl LearnerModel {
         history: &LearnerHistory,
         policy: &TrainerPolicy,
         today: UtcDay,
+        numeric: NumericOptions,
     ) -> Result<Self, CoreError> {
         let mut model = Self::cold(policy);
         let learning = &policy.learning;
@@ -201,7 +207,7 @@ impl LearnerModel {
             (FocusGroup::Row, learning.row_focus_skill_count),
             (FocusGroup::Numpad, learning.numpad_focus_skill_count),
         ] {
-            let chosen = model.choose_focus(policy, group, count);
+            let chosen = model.choose_focus(policy, group, count, numeric);
             model.focus.extend(chosen.iter().copied());
             model.focus_groups.push((group, chosen));
         }
@@ -327,6 +333,7 @@ impl LearnerModel {
         policy: &TrainerPolicy,
         group: FocusGroup,
         count: usize,
+        numeric: NumericOptions,
     ) -> Vec<SkillKey> {
         let learning = &policy.learning;
         let thresholds = focus::Thresholds {
@@ -340,6 +347,10 @@ impl LearnerModel {
             .skills
             .keys()
             .filter(|key| group_of(**key) == Some(group))
+            .filter(|key| {
+                group != FocusGroup::Numpad
+                    || keypad::focus_admissible(key.skill, numeric.operators)
+            })
             .copied()
             .collect();
         keys.sort();
