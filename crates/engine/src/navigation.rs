@@ -84,6 +84,13 @@ impl crate::Engine {
             pause_reason: self.pause_reason,
             destination: self.navigation.destination,
             help: self.navigation.help,
+            overlay: if self.setup.is_some() {
+                crate::commands::Overlay::Setup
+            } else if self.settings.is_open() {
+                crate::commands::Overlay::Settings
+            } else {
+                crate::commands::Overlay::None
+            },
         }
     }
 

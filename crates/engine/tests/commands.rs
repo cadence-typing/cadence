@@ -52,6 +52,7 @@ fn every_command_is_reachable_by_its_keys() {
                         pause_reason: reason,
                         destination,
                         help,
+                        overlay: cadence_engine::commands::Overlay::None,
                     };
                     for binding in bindings_for(state) {
                         for m in binding.matches {

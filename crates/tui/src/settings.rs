@@ -40,7 +40,8 @@ fn first_row(cursor: usize, visible: usize, total: usize) -> usize {
 /// The settings overlay's title and controls.
 pub const SETTINGS: (&str, &str) = (
     " Settings ",
-    "↑↓ choose · ←→ change · Enter save · r reload · Esc close",
+    // Fits the panel at 60 columns.
+    "↑↓ choose  ←→ change  Enter save  r reload  Esc close",
 );
 /// First-run setup's title and controls (#78).
 pub const SETUP: (&str, &str) = (

@@ -16,6 +16,8 @@ use crate::theme::{Palette, SemanticRole as Role};
 const HELP_COLUMNS: u16 = 64;
 /// The key column in help.
 const KEY_COLUMNS: usize = 16;
+/// Rows a destination's description may gain by wrapping.
+const WRAP_ROWS: u16 = 2;
 /// Rows around the help list: the border, a blank and the closing hint.
 const HELP_CHROME_ROWS: u16 = 4;
 
@@ -105,7 +107,6 @@ pub fn paint(
         ),
         Span::styled("   - shorter · + longer", style(palette, Role::Muted)),
     ]));
-    lines.push(Line::default());
     lines.push(Line::from(vec![
         Span::styled(
             "Enter ",
@@ -113,13 +114,17 @@ pub fn paint(
         ),
         Span::styled(" Start", style(palette, Role::Text)),
     ]));
+    // Room for the description to wrap at narrow widths.
     let height = u16::try_from(lines.len())
         .unwrap_or(u16::MAX)
+        .saturating_add(WRAP_ROWS)
         .min(area.height);
     let [body] = Layout::vertical([Constraint::Length(height)])
         .flex(Flex::Center)
         .areas(area);
-    Paragraph::new(lines).render(body, buffer);
+    Paragraph::new(lines)
+        .wrap(ratatui::widgets::Wrap { trim: false })
+        .render(body, buffer);
 }
 
 /// The help overlay: every binding of the state beneath.

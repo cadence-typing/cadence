@@ -324,6 +324,7 @@ const INVALID: &[Binding] = &[bind(
     "finish with partial evidence",
     Action::FinishInvalid,
 )];
+const SETUP_OPEN: &[Binding] = &[QUIT];
 const HELP_OPEN: &[Binding] = &[bind(
     "Esc / ?",
     &[KeyMatch::Escape, KeyMatch::Char('?')],
@@ -360,11 +361,30 @@ pub struct CommandState {
     pub destination: Destination,
     /// The help overlay is open.
     pub help: bool,
+    /// An overlay that owns its keys is open: first-run setup or settings.
+    pub overlay: Overlay,
+}
+
+/// An overlay that owns its keys (#78, #79): its panel shows its controls,
+/// and the table offers only what passes through it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Overlay {
+    /// None.
+    None,
+    /// First-run setup: q still quits.
+    Setup,
+    /// The settings overlay.
+    Settings,
 }
 
 /// Bindings honoured in `state`, most important first.
 #[must_use]
 pub const fn bindings_for(state: CommandState) -> &'static [Binding] {
+    match state.overlay {
+        Overlay::Setup => return SETUP_OPEN,
+        Overlay::Settings => return &[],
+        Overlay::None => {}
+    }
     if state.help {
         return HELP_OPEN;
     }

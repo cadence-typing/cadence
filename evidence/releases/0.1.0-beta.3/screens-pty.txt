@@ -1,0 +1,416 @@
+===== first-run setup @60x18
+  DAILY PRACTICE                              0.1.0-beta.2
+────────────────────────────────────────────────────────────
+
+
+
+  ┌ Set up Cadence ──────────────────────────────────────┐
+  │› layout            "us"             applies now      │
+  │  numpad            true             applies now      │
+  │  minutes           15               applies now      │
+  │                                                      │
+  │                                                      │
+  │↑↓ choose · ←→ change · Enter start (as shown)        │
+  └──────────────────────────────────────────────────────┘
+
+
+
+ READY  today / baseline               │ 15:00 plan │ local
+ q quit
+===== Today @60x18
+  TODAY   Train   Numpad   Progress           0.1.0-beta.2
+────────────────────────────────────────────────────────────
+
+                          cadence
+              Make room for a little practice.
+           15:00 allocated · practice at your pace
+       ○ warm-up          ○ words         ○ number row
+       ○ numpad           ○ prose           ○ review
+                     UP FIRST · warm-up
+   Settle into an easy rhythm; familiar words are checked.
+         Local history · 0 completed · 0 unfinished
+                   No per-key history yet.
+             Words goal: building your baseline
+                    Enter  Begin session
+
+
+ READY  today / baseline               │ 15:00 plan │ local
+ Enter begin  q quit  ? help  Tab / → next screen
+===== Train @60x18
+  Today   TRAIN   Numpad   Progress           0.1.0-beta.2
+────────────────────────────────────────────────────────────
+
+  Train one track
+  Single-track practice, saved with your history like any
+  session.
+
+  › warm-up
+    words
+    number row
+    numpad
+    prose
+
+  Length 5:00   - shorter · + longer
+  Enter  Start
+
+ READY  today / baseline               │ 15:00 plan │ local
+ Enter start  ↓ next track  ↑ previous track  + longer
+===== Numpad @60x18
+  Today   Train   NUMPAD   Progress           0.1.0-beta.2
+────────────────────────────────────────────────────────────
+
+
+
+
+  Numpad practice
+  Digits and entries on the keypad, with their own
+  history.
+
+  Length 5:00   - shorter · + longer
+  Enter  Start
+
+
+
+
+ READY  today / baseline               │ 15:00 plan │ local
+ Enter start  + longer  - shorter  q quit  ? help
+===== Progress @60x18
+  Today   Train   Numpad   PROGRESS           0.1.0-beta.2
+────────────────────────────────────────────────────────────
+
+  Progress
+  Only sessions on the same layout and content are
+  compared.
+
+  No sessions yet: practise once and your trends start
+  here.
+
+  Due reviews 0
+
+
+
+
+
+ READY  today / baseline               │ 15:00 plan │ local
+ q quit  ? help  Tab / → next screen
+===== settings @60x18
+  TODAY   Train   Numpad   Progress           0.1.0-beta.2
+────────────────────────────────────────────────────────────
+
+  ┌ Settings ────────────────────────────────────────────┐
+  │› minutes           15               next session     │
+  │  tracks            ["warmup", "word edit config.toml │
+  │  emphasis          "balanced"       next session     │
+  │  layout            "us"             next session     │
+  │  numpad            true             next session     │
+  │  decimal_separator "."              next session     │
+  │  accuracy_target   98               next session     │
+  │                                                      │
+  │                                                      │
+  │↑↓ choose  ←→ change  Enter save  r reload  Esc close │
+  └──────────────────────────────────────────────────────┘
+
+ READY  today / baseline               │ 15:00 plan │ local
+
+===== pack session @60x18
+  ● prose  ○ review                           0.1.0-beta.2
+────────────────────────────────────────────────────────────
+
+
+
+
+
+           find src -type f -name "*.rs" | wc -l
+
+
+
+
+
+          Normal text · native scaling unavailable
+                 code-shell · your own text
+
+ TYPE  prose  │ fix 0 │ -- WPM │ acc -- │ 3:44 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+===== pack session review @60x18
+  cadence                                     0.1.0-beta.2
+────────────────────────────────────────────────────────────
+
+     Your own text · not compared with standard practice
+       0:00 active · ended early, saved as unfinished
+  ──────CORRECT SPEED───────    ───FIRST-PASS ACCURACY────
+              —                             —
+
+      WPM · typing tracks          Mistakes stay counted
+  ──────────────────────────    ──────────────────────────
+  Track      Acc     Pace        Fixes vs last time
+  prose      —       — WPM       0     first time
+             No slips on key pairs this session.
+    0 keys recorded · 0 missed words scheduled for review
+                     Enter  Save & exit
+
+ REVIEW  session review               │ 0:00 active │ saved
+ Enter / Esc save & exit
+===== first-run setup @100x32
+  DAILY PRACTICE                                                                      0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+              ┌ Set up Cadence ──────────────────────────────────────────────────────┐
+              │› layout            "us"             applies now                      │
+              │  numpad            true             applies now                      │
+              │  minutes           15               applies now                      │
+              │                                                                      │
+              │                                                                      │
+              │↑↓ choose · ←→ change · Enter start (as shown)                        │
+              └──────────────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ q quit
+===== Today @100x32
+  TODAY   Train   Numpad   Progress                                                   0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+                                              cadence
+
+
+                                  Make room for a little practice.
+                               15:00 allocated · practice at your pace
+
+       ○ warm-up       ○ words      ○ number row     ○ numpad        ○ prose        ○ review
+         1:00           5:00            2:00           3:00           3:00            1:00
+
+                                         UP FIRST · warm-up
+                       Settle into an easy rhythm; familiar words are checked.
+
+                             Local history · 0 completed · 0 unfinished
+                  No per-key history yet: this session teaches Cadence your slips.
+            Words goal: building your baseline   number row goal: building your baseline
+
+                                        Enter  Begin session
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ Enter begin  q quit  ? help  Tab / → next screen  Shift-Tab / ← previous screen  s settings
+===== Train @100x32
+  Today   TRAIN   Numpad   Progress                                                   0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+    Train one track
+    Single-track practice, saved with your history like any session.
+
+    › warm-up
+      words
+      number row
+      numpad
+      prose
+
+    Length 5:00   - shorter · + longer
+    Enter  Start
+
+
+
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ Enter start  ↓ next track  ↑ previous track  + longer  - shorter  q quit  ? help
+===== Numpad @100x32
+  Today   Train   NUMPAD   Progress                                                   0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+    Numpad practice
+    Digits and entries on the keypad, with their own history.
+
+    Length 5:00   - shorter · + longer
+    Enter  Start
+
+
+
+
+
+
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ Enter start  + longer  - shorter  q quit  ? help  Tab / → next screen
+===== Progress @100x32
+  Today   Train   Numpad   PROGRESS                                                   0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Progress
+    Only sessions on the same layout and content are compared.
+
+    No sessions yet: practise once and your trends start here.
+
+    Due reviews 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+ q quit  ? help  Tab / → next screen  Shift-Tab / ← previous screen  s settings  F2 text size (AUTO)
+===== settings @100x32
+  TODAY   Train   Numpad   Progress                                                   0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+              ┌ Settings ────────────────────────────────────────────────────────────┐
+              │› minutes           15               next session                     │
+              │  tracks            ["warmup", "word edit config.toml                 │
+              │  emphasis          "balanced"       next session                     │
+              │  layout            "us"             next session                     │
+              │  numpad            true             next session                     │
+              │  decimal_separator "."              next session                     │
+       ○ warm-│  accuracy_target   98               next session                     │review
+         1:00 │  live_pace         false            applies now                      │1:00
+              │  breadth           "balanced"       next session                     │
+              │  packs             ["standard"]     edit config.toml                 │
+              │  numpad_operators  false            next session                     │
+              │  theme             "dark"           applies now                      │
+              │  text_size         "auto"           applies now                      │
+              │  key_guide         "auto"           applies now                      │
+            Wo│  high_contrast     false            applies now                      │ne
+              │                                                                      │
+              │                                                                      │
+              │↑↓ choose  ←→ change  Enter save  r reload  Esc close                 │
+              └──────────────────────────────────────────────────────────────────────┘
+
+
+
+
+ READY  today / baseline                                                       │ 15:00 plan │ local
+
+===== pack session @100x32
+  ● prose  ○ review                                                                   0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+                               find src -type f -name "*.rs" | wc -l
+
+
+
+
+
+
+
+
+
+
+
+
+                              Normal text · native scaling unavailable
+                                     code-shell · your own text
+
+ TYPE  prose                              │ phase 1/2 │ fix 0 │ -- WPM │ acc -- │ 3:44 left │ saved
+ Esc pause  Ctrl-C end & review  F2 text size (NORMAL*)
+===== pack session review @100x32
+  cadence                                                                             0.1.0-beta.2
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+                         Your own text · not compared with standard practice
+                           0:00 active · ended early, saved as unfinished
+
+    ───────────────CORRECT SPEED────────────────    ────────────FIRST-PASS ACCURACY─────────────
+                         —                                               —
+
+                 WPM · typing tracks                            Mistakes stay counted
+    ────────────────────────────────────────────    ────────────────────────────────────────────
+
+               Track      Acc     Pace        Fixes vs last time        First-pass
+               prose      —       — WPM       0     first time          0/0
+
+                                 No slips on key pairs this session.
+                        0 keys recorded · 0 missed words scheduled for review
+
+                                         Enter  Save & exit
+
+
+
+
+
+
+ REVIEW  session review                                                       │ 0:00 active │ saved
+ Enter / Esc save & exit
